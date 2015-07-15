@@ -3,7 +3,6 @@
 #This script runs UPARSE_REF and then generates some stats
 #written by Jon Palmer palmer.jona at gmail dot com
 
-import sys
 import os
 import argparse
 import subprocess

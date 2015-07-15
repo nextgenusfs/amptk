@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 
-import sys
-import inspect
 import os
+import inspect
 import argparse
 import shutil
 from Bio import SeqIO
-
 import lib.fasta as fasta
 import lib.fastq as fastq
 import lib.primer as primer

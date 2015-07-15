@@ -3,7 +3,6 @@
 #This script runs USEARCH OTU clustering
 #written by Jon Palmer palmer.jona at gmail dot com
 
-import sys
 import os
 import argparse
 import subprocess
