@@ -2,7 +2,7 @@
 ###Fungal ITS Clustering using USEARCH:###
 
 FICUS is a series of scripts to process fungal ITS amplicon data using USEARCH8
-
+---
 ####Processing Ion Torrent Data:####
 
 From the Torrent Server, analyze the data using the `--disable-all-filters` BaseCaller argument.  This will leave the adapters/key/barcode sequence intact.  The data need to be exported as a FASTQ file, or alternatively use a 3rd party tool to convert the BAM output file to FASTQ (i.e. `bedtools bamtofastq -i <BAM> -fq <FASTQ>`).  You can then de-multiplex the data as follows:
