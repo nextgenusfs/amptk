@@ -35,3 +35,7 @@ Now the data from either platform (Ion or Illumina) can be clustered by running 
 `ficus-OTU_cluster.py --out output_250 --maxee 1.0 data.demux.fq`
 >This will run USEARCH8 `-fastq_filter`, then `-derep_fulllength`, then `-sortbysize`, and finally `-cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option.
 
+**Assign Taxonomy:**
+
+Coming soon....
+
