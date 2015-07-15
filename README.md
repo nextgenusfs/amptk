@@ -23,7 +23,8 @@ The data from MiSeq does not contain barcode sequences, but we still need to rem
 
 You will need to run this for each barcode file in your Illumina dataset and then concatenate the demuxed files together.  One way to do this for files in the same folder on UNIX is as follows:
 
-`for file in *.demux.fq; do name=${file%???}; ficus-process_illumina.py $file > $name.demux.fq; done; cat *.deumux.fq > illumina.250.fq`
+`for file in *.demux.fq; do name=${file%???}; ficus-process_illumina.py $file > $name.demux.fq; done`
+`cat *.deumux.fq > illumina.250.fq`
 
 
 **OTU Clustering:**
