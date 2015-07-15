@@ -1,4 +1,4 @@
-# ficus
+# FICUS
 **Fungal ITS Clustering using USEARCH:**
 
 FICUS is a series of scripts to process fungal ITS amplicon data using USEARCH8
@@ -10,7 +10,6 @@ From the Torrent Server, analyze the data using the `--disable-all-filters` Base
 `ficus-process_ion.py --barcodes 1,5,24 data.fastq > data.demux.fq`
 >This will find Ion barcodes (1, 5, and 24) and relabel header with that information.  Next it will find and trim both the forward and reverse primers (default is ITS2 region: fITS7 & ITS4), and then finally will trim or pad with N's to a set length (default: 250 bp).  These options can be customized using: `--fwd_primer`, `--rev_primer`, `--trim_len`, etc.  Type `-h` for all the available options.
 
-
 **Processing Illumina MiSeq PE Data:**
 
 Paired-end MiSeq data is typically delivered already de-multiplexed into separate read files, i.e. barcode1_R1.fastq & barcode1_R2.fastq.  You can merge the PE reads by running the following:
@@ -21,6 +20,7 @@ Paired-end MiSeq data is typically delivered already de-multiplexed into separat
 The data from MiSeq does not contain barcode sequences, but we still need to remove primers and trim/pad to a set length.  You can do that as follows:
 
 `ficus-process_illumina.py BC_1.fq > BC_1.demux.fq`
+>Same as above, all options can be customized: `--fwd_primer`, `rev_primer`, `--trim_len`, etc.  Type `-h` for all the available options.
 
 You will need to run this for each barcode file in your Illumina dataset and then concatenate the demuxed files together.  One way to do this for files in the same folder on UNIX is as follows:
 
