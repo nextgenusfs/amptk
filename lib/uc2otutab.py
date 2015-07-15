@@ -2,9 +2,9 @@
 #script written by Robert Edgar http://drive5.com
 import sys
 import os
-import lib.uc as uc
-import lib.die as die
-import lib.fasta as fasta
+import uc
+import die
+import fasta
 
 if len(sys.argv)<2:
     print "Usage: " + sys.argv[0] + " table.uc > table.otu.txt"
