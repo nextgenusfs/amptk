@@ -40,3 +40,6 @@ Now the data from either platform (Ion or Illumina) can be clustered by running 
 
 Coming soon....
 
+####Dependencies####
+python, biopython, USEARCH8 (exe re-named to usearch8 & in PATH)
+
