@@ -8,8 +8,6 @@ import os
 import argparse
 import subprocess
 import inspect
-from os.path import expanduser
-home = expanduser("~")
 
 #get script path for directory
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -122,14 +120,8 @@ print "------------------------------------------------"
 print bcolors.BLUE + "Converting to OTU table" + bcolors.ENDC
 print "------------------------------------------------"
 otu_table = args.out + '.EE' + args.maxee + '.otu_table.txt'
-try:
-    subprocess.call("uc2otutab.py")
-    uc2tab = "uc2otutab.py"
-    os.system('%s %s %s %s' % (uc2tab, uc_out, '>', otu_table))
-except OSError:
-    print "uc2otutab.py script not found, now searching for it..."
-    uc2tab = find('uc2otutab.py', home)
-    os.system('%s %s %s %s %s' % ('python', uc2tab, uc_out, '>', otu_table))
+uc2tab = script_path + "/lib/uc2otutab.py"
+os.system('%s %s %s %s %s' % ('python', uc2tab, uc_out, '>', otu_table))
 print "------------------------------------------------"
 print bcolors.GREEN + "OTU Clustering Script has Finished Successfully" + bcolors.ENDC
 print "------------------------------------------------"
