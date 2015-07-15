@@ -26,7 +26,7 @@ You will need to run this for each barcode file in your Illumina dataset and the
 
 ```
 for file in *.demux.fq; do name=${file%???}; ficus-process_illumina.py $file > $name.demux.fq; done
-cat *.deumux.fq > illumina.250.fq
+cat *.demux.fq > illumina.250.fq
 ```
 
 **OTU Clustering:**
@@ -34,7 +34,7 @@ cat *.deumux.fq > illumina.250.fq
 Now the data from either platform (Ion or Illumina) can be clustered by running the following:
 
 `ficus-OTU_cluster.py --out output_250 --maxee 1.0 data.demux.fq`
->This will run USEARCH8 `-fastq_filter`, then `-derep_fulllength`, then `-sortbysize`, and finally `-cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option.
+>This will run USEARCH8 `-fastq_filter`, then `-derep_fulllength`, then `-sortbysize`, and finally `-cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Type `-h` for all the available options.
 
 **Assign Taxonomy:**
 
