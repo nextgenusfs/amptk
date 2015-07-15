@@ -39,7 +39,7 @@ parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
 parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent")
 parser.add_argument('--uchime_ref', default='False', choices=['ITS1','ITS2','Full'], help='Run UCHIME REF')
 parser.add_argument('--keep_singletons', action='store_true', help='Keep singletons before clustering')
-parser.add_argument('--map_filtered_reads', action='store_true', help='map quality trimmed reads back to OTUs')
+parser.add_argument('--map_unfiltered', action='store_true', help='map original reads back to OTUs')
 args=parser.parse_args()
 
 usearch = "usearch8"
@@ -109,10 +109,10 @@ print "------------------------------------------------"
 print bcolors.BLUE + "Mapping Reads to OTUs with usearch_global" + bcolors.ENDC
 print "------------------------------------------------"
 uc_out = args.out + '.EE' + args.maxee + '.mapping.uc'
-if args.map_filtered_reads:
-    reads = filter_out
+if args.map_unfiltered:
+    reads = args.fasta
 else:
-    reads = args.fastq
+    reads = filter_out
 os.system('%s %s %s %s %s %s %s' % (usearch, '-usearch_global', reads, '-strand plus -id 0.97 -db', uchime_out, '-uc', uc_out))
 #Build OTU table
 print "------------------------------------------------"
