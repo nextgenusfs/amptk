@@ -11,21 +11,21 @@ From the Torrent Server, analyze the data using the `--disable-all-filters` Base
 
 This will find Ion barcodes (1, 5, and 24) and relabel header with that information.  Next it will find and trim both the forward and reverse primers (default is ITS2 region: fITS7 & ITS4), and then finally will trim or pad with N's to a set length (default: 250 bp).  These options can be customized using: `--fwd_primer`, `--rev_primer`, `--trim_len`, etc.  Type `-h` for all the available options.
 
-Now you can cluster the data into OTUs by doing the following:
-
-`ficus-OTU_cluster.py --out output_250 --maxee 1.0 data.demux.fq`
-
-This will run USEARCH8 `-fastq_filter`, then `-derep_fulllength`, then `-sortbysize`, and finally `-cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option.
-
 Processing Illumina MiSeq PE Data:
 
 Paired-end MiSeq data is typically delivered already de-multiplexed into separate read files, i.e. barcode1_R1.fastq & barcode1_R2.fastq.  You can merge the PE reads by running the following:
 
 `ficus-merge_illumina.py --out BC_1 barcode1_R1.fastq barcode1_R2.fastq`
 
-This will run USEARCH8 `-fastq_mergepairs`, then run `fastq_join` on the sequences that do not overlap, and finally concatenate the results together to give you a single FASTQ file, BC_1.fq.  This script can also handle .gz FASTQ files as input.
+This will run USEARCH8 `-fastq_mergepairs`, then run `-fastq_join` on the sequences that do not overlap, and finally concatenate the results together to give you a single FASTQ file, BC_1.fq.  This script can also handle .gz FASTQ files as input.
 
 The data from MiSeq does not contain barcode sequences, but we still need to remove primers and trim/pad to a set length.  You can do that as follows:
 
 `ficus-process_illumina.py BC_1.fq > BC_1.demux.fq`
+
+Now the data from either platform (Ion or Illumina) can be clustered by running the following:
+
+`ficus-OTU_cluster.py --out output_250 --maxee 1.0 data.demux.fq`
+
+This will run USEARCH8 `-fastq_filter`, then `-derep_fulllength`, then `-sortbysize`, and finally `-cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option.
 
