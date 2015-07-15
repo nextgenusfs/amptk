@@ -9,7 +9,7 @@ From the Torrent Server, analyze the data using the `--disable-all-filters` Base
 
 `ficus-process_ion.py --barcodes 1,5,24 data.fastq > data.demux.fq`
 
-This will find Ion barcodes (1, 5, and 24) and relabel header with that information.  Next it will find and trim both the forward and reverse primers (default is ITS2 region: fITS7 & ITS4), and then finally will trim or pad with N's to a set length (default: 250 bp).  These options can be customized using: `--fwd_primer`, `--rev_primer`, `--trim_len`, etc.  Type `-h` for all the available options.
+>This will find Ion barcodes (1, 5, and 24) and relabel header with that information.  Next it will find and trim both the forward and reverse primers (default is ITS2 region: fITS7 & ITS4), and then finally will trim or pad with N's to a set length (default: 250 bp).  These options can be customized using: `--fwd_primer`, `--rev_primer`, `--trim_len`, etc.  Type `-h` for all the available options.
 
 **Processing Illumina MiSeq PE Data:**
 
@@ -29,5 +29,5 @@ Now the data from either platform (Ion or Illumina) can be clustered by running 
 
 `ficus-OTU_cluster.py --out output_250 --maxee 1.0 data.demux.fq`
 
-This will run USEARCH8 `-fastq_filter`, then `-derep_fulllength`, then `-sortbysize`, and finally `-cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option.
+>This will run USEARCH8 `-fastq_filter`, then `-derep_fulllength`, then `-sortbysize`, and finally `-cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option.
 
