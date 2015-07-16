@@ -10,7 +10,7 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
 
-parser=argparse.ArgumentParser(prog='ficus-merge_illumina.py', usage="%(prog)s [options] file_R1.fastq file_R2.fastq",
+parser=argparse.ArgumentParser(prog='ufits-merge_illumina.py', usage="%(prog)s [options] file_R1.fastq file_R2.fastq",
     description='''Wrapper script for USEARCH8 to merge Illumina PE reads.  Gzip files supported.''',
     epilog="""Written by Jon Palmer (2015) palmer.jona@gmail.com""",
     formatter_class=MyFormatter)
