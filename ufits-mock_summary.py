@@ -24,7 +24,7 @@ def find(name, path):
         if name in files:
             return os.path.join(root, name)           
 
-parser=argparse.ArgumentParser(prog='ficus-uparse_ref_summary.py',
+parser=argparse.ArgumentParser(prog='ufits-uparse_ref_summary.py',
     description='''Script runs uparse_ref and then generates counts from the output per each member of mock community. ''',
     epilog="""Written by Jon Palmer (2015)  palmer.jona@gmail.com""",
     formatter_class=MyFormatter)
