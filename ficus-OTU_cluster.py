@@ -11,21 +11,9 @@ import inspect
 #get script path for directory
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
-class bcolors:
-    GREEN = '\033[92m'
-    BLUE = '\033[36m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
-
-def find(name, path):
-    for root, dirs, files in os.walk(path):
-        if name in files:
-            return os.path.join(root, name)           
 
 parser=argparse.ArgumentParser(prog='ficus-OTU_cluster.py',
     description='''Script runs UPARSE OTU clustering. 
@@ -33,68 +21,56 @@ parser=argparse.ArgumentParser(prog='ficus-OTU_cluster.py',
     epilog="""Written by Jon Palmer (2015)  palmer.jona@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('fastq', help='FASTQ file from fastq_strip_relabel.py')
+parser.add_argument('fastq', help='FASTQ file from ficus-process.py')
 parser.add_argument('-o','--out', default='out', help='Base output name')
 parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
 parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent")
+parser.add_argument('-m','--minsize', default='2', help='Min size to keep for clustering')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 parser.add_argument('--uchime_ref', default='False', choices=['ITS1','ITS2','Full'], help='Run UCHIME REF')
-parser.add_argument('--keep_singletons', action='store_true', help='Keep singletons before clustering')
 parser.add_argument('--map_unfiltered', action='store_true', help='map original reads back to OTUs')
+
 args=parser.parse_args()
 
-usearch = "usearch8"
+#open log file for usearch8 stderr redirect
+log_name = args.out + '.log'
+if os.path.isfile(log_name):
+    os.remove(log_name)
+log_file = open(log_name, 'ab')
+
+usearch = args.usearch
 try:
-    print "------------------------------------------------"
-    print bcolors.BLUE + "Looking for USEARCH8 in your PATH:" + bcolors.ENDC
-    subprocess.call([usearch, '--version'])
-    print "------------------------------------------------"
+    subprocess.call([usearch, '--version'], stdout = log_file, stderr = log_file)
 except OSError:
-    print + bcolors.FAIL + "%s not found in your PATH" % usearch + bcolors.ENDC
-    usearch = raw_input("Enter full path to USEARCH or type exit to quit: ")
-    
-if usearch == "exit":
+    print "%s not found in your PATH, exiting." % usearch 
     os._exit(1)
-    
+        
 #now run usearch8 fastq filtering step
-print bcolors.BLUE + "Running FASTQ Filtering" + bcolors.ENDC
-print "------------------------------------------------"
 filter_out = args.out + '.EE' + args.maxee + '.filter.fq'
-os.system('%s %s %s %s %s %s %s' % (usearch, '-fastq_filter', args.fastq, '-fastq_maxee', args.maxee, '-fastqout', filter_out))
+print "\nCMD: %s -fastq_filter %s -fastq_maxee %s -fastqout %s\n" % (usearch, args.fastq, args.maxee, filter_out)
+subprocess.call([usearch, '-fastq_filter', args.fastq, '-fastq_maxee', args.maxee, '-fastqout', filter_out], stdout = log_file, stderr = log_file)
 
 #now run usearch8 full length dereplication
-print "------------------------------------------------"
-print bcolors.BLUE + "Running Dereplication" + bcolors.ENDC
-print "------------------------------------------------"
 derep_out = args.out + '.EE' + args.maxee + '.derep.fa'
-os.system('%s %s %s %s %s %s' % (usearch, '-derep_fulllength', filter_out, '-sizeout', '-fastaout', derep_out))
+print "CMD: %s -derep_fulllength %s -sizeout -fastaout %s\n" % (usearch, filter_out, derep_out)
+subprocess.call([usearch, '-derep_fulllength', filter_out, '-sizeout', '-fastaout', derep_out], stdout = log_file, stderr = log_file)
 
 #now run usearch 8 sort by size
-print "------------------------------------------------"
-print bcolors.BLUE + "Running SortBySize" + bcolors.ENDC
-print "------------------------------------------------"
 sort_out = args.out + '.EE' + args.maxee + '.sort.fa'
-if args.keep_singletons:
-    singletons = "1"
-else:
-    singletons = "2"
-os.system('%s %s %s %s %s %s %s' % (usearch, '-sortbysize', derep_out, '-minsize', singletons, '-fastaout', sort_out))
+print "CMD: %s -sortbysize %s -minsize %s -fastaout %s\n" % (usearch, derep_out, args.minsize, sort_out)
+subprocess.call([usearch, '-sortbysize', derep_out, '-minsize', args.minsize, '-fastaout', sort_out], stdout = log_file, stderr = log_file)
 
 #now run clustering algorithm
 radius = str(100 - int(args.pct_otu))
-print "------------------------------------------------"
-print bcolors.BLUE + "Running UPARSE Clustering at %s percent" % (args.pct_otu) + bcolors.ENDC
-print "------------------------------------------------"
 otu_out = args.out + '.EE' + args.maxee + '.otus.fa'
-os.system('%s %s %s %s %s %s %s %s' % (usearch, '-cluster_otus', sort_out, '-sizein -sizeout -relabel OTU_', '-otu_radius_pct', radius, '-otus', otu_out))
+print "CMD: %s -cluster_otus %s -sizein -sizeout -relabel OTU_ -otu_radius_pct %s -otus %s\n" % (usearch, sort_out, radius, otu_out)
+subprocess.call([usearch, '-cluster_otus', sort_out, '-sizein', '-sizeout', '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout = log_file, stderr = log_file)
 
 #optional UCHIME Ref 
 if args.uchime_ref == "False":
     uchime_out = otu_out
 else:
-    print "------------------------------------------------"
-    print bcolors.BLUE + "Running UCHIME-Ref" + bcolors.ENDC
-    print "------------------------------------------------"
-    uchime_out = args.out + '.EE' + args.maxee + '.uchime.fa'
+    uchime_out = args.out + '.EE' + args.maxee + '.uchime.otus.fa'
     #You might need to update these in the future, but leaving data and version in name so it is obvious where they came from
     if args.uchime_ref == "ITS1":
         uchime_db = script_path + "/lib/uchime_sh_refs_dynamic_develop_985_11.03.2015.ITS1.fasta"
@@ -102,25 +78,33 @@ else:
         uchime_db = script_path + "/lib/uchime_sh_refs_dynamic_develop_985_11.03.2015.ITS2.fasta"
     if args.uchime_ref == "Full":
         uchime_db = script_path + "/lib/uchime_sh_refs_dynamic_original_985_11.03.2015.fasta"
-    os.system('%s %s %s %s %s %s %s' % (usearch, '-uchime_ref', otu_out, '-strand plus -db', uchime_db, '-nonchimeras', uchime_out))
+    print "CMD: %s -uchime_ref %s -strand plus -db %s -nonchimeras %s\n" % (usearch, otu_out, uchime_db, uchime_out)
+    subprocess.call([usearch, '-uchime_ref', otu_out, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out], stdout = log_file, stderr = log_file)
     
 #now map reads back to OTUs
-print "------------------------------------------------"
-print bcolors.BLUE + "Mapping Reads to OTUs with usearch_global" + bcolors.ENDC
-print "------------------------------------------------"
 uc_out = args.out + '.EE' + args.maxee + '.mapping.uc'
 if args.map_unfiltered:
-    reads = args.fasta
+    reads = args.fastq
 else:
     reads = filter_out
-os.system('%s %s %s %s %s %s %s' % (usearch, '-usearch_global', reads, '-strand plus -id 0.97 -db', uchime_out, '-uc', uc_out))
+print "CMD: %s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s\n" % (usearch, reads, uchime_out, uc_out)
+subprocess.call([usearch, '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out], stdout = log_file, stderr = log_file)
 #Build OTU table
-print "------------------------------------------------"
-print bcolors.BLUE + "Converting to OTU table" + bcolors.ENDC
-print "------------------------------------------------"
 otu_table = args.out + '.EE' + args.maxee + '.otu_table.txt'
 uc2tab = script_path + "/lib/uc2otutab.py"
+print "CMD: python %s %s > %s" % (uc2tab, uc_out, otu_table)
 os.system('%s %s %s %s %s' % ('python', uc2tab, uc_out, '>', otu_table))
+print "\n------------------------------------------------"
+print "OTU Clustering Script has Finished Successfully"
 print "------------------------------------------------"
-print bcolors.GREEN + "OTU Clustering Script has Finished Successfully" + bcolors.ENDC
+print ("Input FASTQ:           %s" % (args.fastq))
+print ("Filtered FASTQ:        %s" % (filter_out))
+print ("Dereplicated FASTA:    %s" % (derep_out))
+print ("Sorted FASTA:          %s" % (sort_out))
+print ("Clustered OTUs:        %s" % (otu_out))
+if args.uchime_ref != "False":
+    print ("Chimera Filtered OTUs: %s" % (uchime_out))
+print ("UCLUST Mapping file:   %s" % (uc_out))
+print ("OTU Table:             %s" % (otu_table))
+print ("USEARCH LogFile:       %s" % (log_name))
 print "------------------------------------------------"

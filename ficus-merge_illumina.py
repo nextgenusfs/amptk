@@ -5,15 +5,7 @@ import argparse
 import shutil
 import subprocess
 import gzip
-import os.path
-
-class bcolors:
-    GREEN = '\033[92m'
-    BLUE = '\033[36m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-
+    
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
@@ -26,12 +18,21 @@ parser=argparse.ArgumentParser(prog='ficus-merge_illumina.py', usage="%(prog)s [
 parser.add_argument('fastq_forward_reads', help='FASTQ R1 file')
 parser.add_argument('fastq_reverse_reads', help='FASTQ R2 file')
 parser.add_argument('-o','--out_prefix', dest="out", default='out', help='BaseName for output files')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()
 
+#open log file for usearch8 stderr redirect
+log_name = args.out + '.log'
+if os.path.isfile(log_name):
+    os.remove(log_name)
+log_file = open(log_name, 'ab')
+
+#check extension and decompress if ending in .gz
 extension = os.path.splitext(args.fastq_forward_reads)[1]
 f1_name = os.path.splitext(args.fastq_forward_reads)[0]
 f2_name = os.path.splitext(args.fastq_reverse_reads)[0]
 if extension == ".gz":
+    print "\nExtracting compressed input files"
     R1_file = gzip.open(args.fastq_forward_reads, 'rb')
     forward = R1_file.read()
     R1_file.close()
@@ -50,46 +51,40 @@ else:
     for_reads = args.fastq_forward_reads
     rev_reads = args.fastq_reverse_reads
 
-usearch = "usearch8"
+usearch = args.usearch
 try:
-    print "------------------------------------------------"
-    print bcolors.BLUE + "Looking for USEARCH8 in your PATH:" + bcolors.ENDC
-    subprocess.call([usearch, '--version'])
-    print "------------------------------------------------"
+    subprocess.call([usearch, '--version'], stdout = log_file, stderr = log_file)
 except OSError:
-    print + bcolors.FAIL + "%s not found in your PATH" % usearch + bcolors.ENDC
-    usearch = raw_input("Enter full path to USEARCH or type exit to quit: ")
-    
-if usearch == "exit":
+    print "%s not found in your PATH, exiting." % usearch 
     os._exit(1)
     
 #First run USEARCH8 mergepe
-print bcolors.BLUE + "Running USEARCH fastq_mergepairs" + bcolors.ENDC
-print "------------------------------------------------"
 merge_out = args.out + 'merged.fq'
 skip_for = args.out + 'notmerged.R1.fq'
 skip_rev = args.out + 'notmerged.R2.fq'
-os.system('%s %s %s %s %s %s %s %s %s %s %s' % (usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastqout_notmerged_rev', skip_rev))
+print "\nCMD: %s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastqout_notmerged_rev %s\n" % (usearch, for_reads, rev_reads, merge_out, skip_for, skip_rev)
+subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastqout_notmerged_rev', skip_rev], stdout = log_file, stderr = log_file)
 
 #now join the not merged PE files
-print "------------------------------------------------"
-print bcolors.BLUE + "Running USEARCH fastq_join" + bcolors.ENDC
-print "------------------------------------------------"
 join_out = args.out + 'join.fq'
-os.system('%s %s %s %s %s %s %s' % (usearch, '-fastq_join', skip_for, '-reverse', skip_rev, '-fastqout', join_out))
+print "CMD: %s -fastq_join %s -reverse %s -fastqout %s\n" % (usearch, skip_for, skip_rev, join_out)
+subprocess.call([usearch, '-fastq_join', skip_for, '-reverse', skip_rev, '-fastqout', join_out], stdout = log_file, stderr = log_file)
 
 #now concatenate files for downstream pre-process_illumina.py script
+print "Concatenating output files\n"
 final_out = args.out + '.fq'
 out_file = open(final_out, 'wb')
 shutil.copyfileobj(open(merge_out,'rb'), out_file)
 shutil.copyfileobj(open(join_out,'rb'), out_file)
 out_file.close()
 
-#clean up intermediate files
+#clean and close up intermediate files
+log_file.close()
 os.remove(merge_out)
 os.remove(skip_for)
 os.remove(skip_rev)
 os.remove(join_out)
 print "------------------------------------------------"
-print bcolors.GREEN + "Script finished successfully!" + bcolors.ENDC
+print "Script Finished Successfully!"
 print "------------------------------------------------"
+print "Merged/Joined FASTQ output:  %s\n" % (final_out)
