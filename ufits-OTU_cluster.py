@@ -15,13 +15,13 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
 
-parser=argparse.ArgumentParser(prog='ficus-OTU_cluster.py',
+parser=argparse.ArgumentParser(prog='ufits-OTU_cluster.py',
     description='''Script runs UPARSE OTU clustering. 
-    Requires USEARCH and uc2otutab.py by Robert Edgar: http://drive5.com''',
+    Requires USEARCH by Robert Edgar: http://drive5.com/usearch''',
     epilog="""Written by Jon Palmer (2015)  palmer.jona@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('fastq', help='FASTQ file from ficus-process.py')
+parser.add_argument('fastq', help='FASTQ file from ufits-process.py')
 parser.add_argument('-o','--out', default='out', help='Base output name')
 parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
 parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent")
