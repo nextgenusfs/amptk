@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import os
 import inspect
 import argparse
@@ -47,6 +48,8 @@ TrimLen = int(args.trim_len)
 
 #get barcode list
 barcode_file = "barcodes_used.fa"
+if os.path.isfile(barcode_file):
+    os.remove(barcode_file)
 if args.barcodes == "all":
     shutil.copyfile(pgm_barcodes, barcode_file)
 else:

@@ -15,8 +15,8 @@ parser=argparse.ArgumentParser(prog='ufits-merge_illumina.py', usage="%(prog)s [
     epilog="""Written by Jon Palmer (2015) palmer.jona@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('fastq_forward_reads', help='FASTQ R1 file')
-parser.add_argument('fastq_reverse_reads', help='FASTQ R2 file')
+parser.add_argument('-f','--for', dest='fastq_forward_reads', required=True, help='FASTQ R1 file')
+parser.add_argument('-r','--rev', dest='fastq_reverse_reads', required=True, help='FASTQ R2 file')
 parser.add_argument('-o','--out_prefix', dest="out", default='out', help='BaseName for output files')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()
@@ -62,12 +62,12 @@ except OSError:
 merge_out = args.out + 'merged.fq'
 skip_for = args.out + 'notmerged.R1.fq'
 skip_rev = args.out + 'notmerged.R2.fq'
-print "\nCMD: %s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastqout_notmerged_rev %s\n" % (usearch, for_reads, rev_reads, merge_out, skip_for, skip_rev)
+print "\nCMD: Merging Overlapping Pairs\n%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastqout_notmerged_rev %s\n" % (usearch, for_reads, rev_reads, merge_out, skip_for, skip_rev)
 subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastqout_notmerged_rev', skip_rev], stdout = log_file, stderr = log_file)
 
 #now join the not merged PE files
 join_out = args.out + 'join.fq'
-print "CMD: %s -fastq_join %s -reverse %s -fastqout %s\n" % (usearch, skip_for, skip_rev, join_out)
+print "CMD: Joining Pairs\n%s -fastq_join %s -reverse %s -fastqout %s\n" % (usearch, skip_for, skip_rev, join_out)
 subprocess.call([usearch, '-fastq_join', skip_for, '-reverse', skip_rev, '-fastqout', join_out], stdout = log_file, stderr = log_file)
 
 #now concatenate files for downstream pre-process_illumina.py script
