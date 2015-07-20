@@ -41,6 +41,11 @@ An example of a run with EE=0.5, UCHIME ITS2 filtering, and mock community with 
 
 ####OTU Table Filtering####
 
+The data may need some additional filtering done if you were using a mock community.  The advantage is that you know what should be in the spike-in control barcode sample, thus you can modify USEARCH8 clustering parameters that give you reasonable results.  If you need to trim your OTU table by some threshold, i.e. several OTUs at low abundance are showing up in your spike-in control sample that represent contamination or sequence error - you can set a threshold and filter the OTU table. This is done with the following script:
+
+`ufits-mock_filter.py --trim_data -i test.otu_table.txt -b BC_27`
+>This script will read the OTU table `-i`, count the number of OTUs in the barcode specified by the `-b` parameter and give you some basic stats to STDOUT.  It will then ask for a value to threshold trim the data, if you would type in a value of 2, then 2 will be subtracted from every column and a new OTU table will be saved to file ending in `.filtered.out_table.txt` as well as a new OTU fasta file `filtered.otus.fa`.
+
 
 ####Assign Taxonomy:####
 
