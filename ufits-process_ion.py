@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import re
 import os
 import inspect
 import argparse
@@ -46,8 +47,12 @@ SampleLabel = args.multi
 MinLen = int(args.min_len)
 TrimLen = int(args.trim_len)
 
+#get base name of input file
+base = args.fastq.split(".")
+base = base[0]
+
 #get barcode list
-barcode_file = "barcodes_used.fa"
+barcode_file = base + ".barcodes_used.fa"
 if os.path.isfile(barcode_file):
     os.remove(barcode_file)
 if args.barcodes == "all":

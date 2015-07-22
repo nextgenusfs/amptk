@@ -6,6 +6,7 @@
 import os
 import argparse
 import inspect
+import subprocess
 import csv
 import re
 from Bio import SeqIO
@@ -28,7 +29,9 @@ parser.add_argument('-i','--otu_table', required=True, help='Input OTU table')
 parser.add_argument('-b','--mock_barcode', required=True, help='Barocde of Mock community')
 parser.add_argument('-mc', dest="mock_community",default='ufits_mock3.fa', help='Multi-FASTA mock community')
 parser.add_argument('--trim_data', action="store_true", help='Threshold Trim Data')
+
 args=parser.parse_args()
+
 
 def try_int(x):
     try:
@@ -101,7 +104,11 @@ print "Total OTUs in Mock:  %i" % (mock_ref_count)
 print "Total OTUs in %s:  %i" % (args.mock_barcode, num_otus)
 print "\nReal Mock OTUs found:  %i" % (mock_found)
 good_otu = sorted(good_otu, key=int)
-print "Range of counts from Real OTUs:  %i - %i" % (good_otu[-1], good_otu[0])
+try:
+    print "Range of counts from Real OTUs:  %i - %i" % (good_otu[-1], good_otu[0])
+except IndexError:
+    print "\nThere does not appear to be Mock OTUs mapped in this table, run `ufits-OTU_cluster.py with the --mock parameter to generate a compatible OTU table.\n"
+    os._exit(1)
 print "Lowest counts from Real OTUs:  %i, %i, %i" % (good_otu[0], good_otu[1], good_otu[2])
 print "\nSpurious OTUs found:  %i" % (spurious)
 if spurious != 0:
@@ -114,7 +121,6 @@ if spurious != 0:
     if spurious == 1:
         print "Highest count from Spurious OTUs:  %i" % (bad_otu[0])
 
-
 if args.trim_data:
         threshold = raw_input("\nEnter threshold value to trim data:  ")
         num = int(threshold)
@@ -123,7 +129,7 @@ if args.trim_data:
         keys = []
         trim_table = []
         line_count = 0
-        out_name = base + '.filtered.otu_table.txt'
+        out_name = base + '.filtered_' + threshold + '.otu_table.txt'
         file_out = open(out_name, "wb")
         f2 = csv.reader(open(args.otu_table), delimiter='\t')
         for line in f2:
@@ -140,7 +146,7 @@ if args.trim_data:
         file_out.close()
         #now lets write an updated OTU fasta file
         fasta_in = base + '.mock.otus.fa'
-        fasta_out = base + '.filtered.otus.fa'
+        fasta_out = base + '.filtered_' + threshold + '.otus.fa'
         seqs_seen = []
         count = 0
         for record in SeqIO.parse(open(fasta_in, "rU"), "fasta"):
@@ -151,7 +157,3 @@ if args.trim_data:
         SeqIO.write(seqs_seen, fasta_update, "fasta")
         fasta_update.close()
         print "\nOTU table has been filtered to %i:\nOriginal OTUs: %i\nFiltered OTUs: %i" % (num, line_count, count)
-        
-
-
-    
