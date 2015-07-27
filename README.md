@@ -50,6 +50,7 @@ The data may need some additional filtering if you included a spike-in control m
 ####Assign Taxonomy:####
 
 Coming soon....
+UTAX, RDP, BLAST
 
 ####Dependencies####
 python, biopython, USEARCH8 (accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8).
