@@ -8,7 +8,6 @@ import argparse
 import inspect
 import subprocess
 import csv
-import re
 from Bio import SeqIO
 
 #get script path for directory
@@ -31,7 +30,6 @@ parser.add_argument('-mc', dest="mock_community",default='ufits_mock3.fa', help=
 parser.add_argument('--trim_data', action="store_true", help='Threshold Trim Data')
 
 args=parser.parse_args()
-
 
 def try_int(x):
     try:
@@ -57,7 +55,8 @@ if check == 0:
     os.exit(1)
 
 #get base name of files
-base = re.sub('.otu_table.txt', '', args.otu_table)
+base = args.otu_table.split(".")
+base = base[0]
 
 #get default mock community value
 if args.mock_community == "ufits_mock3.fa":
@@ -138,22 +137,27 @@ if args.trim_data:
         for line in new_table:
             sub_table.append([try_subtract(x,num) for x in line]) #subtract threshold
         for line in sub_table:
-            if max(line[1:-1]) >= 1:
+            max_left = max(line[1:])
+            if max_left >= 1:
                 trim_table.append(line) #get rid of OTUs with only zeros
                 keys.append(line[0])
         writer = csv.writer(file_out, delimiter='\t')
         writer.writerows(trim_table)
         file_out.close()
+        
+        #get new count of lines
+        num_lines = sum(1 for line in open(out_name)) - 1
         #now lets write an updated OTU fasta file
         fasta_in = base + '.mock.otus.fa'
         fasta_out = base + '.filtered_' + threshold + '.otus.fa'
         seqs_seen = []
-        count = 0
-        for record in SeqIO.parse(open(fasta_in, "rU"), "fasta"):
-            if record.id in keys:
-                count = count + 1
-                seqs_seen.append(record)
-        fasta_update = open(fasta_out, "w")
-        SeqIO.write(seqs_seen, fasta_update, "fasta")
-        fasta_update.close()
-        print "\nOTU table has been filtered to %i:\nOriginal OTUs: %i\nFiltered OTUs: %i" % (num, line_count, count)
+        try:
+            for record in SeqIO.parse(open(fasta_in, "rU"), "fasta"):
+                if record.id in keys:
+                    seqs_seen.append(record)
+            fasta_update = open(fasta_out, "w")
+            SeqIO.write(seqs_seen, fasta_update, "fasta")
+            fasta_update.close()
+        except IOError:
+            print "\nFasta file %s was not found, skipping writing fasta" % fasta_in
+        print "\nOTU table has been filtered to %i:\nOriginal OTUs: %i\nFiltered OTUs: %i" % (num, line_count, num_lines)
