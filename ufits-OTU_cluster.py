@@ -28,9 +28,10 @@ parser.add_argument('-o','--out', default='out', help='Base output name')
 parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
 parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent")
 parser.add_argument('-m','--minsize', default='2', help='Min size to keep for clustering')
+parser.add_argument('-l','--length', default='250', help='Length to trim reads')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
-parser.add_argument('--mock', default="False", help='Spike-in control: barcode label')
-parser.add_argument('-mc', default='ufits_mock3.fa', help='Multi-Fasta Mock Community')
+parser.add_argument('--mock', default="False", help='Spike-in control: <barcode label>')
+parser.add_argument('--mc', default='ufits_mock3.fa', help='Multi-Fasta Mock Community')
 parser.add_argument('--uchime_ref', default='False', choices=['ITS1','ITS2','Full'], help='Run UCHIME REF')
 parser.add_argument('--map_unfiltered', action='store_true', help='map original reads back to OTUs')
 
@@ -48,11 +49,11 @@ try:
 except OSError:
     print "%s not found in your PATH, exiting." % usearch 
     os._exit(1)
-        
+
 #now run usearch8 fastq filtering step
 filter_out = args.out + '.EE' + args.maxee + '.filter.fq'
-print "\nCMD: Quality Filtering\n%s -fastq_filter %s -fastq_maxee %s -fastqout %s\n" % (usearch, args.FASTQ, args.maxee, filter_out)
-subprocess.call([usearch, '-fastq_filter', args.FASTQ, '-fastq_maxee', args.maxee, '-fastqout', filter_out], stdout = log_file, stderr = log_file)
+print "\nCMD: Quality Filtering\n%s -fastq_filter %s -fastq_trunclen %s -fastq_maxee %s -fastqout %s\n" % (usearch, args.FASTQ, args.length, args.maxee, filter_out)
+subprocess.call([usearch, '-fastq_filter', args.FASTQ, '-fastq_trunclen', args.length, '-fastq_maxee', args.maxee, '-fastqout', filter_out], stdout = log_file, stderr = log_file)
 
 #now run usearch8 full length dereplication
 derep_out = args.out + '.EE' + args.maxee + '.derep.fa'
@@ -175,7 +176,9 @@ if args.mock != "False":
             if not "pident" in row[0]:
                 bad_otu.append(int(row[1]))
     spurious = num_otus - mock_found
-    print "\nSummarizing data for %s" % (args.out)
+    total_good_reads = sum(good_otu)
+    print "\n------------------------------------------"
+    print "Summarizing data for %s, Length: %s bp, Quality Trimming: EE %s, " % (args.out, args.length, args.maxee)
     print "------------------------------------------"
     print "Total OTUs in Mock:  %i" % (mock_ref_count)
     print "Total OTUs in %s:  %i" % (args.mock, num_otus)
@@ -183,9 +186,12 @@ if args.mock != "False":
     good_otu = sorted(good_otu, key=int)
     print "Range of counts from Real OTUs:  %i - %i" % (good_otu[-1], good_otu[0])
     print "Lowest counts from Real OTUs:  %i, %i, %i" % (good_otu[0], good_otu[1], good_otu[2])
+    print "Total number of reads in Real OTUs: %s" % (total_good_reads)
+
     print "\nSpurious OTUs found:  %i" % (spurious)
     if spurious != 0:
         bad_otu = sorted(bad_otu, key=int, reverse=True)
+        total_bad_reads = sum(bad_otu)
         print "Range of counts from Spurious OTUs:  %i - %i" % (bad_otu[0], bad_otu[-1])
         if spurious >= 3:
             print "Highest counts from Spurious OTUs:  %i, %i, %i" % (bad_otu[0], bad_otu[1], bad_otu[2])
@@ -193,6 +199,7 @@ if args.mock != "False":
             print "Highest counts from Spurious OTUs:  %i, %i" % (bad_otu[0], bad_otu[1])
         if spurious == 1:
             print "Highest count from Spurious OTUs:  %i" % (bad_otu[0])
+        print "Total number of reads in Spurious OTUs: %s" % (total_bad_reads)
     os.remove(map_out_name)
     os.remove(mock_out)
 
