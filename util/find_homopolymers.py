@@ -10,22 +10,30 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
 
 parser=argparse.ArgumentParser(
-    description='''GC content and homopolymer length''', prog="find_homopolymers.py", usage="%(prog)s [options] [options] file.fasta",
+    description='''GC content and homopolymer length''', prog="find_homopolymers.py", usage="%(prog)s [options] file.fasta",
     epilog="""Written by Jon Palmer (2015) palmer.jona@gmail.com""",
     formatter_class=MyFormatter)
-parser.add_argument('fasta', help='FASTA file')
+parser.add_argument('-i', '--fasta', dest='fasta', required=True, help='FASTA file')
+parser.add_argument('-o','--out', dest='out', default='out', help='output file')
 parser.add_argument('-n','--num_homopolymers', dest='homo', default='6', help='Number of homopolymers')
-parser.add_argument('--print_pretty', action='store_true', help='print to terminal in aligned columns')
 args=parser.parse_args()
+
+#make default output from splitting input fasta name
+if args.out == "out":
+    out_base = re.split(r'\.fa', args.fasta)
+    out_name = out_base[0] + ".homopolymers_" + args.homo + ".txt"
+else:
+    out_name = args.out
+
+out_file = open(out_name, "w")
 
 #print header
 header_name = "SeqID"
-if args.print_pretty:
-    print header_name.ljust(20) + "\tLength (bp)\tGC Content (%)\tHomopolymers (Len(nuc):start-stop)"
-else:
-    print "SeqID\tLength (bp)\tGC Content (%)\tHomopolymers (Len(nuc):start-stop)"
-
+out_file.write ("SeqID\tLength (bp)\tGC Content (%)\tHomopolymers (Len(nuc):start-stop)\n")
+record_count = 0
+none_count = 0
 for record in SeqIO.parse(open(args.fasta, "rU"), "fasta"):
+    record_count = record_count + 1
     GC_calc = GC(record.seq)
     lis = []
     for x in record.seq:
@@ -56,10 +64,16 @@ for record in SeqIO.parse(open(args.fasta, "rU"), "fasta"):
             homo_out = homo_out + homopolymers
     if homo_out == '':
         homo_out = "None found"
+        none_count = none_count + 1
     else:
         homo_out = re.sub(";", "; ", homo_out)
         homo_out = re.sub("; $", ";", homo_out)
-    if args.print_pretty:
-        print "%-20s\t%-8s\t%-10.2f\t%s" % (record.id, len(record.seq), GC_calc, homo_out)
-    else:
-        print "%s\t%s\t%.2f\t%s" % (record.id, len(record.seq), GC_calc, homo_out)
+    out_file.write("%s\t%s\t%.2f\t%s\n" % (record.id, len(record.seq), GC_calc, homo_out))
+
+homo_count = record_count - none_count
+homo_pct = float(homo_count) / float(record_count) * 100
+pct = "%"
+print "Input Sequences: %i" % record_count
+print "Seqs with homopolymers > %s: %i (%.02f%%)" % (args.homo, homo_count, homo_pct)
+print "Results located here: %s" % out_name
+out_file.close()
