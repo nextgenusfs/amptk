@@ -3,6 +3,15 @@
 
 UFITS is a series of scripts to process fungal ITS amplicon data using USEARCH8
 ___
+####Installation:####
+You can do a git clone to copy this repository:
+
+`git clone https://github.com/nextgenusfs/ufits`
+
+And then you will need to add to your $PATH or always include the entire path to the scripts at runtime.
+
+`export PATH="/location/of/packages/ufits:$PATH"`
+
 ####Processing Ion Torrent Data:####
 
 From the Torrent Server, analyze the data using the `--disable-all-filters` BaseCaller argument.  This will leave the adapters/key/barcode sequence intact.  The data need to be exported as a FASTQ file, or alternatively use a 3rd party tool to convert the BAM output file to FASTQ (i.e. `bedtools bamtofastq -i <BAM> -fq <FASTQ>`).  You can then de-multiplex the data as follows:
