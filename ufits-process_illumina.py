@@ -15,7 +15,7 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
 
-parser=argparse.ArgumentParser(prog='ficus-process_illumina.py', usage="%(prog)s [options] file.fastq > out.fastq\n%(prog)s -h for help menu",
+parser=argparse.ArgumentParser(prog='ufits-process_illumina.py', usage="%(prog)s [options] file.fastq > out.fastq\n%(prog)s -h for help menu",
     description='''Script strips forward and reverse primers, relabels, and then trim/pads reads to a set length''',
     epilog="""Written by Robert Edgar, modified slightly by Jon Palmer (2015) palmer.jona@gmail.com""",
     formatter_class=MyFormatter)
