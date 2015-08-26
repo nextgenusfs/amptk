@@ -14,7 +14,9 @@ And then you will need to add to your $PATH or always include the entire path to
 
 You will also need to install USEARCH8 - get it here: http://www.drive5.com/usearch/download.html.  One way to make the program executable and move into your path:
 `sudo chmod +x /path/to/usearch8.0.1623_i86osx32  #make executable`
+
 `sudo ln /path/to/usearch8.0.1623_i86osx32 /usr/local/bin/usearch8 #create softlink to folder in $PATH`
+
 
 ####Processing Ion Torrent Data:####
 
