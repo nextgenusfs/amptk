@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+#This script is a wrapper for -fastq_mergepairs from USEARCH8
 import os
 import argparse
 import shutil
@@ -17,7 +18,7 @@ parser=argparse.ArgumentParser(prog='ufits-merge_illumina.py', usage="%(prog)s [
 
 parser.add_argument('-f','--for', dest='fastq_forward_reads', required=True, help='FASTQ R1 file')
 parser.add_argument('-r','--rev', dest='fastq_reverse_reads', required=True, help='FASTQ R2 file')
-parser.add_argument('-o','--out_prefix', dest="out", default='out', help='BaseName for output files')
+parser.add_argument('-o','--out', dest="out", default='out', help='BaseName for output files')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()
 
@@ -25,7 +26,7 @@ args=parser.parse_args()
 log_name = args.out + '.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
-log_file = open(log_name, 'ab')
+log_file = open(log_name, 'wb')
 
 #check extension and decompress if ending in .gz
 extension = os.path.splitext(args.fastq_forward_reads)[1]
@@ -57,33 +58,66 @@ try:
 except OSError:
     print "%s not found in your PATH, exiting." % usearch 
     os._exit(1)
-    
-#First run USEARCH8 mergepe
+
+def myround(x, base=10):
+    return int(base * round(float(x)/base))
+
+#get read length
+fp = open(for_reads)
+for i, line in enumerate(fp):
+    if i == 1:
+        read_length = len(line)
+        read_length = myround(read_length)
+    elif i > 2:
+        break
+fp.close()
+
+#set min length for join reads to 150% read length
+#min_len = read_length * 1.5
+print "\nMeasured Read Length is: %i" % (read_length)
+
+#now trim the last bp off of the Illumina data (there for phasing, i.e. 250 bp reads are 251 bp)
+pretrim_R1 = args.out + 'pretrim_R1.fq'
+pretrim_R2 = args.out + 'pretrim_R2.fq'
+print "\nCMD: Pre-Processing Reads\n%s -fastq_filter %s -fastq_trunclen %s -fastqout %s\n" % (usearch, for_reads, str(read_length), pretrim_R1)
+subprocess.call([usearch, '-fastq_filter', for_reads, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R1], stdout = log_file, stderr = log_file)
+subprocess.call([usearch, '-fastq_filter', rev_reads, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R2], stdout = log_file, stderr = log_file)
+
+#next run USEARCH8 mergepe
 merge_out = args.out + 'merged.fq'
 skip_for = args.out + 'notmerged.R1.fq'
 skip_rev = args.out + 'notmerged.R2.fq'
-print "\nCMD: Merging Overlapping Pairs\n%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastqout_notmerged_rev %s\n" % (usearch, for_reads, rev_reads, merge_out, skip_for, skip_rev)
-subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastqout_notmerged_rev', skip_rev], stdout = log_file, stderr = log_file)
+print "\nCMD: Merging Overlapping Pairs\n%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastqout_notmerged_rev %s -fastq_truncqual 5 -fastq_allowmergestagger -minhsp 12\n" % (usearch, pretrim_R1, pretrim_R2, merge_out, skip_for, skip_rev)
+subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastqout_notmerged_rev', skip_rev, '-fastq_truncqual', '5','-fastq_allowmergestagger','-minhsp', '12'], stdout = log_file, stderr = log_file)
 
-#now join the not merged PE files
-join_out = args.out + 'join.fq'
-print "CMD: Joining Pairs\n%s -fastq_join %s -reverse %s -fastqout %s\n" % (usearch, skip_for, skip_rev, join_out)
-subprocess.call([usearch, '-fastq_join', skip_for, '-reverse', skip_rev, '-fastqout', join_out], stdout = log_file, stderr = log_file)
+#This section is deprecated - as some sequences joined with this method are problematic, so just recover the R1 reads for longer ITS sequences.
+#now join the not merged PE files and then length/quality trim
+#join_filter = args.out + 'join.filter.fq'
+#join_out = args.out + 'join.fq'
+#print "CMD: Joining Pairs\n%s -fastq_join %s -reverse %s -fastqout %s\n" % (usearch, skip_for, skip_rev, join_out)
+#subprocess.call([usearch, '-fastq_join', skip_for, '-reverse', skip_rev, '-fastqout', join_out], stdout = log_file, stderr = log_file)
+
+#print "CMD: Length Filtering Joined Pairs\n%s -fastq_filter %s -fastq_minlen %s -fastq_truncqual 5 -fastqout %s\n" % (usearch, join_out, str(min_len), join_filter)
+#subprocess.call([usearch, '-fastq_filter', join_out, '-fastq_minlen', str(min_len), '-fastq_truncqual', '5', '-fastqout', join_filter], stdout = log_file, stderr = log_file)
+
 
 #now concatenate files for downstream pre-process_illumina.py script
 print "Concatenating output files\n"
 final_out = args.out + '.fq'
 out_file = open(final_out, 'wb')
 shutil.copyfileobj(open(merge_out,'rb'), out_file)
-shutil.copyfileobj(open(join_out,'rb'), out_file)
+shutil.copyfileobj(open(skip_for,'rb'), out_file)
 out_file.close()
 
 #clean and close up intermediate files
 log_file.close()
 os.remove(merge_out)
+os.remove(pretrim_R1)
+os.remove(pretrim_R2)
 os.remove(skip_for)
 os.remove(skip_rev)
-os.remove(join_out)
+#os.remove(join_out)
+#os.remove(join_filter)
 print "------------------------------------------------"
 print "Script Finished Successfully!"
 print "------------------------------------------------"
