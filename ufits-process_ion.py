@@ -21,7 +21,7 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 pgm_barcodes = script_path + '/lib/pgm_barcodes.fa'
 
-parser=argparse.ArgumentParser(prog='ficus-process_ion.py', usage="%(prog)s [options] file.fastq > out.fastq\n%(prog)s -h for help menu",
+parser=argparse.ArgumentParser(prog='ufits-process_ion.py', usage="%(prog)s [options] file.fastq > out.fastq\n%(prog)s -h for help menu",
     description='''Script finds barcodes, strips forward and reverse primers, relabels, and then trim/pads reads to a set length''',
     epilog="""Written by Robert Edgar, modified slightly by Jon Palmer (2015) palmer.jona@gmail.com""",
     formatter_class=MyFormatter)
