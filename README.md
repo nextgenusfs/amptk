@@ -12,6 +12,10 @@ And then you will need to add to your $PATH or always include the entire path to
 
 `export PATH="/location/of/packages/ufits:$PATH"`
 
+You will also need to install USEARCH8 - get it here: http://www.drive5.com/usearch/download.html.  One way to make the program executable and move into your path:
+`sudo chmod +x /path/to/usearch8.0.1623_i86osx32  #make executable`
+`sudo ln /path/to/usearch8.0.1623_i86osx32 /usr/local/bin/usearch8 #create softlink to folder in $PATH`
+
 ####Processing Ion Torrent Data:####
 
 From the Torrent Server, analyze the data using the `--disable-all-filters` BaseCaller argument.  This will leave the adapters/key/barcode sequence intact.  The data need to be exported as a FASTQ file, or alternatively use a 3rd party tool to convert the BAM output file to FASTQ (i.e. `bedtools bamtofastq -i <BAM> -fq <FASTQ>`).  You can then de-multiplex the data as follows:
