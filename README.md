@@ -21,7 +21,7 @@ sudo chmod +x /path/to/usearch8.0.1623_i86osx32
 
 ```
 #create softlink to folder in $PATH
-sudo ln /path/to/usearch8.0.1623_i86osx32 /usr/local/bin/usearch8
+sudo ln -s /path/to/usearch8.0.1623_i86osx32 /usr/local/bin/usearch8
 ```
 
 
