@@ -24,7 +24,7 @@ From the Torrent Server, analyze the data using the `--disable-all-filters` Base
 Paired-end MiSeq data is typically delivered already de-multiplexed into separate read files, i.e. barcode1_R1.fastq & barcode1_R2.fastq.  You can merge the PE reads by running the following:
 
 `ufits-merge_illumina.py --out BC_1 --for barcode1_R1.fastq --rev barcode1_R2.fastq`
->This will run USEARCH8 `-fastq_mergepairs`, then run `-fastq_join` on the sequences that do not overlap, and finally concatenate the results together to give you a single FASTQ file, BC_1.fq.  This script can also handle .gz FASTQ files as input.
+>This will run USEARCH8 `-fastq_mergepairs`, however, since some ITS sequences are too long to overlap you can rescue longer sequences by recovering the the non-merged forward reads.  This script then concatenates the merged reads and the non-merged forward reads to give you a single FASTQ file, BC_1.fq.  This script can also handle .gz FASTQ files as input.
 
 The data from MiSeq does not contain barcode sequences, but we still need to remove primers and trim/pad to a set length.  You can do that as follows:
 
