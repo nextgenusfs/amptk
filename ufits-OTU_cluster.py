@@ -34,7 +34,7 @@ parser.add_argument('--mock', default="False", help='Spike-in control: <barcode 
 parser.add_argument('--mc', default='ufits_mock3.fa', help='Multi-Fasta Mock Community')
 parser.add_argument('--uchime_ref', default='False', choices=['ITS1','ITS2','Full'], help='Run UCHIME REF')
 parser.add_argument('--map_unfiltered', action='store_true', help='map original reads back to OTUs')
-
+parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOISE)')
 args=parser.parse_args()
 
 #open log file for usearch8 stderr redirect
@@ -56,14 +56,22 @@ print "\nCMD: Quality Filtering\n%s -fastq_filter %s -fastq_trunclen %s -fastq_m
 subprocess.call([usearch, '-fastq_filter', args.FASTQ, '-fastq_trunclen', args.length, '-fastq_maxee', args.maxee, '-fastqout', filter_out], stdout = log_file, stderr = log_file)
 
 #now run usearch8 full length dereplication
-derep_out = args.out + '.EE' + args.maxee + '.derep.fa'
-print "CMD: De-replication\n%s -derep_fulllength %s -sizeout -fastaout %s\n" % (usearch, filter_out, derep_out)
+derep_out = args.out + '.EE' + args.maxee + '.derep.fq'
+print "CMD: De-replication\n%s -derep_fulllength %s -sizeout -fastqout %s\n" % (usearch, filter_out, derep_out)
 subprocess.call([usearch, '-derep_fulllength', filter_out, '-sizeout', '-fastaout', derep_out], stdout = log_file, stderr = log_file)
+
+#optional run UNOISE
+if args.unoise:
+    unoise_out = args.out + '.EE' + args.maxee + '.denoised.fa'
+    print "CMD: Denoising Data with UNOISE\n%s -cluster_fast %s -centroids %s -id 0.9 -maxdiffs 5 -abskew 10 -sizein -sizeout -sort size\n" % (usearch, derep_out, unoise_out)
+    subprocess.call([usearch, '-cluster_fast', derep_out, '-centroids', unoise_out, '-id', '0.9', '-maxdiffs', '5', '-abskew', '10', '-sizein', '-sizeout', '-sort', 'size'], stdout = log_file, stderr = log_file)
+else:
+    unoise_out = derep_out
 
 #now run usearch 8 sort by size
 sort_out = args.out + '.EE' + args.maxee + '.sort.fa'
-print "CMD: Sorting by Size\n%s -sortbysize %s -minsize %s -fastaout %s\n" % (usearch, derep_out, args.minsize, sort_out)
-subprocess.call([usearch, '-sortbysize', derep_out, '-minsize', args.minsize, '-fastaout', sort_out], stdout = log_file, stderr = log_file)
+print "CMD: Sorting by Size\n%s -sortbysize %s -minsize %s -fastaout %s\n" % (usearch, unoise_out, args.minsize, sort_out)
+subprocess.call([usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '-fastaout', sort_out], stdout = log_file, stderr = log_file)
 
 #now run clustering algorithm
 radius = str(100 - int(args.pct_otu))
