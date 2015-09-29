@@ -9,6 +9,7 @@ import subprocess
 import inspect
 import csv
 import re
+import lib.colors as colors
 
 #get script path for directory
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -52,31 +53,36 @@ except OSError:
 
 #now run usearch8 fastq filtering step
 filter_out = args.out + '.EE' + args.maxee + '.filter.fq'
-print "\nCMD: Quality Filtering\n%s -fastq_filter %s -fastq_trunclen %s -fastq_maxee %s -fastqout %s\n" % (usearch, args.FASTQ, args.length, args.maxee, filter_out)
+colors.bold("\nCMD: Quality Filtering")
+print "%s -fastq_filter %s -fastq_trunclen %s -fastq_maxee %s -fastqout %s\n" % (usearch, args.FASTQ, args.length, args.maxee, filter_out)
 subprocess.call([usearch, '-fastq_filter', args.FASTQ, '-fastq_trunclen', args.length, '-fastq_maxee', args.maxee, '-fastqout', filter_out], stdout = log_file, stderr = log_file)
 
 #now run usearch8 full length dereplication
 derep_out = args.out + '.EE' + args.maxee + '.derep.fq'
-print "CMD: De-replication\n%s -derep_fulllength %s -sizeout -fastqout %s\n" % (usearch, filter_out, derep_out)
+colors.bold("CMD: De-replication")
+print "%s -derep_fulllength %s -sizeout -fastqout %s\n" % (usearch, filter_out, derep_out)
 subprocess.call([usearch, '-derep_fulllength', filter_out, '-sizeout', '-fastaout', derep_out], stdout = log_file, stderr = log_file)
 
 #optional run UNOISE
 if args.unoise:
     unoise_out = args.out + '.EE' + args.maxee + '.denoised.fa'
-    print "CMD: Denoising Data with UNOISE\n%s -cluster_fast %s -centroids %s -id 0.9 -maxdiffs 5 -abskew 10 -sizein -sizeout -sort size\n" % (usearch, derep_out, unoise_out)
+    colors.bold("CMD: Denoising Data with UNOISE")
+    print "%s -cluster_fast %s -centroids %s -id 0.9 -maxdiffs 5 -abskew 10 -sizein -sizeout -sort size\n" % (usearch, derep_out, unoise_out)
     subprocess.call([usearch, '-cluster_fast', derep_out, '-centroids', unoise_out, '-id', '0.9', '-maxdiffs', '5', '-abskew', '10', '-sizein', '-sizeout', '-sort', 'size'], stdout = log_file, stderr = log_file)
 else:
     unoise_out = derep_out
 
 #now run usearch 8 sort by size
 sort_out = args.out + '.EE' + args.maxee + '.sort.fa'
-print "CMD: Sorting by Size\n%s -sortbysize %s -minsize %s -fastaout %s\n" % (usearch, unoise_out, args.minsize, sort_out)
+colors.bold("CMD: Sorting by Size")
+print "%s -sortbysize %s -minsize %s -fastaout %s\n" % (usearch, unoise_out, args.minsize, sort_out)
 subprocess.call([usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '-fastaout', sort_out], stdout = log_file, stderr = log_file)
 
 #now run clustering algorithm
 radius = str(100 - int(args.pct_otu))
 otu_out = args.out + '.EE' + args.maxee + '.otus.fa'
-print "CMD: Clustering OTUs\n%s -cluster_otus %s -sizein -sizeout -relabel OTU_ -otu_radius_pct %s -otus %s\n" % (usearch, sort_out, radius, otu_out)
+colors.bold("CMD: Clustering OTUs")
+print "%s -cluster_otus %s -sizein -sizeout -relabel OTU_ -otu_radius_pct %s -otus %s\n" % (usearch, sort_out, radius, otu_out)
 subprocess.call([usearch, '-cluster_otus', sort_out, '-sizein', '-sizeout', '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout = log_file, stderr = log_file)
 
 #optional UCHIME Ref 
@@ -88,10 +94,11 @@ else:
     if args.uchime_ref == "ITS1":
         uchime_db = script_path + "/lib/uchime_sh_refs_dynamic_develop_985_11.03.2015.ITS1.fasta"
     if args.uchime_ref == "ITS2":
-        uchime_db = script_path + "/lib/uchime_sh_refs_dynamic_develop_985_11.03.2015.ITS2.fasta"
+        uchime_db = script_path + "/lib/uchime_11.03.2015.ITS2.fasta"
     if args.uchime_ref == "Full":
         uchime_db = script_path + "/lib/uchime_sh_refs_dynamic_original_985_11.03.2015.fasta"
-    print "CMD: Chimera Filtering\n%s -uchime_ref %s -strand plus -db %s -nonchimeras %s\n" % (usearch, otu_out, uchime_db, uchime_out)
+    colors.bold("CMD: Chimera Filtering")
+    print "%s -uchime_ref %s -strand plus -db %s -nonchimeras %s\n" % (usearch, otu_out, uchime_db, uchime_out)
     subprocess.call([usearch, '-uchime_ref', otu_out, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out], stdout = log_file, stderr = log_file)
 
 #option if using mock community to map OTUs to mock and add to header
@@ -107,7 +114,8 @@ if args.mock != "False":
             mock_ref_count = mock_ref_count + 1
     mock_file.close()
     mock_out = args.out + '.mockmap.uc'
-    print "CMD: Mapping Mock Community\n%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s\n" % (usearch, uchime_out, mock, mock_out)
+    colors.bold("CMD: Mapping Mock Community")
+    print "%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s\n" % (usearch, uchime_out, mock, mock_out)
     subprocess.call([usearch, '-usearch_global', uchime_out, '-strand', 'plus', '-id', '0.97', '-db', mock, '-uc', mock_out], stdout = log_file, stderr = log_file)
     #generate 2 column file from uc file
     map_out_name = args.out + '.headers.txt'
@@ -149,12 +157,14 @@ if args.map_unfiltered:
     reads = args.FASTQ
 else:
     reads = filter_out
-print "CMD: Mapping Reads to OTUs\n%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s\n" % (usearch, reads, uchime_out, uc_out)
+colors.bold("CMD: Mapping Reads to OTUs")
+print "%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s\n" % (usearch, reads, uchime_out, uc_out)
 subprocess.call([usearch, '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out], stdout = log_file, stderr = log_file)
 #Build OTU table
 otu_table = args.out + '.EE' + args.maxee + '.otu_table.txt'
 uc2tab = script_path + "/lib/uc2otutab.py"
-print "CMD: Creating OTU Table\npython %s %s > %s" % (uc2tab, uc_out, otu_table)
+colors.bold("CMD: Creating OTU Table")
+print "python %s %s > %s" % (uc2tab, uc_out, otu_table)
 os.system('%s %s %s %s %s' % ('python', uc2tab, uc_out, '>', otu_table))
 
 #run some stats on mock community if --mock option passed.
@@ -186,7 +196,7 @@ if args.mock != "False":
     spurious = num_otus - mock_found
     total_good_reads = sum(good_otu)
     print "\n------------------------------------------"
-    print "Summarizing data for %s, Length: %s bp, Quality Trimming: EE %s, " % (args.out, args.length, args.maxee)
+    colors.infog("Summarizing data for %s, Length: %s bp, Quality Trimming: EE %s, " % (args.out, args.length, args.maxee))
     print "------------------------------------------"
     print "Total OTUs in Mock:  %i" % (mock_ref_count)
     print "Total OTUs in %s:  %i" % (args.mock, num_otus)
@@ -213,7 +223,7 @@ if args.mock != "False":
 
 #Print location of files to STDOUT
 print "\n------------------------------------------------"
-print "OTU Clustering Script has Finished Successfully"
+colors.infog("OTU Clustering Script has Finished Successfully")
 print "------------------------------------------------"
 print ("Input FASTQ:           %s" % (args.FASTQ))
 print ("Filtered FASTQ:        %s" % (filter_out))

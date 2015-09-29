@@ -118,7 +118,3 @@ os.remove(skip_for)
 os.remove(skip_rev)
 #os.remove(join_out)
 #os.remove(join_filter)
-print "------------------------------------------------"
-print "Script Finished Successfully!"
-print "------------------------------------------------"
-print "Merged/Joined FASTQ output:  %s\n" % (final_out)

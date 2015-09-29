@@ -27,7 +27,7 @@ parser=argparse.ArgumentParser(prog='ufits-mock_filter.py', usage="%(prog)s [opt
 
 parser.add_argument('-i','--otu_table', required=True, help='Input OTU table')
 parser.add_argument('-b','--mock_barcode', required=True, help='Barocde of Mock community')
-parser.add_argument('-p','--barcode_bleed', dest="barcodebleed", default='0.5', help='Percent threshold to keep OTU')
+parser.add_argument('-p','--barcode_bleed', dest="barcodebleed", default='0.1', help='Index Bleed filter')
 parser.add_argument('-mc', dest="mock_community",default='ufits_mock3.fa', help='Multi-FASTA mock community')
 parser.add_argument('-d','--delimiter', default='tsv', choices=['csv','tsv'], help='Delimiter')
 parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
