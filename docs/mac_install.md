@@ -21,11 +21,11 @@ brew install python
 pip install biopython natsort  
 ```
 
-#####4) Now download this this repository:
+#####4) Now download this repository:
 
 `git clone https://github.com/nextgenusfs/ufits`
 
-And then you will need to add to your $PATH or always include the entire path to the scripts at runtime.
+And then you will need to add the following to your `~/.bash_profile` or always include the entire path to the scripts at runtime.
 
 `export PATH="/location/of/packages/ufits:$PATH"`
 
