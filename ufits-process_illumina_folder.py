@@ -110,12 +110,13 @@ for item in sorted(filenames):
             try:
                 map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], barcode[0], barcode[1], column[2], column[4].split(".",1)[0]))
             except IndexError:
-                break
+                log.debug("Non-standard names detected, skipping mapping file")
+                
         else:
             try:
                 map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], column[1], "None", column[2], column[4].split(".",1)[0]))
             except IndexError:
-                break
+                log.debug("Non-standard names detected, skipping mapping file")
 map_file.close()
 
 #loop through each set
