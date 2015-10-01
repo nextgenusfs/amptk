@@ -7,7 +7,7 @@ ___
 
 * [Mac install instructions](docs/mac_install.md)
 * [Ubuntu install instructions](docs/ubuntu_install.md)
-* [Windows install instructions](docs/windows_install.md)
+
 
 ####Processing Ion Torrent Data:####
 

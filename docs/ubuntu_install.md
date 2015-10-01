@@ -31,5 +31,8 @@ sudo chmod +x /path/to/usearch8.0.1623_i86linux32
 ```
 #create softlink to folder in $PATH
 sudo ln -s /path/to/usearch8.0.1623_i86linux32 /usr/local/bin/usearch8
+
+#or rename it and move to folder in $PATH
+sudo mv /path/to/usearch8.0.1623_i86linux32 /usr/local/bin/usearch8
 ```
 

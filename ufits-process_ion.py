@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 
-import sys
-import os
-import inspect
-import argparse
-import shutil
+import sys, os, inspect, argparse, shutil
 from Bio import SeqIO
 import lib.fasta as fasta
 import lib.fastq as fastq
@@ -19,11 +15,11 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
 
 #get script path and barcode file name
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-pgm_barcodes = script_path + '/lib/pgm_barcodes.fa'
+pgm_barcodes = os.path.join(script_path, 'lib', 'pgm_barcodes.fa')
 
 parser=argparse.ArgumentParser(prog='ufits-process_ion.py', usage="%(prog)s [options] file.fastq > out.fastq\n%(prog)s -h for help menu",
     description='''Script finds barcodes, strips forward and reverse primers, relabels, and then trim/pads reads to a set length''',
-    epilog="""Written by Robert Edgar, modified slightly by Jon Palmer (2015) palmer.jona@gmail.com""",
+    epilog="""Written by Robert Edgar, modified by Jon Palmer (2015) palmer.jona@gmail.com""",
     formatter_class=MyFormatter)
 
 parser.add_argument('fastq', help='FASTQ file')

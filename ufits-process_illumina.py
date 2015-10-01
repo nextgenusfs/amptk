@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 
-import sys
-import os
-import argparse
-import shutil
+import sys, os, argparse, shutil
 import lib.fasta as fasta
 import lib.fastq as fastq
 import lib.primer as primer
@@ -42,9 +39,6 @@ else:
 MinLen = int(args.min_len)
 TrimLen = int(args.trim_len)
 
-print >> sys.stderr, "Foward primer: ", FwdPrimer
-print >> sys.stderr, "Rev comp'd rev primer: ", RevPrimer
-
 SeqCount = 0
 OutCount = 0
 FwdPrimerMismatchCount = 0
@@ -54,6 +48,9 @@ PadCount = 0
 
 PL = len(FwdPrimer)
 RevPrimer = revcomp_lib.RevComp(RevPrimer)
+
+print >> sys.stderr, "Foward primer: ", FwdPrimer
+print >> sys.stderr, "Rev comp'd rev primer: ", RevPrimer
 
 def MatchesPrimer(Seq, Primer):
     return primer.MatchPrefix(Seq, Primer)
