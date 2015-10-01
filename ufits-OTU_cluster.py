@@ -35,16 +35,8 @@ parser.add_argument('--mc', default='ufits_mock3.fa', help='Multi-Fasta Mock Com
 parser.add_argument('--uchime_ref', default='False', choices=['ITS1','ITS2','Full'], help='Run UCHIME REF')
 parser.add_argument('--map_unfiltered', action='store_true', help='map original reads back to OTUs')
 parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOISE)')
+parser.add_argument('--size_annotations', action='store_true', help='Append size annotations')
 args=parser.parse_args()
-
-FNULL = open(os.devnull, 'w')
-
-usearch = args.usearch
-try:
-    subprocess.call([usearch, '--version'], stdout = FNULL, stderr = FNULL)
-except OSError:
-    print "%s not found in your PATH, exiting." % usearch 
-    os._exit(1)
 
 def countfasta(input):
     count = 0
@@ -106,9 +98,20 @@ if os.path.isfile(log_name):
     os.remove(log_name)
 
 setupLogging(log_name)
+FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 log.debug(cmd_args)
 print "-------------------------------------------------------"
+
+#initialize script, log system info and usearch version
+log.info("Operating system: %s" % sys.platform)
+usearch = args.usearch
+try:
+    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0]
+except OSError:
+    log.warning("%s not found in your PATH, exiting." % usearch)
+    os._exit(1)
+log.info("USEARCH version: %s" % usearch_test)
 
 #Count FASTQ records
 log.info("Loading FASTQ Records")
@@ -156,14 +159,32 @@ subprocess.call([usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '
 radius = str(100 - int(args.pct_otu))
 otu_out = args.out + '.EE' + args.maxee + '.otus.fa'
 log.info("Clustering OTUs (UPARSE)")
-log.debug("%s -cluster_otus %s -sizein -sizeout -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
-subprocess.call([usearch, '-cluster_otus', sort_out, '-sizein', '-sizeout', '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout = FNULL, stderr = FNULL)
+if args.size_annotations:
+    log.debug("%s -cluster_otus %s -sizein -sizeout -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
+    subprocess.call([usearch, '-cluster_otus', sort_out, '-sizein', '-sizeout', '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout = FNULL, stderr = FNULL)
+else:
+    log.debug("%s -cluster_otus %s -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
+    subprocess.call([usearch, '-cluster_otus', sort_out, '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout = FNULL, stderr = FNULL)
 total = countfasta(otu_out)
 log.info('{0:,}'.format(total) + ' OTUs')
 
+#clean up padded N's
+log.info("Cleaning up padding from OTUs")
+otu_clean = args.out + '.EE' + args.maxee + '.clean.otus.fa'
+with open(otu_clean, 'w') as output:
+    with open(otu_out, 'r') as input:
+        for line in input:
+            if line.startswith (">"):
+                output.write(line)
+            else:
+                line = re.sub('[^GATC]', "", line)
+                line = line + '\n'
+                if line != '\n':
+                    output.write(line)
+
 #optional UCHIME Ref 
 if args.uchime_ref == "False":
-    uchime_out = otu_out
+    uchime_out = otu_clean
 else:
     uchime_out = args.out + '.EE' + args.maxee + '.uchime.otus.fa'
     #You might need to update these in the future, but leaving data and version in name so it is obvious where they came from
@@ -174,7 +195,7 @@ else:
     if args.uchime_ref == "Full":
         uchime_db = os.path.join(script_path, 'lib', 'uchime_sh_refs_dynamic_original_985_11.03.2015.fasta')
     log.info("Chimera Filtering (UCHIME)")
-    log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s" % (usearch, otu_out, uchime_db, uchime_out))
+    log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s" % (usearch, otu_clean, uchime_db, uchime_out))
     subprocess.call([usearch, '-uchime_ref', otu_out, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
     total = countfasta(uchime_out)
     log.info('{0:,}'.format(total) + ' OTUs passed')
@@ -189,7 +210,7 @@ if args.mock != "False":
     mock_ref_count = 0
     for line in mock_file:
         if line.startswith (">"):
-            mock_ref_count = mock_ref_count + 1
+            mock_ref_count += 1
     mock_file.close()
     mock_out = args.out + '.mockmap.uc'
     log.info("Mapping Mock Community (USEARCH8)")
@@ -201,7 +222,7 @@ if args.mock != "False":
     map = csv.reader(open(mock_out), delimiter='\t')
     for col in map:
         if col[-1] != "*":
-            map_out.write("%s\t%s%s;pident=%s;\n" % (col[-2], col[-2], col[-1], col[3]))
+            map_out.write("%s\t%s;%s;pident=%s;\n" % (col[-2], col[-2], col[-1], col[3]))
     map_out.close()
     annotation = open(map_out_name, "rb")
     annotate_dict = {}
@@ -224,7 +245,6 @@ if args.mock != "False":
                 else:
                     otu_update.write (">"+ "".join(line) + "\n")
             else:
-                line = re.sub('N', '', line)
                 otu_update.write(line)
     otu_update.close()
     uchime_out = otu_new
@@ -278,9 +298,9 @@ if args.mock != "False" and result != 'fail':
     good_otu = []
     for row in results:
         if int(row[1]) > 0:
-            num_otus = num_otus + 1
+            num_otus += 1
             if "pident" in row[0]:
-                mock_found = mock_found + 1
+                mock_found += 1
                 good_otu.append(int(row[1]))
             if not "pident" in row[0]:
                 bad_otu.append(int(row[1]))
@@ -292,11 +312,11 @@ if args.mock != "False" and result != 'fail':
     print "Total OTUs in Mock:  %i" % (mock_ref_count)
     print "Total OTUs in %s:  %i" % (args.mock, num_otus)
     print "\nReal Mock OTUs found:  %i" % (mock_found)
-    good_otu = sorted(good_otu, key=int)
-    print "Range of counts from Real OTUs:  %i - %i" % (good_otu[-1], good_otu[0])
-    print "Lowest counts from Real OTUs:  %i, %i, %i" % (good_otu[0], good_otu[1], good_otu[2])
-    print "Total number of reads in Real OTUs: %s" % (total_good_reads)
-
+    if mock_found != 0:
+        good_otu = sorted(good_otu, key=int)
+        print "Range of counts from Real OTUs:  %i - %i" % (good_otu[-1], good_otu[0])
+        print "Lowest counts from Real OTUs:  %i, %i, %i" % (good_otu[0], good_otu[1], good_otu[2])
+        print "Total number of reads in Real OTUs: %s" % (total_good_reads)
     print "\nSpurious OTUs found:  %i" % (spurious)
     if spurious != 0:
         bad_otu = sorted(bad_otu, key=int, reverse=True)
@@ -320,7 +340,7 @@ print ("Input FASTQ:           %s" % (args.FASTQ))
 print ("Filtered FASTQ:        %s" % (filter_out))
 print ("Dereplicated FASTA:    %s" % (derep_out))
 print ("Sorted FASTA:          %s" % (sort_out))
-print ("Clustered OTUs:        %s" % (otu_out))
+print ("Clustered OTUs:        %s" % (otu_clean))
 if args.uchime_ref != "False":
     print ("Chimera Filtered OTUs: %s" % (uchime_out))
 print ("UCLUST Mapping file:   %s" % (uc_out))

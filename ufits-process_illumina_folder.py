@@ -32,15 +32,6 @@ parser.add_argument('-l','--trim_len', default='250', help='Trim length for read
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()      
 
-FNULL = open(os.devnull, 'w')
-
-usearch = args.usearch
-try:
-    subprocess.call([usearch, '--version'], stdout = FNULL, stderr = FNULL)
-except OSError:
-    print "%s not found in your PATH, exiting." % usearch 
-    os._exit(1)
-
 def convertSize(num, suffix='B'):
     for unit in ['','K','M','G','T','P','E','Z']:
         if abs(num) < 1024.0:
@@ -75,9 +66,20 @@ if os.path.isfile(log_name):
     os.remove(log_name)
 
 setupLogging(log_name)
+FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 log.debug(cmd_args)
 print "-------------------------------------------------------"
+
+#initialize script, log system info and usearch version
+log.info("Operating system: %s" % sys.platform)
+usearch = args.usearch
+try:
+    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0]
+except OSError:
+    log.warning("%s not found in your PATH, exiting." % usearch)
+    os._exit(1)
+log.info("USEARCH version: %s" % usearch_test)
 
 #get filenames, store in list
 #Illumina file names look like the following
@@ -306,7 +308,8 @@ log.info("Output file:  %s" % catDemux)
 filesize = os.path.getsize(catDemux)
 readablesize = convertSize(filesize)
 log.info("File size:  %s" % readablesize)
+print "-------------------------------------------------------"
 if filesize >= 4294967296:
-    print col.WARN + "Warning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs" + col.END
-    
-    
+    print col.WARN + "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs" + col.END
+else:
+    print col.WARN + "\nExample of next cmd: " + col.END + "ufits-OTU_cluster.py -f %s -o %s/out --uchime_ref ITS2\n" % (catDemux, args.out)
