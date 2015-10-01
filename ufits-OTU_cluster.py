@@ -206,32 +206,23 @@ if args.mock != "False":
         mock = os.path.join(script_path, 'lib', 'ufits_mock3.fa')
     else:
         mock = args.mc
-    mock_file = open(mock, "r")
-    mock_ref_count = 0
-    for line in mock_file:
-        if line.startswith (">"):
-            mock_ref_count += 1
-    mock_file.close()
+    #count seqs in mock community
+    mock_ref_count = countfasta(mock)
+    
+    #map OTUs to mock community
     mock_out = args.out + '.mockmap.uc'
     log.info("Mapping Mock Community (USEARCH8)")
     log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, uchime_out, mock, mock_out))
     subprocess.call([usearch, '-usearch_global', uchime_out, '-strand', 'plus', '-id', '0.97', '-db', mock, '-uc', mock_out], stdout = FNULL, stderr = FNULL)
-    #generate 2 column file from uc file
-    map_out_name = args.out + '.headers.txt'
-    map_out = open(map_out_name, 'ab')
-    map = csv.reader(open(mock_out), delimiter='\t')
-    for col in map:
-        if col[-1] != "*":
-            map_out.write("%s\t%s;%s;pident=%s;\n" % (col[-2], col[-2], col[-1], col[3]))
-    map_out.close()
-    annotation = open(map_out_name, "rb")
+    
+    #generate dictionary for name change
     annotate_dict = {}
-    for line in annotation:
-        line = line.split("\t")
-        if line:
-            annotate_dict[line[0]]=line[1:]
-        else:
-            continue
+    with open(mock_out, 'r') as map:
+        map_csv = csv.reader(map, delimiter='\t')
+        for line in map_csv:
+            if line[-1] != "*":
+                annotate_dict[line[-2]]=line[-1] 
+             
     otu_new = args.out + '.EE' + args.maxee + '.mock.otus.fa'
     otu_update = open(otu_new, "w")
     with open(uchime_out, "r") as myfasta:
@@ -240,7 +231,7 @@ if args.mock != "False":
                 line = line[1:]
                 line = line.split()
                 if line[0] in annotate_dict:
-                    new_line = ">" + "".join(annotate_dict[line[0]])
+                    new_line = ">" + "".join(annotate_dict[line[0]]+'\n')
                     otu_update.write (new_line)
                 else:
                     otu_update.write (">"+ "".join(line) + "\n")
@@ -265,7 +256,6 @@ uc2tab = os.path.join(script_path, 'lib', 'uc2otutable.py')
 log.info("Creating OTU Table")
 log.debug("%s %s %s" % (uc2tab, uc_out, otu_table))
 subprocess.call([uc2tab, uc_out, otu_table], stdout = FNULL, stderr = FNULL)
-#os.system('%s %s %s %s %s' % ('python', uc2tab, uc_out, '>', otu_table))
 
 if args.mock != "False":
     #first check if the name is in mock, if not don't run the stats
@@ -277,7 +267,7 @@ if args.mock != "False":
             log.info("%s not found in OTU table, skipping stats. (use ufits-mock_filter.py for stats)" % args.mock)
         else:
             result = 'pass'
-
+            
 #run some stats on mock community if --mock option passed.
 if args.mock != "False" and result != 'fail':
     KEEP_COLUMNS = ('OTUId', args.mock)
@@ -299,18 +289,18 @@ if args.mock != "False" and result != 'fail':
     for row in results:
         if int(row[1]) > 0:
             num_otus += 1
-            if "pident" in row[0]:
+            if "mock" in row[0]:
                 mock_found += 1
                 good_otu.append(int(row[1]))
-            if not "pident" in row[0]:
+            if not "mock" in row[0]:
                 bad_otu.append(int(row[1]))
     spurious = num_otus - mock_found
     total_good_reads = sum(good_otu)
     print "-------------------------------------------------------"
     print "Summarizing data for %s, Length: %s bp, Quality Trimming: EE %s, " % (args.out, args.length, args.maxee)
     print "-------------------------------------------------------"
-    print "Total OTUs in Mock:  %i" % (mock_ref_count)
-    print "Total OTUs in %s:  %i" % (args.mock, num_otus)
+    print "Theoretical OTUs in Mock:  %i" % (mock_ref_count)
+    print "Total OTUs detected in %s:  %i" % (args.mock, num_otus)
     print "\nReal Mock OTUs found:  %i" % (mock_found)
     if mock_found != 0:
         good_otu = sorted(good_otu, key=int)
@@ -329,7 +319,6 @@ if args.mock != "False" and result != 'fail':
         if spurious == 1:
             print "Highest count from Spurious OTUs:  %i" % (bad_otu[0])
         print "Total number of reads in Spurious OTUs: %s" % (total_bad_reads)
-    os.remove(map_out_name)
     os.remove(mock_out)
 
 #Print location of files to STDOUT

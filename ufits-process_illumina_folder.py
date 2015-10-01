@@ -23,7 +23,7 @@ parser=argparse.ArgumentParser(prog='ufits-process_illumina_folder.py', usage="%
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--input', dest='input', required=True, help='Folder of Illumina PE Data')
-parser.add_argument('-o','--out', dest="out", default='ufits-results', help='Name for output folder')
+parser.add_argument('-o','--out', dest="out", default='ufits-data', help='Name for output folder')
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='GTGARTCATCGAATCTTTG', help='Forward Primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='TCCTCCGCTTATTGATATGC', help='Reverse Primer (ITS4)')
 parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
@@ -290,7 +290,7 @@ print "-------------------------------------------------------"
 #Now concatenate all of the demuxed files together
 log.info("Concatenating Demuxed Files")
 
-catDemux = os.path.join(args.out, 'ufits.demux.fq')
+catDemux = 'ufits.demux.fq'
 with open(catDemux, 'wb') as outfile:
     for filename in glob.glob(os.path.join(args.out,'*.demux.fq')):
         if filename == catDemux:
@@ -312,4 +312,4 @@ print "-------------------------------------------------------"
 if filesize >= 4294967296:
     print col.WARN + "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs" + col.END
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "ufits-OTU_cluster.py -f %s -o %s/out --uchime_ref ITS2\n" % (catDemux, args.out)
+    print col.WARN + "\nExample of next cmd: " + col.END + "ufits-OTU_cluster.py -f %s -o out --uchime_ref ITS2 --mock stds\n" % (catDemux)
