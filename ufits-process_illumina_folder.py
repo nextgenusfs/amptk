@@ -107,9 +107,15 @@ for item in sorted(filenames):
         uniq_names.append(column[0])
         if "-" in column[1]:
             barcode = column[1].split("-")
-            map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], barcode[0], barcode[1], column[2], column[4].split(".",1)[0]))
+            try:
+                map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], barcode[0], barcode[1], column[2], column[4].split(".",1)[0]))
+            except IndexError:
+                log.info("Non-standard names detected, skipping mapping file")
         else:
-            map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], column[1], "None", column[2], column[4].split(".",1)[0]))
+            try:
+                map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], column[1], "None", column[2], column[4].split(".",1)[0]))
+            except IndexError:
+                log.info("Non-standard names detected, skipping mapping file")
 map_file.close()
 
 #loop through each set
