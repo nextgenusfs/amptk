@@ -97,7 +97,7 @@ uniq_names = []
 fastq_for = []
 fastq_rev = []
 map = os.path.join(args.out, 'ufits-filenames.txt')
-map_file = open(map, 'wb')
+map_file = open(map, 'w')
 map_file.write("Name\t[i5]\t[i7]\tLane\tSet_num\n")
 for item in sorted(filenames):
     if '_R1' in item:
@@ -155,10 +155,10 @@ for i in range(len(fastq_for)):
     #now concatenate files for downstream pre-process_illumina.py script
     outname = name + '.fq'
     final_out = os.path.join(args.out, outname)
-    out_file = open(final_out, 'wb')
-    shutil.copyfileobj(open(merge_out,'rb'), out_file)
-    shutil.copyfileobj(open(skip_for,'rb'), out_file)
-    out_file.close()
+    cat_file = open(final_out, 'wb')
+    shutil.copyfileobj(open(merge_out,'rb'), cat_file)
+    shutil.copyfileobj(open(skip_for,'rb'), cat_file)
+    cat_file.close()
 
     #clean and close up intermediate files
     os.remove(merge_out)
