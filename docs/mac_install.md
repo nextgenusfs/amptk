@@ -25,7 +25,7 @@ pip install biopython natsort
 
 `git clone https://github.com/nextgenusfs/ufits`
 
-And then you will need to add the following to your `~/.bash_profile` or always include the entire path to the scripts at runtime.
+And then you will need to add the following to your `~/.bash_profile` or always include the entire path to the scripts at runtime. If you do not have a `~/.bash_profile` file, you can create one by typing: `sudo vim ~/.bash_profile`.  Then you can type in the appropriate path below and save by typing `:x`.
 
 `export PATH="/location/of/packages/ufits:$PATH"`
 
@@ -46,15 +46,15 @@ Open terminal, navigate to the `test_data` folder of ufits.
 
 ```
 #test scripts on Ion PGM data
-ufits-process_ion.py -i ion.test.fastq -o ion
+ufits ion -i ion.test.fastq -o ion
 #run clustering
-ufits-OTU_cluster.py -i ion.demux.fq -o ion --uchime_ref ITS2 --mock BC_5
+ufits cluster -i ion.demux.fq -o ion --uchime_ref ITS2 --mock BC_5
 ```
 ```
 #test scripts on MiSeq data
-ufits-process_illumina_folder.py -i illumina_test_data/
+ufits illumina -i illumina_test_data/
 #run clustering
-ufits-OTU_cluster.py -i ufits.demux.fq -o miseq --uchime_ref ITS2 --mock spike
+ufits cluster -i ufits.demux.fq -o miseq --uchime_ref ITS2 --mock spike
 ```
 
 

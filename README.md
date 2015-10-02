@@ -58,11 +58,15 @@ This will find Ion barcodes (1, 5, and 24) and relabel header with that informat
 
 Paired-end MiSeq data is typically delivered already de-multiplexed into separate read files, that have a defined naming structure from Illumina that looks like this: 
 
-```<sample name>_<barcode sequence>_L<lane (0-padded to 3 digits)>_R<read number>_<set number (0-padded to 3 digits>.fastq.gz```
+```
+<sample name>_<barcode sequence>_L<lane (0-padded to 3 digits)>_R<read number>_<set number (0-padded to 3 digits>.fastq.gz
+```
 
 You can processes a folder of Illumina data like this:
 
-`ufits illumina -i folder_name`
+```
+ufits illumina -i folder_name
+```
 
 This will find all files ending with '.fastq.gz' in the input folder, gunzip the files, and then sequentially process the paired read files.  First it will run USEARCH8 `-fastq_mergepairs`, however, since some ITS sequences are too long to overlap you can rescue longer sequences by recovering the the non-merged forward reads.  Next the forward and reverse primers are removed and the reads are trimmed/padded to a set length of clustering. Finally, the resulting FASTQ files for each of the processed samples are concatenated together into a file called `ufits.demux.fq` that will be used for the next clustering step.  The script will also output a text file called `ufits-filenames.txt` that contains a tab-delimited output of the sample name as well as [i5] and [i7] index sequences that were used.
 
@@ -70,7 +74,9 @@ This will find all files ending with '.fastq.gz' in the input folder, gunzip the
 
 Now the data from either platform (Ion or Illumina) can be clustered by running the following:
 
-`ufits cluster -i ufits.demux.fq -o ion --mock BC_5`
+```
+ufits cluster -i ufits.demux.fq -o ion --mock BC_5
+```
 
 This will run `usearch -fastq_filter` to filter the data based on expected errors, then remove duplicated sequences, sort the output by frequency, and finally `usearch -cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Another option is to process a spike-in control or mock community, you can specify a barcode name for the mock community by passing in `--mock BC_5` which will run some additional steps and report stats of the run to STDOUT.  Type `-h` for all the available options.
 
@@ -79,9 +85,11 @@ This will run `usearch -fastq_filter` to filter the data based on expected error
 
 The data may need some additional filtering if you included a spike-in control mock community.  The advantage is that you know what should be in the spike-in control barcode sample, thus you can modify USEARCH8 clustering parameters that give you reasonable results.  If you need to trim your OTU table by some threshold, i.e. several OTUs at low abundance are showing up in your spike-in control sample that represent contamination or sequence error - you can set a threshold and filter the OTU table. This is done with the following script:
 
-`ufits filter -i test.otu_table.txt -b BC_27`
+```
+ufits filter -i test.otu_table.txt -b BC_27
+```
 
-This  will read the OTU table `-i`, count the number of OTUs in the barcode specified by the `-b` parameter and give you some basic stats to STDOUT.  It will then ask for a value to threshold trim the data, if you would type in a value of 2, then 2 will be subtracted from every column and a new OTU table will be saved to file ending in `.filtered.out_table.txt` as well as a new OTU fasta file `filtered.otus.fa`.  To combat 'barcode switching' or 'index bleed', an additional filter can be run that removes OTU counts that are less than 0.1% of the total for each OTU.  If you used dual indexing on MiSeq and have a lot of indexes that were re-used, you will need to increase this filter to at least 0.5, by passing the argument `-p 0.5` to the script.
+This  will read the OTU table `-i`, count the number of OTUs in the barcode specified by the `-b` parameter and give you some basic stats to STDOUT.  It will then ask for a value to threshold trim the data, if you would type in a value of 2, then 2 will be subtracted from every column and a new OTU table will be saved to file ending in `.filteredX.out_table.txt` as well as a new OTU fasta file `filtered.otus.fa`.  To combat 'barcode switching' or 'index bleed', an additional filter can be run that removes OTU counts that are less than 0.1% of the total for each OTU.  If you used dual indexing on MiSeq and have a lot of indexes that were re-used, you will need to increase this filter to at least 0.5, by passing the argument `-p 0.5` to the script.
 
 
 ####Assign Taxonomy:####
