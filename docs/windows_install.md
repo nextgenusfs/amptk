@@ -37,6 +37,7 @@ This will create a folder called `ufits` in the current directory (so C:\Program
 
 #####6) Add location of scripts to PATH variable
 See a walkthrough [here](http://www.howtogeek.com/118594/how-to-edit-your-system-path-for-easy-command-line-access/)
+
 Short instructions:
 * Open System Control Panel (Start - Settings - Control Panel - System)
 * Select Advanced tab
