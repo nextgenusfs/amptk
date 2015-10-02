@@ -2,7 +2,9 @@
 
 #Wrapper script for UFITS package.
 
-import sys, subprocess
+import sys, os, subprocess, inspect
+script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+
 version = '0.1.0'
 
 default_help = """
@@ -34,7 +36,10 @@ Arguments:  -i, --fastq         Input FASTQ file (Required)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            arguments.insert(0, 'ufits-process_ion.py')
+            cmd = os.path.join(script_path, 'ufits-process_ion.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
             print help
@@ -56,7 +61,10 @@ Arguments:  -i, --fastq         Input FASTQ file (Required)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            arguments.insert(0, 'ufits-process_illumina_folder.py')
+            cmd = os.path.join(script_path, 'ufits-process_illumina_folder.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
             print help
@@ -84,7 +92,10 @@ Arguments:  -i, --fastq         Input FASTQ file (Required)
        
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            arguments.insert(0, 'ufits-OTU_cluster.py')
+            cmd = os.path.join(script_path, 'ufits-OTU_cluster.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
             print help
@@ -108,7 +119,10 @@ Arguments:  -i, --otu_table     Input OTU table (Required)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            arguments.insert(0, 'ufits-mock_filter.py')
+            cmd = os.path.join(script_path, 'ufits-mock_filter.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
             print help
