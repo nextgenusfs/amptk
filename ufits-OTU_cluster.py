@@ -255,7 +255,7 @@ otu_table = args.out + '.EE' + args.maxee + '.otu_table.txt'
 uc2tab = os.path.join(script_path, 'lib', 'uc2otutable.py')
 log.info("Creating OTU Table")
 log.debug("%s %s %s" % (uc2tab, uc_out, otu_table))
-subprocess.call([uc2tab, uc_out, otu_table], stdout = FNULL, stderr = FNULL)
+subprocess.call([sys.executable, uc2tab, uc_out, otu_table], stdout = FNULL, stderr = FNULL)
 
 if args.mock != "False":
     #first check if the name is in mock, if not don't run the stats

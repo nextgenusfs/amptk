@@ -7,7 +7,7 @@ import die
 import fasta
 
 if len(sys.argv)<2:
-    print "Usage: " + sys.argv[0] + " table.uc > table.otu.txt"
+    print "Usage: " + sys.argv[0] + " table.uc table.otu.txt"
     os._exit(1)
 
 FileName = sys.argv[1]
