@@ -5,7 +5,7 @@ Note: This has been tested with Win 7 (as that was my only test machine), there 
 
 #####1) Need to install Python 2.7#####
 
-Download appropriate installer here:
+Download installer here for 2.7.10:
 https://www.python.org/downloads/release/python-2710/
 
 
@@ -29,12 +29,14 @@ cd C:\Program Files
 #clone repository
 git clone https://github.com/nextgenusfs/ufits
 ```
+This will create a folder called `ufits` in the current directory (so C:\Program Files\ufits)
 
 #####5) Download/Install USEARCH8 - get it here: http://www.drive5.com/usearch/download.html.
 * copy usearch8 exe file into ufits folder (C:\Program Files\ufits)
 * change file name to usearch8 (right click and rename)
 
 #####6) Add location of scripts to PATH variable
+See a walkthrough [here](http://www.howtogeek.com/118594/how-to-edit-your-system-path-for-easy-command-line-access/)
 Short instructions:
 * Open System Control Panel (Start - Settings - Control Panel - System)
 * Select Advanced tab

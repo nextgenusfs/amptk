@@ -21,7 +21,7 @@ And then you will need to add to your `~/.bash_aliases` or always include the en
 
 `export PATH="/location/of/packages/ufits:$PATH"`
 
-#####5) You will also need to install USEARCH8 - get it here: http://www.drive5.com/usearch/download.html.  One way to make the program executable and move into your path:
+#####3) You will also need to install USEARCH8 - get it here: http://www.drive5.com/usearch/download.html.  One way to make the program executable and move into your path:
 
 ```
 #make executable
@@ -36,7 +36,7 @@ sudo ln -s /path/to/usearch8.0.1623_i86linux32 /usr/local/bin/usearch8
 sudo mv /path/to/usearch8.0.1623_i86linux32 /usr/local/bin/usearch8
 ```
 
-#####6) Test Installation
+#####4) Test Installation
 Open command prompt, navigate to the `test_data` folder of ufits.
 
 ```
