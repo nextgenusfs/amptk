@@ -78,11 +78,11 @@ base = base[0]
 
 #get default mock community value
 if args.mock_community == "ufits_mock3.fa":
-    mock = script_path + "/lib/ufits_mock3.fa"
+    mock = os.path.join(script_path, 'lib', 'ufits_mock3.fa')
 else:
     mock = args.mock_community
 #open mock community fasta and count records
-mock_file = open(mock, "r")
+mock_file = open(mock, "rU")
 mock_ref_count = 0
 for line in mock_file:
     if line.startswith (">"):
@@ -198,7 +198,7 @@ if args.trim_data == 'on':
         header = header[0] #just get first list, double check
          #convert header names (optional)
         if args.names != 'False':
-            with open(args.names, 'r') as infile:
+            with open(args.names, 'rU') as infile:
                 headRead = csv.reader(infile)
                 headDict = {rows[0]:rows[1] for rows in headRead}
             header = [headDict[x] for x in header[1:]]
