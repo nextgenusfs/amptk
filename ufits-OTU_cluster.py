@@ -79,7 +79,10 @@ def dereplicate(input, output):
 
 def setupLogging(LOGNAME):
     global log
-    stdoutformat = logging.Formatter(col.GRN+'%(asctime)s'+col.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
+    if 'win' in sys.platform:
+        stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
+    else:
+        stdoutformat = logging.Formatter(col.GRN+'%(asctime)s'+col.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
     fileformat = logging.Formatter('%(asctime)s: %(message)s')
     log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)
