@@ -25,7 +25,7 @@ And then you will need to add to your `~/.bash_aliases` or always include the en
 export PATH="/location/of/packages/ufits:$PATH"
 ```
 
-#####3) You will also need to install USEARCH8 - get it here: http://www.drive5.com/usearch/download.html.  One way to make the program executable and move into your path:
+#####3) You will also need to install USEARCH8 - get it [here](http://www.drive5.com/usearch/download.html).  One way to make the program executable and move into your path:
 
 ```
 #make executable

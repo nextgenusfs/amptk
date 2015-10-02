@@ -37,7 +37,7 @@ And then you will need to add the following to your `~/.bash_profile` or always 
 export PATH="/location/of/packages/ufits:$PATH"
 ```
 
-#####5) You will also need to install USEARCH8 - get it here: http://www.drive5.com/usearch/download.html.  One way to make the program executable and move into your path:
+#####5) You will also need to install USEARCH8 - get it [here](http://www.drive5.com/usearch/download.html).  One way to make the program executable and move into your path:
 
 ```
 #make executable
