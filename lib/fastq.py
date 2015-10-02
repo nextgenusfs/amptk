@@ -116,7 +116,7 @@ def ReadSeqsOnRec(FileName, OnRec):
 
 def ReadSeqs(FileName, OnRec):
 	global File
-	File = open(FileName)
+	File = open(FileName, 'rU')
 	Label = ""
 	Seq = ""
 	while 1:
