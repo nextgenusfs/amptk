@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #This script is a wrapper for -fastq_mergepairs from USEARCH8
-import os, sys, argparse, shutil, subprocess, glob, math, logging
+import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip
 import lib.fasta as fasta
 import lib.fastq as fastq
 import lib.primer as primer
@@ -84,9 +84,25 @@ except OSError:
     os._exit(1)
 log.info("USEARCH version: %s" % usearch_test)
 
-#get filenames, store in list
-#Illumina file names look like the following
-#<sample name>_<barcode sequence>_L<lane (0-padded to 3 digits)>_R<read number>_<set number (0-padded to 3 digits>.fastq.gz
+'''get filenames, store in list, Illumina file names look like the following:
+<sample name>_<barcode sequence>_L<lane (0-padded to 3 digits)>_R<read number>_<set number (0-padded to 3 digits>.fastq.gz'''
+#try to gunzip files
+gzip_list = []
+for file in os.listdir(args.input):
+    if file.endswith(".fastq.gz"):
+        gzip_list.append(file)
+if gzip_list:
+    log.info("Gzipped files detected, uncompressing")
+for file in gzip_list:
+    log.debug("Uncompressing %s" % file)
+    OutName = os.path.join(args.input, os.path.splitext(file)[0])
+    InFile = gzip.open(os.path.join(args.input, file), 'rU')
+    ReadFile = InFile.read()
+    OutFile = open(OutName, 'w')
+    OutFile.write(ReadFile)
+    OutFile.close()       
+
+#now get the FASTQ files and proceed
 filenames = []
 for file in os.listdir(args.input):
     if file.endswith(".fastq"):
@@ -169,7 +185,7 @@ for i in range(len(fastq_for)):
     os.remove(pretrim_R2)
     os.remove(skip_for)
 
-    log.info("Strip primers, trim/pad to %s bp\n" % args.trim_len)
+    log.info("Strip primers, trim/pad to %s bp" % args.trim_len)
     
     #now rest of script for demultiplexing here
     MAX_PRIMER_MISMATCHES = 2
@@ -320,6 +336,6 @@ if filesize >= 4294967296:
         print col.WARN + "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs" + col.END
 else:
     if 'win32' in sys.platform:
-        print "\nExample of next cmd: ufits-OTU_cluster.py -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (catDemux)
+        print "\nExample of next cmd: ufits-OTU_cluster.py -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: spike)\n" % (catDemux)
     else:
         print col.WARN + "\nExample of next cmd: " + col.END + "ufits-OTU_cluster.py -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: spike)\n" % (catDemux)

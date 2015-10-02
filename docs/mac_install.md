@@ -41,3 +41,20 @@ sudo chmod +x /path/to/usearch8.0.1623_i86osx32
 sudo ln -s /path/to/usearch8.0.1623_i86osx32 /usr/local/bin/usearch8
 ```
 
+#####6) Test Installation
+Open terminal, navigate to the `test_data` folder of ufits.
+
+```
+#test scripts on Ion PGM data
+ufits-process_ion.py -i ion.test.fastq -o ion
+#run clustering
+ufits-OTU_cluster.py -i ion.demux.fq -o ion --uchime_ref ITS2 --mock BC_5
+```
+```
+#test scripts on MiSeq data
+ufits-process_illumina_folder.py -i illumina_test_data/
+#run clustering
+ufits-OTU_cluster.py -i ufits.demux.fq -o miseq --uchime_ref ITS2 --mock spike
+```
+
+
