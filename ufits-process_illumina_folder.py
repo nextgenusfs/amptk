@@ -314,6 +314,12 @@ readablesize = convertSize(filesize)
 log.info("File size:  %s" % readablesize)
 print "-------------------------------------------------------"
 if filesize >= 4294967296:
-    print col.WARN + "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs" + col.END
+    if 'win' in sys.platform:
+        print "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs"
+    else:
+        print col.WARN + "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs" + col.END
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "ufits-OTU_cluster.py -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: spike)\n" % (catDemux)
+    if 'win' in sys.platform:
+        print "\nExample of next cmd: ufits-OTU_cluster.py -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (catDemux)
+    else:
+        print col.WARN + "\nExample of next cmd: " + col.END + "ufits-OTU_cluster.py -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (catDemux)
