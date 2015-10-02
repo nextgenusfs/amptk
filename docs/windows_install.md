@@ -22,6 +22,7 @@ pip install biopython natsort
 ```
 
 #####4) Now download this repository using git
+
 ```
 #move into folder of choice
 cd C:\Program Files
@@ -31,11 +32,11 @@ git clone https://github.com/nextgenusfs/ufits
 ```
 This will create a folder called `ufits` in the current directory (so C:\Program Files\ufits)
 
-#####5) Download/Install USEARCH8 - get it here: http://www.drive5.com/usearch/download.html.
+#####5) Download/Install USEARCH8 - get it [here](http://www.drive5.com/usearch/download.html)#####
 * copy usearch8 exe file into ufits folder (C:\Program Files\ufits)
 * change file name to usearch8 (right click and rename)
 
-#####6) Add location of scripts to PATH variable
+#####6) Add location of scripts to PATH variable#####
 See a walkthrough [here](http://www.howtogeek.com/118594/how-to-edit-your-system-path-for-easy-command-line-access/)
 
 Short instructions:
