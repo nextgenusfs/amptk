@@ -46,7 +46,7 @@ def convertSize(num, suffix='B'):
 
 def setupLogging(LOGNAME):
     global log
-    if 'win' in sys.platform:
+    if 'win32' in sys.platform:
         stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
     else:
         stdoutformat = logging.Formatter(col.GRN+'%(asctime)s'+col.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
@@ -240,12 +240,12 @@ readablesize = convertSize(filesize)
 log.info("File size:  %s" % readablesize)
 print "-------------------------------------------------------"
 if filesize >= 4294967296:
-    if 'win' in sys.platform:
+    if 'win32' in sys.platform:
         print "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs"
     else:
         print col.WARN + "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs" + col.END
 else:
-    if 'win' in sys.platform:
+    if 'win32' in sys.platform:
         print "\nExample of next cmd: ufits-OTU_cluster.py -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (demuxname)
     else:
         print col.WARN + "\nExample of next cmd: " + col.END + "ufits-OTU_cluster.py -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (demuxname)

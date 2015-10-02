@@ -23,21 +23,15 @@ parser.add_argument('-o','--out', dest="out", default='out', help='BaseName for 
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()
 
-FNULL = open(os.devnull, 'w')
-
-usearch = args.usearch
-try:
-    subprocess.call([usearch, '--version'], stdout = FNULL, stderr = FNULL)
-except OSError:
-    print "%s not found in your PATH, exiting." % usearch 
-    os._exit(1)
-
 def myround(x, base=10):
     return int(base * round(float(x)/base))
 
 def setupLogging(LOGNAME):
     global log
-    stdoutformat = logging.Formatter(col.GRN+'%(asctime)s'+col.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
+    if 'win32' in sys.platform:
+        stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
+    else:
+        stdoutformat = logging.Formatter(col.GRN+'%(asctime)s'+col.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
     fileformat = logging.Formatter('%(asctime)s: %(message)s')
     log = logging.getLogger("myapp")
     log.setLevel(logging.DEBUG)
@@ -56,9 +50,20 @@ if os.path.isfile(log_name):
     os.remove(log_name)
 
 setupLogging(log_name)
+FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 log.debug(cmd_args)
 print "-------------------------------------------------------"
+#initialize script, log system info and usearch version
+log.info("Operating system: %s" % sys.platform)
+usearch = args.usearch
+try:
+    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0]
+except OSError:
+    log.warning("%s not found in your PATH, exiting." % usearch)
+    os._exit(1)
+log.info("USEARCH version: %s" % usearch_test)
+
 
 #check extension and decompress if ending in .gz
 extension = os.path.splitext(args.fastq_forward_reads)[1]

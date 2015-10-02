@@ -171,7 +171,6 @@ for i in range(len(fastq_for)):
 
     log.info("Strip primers, trim/pad to %s bp\n" % args.trim_len)
     
-    print final_out
     #now rest of script for demultiplexing here
     MAX_PRIMER_MISMATCHES = 2
     FileName = final_out
@@ -323,4 +322,4 @@ else:
     if 'win32' in sys.platform:
         print "\nExample of next cmd: ufits-OTU_cluster.py -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (catDemux)
     else:
-        print col.WARN + "\nExample of next cmd: " + col.END + "ufits-OTU_cluster.py -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (catDemux)
+        print col.WARN + "\nExample of next cmd: " + col.END + "ufits-OTU_cluster.py -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: spike)\n" % (catDemux)
