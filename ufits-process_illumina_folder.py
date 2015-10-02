@@ -46,7 +46,7 @@ def setupLogging(LOGNAME):
     global log
     stdoutformat = logging.Formatter(col.GRN+'%(asctime)s'+col.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
     fileformat = logging.Formatter('%(asctime)s: %(message)s')
-    log = logging.getLogger("myapp")
+    log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)
     sth = logging.StreamHandler()
     sth.setLevel(logging.INFO)
@@ -191,8 +191,7 @@ for i in range(len(fastq_for)):
     PL = len(FwdPrimer)
     RevPrimer = revcomp_lib.RevComp(RevPrimer)
     
-    print >> sys.stderr, "Foward primer: ", FwdPrimer
-    print >> sys.stderr, "Rev comp'd rev primer: ", RevPrimer
+    log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
 
     def MatchesPrimer(Seq, Primer):
         return primer.MatchPrefix(Seq, Primer)
@@ -278,12 +277,14 @@ for i in range(len(fastq_for)):
     progress.FileDone("%u reads, %u outupt, %u bad fwd primer, %u rev primer stripped, %u too short" % \
           (SeqCount, OutCount, FwdPrimerMismatchCount, RevPrimerStrippedCount, TooShortCount))
 
-    print >> sys.stderr, "%10u seqs" % SeqCount
-    print >> sys.stderr, "%10u fwd primer mismatches (%.1f%% discarded)" % (FwdPrimerMismatchCount, FwdPrimerMismatchCount*100.0/SeqCount)
-    print >> sys.stderr, "%10u rev primer stripped (%.2f%% kept)" % (RevPrimerStrippedCount, RevPrimerStrippedCount*100.0/SeqCount)
-    print >> sys.stderr, "%10u padded (%.2f%%)" % (PadCount, PadCount*100.0/SeqCount)
-    print >> sys.stderr, "%10u too short (%.2f%%)" % (TooShortCount, TooShortCount*100.0/SeqCount)
-    print >> sys.stderr, "%10u output (%.1f%%)\n" % (OutCount, OutCount*100.0/SeqCount)
+    log.info("Stats for demuxing: \
+    \n%10u seqs \
+    \n%10u fwd primer mismatches (%.1f%% discarded) \
+    \n%10u rev primer stripped (%.2f%% kept) \
+    \n%10u padded (%.2f%%) \
+    \n%10u too short (%.2f%%) \
+    \n%10u output (%.1f%%)" % \
+    (SeqCount, FwdPrimerMismatchCount, FwdPrimerMismatchCount*100.0/SeqCount, RevPrimerStrippedCount, RevPrimerStrippedCount*100.0/SeqCount, PadCount, PadCount*100.0/SeqCount, TooShortCount, TooShortCount*100.0/SeqCount, OutCount, OutCount*100.0/SeqCount))
     out_file.close()
 
 print "-------------------------------------------------------"
@@ -312,4 +313,4 @@ print "-------------------------------------------------------"
 if filesize >= 4294967296:
     print col.WARN + "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs" + col.END
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "ufits-OTU_cluster.py -f %s -o out --uchime_ref ITS2 --mock stds\n" % (catDemux)
+    print col.WARN + "\nExample of next cmd: " + col.END + "ufits-OTU_cluster.py -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: spike)\n" % (catDemux)

@@ -17,13 +17,13 @@ class col:
     END = '\033[0m'
     WARN = '\033[93m'
 
-parser=argparse.ArgumentParser(prog='ufits-OTU_cluster.py', usage="%(prog)s [options] -f file.demux.fq\n%(prog)s -h for help menu",
+parser=argparse.ArgumentParser(prog='ufits-OTU_cluster.py', usage="%(prog)s [options] -i file.demux.fq\n%(prog)s -h for help menu",
     description='''Script runs UPARSE OTU clustering. 
     Requires USEARCH by Robert C. Edgar: http://drive5.com/usearch''',
     epilog="""Written by Jon Palmer (2015)  palmer.jona@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('-f','--fastq', dest="FASTQ", required=True, help='FASTQ file (Required)')
+parser.add_argument('-i','--fastq', dest="FASTQ", required=True, help='FASTQ file (Required)')
 parser.add_argument('-o','--out', default='out', help='Base output name')
 parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
 parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent")
@@ -81,7 +81,7 @@ def setupLogging(LOGNAME):
     global log
     stdoutformat = logging.Formatter(col.GRN+'%(asctime)s'+col.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
     fileformat = logging.Formatter('%(asctime)s: %(message)s')
-    log = logging.getLogger("myapp")
+    log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)
     sth = logging.StreamHandler()
     sth.setLevel(logging.INFO)
@@ -260,7 +260,7 @@ subprocess.call([uc2tab, uc_out, otu_table], stdout = FNULL, stderr = FNULL)
 if args.mock != "False":
     #first check if the name is in mock, if not don't run the stats
     with open(otu_table, 'r') as f:
-        first_line = f.readline()
+        first_line = f.readline().strip()
         check = first_line.split('\t')
         if args.mock not in check:
             result = 'fail'
@@ -289,10 +289,10 @@ if args.mock != "False" and result != 'fail':
     for row in results:
         if int(row[1]) > 0:
             num_otus += 1
-            if "mock" in row[0]:
+            if not "OTU" in row[0]:
                 mock_found += 1
                 good_otu.append(int(row[1]))
-            if not "mock" in row[0]:
+            if "OTU" in row[0]:
                 bad_otu.append(int(row[1]))
     spurious = num_otus - mock_found
     total_good_reads = sum(good_otu)

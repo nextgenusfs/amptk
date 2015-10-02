@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, inspect, argparse, shutil
+import sys, os, inspect, argparse, shutil, logging
 from Bio import SeqIO
 import lib.fasta as fasta
 import lib.fastq as fastq
@@ -12,25 +12,61 @@ import lib.die as die
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
+class col:
+    GRN = '\033[92m'
+    END = '\033[0m'
+    WARN = '\033[93m'
 
 #get script path and barcode file name
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 pgm_barcodes = os.path.join(script_path, 'lib', 'pgm_barcodes.fa')
 
-parser=argparse.ArgumentParser(prog='ufits-process_ion.py', usage="%(prog)s [options] file.fastq > out.fastq\n%(prog)s -h for help menu",
+parser=argparse.ArgumentParser(prog='ufits-process_ion.py', usage="%(prog)s [options] -i file.fastq\n%(prog)s -h for help menu",
     description='''Script finds barcodes, strips forward and reverse primers, relabels, and then trim/pads reads to a set length''',
     epilog="""Written by Robert Edgar, modified by Jon Palmer (2015) palmer.jona@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('fastq', help='FASTQ file')
+parser.add_argument('-i','--fastq', required=True, help='FASTQ file')
+parser.add_argument('-o','--out', dest="out", default='ion', help='Base name for output')
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='AGTGARTCATCGAATCTTTG', help='Forward Primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='TCCTCCGCTTATTGATATGC', help='Reverse Primer (ITS4)')
 parser.add_argument('-b','--list_barcodes', dest="barcodes", default='all', help='Enter Barcodes used separated by commas')
-parser.add_argument('-n','--name_prefix', dest="prefix", default='Reads_', help='Prefix for renaming reads')
+parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
 parser.add_argument('-m','--min_len', default='50', help='Minimum read length to keep')
 parser.add_argument('-l','--trim_len', default='250', help='Trim length for reads')
 parser.add_argument('--mult_samples', dest="multi", default='False', help='Combine multiple samples (i.e. FACE1)')
 args=parser.parse_args()
+
+def convertSize(num, suffix='B'):
+    for unit in ['','K','M','G','T','P','E','Z']:
+        if abs(num) < 1024.0:
+            return "%3.1f %s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Y', suffix) 
+
+def setupLogging(LOGNAME):
+    global log
+    stdoutformat = logging.Formatter(col.GRN+'%(asctime)s'+col.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
+    fileformat = logging.Formatter('%(asctime)s: %(message)s')
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.DEBUG)
+    sth = logging.StreamHandler()
+    sth.setLevel(logging.INFO)
+    sth.setFormatter(stdoutformat)
+    log.addHandler(sth)
+    fhnd = logging.FileHandler(LOGNAME)
+    fhnd.setLevel(logging.DEBUG)
+    fhnd.setFormatter(fileformat)
+    log.addHandler(fhnd)
+
+log_name = args.out + '.demux.log'
+if os.path.isfile(log_name):
+    os.remove(log_name)
+
+setupLogging(log_name)
+cmd_args = " ".join(sys.argv)+'\n'
+log.debug(cmd_args)
+print "-------------------------------------------------------"
 
 MAX_PRIMER_MISMATCHES = 2
 
@@ -66,8 +102,7 @@ else:
 BarcodeFileName = barcode_file
 RevPrimer = revcomp_lib.RevComp(RevPrimer)
 
-print >> sys.stderr, "Foward primer: ", FwdPrimer
-print >> sys.stderr, "Rev comp'd rev primer ", RevPrimer
+log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
 
 SeqCount = 0
 OutCount = 0
@@ -76,6 +111,8 @@ FwdPrimerMismatchCount = 0
 RevPrimerStrippedCount = 0
 TooShortCount = 0
 PadCount = 0
+demuxname = args.out + '.demux.fq'
+out_file = open(demuxname, 'w')
 
 PL = len(FwdPrimer)
 
@@ -177,16 +214,30 @@ def OnRec(Label, Seq, Qual):
 	assert L == TrimLen
 	assert len(Qual) == TrimLen
 
-	fastq.WriteRec(sys.stdout, Label, Seq, Qual)
+	fastq.WriteRec(out_file, Label, Seq, Qual)
 
 fastq.ReadRecs(FileName, OnRec)
 progress.FileDone("%u reads, %u outupt, %u bad barcode, %u bad fwd primer, %u rev primer stripped, %u too short" % \
 	  (SeqCount, OutCount, BarcodeMismatchCount, FwdPrimerMismatchCount, RevPrimerStrippedCount, TooShortCount))
 
-print >> sys.stderr, "%10u seqs" % SeqCount
-print >> sys.stderr, "%10u barcode mismatches" % BarcodeMismatchCount
-print >> sys.stderr, "%10u fwd primer mismatches (%.1f%% discarded)" % (FwdPrimerMismatchCount, FwdPrimerMismatchCount*100.0/SeqCount)
-print >> sys.stderr, "%10u rev primer stripped (%.2f%% kept)" % (RevPrimerStrippedCount, RevPrimerStrippedCount*100.0/SeqCount)
-print >> sys.stderr, "%10u padded (%.2f%%)" % (PadCount, PadCount*100.0/SeqCount)
-print >> sys.stderr, "%10u too short (%.2f%%)" % (TooShortCount, TooShortCount*100.0/SeqCount)
-print >> sys.stderr, "%10u output (%.1f%%)" % (OutCount, OutCount*100.0/SeqCount)
+log.info("Stats for demuxing: \
+\n%10u seqs \
+\n%10u barcode mismatches \
+\n%10u fwd primer mismatches (%.1f%% discarded) \
+\n%10u rev primer stripped (%.2f%% kept) \
+\n%10u padded (%.2f%%) \
+\n%10u too short (%.2f%%) \
+\n%10u output (%.1f%%)" % \
+(SeqCount, BarcodeMismatchCount, FwdPrimerMismatchCount, FwdPrimerMismatchCount*100.0/SeqCount, RevPrimerStrippedCount, RevPrimerStrippedCount*100.0/SeqCount, PadCount, PadCount*100.0/SeqCount, TooShortCount, TooShortCount*100.0/SeqCount, OutCount, OutCount*100.0/SeqCount))
+out_file.close()
+
+#get file size and issue warning if over 4.0 GB
+filesize = os.path.getsize(demuxname)
+readablesize = convertSize(filesize)
+log.info("File size:  %s" % readablesize)
+print "-------------------------------------------------------"
+if filesize >= 4294967296:
+    print col.WARN + "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs" + col.END
+else:
+    print col.WARN + "\nExample of next cmd: " + col.END + "ufits-OTU_cluster.py -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (demuxname)
+
