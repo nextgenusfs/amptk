@@ -63,7 +63,7 @@ def GetRec(File):
 	if len(Line) == 0:
 		return "", "", ""
 
-	assert Line[0] == '@'
+	assert Line[0] == "@"
 	Label = Line.strip()[1:]
 
 	Seq = File.readline().strip()
