@@ -3,11 +3,7 @@
 #This script filters results from ufits-OTU_cluster.py
 #written by Jon Palmer palmer.jona at gmail dot com
 
-import os
-import argparse
-import inspect
-import subprocess
-import csv
+import os, argparse, inspect, subprocess, csv
 from Bio import SeqIO
 from natsort import natsorted
 
@@ -28,7 +24,7 @@ parser=argparse.ArgumentParser(prog='ufits-mock_filter.py', usage="%(prog)s [opt
 parser.add_argument('-i','--otu_table', required=True, help='Input OTU table')
 parser.add_argument('-b','--mock_barcode', required=True, help='Barocde of Mock community')
 parser.add_argument('-p','--barcode_bleed', dest="barcodebleed", default='0.1', help='Index Bleed filter')
-parser.add_argument('-mc', dest="mock_community",default='ufits_mock3.fa', help='Multi-FASTA mock community')
+parser.add_argument('--mc', dest="mock_community",default='ufits_mock3.fa', help='Multi-FASTA mock community')
 parser.add_argument('-d','--delimiter', default='tsv', choices=['csv','tsv'], help='Delimiter')
 parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
 parser.add_argument('--convert_binary', dest="binary", action='store_true', help='Convert to binary')
@@ -113,10 +109,10 @@ good_otu = []
 for row in results:
     if int(row[1]) > 0:
         num_otus += 1
-        if "pident" in row[0]:
+        if not "OTU" in row[0]:
             mock_found = mock_found + 1
             good_otu.append(int(row[1]))
-        if not "pident" in row[0]:
+        if "OTU" in row[0]:
             bad_otu.append(int(row[1]))
 spurious = num_otus - mock_found
 print "\nSummarizing data for %s" % (base)
