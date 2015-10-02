@@ -171,6 +171,7 @@ for i in range(len(fastq_for)):
 
     log.info("Strip primers, trim/pad to %s bp\n" % args.trim_len)
     
+    print final_out
     #now rest of script for demultiplexing here
     MAX_PRIMER_MISMATCHES = 2
     FileName = final_out
