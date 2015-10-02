@@ -4,10 +4,10 @@ ___
 Note: This has been tested with Win 7 (as that was my only test machine), there maybe other steps required for different windows configurations.
 
 #####1) Need to install Python 2.7#####
-```
-#Download appropriate installer here:
+
+Download appropriate installer here:
 https://www.python.org/downloads/release/python-2710/
-```
+
 
 #####2) Install Git for Windows#####
 Download here: https://git-scm.com/download/win
@@ -36,12 +36,12 @@ git clone https://github.com/nextgenusfs/ufits
 
 #####6) Add location of scripts to PATH variable
 Short instructions:
-    * Open System Control Panel (Start - Settings - Control Panel - System)
-    * Select Advanced tab
-    * Open Environmental Variables
-    * Edit System Variables, Path
-    * Add to end of string, ;C:\Program Files\ufits
-    * Now close window
+* Open System Control Panel (Start - Settings - Control Panel - System)
+* Select Advanced tab
+* Open Environmental Variables
+* Edit System Variables, Path
+* Add to end of string, ;C:\Program Files\ufits
+* Now close window
 You will need to restart the command prompt for the new settings to work.
 
 #####6) Test Installation
