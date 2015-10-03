@@ -17,19 +17,23 @@ UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ ufits.py
 Usage:      ufits <command> <arguments>
-version:    0.1.0
+version:    0.1.1
     
 Command:    ion         pre-process Ion Torrent data (find barcodes, trim/pad)
             illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, trim/pad, concatenate)
             cluster     cluster OTUs (using UPARSE algorithm)
             filter      OTU table filtering
+            heatmap     Create heatmap from OTU table
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com
+
 ```
 And then by calling one of the commands, you get a help menu for each:
 
 ```
-$ ufits cluster
+$ ufits.py cluster
 Usage:      ufits cluster <arguments>
-version:    0.1.0
+version:    0.1.1
     
 Arguments:  -i, --fastq         Input FASTQ file (Required)
             -o, --out           Output base name. Default: out
@@ -39,11 +43,14 @@ Arguments:  -i, --fastq         Input FASTQ file (Required)
             -l, --length        Length to trim reads. Default 250
             --mock              Name of spike-in mock community. Default: None
             --mc                Mock community FASTA file. Default: ufits_mock3.fa
-            --uchime_ref        Run Chimera filtering. Default: off (ITS1, ITS2, Full)
+            --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full]
             --map_unfiltered    Map unfiltered reads back to OTUs. Default: off
-            --unoise            Run De-noising pre-clustering UNOISE. Default: off
+            --unoise            Run De-noising pre-clustering (UNOISE). Default: off
             --size_annotations  Append size annotations to OTU names. Default: off
             -u, --usearch       USEARCH executable. Default: usearch8
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com
+
 ```
 
 ####Processing Ion Torrent Data:####
@@ -100,5 +107,4 @@ Coming soon....
 UTAX, RDP, BLAST
 
 ####Dependencies####
-python, biopython, USEARCH8 (accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8).
-
+python, biopython, USEARCH8 (accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8).  In order to draw a heatmap using `ufits.py heatmap` you will need to have the following python libraries installed: `matplotlib, pandas, numpy`.  They can be installed with pip, i.e. `pip install matplotlib pandas numpy`.
