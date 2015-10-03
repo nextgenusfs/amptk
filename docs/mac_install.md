@@ -30,7 +30,7 @@ pip install biopython natsort
 You can download the newest release here:
 https://github.com/nextgenusfs/ufits/releases
 
-* unzip and move the folder to a known directory, i.e. C:\Program Files\ufits
+* unzip and move the folder to a known directory, i.e. $HOME\ufits
 
 
 Or to stay up to date with the most recent changes, you can use Git:
