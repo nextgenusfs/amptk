@@ -9,11 +9,7 @@ Download installer here for 2.7.10:
 https://www.python.org/downloads/release/python-2710/
 
 
-#####2) Install Git for Windows#####
-Download here: https://git-scm.com/download/win
-* Make sure to make git tools available to windows command line during install
-
-#####3) Open up command line in administrator mode
+#####2) Open up command line in administrator mode
 * Search for 'cmd' from start menu, right click and Run as Administrator
 
 Install Python dependencies:
@@ -21,7 +17,17 @@ Install Python dependencies:
 pip install biopython natsort
 ```
 
-#####4) Now download this repository using git
+#####3) Now download this repository
+
+You can download the newest release here:
+https://github.com/nextgenusfs/ufits/releases
+
+* unzip and move the folder to a known directory, i.e. C:\Program Files\ufits
+
+
+Or to stay up to date with the most recent changes, you can use Git:
+Download here: https://git-scm.com/download/win
+* Make sure to make git tools available to windows command line during install
 
 ```
 #move into folder of choice
