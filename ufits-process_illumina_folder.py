@@ -19,7 +19,7 @@ class col:
 
 parser=argparse.ArgumentParser(prog='ufits-process_illumina_folder.py', usage="%(prog)s [options] -i folder",
     description='''Script that takes De-mulitplexed Illumina data from a folder and processes it for ufits (merge PE reads, strip primers, trim/pad to set length.''',
-    epilog="""Written by Jon Palmer (2015) palmer.jona@gmail.com""",
+    epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--input', dest='input', required=True, help='Folder of Illumina PE Data')
@@ -93,6 +93,12 @@ for file in os.listdir(args.input):
         gzip_list.append(file)
 if gzip_list:
     log.info("Gzipped files detected, uncompressing")
+
+#check list for valid filenames they need to have _R1 and _R2, otherwise through exception
+if '_R1' not in gzip_list[0]:
+    log.error("Did not find valid FASTQ files.  Your files must have _R1 and _R2 in filename, rename your files and restart script.")
+    os._exit(1)
+
 for file in gzip_list:
     log.debug("Uncompressing %s" % file)
     OutName = os.path.join(args.input, os.path.splitext(file)[0])
@@ -111,6 +117,11 @@ for file in os.listdir(args.input):
 if len(filenames) % 2 != 0:
     print "Check your input files, they do not seem to be properly paired"
     os.exit(1)
+
+#check list for files, i.e. they need to have _R1 and _R2 in the filenames, otherwise through exception
+if '_R1' not in filenames[0]:
+    log.error("Did not find valid FASTQ files.  Your files must have _R1 and _R2 in filename, rename your files and restart script.")
+    os._exit(1)
 
 uniq_names = []
 fastq_for = []
@@ -175,8 +186,8 @@ for i in range(len(fastq_for)):
     outname = name + '.fq'
     final_out = os.path.join(args.out, outname)
     cat_file = open(final_out, 'wb')
-    shutil.copyfileobj(open(merge_out,'rb'), cat_file)
-    shutil.copyfileobj(open(skip_for,'rb'), cat_file)
+    shutil.copyfileobj(open(merge_out,'rU'), cat_file)
+    shutil.copyfileobj(open(skip_for,'rU'), cat_file)
     cat_file.close()
 
     #clean and close up intermediate files
@@ -315,7 +326,7 @@ with open(catDemux, 'wb') as outfile:
     for filename in glob.glob(os.path.join(args.out,'*.demux.fq')):
         if filename == catDemux:
             continue
-        with open(filename, 'rb') as readfile:
+        with open(filename, 'rU') as readfile:
             shutil.copyfileobj(readfile, outfile)
             
 log.info("Counting FASTQ Records")

@@ -5,7 +5,7 @@
 import sys, os, subprocess, inspect
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
-version = '0.1.0'
+version = '0.1.1'
 
 default_help = """
 Usage:      ufits <command> <arguments>
@@ -15,6 +15,9 @@ Command:    ion         pre-process Ion Torrent data (find barcodes, trim/pad)
             illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, trim/pad, concatenate)
             cluster     cluster OTUs (using UPARSE algorithm)
             filter      OTU table filtering
+            heatmap     Create heatmap from OTU table
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % version
 
 if len(sys.argv) > 1:
@@ -31,7 +34,9 @@ Arguments:  -i, --fastq         Input FASTQ file (Required)
             -n, --name_prefix   Prefix for re-naming reads. Default: R_
             -m, --min_len       Minimum length read to keep. Default: 50
             -l, --trim_len      Length to trim/pad reads. Default: 250
-            --mult_samples      Combine multiple chip runs, name prefix for barcode
+            --mult_samples      Combine multiple chip runs, name prefix for chip
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -50,13 +55,15 @@ Usage:      ufits %s <arguments>
 version:    %s
     
 Arguments:  -i, --fastq         Input FASTQ file (Required)
-            -o, --out           Output base name. Default: out
+            -o, --out           Output folder name. Default: ufits-data
             -f, --fwd_primer    Forward primer sequence. Default: GTGARTCATCGAATCTTTG (fITS7)
             -r, --rev_primer    Reverse primer sequence Default: TCCTCCGCTTATTGATATGC (ITS4)
             -n, --name_prefix   Prefix for re-naming reads. Default: R_
             -m, --min_len       Minimum length read to keep. Default: 50
             -l, --trim_len      Length to trim/pad reads. Default: 250
             -u, --usearch       USEARCH executable. Default: usearch8
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -83,11 +90,13 @@ Arguments:  -i, --fastq         Input FASTQ file (Required)
             -l, --length        Length to trim reads. Default 250
             --mock              Name of spike-in mock community. Default: None
             --mc                Mock community FASTA file. Default: ufits_mock3.fa
-            --uchime_ref        Run Chimera filtering. Default: off (ITS1, ITS2, Full)
+            --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full]
             --map_unfiltered    Map unfiltered reads back to OTUs. Default: off
-            --unoise            Run De-noising pre-clustering UNOISE. Default: off
+            --unoise            Run De-noising pre-clustering (UNOISE). Default: off
             --size_annotations  Append size annotations to OTU names. Default: off
             -u, --usearch       USEARCH executable. Default: usearch8
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % (sys.argv[1], version)
        
         arguments = sys.argv[2:]
@@ -109,17 +118,48 @@ version:    %s
 Arguments:  -i, --otu_table     Input OTU table (Required)
             -b, --mock_barcode  Name of barcode of mock community (Required)
             -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.1
-            -d, --delimiter     Delimiter of OTU table. (csv or tsv). Default: tsv    
+            -d, --delimiter     Delimiter of OTU table. Default: tsv  [csv, tsv] 
             -n, --names         Change names of barcodes (CSV mapping file). Default: off
             --mc                Mock community FASTA file. Default: ufits_mock3.fa
             --col_order         Column order (comma separated list). Default: sort naturally
             --convert_binary    Convert OTU table to binary (1's and 0's). Default: off
-            --trim_data         Filter the data. Default: on (--trim_data will just output stats)        
+            --trim_data         Filter the data. Default: on [on, off]
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com      
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
             cmd = os.path.join(script_path, 'ufits-mock_filter.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            sys.exit
+    
+    elif sys.argv[1] == 'heatmap':
+        help = """
+Usage:      ufits %s <arguments>
+version:    %s
+    
+Arguments:  -i, --otu_table     Input OTU table (Required)
+            -o, --output        Output file (Required)
+            -d, --delimiter     Delimiter of OTU table. (Required) [csv, tsv]    
+            --format            Image output format. Default: eps [eps, svg, png, pdf]
+            --col_order         Column order (comma separated list). Default: sort naturally
+            --square            Maintain aspect ratio. Default: off
+            --colors            Color Palette. Default: Greys [Blues, Reds, Purples, Greens, BuPu, BuGn, OrRd, YlGnBu, YlOrRd]
+            --percent           Convert numbers to Percent of Sample. Default: off
+            --min_num           Minimum reads per OTU to graph. Default: 1
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com   
+        """ % (sys.argv[1], version)
+        
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'ufits-heatmap.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)

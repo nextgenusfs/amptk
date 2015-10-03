@@ -21,7 +21,7 @@ class col:
 
 parser=argparse.ArgumentParser(prog='ufits-process_illumina.py', usage="%(prog)s [options] -i file.fastq\n%(prog)s -h for help menu",
     description='''Script strips forward and reverse primers, relabels, and then trim/pads reads to a set length''',
-    epilog="""Written by Robert Edgar, modified slightly by Jon Palmer (2015) palmer.jona@gmail.com""",
+    epilog="""Written by Robert Edgar, modified by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--fastq', required=True, help='FASTQ file')

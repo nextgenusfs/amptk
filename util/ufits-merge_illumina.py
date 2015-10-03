@@ -14,7 +14,7 @@ class col:
 
 parser=argparse.ArgumentParser(prog='ufits-merge_illumina.py', usage="%(prog)s [options] file_R1.fastq file_R2.fastq",
     description='''Wrapper script for USEARCH8 to merge Illumina PE reads.  Gzip files supported.''',
-    epilog="""Written by Jon Palmer (2015) palmer.jona@gmail.com""",
+    epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
 parser.add_argument('-f','--for', dest='fastq_forward_reads', required=True, help='FASTQ R1 file')

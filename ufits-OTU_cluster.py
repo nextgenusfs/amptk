@@ -20,7 +20,7 @@ class col:
 parser=argparse.ArgumentParser(prog='ufits-OTU_cluster.py', usage="%(prog)s [options] -i file.demux.fq\n%(prog)s -h for help menu",
     description='''Script runs UPARSE OTU clustering. 
     Requires USEARCH by Robert C. Edgar: http://drive5.com/usearch''',
-    epilog="""Written by Jon Palmer (2015)  palmer.jona@gmail.com""",
+    epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--fastq', dest="FASTQ", required=True, help='FASTQ file (Required)')
@@ -40,7 +40,7 @@ args=parser.parse_args()
 
 def countfasta(input):
     count = 0
-    with open(input, 'r') as f:
+    with open(input, 'rU') as f:
         for line in f:
             if line.startswith (">"):
                 count += 1
@@ -64,7 +64,7 @@ def checkfastqsize(input):
 
 def dereplicate(input, output):
     seqs = {}
-    in_file = open(input, 'r')
+    in_file = open(input, 'rU')
     for rec in SeqIO.parse(in_file, 'fastq'):
         sequence = str(rec.seq)
         if sequence not in seqs:
@@ -175,7 +175,7 @@ log.info('{0:,}'.format(total) + ' OTUs')
 log.info("Cleaning up padding from OTUs")
 otu_clean = args.out + '.EE' + args.maxee + '.clean.otus.fa'
 with open(otu_clean, 'w') as output:
-    with open(otu_out, 'r') as input:
+    with open(otu_out, 'rU') as input:
         for line in input:
             if line.startswith (">"):
                 output.write(line)
@@ -220,7 +220,7 @@ if args.mock != "False":
     
     #generate dictionary for name change
     annotate_dict = {}
-    with open(mock_out, 'r') as map:
+    with open(mock_out, 'rU') as map:
         map_csv = csv.reader(map, delimiter='\t')
         for line in map_csv:
             if line[-1] != "*":
@@ -228,7 +228,7 @@ if args.mock != "False":
              
     otu_new = args.out + '.EE' + args.maxee + '.mock.otus.fa'
     otu_update = open(otu_new, "w")
-    with open(uchime_out, "r") as myfasta:
+    with open(uchime_out, "rU") as myfasta:
         for line in myfasta:
             if line.startswith (">"):
                 line = line[1:]
@@ -262,7 +262,7 @@ subprocess.call([sys.executable, uc2tab, uc_out, otu_table], stdout = FNULL, std
 
 if args.mock != "False":
     #first check if the name is in mock, if not don't run the stats
-    with open(otu_table, 'r') as f:
+    with open(otu_table, 'rU') as f:
         first_line = f.readline().strip()
         check = first_line.split('\t')
         if args.mock not in check:

@@ -18,7 +18,7 @@ parser=argparse.ArgumentParser(prog='ufits-mock_filter.py', usage="%(prog)s [opt
     description='''Script inspects output of ufits-OTU_cluster.py and 
     determines useful threshold for OTU output based on a spike-in 
     mock community.''',
-    epilog="""Written by Jon Palmer (2015)  palmer.jona@gmail.com""",
+    epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--otu_table', required=True, help='Input OTU table')
