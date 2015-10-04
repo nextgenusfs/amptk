@@ -5,14 +5,14 @@
 import sys, os, subprocess, inspect
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
-version = '0.1.1'
+version = '0.1.2'
 
 default_help = """
 Usage:      ufits <command> <arguments>
 version:    %s
     
-Command:    ion         pre-process Ion Torrent data (find barcodes, trim/pad)
-            illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, trim/pad, concatenate)
+Command:    ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
+            illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
             cluster     cluster OTUs (using UPARSE algorithm)
             filter      OTU table filtering
             heatmap     Create heatmap from OTU table
@@ -56,6 +56,7 @@ version:    %s
     
 Arguments:  -i, --fastq         Input FASTQ file (Required)
             -o, --out           Output folder name. Default: ufits-data
+            --reads             Paired-end or forward reads. Default: paired [paired, forward]
             -f, --fwd_primer    Forward primer sequence. Default: GTGARTCATCGAATCTTTG (fITS7)
             -r, --rev_primer    Reverse primer sequence Default: TCCTCCGCTTATTGATATGC (ITS4)
             -n, --name_prefix   Prefix for re-naming reads. Default: R_

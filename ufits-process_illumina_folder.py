@@ -22,8 +22,9 @@ parser=argparse.ArgumentParser(prog='ufits-process_illumina_folder.py', usage="%
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('-i','--input', dest='input', required=True, help='Folder of Illumina PE Data')
+parser.add_argument('-i','--input', dest='input', required=True, help='Folder of Illumina Data')
 parser.add_argument('-o','--out', dest="out", default='ufits-data', help='Name for output folder')
+parser.add_argument('--reads', dest="reads", default='paired', choices=['paired', 'forward'], help='PE or forward reads')
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='GTGARTCATCGAATCTTTG', help='Forward Primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='TCCTCCGCTTATTGATATGC', help='Reverse Primer (ITS4)')
 parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
@@ -106,7 +107,8 @@ for file in gzip_list:
     ReadFile = InFile.read()
     OutFile = open(OutName, 'w')
     OutFile.write(ReadFile)
-    OutFile.close()       
+    OutFile.close()
+    os.remove(os.path.join(args.input, file)) #remove .gz file    
 
 #now get the FASTQ files and proceed
 filenames = []
@@ -126,7 +128,7 @@ if '_R1' not in filenames[0]:
 uniq_names = []
 fastq_for = []
 fastq_rev = []
-map = os.path.join(args.out, 'ufits-filenames.txt')
+map = 'ufits-filenames.txt'
 map_file = open(map, 'w')
 map_file.write("Name\t[i5]\t[i7]\tLane\tSet_num\n")
 for item in sorted(filenames):
@@ -151,50 +153,54 @@ for item in sorted(filenames):
                 log.debug("Non-standard names detected, skipping mapping file")
 map_file.close()
 
+
 #loop through each set
 for i in range(len(fastq_for)):
     name = fastq_for[i].split("_")[0]
     for_reads = os.path.join(args.input, fastq_for[i])
     rev_reads = os.path.join(args.input, fastq_rev[i])
     log.info("Working on reads from sample %s" % name)
-    #get read length
-    fp = open(for_reads)
-    for i, line in enumerate(fp):
-        if i == 1:
-            read_length = len(line)
-            read_length = myround(read_length)
-        elif i > 2:
-            break
-    fp.close()
+    if args.reads == 'paired':
+        #get read length
+        fp = open(for_reads)
+        for i, line in enumerate(fp):
+            if i == 1:
+                read_length = len(line)
+                read_length = myround(read_length)
+            elif i > 2:
+                break
+        fp.close()
 
-    #now trim the last bp off of the Illumina data (there for phasing, i.e. 250 bp reads are 251 bp)
-    pretrim_R1 = os.path.join(args.out, 'pretrim_R1.fq')
-    pretrim_R2 = os.path.join(args.out, 'pretrim_R2.fq')
-    log.info("Merging Overlaping Pairs using USEARCH8")
-    log.debug("%s -fastq_filter %s -fastq_trunclen %s -fastqout %s" % (usearch, for_reads, str(read_length), pretrim_R1))
-    log.debug("%s -fastq_filter %s -fastq_trunclen %s -fastqout %s" % (usearch, rev_reads, str(read_length), pretrim_R2))
-    subprocess.call([usearch, '-fastq_filter', for_reads, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R1], stdout = FNULL, stderr = FNULL)
-    subprocess.call([usearch, '-fastq_filter', rev_reads, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R2], stdout = FNULL, stderr = FNULL)
+        #now trim the last bp off of the Illumina data (there for phasing, i.e. 250 bp reads are 251 bp)
+        pretrim_R1 = os.path.join(args.out, 'pretrim_R1.fq')
+        pretrim_R2 = os.path.join(args.out, 'pretrim_R2.fq')
+        log.info("Merging Overlaping Pairs using USEARCH8")
+        log.debug("%s -fastq_filter %s -fastq_trunclen %s -fastqout %s" % (usearch, for_reads, str(read_length), pretrim_R1))
+        log.debug("%s -fastq_filter %s -fastq_trunclen %s -fastqout %s" % (usearch, rev_reads, str(read_length), pretrim_R2))
+        subprocess.call([usearch, '-fastq_filter', for_reads, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R1], stdout = FNULL, stderr = FNULL)
+        subprocess.call([usearch, '-fastq_filter', rev_reads, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R2], stdout = FNULL, stderr = FNULL)
 
-    #next run USEARCH8 mergepe
-    merge_out = os.path.join(args.out, 'merged.fq')
-    skip_for = os.path.join(args.out, 'notmerged.R1.fq')
-    log.debug("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastq_truncqual 5 -fastq_allowmergestagger -minhsp 12" % (usearch, pretrim_R1, pretrim_R2, merge_out, skip_for))
-    subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastq_truncqual', '5','-fastq_allowmergestagger','-minhsp', '12'], stdout = FNULL, stderr = FNULL)
+        #next run USEARCH8 mergepe
+        merge_out = os.path.join(args.out, 'merged.fq')
+        skip_for = os.path.join(args.out, 'notmerged.R1.fq')
+        log.debug("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastq_truncqual 5 -fastq_allowmergestagger -minhsp 12" % (usearch, pretrim_R1, pretrim_R2, merge_out, skip_for))
+        subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastq_truncqual', '5','-fastq_allowmergestagger','-minhsp', '12'], stdout = FNULL, stderr = FNULL)
 
-    #now concatenate files for downstream pre-process_illumina.py script
-    outname = name + '.fq'
-    final_out = os.path.join(args.out, outname)
-    cat_file = open(final_out, 'wb')
-    shutil.copyfileobj(open(merge_out,'rU'), cat_file)
-    shutil.copyfileobj(open(skip_for,'rU'), cat_file)
-    cat_file.close()
+        #now concatenate files for downstream pre-process_illumina.py script
+        outname = name + '.fq'
+        final_out = os.path.join(args.out, outname)
+        cat_file = open(final_out, 'wb')
+        shutil.copyfileobj(open(merge_out,'rU'), cat_file)
+        shutil.copyfileobj(open(skip_for,'rU'), cat_file)
+        cat_file.close()
 
-    #clean and close up intermediate files
-    os.remove(merge_out)
-    os.remove(pretrim_R1)
-    os.remove(pretrim_R2)
-    os.remove(skip_for)
+        #clean and close up intermediate files
+        os.remove(merge_out)
+        os.remove(pretrim_R1)
+        os.remove(pretrim_R2)
+        os.remove(skip_for)
+    elif args.reads == 'forward':
+        final_out = for_reads
 
     log.info("Strip primers, trim/pad to %s bp" % args.trim_len)
     
