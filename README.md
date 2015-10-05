@@ -3,6 +3,10 @@
 
 UFITS is a series of scripts to process fungal ITS amplicon data using USEARCH8
 ___
+
+![UFITS schematic](docs/ufits.png)
+
+
 ####Installation:####
 
 * [Mac install instructions](docs/mac_install.md)
