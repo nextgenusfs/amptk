@@ -8,6 +8,12 @@ Note: This has been tested with Win 7 (as that was my only test machine), there 
 Download installer here for 2.7.10:
 https://www.python.org/downloads/release/python-2710/
 
+```
+#test your install and make sure python in PATH (see step 5 for PATH info)
+python -V
+```
+* some systems may require an update to C++, [here](http://www.microsoft.com/en-us/download/details.aspx?id=44266)
+
 
 #####2) Open up command line in administrator mode
 * Search for 'cmd' from start menu, right click and Run as Administrator
@@ -16,6 +22,7 @@ Install Python dependencies:
 ```
 pip install biopython natsort
 ```
+* to use the heatmap function you will also need to install `pip install matplotlib numpy pandas`
 
 #####3) Now download this repository
 
@@ -24,25 +31,12 @@ https://github.com/nextgenusfs/ufits/releases
 
 * unzip and move the folder to a known directory, i.e. C:\Program Files\ufits
 
-
-Or to stay up to date with the most recent changes, you can use Git:
-Download here: https://git-scm.com/download/win
-* Make sure to make git tools available to windows command line during install
-
-```
-#move into folder of choice
-cd C:\Program Files
-
-#clone repository
-git clone https://github.com/nextgenusfs/ufits
-```
-This will create a folder called `ufits` in the current directory (so C:\Program Files\ufits)
-
-#####5) Download/Install USEARCH8 - get it [here](http://www.drive5.com/usearch/download.html)#####
+#####4) Download/Install USEARCH8 - get it [here](http://www.drive5.com/usearch/download.html)#####
 * copy usearch8 exe file into ufits folder (C:\Program Files\ufits)
 * change file name to usearch8 (right click and rename)
 
-#####6) Add location of scripts to PATH variable#####
+
+#####5) Add location of scripts to PATH variable#####
 See a walkthrough [here](http://www.howtogeek.com/118594/how-to-edit-your-system-path-for-easy-command-line-access/)
 
 Short instructions:
@@ -52,7 +46,7 @@ Short instructions:
 * Edit System Variables, Path
 * Add to end of string, ;C:\Program Files\ufits
 * Now close window
-You will need to restart the command prompt for the new settings to work.
+You may need to restart the command prompt for the new settings to be loaded correctly.
 
 #####6) Test Installation
 Open command prompt, navigate to the `test_data` folder of ufits.
