@@ -108,6 +108,7 @@ for file in gzip_list:
     OutFile = open(OutName, 'w')
     OutFile.write(ReadFile)
     OutFile.close()
+    InFile.close()
     os.remove(os.path.join(args.input, file)) #remove .gz file    
 
 #now get the FASTQ files and proceed
