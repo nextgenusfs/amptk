@@ -4,7 +4,7 @@
 UFITS is a series of scripts to process fungal ITS amplicon data using USEARCH8
 ___
 
-![UFITS schematic](docs/ufits.png=250x)
+![UFITS schematic](<img src="docs/ufits.png" width=50>)
 
 
 ####Installation:####
