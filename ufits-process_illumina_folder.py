@@ -96,7 +96,7 @@ if gzip_list:
     log.info("Gzipped files detected, uncompressing")
 
 #check list for valid filenames they need to have _R1 and _R2, otherwise through exception
-if '_R1' not in gzip_list[0]:
+if gzip_list and '_R1' not in gzip_list[0]:
     log.error("Did not find valid FASTQ files.  Your files must have _R1 and _R2 in filename, rename your files and restart script.")
     os._exit(1)
 
