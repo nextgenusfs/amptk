@@ -26,7 +26,7 @@ def fmtcols(mylist, cols):
              for i in xrange(0,len(justifyList),cols))
     return "\n".join(lines)
 
-version = '0.2.2'
+version = '0.2.3'
 
 default_help = """
 Usage:      ufits <command> <arguments>
