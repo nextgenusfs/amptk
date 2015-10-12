@@ -84,7 +84,7 @@ if args.input == 'unite':
     download(unite_url)
     log.info("Download finished, now unzipping: %s" % filesaved)
     with zipfile.ZipFile(filesaved, "r") as z:
-        z.extract(os.path.join('developer', unite_keep))
+        z.extractall()
     log.info("Cleaning up, file is saved as: %s" % unite_short)
     shutil.move(os.path.join('developer', unite_keep), unite_short)
     shutil.rmtree('developer')
