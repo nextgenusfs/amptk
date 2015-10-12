@@ -343,4 +343,4 @@ print ("USEARCH LogFile:       %s.log" % (args.out))
 print "-------------------------------------------------------"
 
 
-print "\nExample of next cmd: ufits cluster -i %s -b BC_5\n" % (otu_table)
+print "\nExample of next cmd: ufits filter -i %s -b <mock barcode>\n" % (otu_table)
