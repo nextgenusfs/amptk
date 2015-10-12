@@ -17,6 +17,11 @@ class col:
     END = '\033[0m'
     WARN = '\033[93m'
 
+def restricted_float(x):
+    x = float(x)
+    if x < 0.0 or x > 1.0:
+        raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]"%(x,))
+    return x
 
 parser=argparse.ArgumentParser(prog='ufits-assign_taxonomy.py', usage="%(prog)s [options] -f <FASTA File>",
     description='''assign taxonomy to OTUs''',
@@ -29,6 +34,7 @@ parser.add_argument('-m','--method', dest='method', required=True, default='utax
 parser.add_argument('-d','--db', dest='db', help='Reference Database')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 parser.add_argument('--append_taxonomy', dest="otu_table", nargs='?', help='Append Taxonomy to OTU table')
+parser.add_argument('--utax_cutoff', default=0.8, type=restricted_float, help='UTAX cutoff p-value.')
 args=parser.parse_args()
 
 def countfasta(input):
@@ -98,8 +104,9 @@ if args.method == 'utax':
     #now run through UTAX
     utax_out = args.out + '.utax.txt'
     log.info("Classifying OTUs with UTAX (USEARCH8)")
-    log.debug("%s -utax %s -db %s -utaxout %s -utax_cutoff 0.8 -strand both" % (usearch, args.fasta, args.db, utax_out))
-    subprocess.call([usearch, '-utax', args.fasta, '-db', args.db, '-utaxout', utax_out, '-utax_cutoff', '0.8', '-strand', 'plus'], stdout = FNULL, stderr = FNULL)
+    cutoff = str(args.utax_cutoff)
+    log.debug("%s -utax %s -db %s -utaxout %s -utax_cutoff %s -strand both" % (usearch, args.fasta, args.db, utax_out, cutoff))
+    subprocess.call([usearch, '-utax', args.fasta, '-db', args.db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus'], stdout = FNULL, stderr = FNULL)
     
     #load results into dictionary for appending to OTU table
     log.debug("Loading results into dictionary")
