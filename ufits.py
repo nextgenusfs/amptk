@@ -293,7 +293,7 @@ version:    %s
 
 Description:    Download reference databases for ufits taxonomy command.
     
-Arguments:  -i, --input     Database to download. [unite, unite_insd, nt]
+Arguments:  -i, --input     Database to download. [unite, unite_insd, rtl_ITS, all]
      
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com   

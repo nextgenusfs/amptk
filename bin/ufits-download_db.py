@@ -61,6 +61,32 @@ def download(url, fileName=None):
         filesaved = fileName
         r.close()
 
+def getUNITE(url):
+    log.info("Downloading UNITE DB")
+    download(url)
+    log.info("Download finished, now unzipping: %s" % filesaved)
+    with zipfile.ZipFile(filesaved, "r") as z:
+        z.extractall()
+    log.info("Cleaning up, file is saved as: %s" % unite_short)
+    shutil.move(os.path.join('developer', unite_keep), unite_short)
+    shutil.rmtree('developer')
+    os.remove(filesaved)
+    os.remove(unite_delete)
+    
+def getINSD(url):
+    log.info("Downloading UNITE/INSDC DB")
+    download(url)
+    log.info("Download finished, now unzipping: %s" % filesaved)
+    with zipfile.ZipFile(filesaved, "r") as z:
+        z.extract(insd_keep)
+    log.info("Cleaning up, file saved as: %s" % insd_keep)
+    os.remove(filesaved)
+
+def getRTL(url):
+    log.info("Downloading NCBI RefSeq RTL ITS database")
+    download(url)
+    log.info("Download finished, file saved as: %s" % rtl_keep)
+
 log_name = ('ufits_db.log')
 if os.path.isfile(log_name):
     os.remove(log_name)
@@ -74,35 +100,23 @@ print "-------------------------------------------------------"
 unite_url = 'https://unite.ut.ee/sh_files/sh_general_release_s_01.08.2015.zip'
 unite_keep = 'sh_general_release_dynamic_s_01.08.2015_dev.fasta'
 unite_short = 'sh_dynamic_01.08.2015.fasta'
+unite_delete = 'sh_general_release_dynamic_s_01.08.2015.fasta'
 insd_url = 'https://unite.ut.ee/sh_files/UNITE_public_01.08.2015.fasta.zip'
 insd_keep = 'UNITE_public_01.08.2015.fasta'
 rtl_url = 'ftp://ftp.ncbi.nlm.nih.gov/genomes/TARGET/ITS_rRNA/Fungi/Fungi.fna'
 rtl_keep = 'Fungi.fna'
 
 if args.input == 'unite':
-    log.info("Downloading UNITE DB")
-    download(unite_url)
-    log.info("Download finished, now unzipping: %s" % filesaved)
-    with zipfile.ZipFile(filesaved, "r") as z:
-        z.extractall()
-    log.info("Cleaning up, file is saved as: %s" % unite_short)
-    shutil.move(os.path.join('developer', unite_keep), unite_short)
-    shutil.rmtree('developer')
-    os.remove(filesaved)
+    getUNITE(unite_url)
 
 elif args.input == 'unite_insd':
-    log.info("Downloading UNITE/INSDC DB")
-    download(insd_url)
-    log.info("Download finished, now unzipping: %s" % filesaved)
-    with zipfile.ZipFile(filesaved, "r") as z:
-        z.extract(insd_keep)
-    log.info("Cleaning up, file saved as: %s" % insd_keep)
-    os.remove(filesaved)
+    getINSD(insd_url)
 
 elif args.input == 'rtl_ITS':
-    log.info("Downloading NCBI RefSeq RTL ITS database")
-    download(rtl_url)
-    log.info("Download finished, file saved as: %s" % rtl_keep)
-    
-    
+    getRTL(rtl_url)
+
+elif args.input == 'all':
+    getUNITE(unite_url)
+    getINSD(insd_url)
+    getRTL(rtl_url)
     
