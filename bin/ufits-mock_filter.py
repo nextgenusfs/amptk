@@ -9,6 +9,8 @@ from natsort import natsorted
 
 #get script path for directory
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(script_path)
+
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -30,7 +32,8 @@ parser.add_argument('--col_order', dest="col_order", default="naturally", help='
 parser.add_argument('--convert_binary', dest="binary", action='store_true', help='Convert to binary')
 parser.add_argument('--trim_data', default='on', choices=['on', 'off'], help='Threshold Trim Data')
 parser.add_argument('-n', '--names', default='False', help='CSV mapping file BC,NewName')
-
+parser.add_argument('--keep_mock', action='store_true', help='Keep mock sample in OTU table (Default: False)')
+parser.add_argument('-o','--out', default='False', help='Base output name')
 args=parser.parse_args()
 
 def try_int(x):
@@ -78,7 +81,7 @@ base = base[0]
 
 #get default mock community value
 if args.mock_community == "ufits_mock3.fa":
-    mock = os.path.join(script_path, 'lib', 'ufits_mock3.fa')
+    mock = os.path.join(parentdir, 'DB', 'ufits_mock3.fa')
 else:
     mock = args.mock_community
 #open mock community fasta and count records
@@ -146,25 +149,75 @@ if args.trim_data == 'on':
         keys = []
         trim_table = []
         binary_table = []
+        re_orderTable = []
         finalTable = []
         line_count = 0
         if args.delimiter == 'csv':
             end = '.csv'
         if args.delimiter == 'tsv':
             end = '.txt'
-        if args.binary:
-            out_name = base + '.filtered_' + threshold + '.otu_table.binary' + end
+        if args.out != 'False':
+            out_name = args.out + '.otu_table' + end
         else:
-            out_name = base + '.filtered_' + threshold + '.otu_table' + end
+            if args.binary:
+                out_name = base + '.filtered_' + threshold + '.otu_table.binary' + end
+            else:
+                out_name = base + '.filtered_' + threshold + '.otu_table' + end
             
-        file_out = open(out_name, "wb")
-        f2 = csv.reader(open(args.otu_table), delimiter='\t')           
+        file_out = open(out_name, "w")
+        f2 = csv.reader(open(args.otu_table), delimiter='\t')
         for line in f2:
             line_count += 1
             new_table.append([try_int(x) for x in line]) #convert to integers
         for line in new_table:
-            sub_table.append([try_subtract(x,num) for x in line]) #subtract threshold
-        for line in sub_table:
+            sub_table.append([try_subtract(x,num) for x in line]) #subtract threshold          
+        
+        #Now sort the table by row name naturally
+        header = sub_table[:1] #pull out header row
+        header = header[0] #just get first list, double check
+                
+         #convert header names (optional)
+        if args.names != 'False':
+            with open(args.names, 'rU') as infile:
+                headRead = csv.reader(infile)
+                headDict = {rows[0]:rows[1] for rows in headRead}
+            header = [headDict[x] for x in header[1:]]
+            header.insert(0,'OTUId')   
+            mockBC = headDict.get(args.mock_barcode)
+        else:
+            mockBC = args.mock_barcode
+        if args.col_order == "naturally":
+            sortHead= natsorted(header)  #now sort the header row
+        else:
+            sortHead = args.col_order.split(",")
+            sortHead.append('OTUId')
+        
+        otu = sortHead.index('OTUId') #pull out the OTU header
+        sortHead.insert(0, sortHead.pop(otu)) #re-insert the OTU header in first column
+        
+        #remove mock spike in control
+        if not args.keep_mock:
+            sortHead.remove(mockBC)
+            
+        #sort the table without header row and then add back
+        sortTable = natsorted(sub_table[1:]) #sort the table without header row
+        sortTable.insert(0,header) #now add back header row
+
+        #get index of the sorted header list 
+        listIndex = []
+        for i in sortHead:
+            listIndex.append(header.index(i))
+
+        #finally loop through the sorted table, and re-order the data
+        count = 0
+        for line in sortTable:
+            count += 1
+            lineList= []
+            for item in listIndex:
+                lineList.append(line[item])
+            re_orderTable.append(lineList)        
+        
+        for line in re_orderTable:
             max_left = max(line[1:])
             if max_left >= 1:
                 trim_table.append(line) #get rid of OTUs with only zeros
@@ -173,7 +226,7 @@ if args.trim_data == 'on':
         if args.barcodebleed != 'None':
             pct_bleed = float(args.barcodebleed) / 100
             temp_table = []
-            for line in sub_table:
+            for line in trim_table:
                 if line[0] == 'OTUId':
                     temp_table.append(line)
                 else:
@@ -183,7 +236,7 @@ if args.trim_data == 'on':
                     if OTU_sum > 0:
                         temp_table.append([greater_than(x) for x in line]) #filter blood_index
         else:
-            temp_table = sub_table
+            temp_table = trim_table
             
         if args.binary:
             for line in temp_table:
@@ -193,42 +246,8 @@ if args.trim_data == 'on':
                     binary_table.append([convert_binary(x) for x in line]) #convert to binary
         else:
             binary_table = temp_table
-        #Now sort the table by row name naturally
-        header = binary_table[:1] #pull out header row
-        header = header[0] #just get first list, double check
-         #convert header names (optional)
-        if args.names != 'False':
-            with open(args.names, 'rU') as infile:
-                headRead = csv.reader(infile)
-                headDict = {rows[0]:rows[1] for rows in headRead}
-            header = [headDict[x] for x in header[1:]]
-            header.insert(0,'OTUId')   
-        if args.col_order == "naturally":
-            sortHead= natsorted(header)  #now sort the header row
-        else:
-            sortHead = args.col_order.split(",")
-            sortHead.append('OTUId')
-        otu = sortHead.index('OTUId') #pull out the OTU header
-        sortHead.insert(0, sortHead.pop(otu)) #re-insert the OTU header in first column
-
-        #sort the table without header row and then add back
-        sortTable = natsorted(binary_table[1:]) #sort the table without header row
-        sortTable.insert(0,header) #now add back header row
-
-        #get index of the sorted header list 
-        listIndex = []
-        for i in sortHead:
-            listIndex.append(header.index(i))
-
-        #finally loop through the sorted table, and re-order the data
-        finalTable = []
-        count = 0
-        for line in sortTable:
-            count += 1
-            lineList= []
-            for item in listIndex:
-                lineList.append(line[item])
-            finalTable.append(lineList)
+        
+        finalTable = binary_table
         
         #print out the final result
         for line in finalTable:
@@ -245,7 +264,10 @@ if args.trim_data == 'on':
         line_count = line_count - 1
         #now lets write an updated OTU fasta file
         fasta_in = base + '.mock.otus.fa'
-        fasta_out = base + '.filtered_' + threshold + '.otus.fa'
+        if args.out != 'False':
+            fasta_out = args.out + '.otus.fa'
+        else:
+            fasta_out = base + '.filtered_' + threshold + '.otus.fa'
         seqs_seen = []
         try:
             for record in SeqIO.parse(open(fasta_in, "rU"), "fasta"):

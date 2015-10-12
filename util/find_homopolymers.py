@@ -10,7 +10,7 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
 
 parser=argparse.ArgumentParser(
-    description='''GC content and homopolymer length''', prog="find_homopolymers.py", usage="%(prog)s [options] file.fasta",
+    description='''GC content and homopolymer length''', prog="find_homopolymers.py", usage="%(prog)s [options] -i file.fasta",
     epilog="""Written by Jon Palmer (2015) palmer.jona@gmail.com""",
     formatter_class=MyFormatter)
 parser.add_argument('-i', '--fasta', dest='fasta', required=True, help='FASTA file')
@@ -58,6 +58,8 @@ for record in SeqIO.parse(open(args.fasta, "rU"), "fasta"):
             start = sum([item[1] for item in temp_list])
             stop = start + lis[count_index][1]
             nucleotide = str(lis[count_index][0])
+            if nucleotide == 'N':
+                continue
             length = str(lis[count_index][1])
             homopolymers = "%s(%s):%i-%i;" % (length, nucleotide, start, stop)
             #now append to the variable

@@ -2,6 +2,9 @@
 
 import sys, os, inspect, argparse, shutil, logging
 from Bio import SeqIO
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir) 
 import lib.fasta as fasta
 import lib.fastq as fastq
 import lib.primer as primer
@@ -18,8 +21,7 @@ class col:
     WARN = '\033[93m'
 
 #get script path and barcode file name
-script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-pgm_barcodes = os.path.join(script_path, 'lib', 'pgm_barcodes.fa')
+pgm_barcodes = os.path.join(parentdir, 'DB', 'pgm_barcodes.fa')
 
 parser=argparse.ArgumentParser(prog='ufits-process_ion.py', usage="%(prog)s [options] -i file.fastq\n%(prog)s -h for help menu",
     description='''Script finds barcodes, strips forward and reverse primers, relabels, and then trim/pads reads to a set length''',

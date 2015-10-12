@@ -16,7 +16,6 @@ parser=argparse.ArgumentParser(prog='ufits-heatmap.py', usage="%(prog)s -i ufits
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--table', dest="table", required=True, help='OTU Table (Required)')
-parser.add_argument('-d','--delimiter', dest="delimiter", choices=['tsv','csv'], required=True, help='Delimiter (Required)')
 parser.add_argument('-o','--output', dest="output", required=True, help='Output File (Required)')
 parser.add_argument('--format', dest="format", default='eps', choices=['eps','svg','png','pdf'], help='Image format')
 parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
@@ -54,27 +53,32 @@ def convert_binary(x):
     else:
         return x
 
-def convert_percent(x,y):
-    try:
-        percent = float(x) / float(y)
-        return percent
-    except ValueError:
-        return x
-
-if args.delimiter == 'tsv':
+if args.table.rsplit(".", 1)[1] == 'txt':
     delim = "\t"
-if args.delimiter == 'csv':
+if args.table.rsplit(".", 1)[1] == 'csv':
     delim = ","
     
 #open OTU table   
 f2 = csv.reader(open(args.table), delimiter=delim)
+taxTable = []
+#test for taxonomy
+for line in f2:
+    taxTable.append(line)
+otuDict = {rows[0]:rows[-1] for rows in taxTable}
 
+taxTable2 = []
+if 'Taxonomy' in taxTable[0][-1]:
+    for line in taxTable:
+        del line[-1]
+        taxTable2.append(line)
+else:
+    taxTable2 = taxTable
 #first convert the numbers to integers instead of strings
 new_table = []
 temp_table = []
 min_table = []
 binary_table = []
-for line in f2:
+for line in taxTable2:
     new_table.append([try_int(x) for x in line]) #convert to integers
 header = new_table[:1]
 header = header[0]
@@ -98,7 +102,7 @@ if args.percent:
     for line in min_table[1:]:
         new_line = []
         new_line.insert(0,line[0])
-        new_line.append([x/y for x,y in zip(line[1:], sums[1:])])
+        new_line.append([x/y * 100 for x,y in zip(line[1:], sums[1:])])
         new_line = flatten(new_line)
         binary_table.append(new_line)
     binary_table.insert(0,header)
@@ -148,7 +152,10 @@ del Index[0][0]
 finalTable = finalTable[1:]
 for x in finalTable:
     del x[0]
-    
+
+for item in Index[0]:
+    taxon = otuDict.get(item)
+    print item,taxon.split(",")[-1]
 #construct panda dataframe with appropriate headers and index
 df = pd.DataFrame(finalTable, index=Index, columns=Cols)
 

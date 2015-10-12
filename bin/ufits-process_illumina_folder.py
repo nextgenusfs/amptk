@@ -2,6 +2,9 @@
 
 #This script is a wrapper for -fastq_mergepairs from USEARCH8
 import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir) 
 import lib.fasta as fasta
 import lib.fastq as fastq
 import lib.primer as primer
@@ -27,6 +30,7 @@ parser.add_argument('-o','--out', dest="out", default='ufits-data', help='Name f
 parser.add_argument('--reads', dest="reads", default='paired', choices=['paired', 'forward'], help='PE or forward reads')
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='GTGARTCATCGAATCTTTG', help='Forward Primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='TCCTCCGCTTATTGATATGC', help='Reverse Primer (ITS4)')
+parser.add_argument('--require_primer', dest="primer", default='on', choices=['on', 'off'], help='Require Fwd primer to be present')
 parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
 parser.add_argument('-m','--min_len', default='50', help='Minimum read length to keep')
 parser.add_argument('-l','--trim_len', default='250', help='Trim length for reads')
@@ -79,7 +83,7 @@ print "-------------------------------------------------------"
 log.info("Operating system: %s" % sys.platform)
 usearch = args.usearch
 try:
-    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0]
+    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
 except OSError:
     log.warning("%s not found in your PATH, exiting." % usearch)
     os._exit(1)
@@ -100,16 +104,17 @@ if gzip_list and '_R1' not in gzip_list[0]:
     log.error("Did not find valid FASTQ files.  Your files must have _R1 and _R2 in filename, rename your files and restart script.")
     os._exit(1)
 
-for file in gzip_list:
-    log.debug("Uncompressing %s" % file)
-    OutName = os.path.join(args.input, os.path.splitext(file)[0])
-    InFile = gzip.open(os.path.join(args.input, file), 'rU')
-    ReadFile = InFile.read()
-    OutFile = open(OutName, 'w')
-    OutFile.write(ReadFile)
-    OutFile.close()
-    InFile.close()
-    os.remove(os.path.join(args.input, file)) #remove .gz file    
+if gzip_list:
+    for file in gzip_list:
+        log.debug("Uncompressing %s" % file)
+        OutName = os.path.join(args.input, os.path.splitext(file)[0])
+        InFile = gzip.open(os.path.join(args.input, file), 'rU')
+        ReadFile = InFile.read()
+        OutFile = open(OutName, 'w')
+        OutFile.write(ReadFile)
+        OutFile.close()
+        InFile.close()
+        os.remove(os.path.join(args.input, file)) #remove .gz file    
 
 #now get the FASTQ files and proceed
 filenames = []
@@ -250,7 +255,10 @@ for i in range(len(fastq_for)):
         Diffs = MatchesPrimer(Seq, FwdPrimer)
         if Diffs > MAX_PRIMER_MISMATCHES:
             FwdPrimerMismatchCount += 1
-            return
+            if args.primer == 'on':
+                return
+            elif args.primer == 'off':
+                continue
 
         OutCount += 1
         Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + ";"

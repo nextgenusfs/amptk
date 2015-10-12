@@ -36,6 +36,20 @@ def File(Msg = ""):
 	Str = "%s %5.1f%% %s  \r" % (FileName__, Pct, Msg)
 	sys.stderr.write(Str)
 
+def File2(Msg = ""):
+	global Secs__, File__, FileSize__, FileName__
+
+	Secs = time.clock()
+	if Secs__ != None and Secs - Secs__ < 1:
+		return
+
+	Secs__ = Secs
+	Pos = File__.tell()
+	Pct = (100.0*Pos)/FileSize__
+	Str = " %s  %s  \r" % (FileName__, Msg)
+	sys.stderr.write(Str)
+
+
 def FileStep(Msg = ""):
 	File(Msg)
 

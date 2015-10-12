@@ -8,6 +8,7 @@ from Bio import SeqIO
 
 #get script path for directory
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(script_path)
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -110,7 +111,7 @@ print "-------------------------------------------------------"
 log.info("Operating system: %s" % sys.platform)
 usearch = args.usearch
 try:
-    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0]
+    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
 except OSError:
     log.warning("%s not found in your PATH, exiting." % usearch)
     os._exit(1)
@@ -192,11 +193,11 @@ else:
     uchime_out = args.out + '.EE' + args.maxee + '.uchime.otus.fa'
     #You might need to update these in the future, but leaving data and version in name so it is obvious where they came from
     if args.uchime_ref == "ITS1":
-        uchime_db = os.path.join(script_path, 'lib', 'uchime_sh_refs_dynamic_develop_985_11.03.2015.ITS1.fasta')
+        uchime_db = os.path.join(parentdir, 'DB', 'uchime_sh_refs_dynamic_develop_985_11.03.2015.ITS1.fasta')
     if args.uchime_ref == "ITS2":
-        uchime_db = os.path.join(script_path, 'lib', 'uchime_sh_refs_dynamic_develop_985_11.03.2015.ITS2.fasta')
+        uchime_db = os.path.join(parentdir, 'DB', 'uchime_sh_refs_dynamic_develop_985_11.03.2015.ITS2.fasta')
     if args.uchime_ref == "Full":
-        uchime_db = os.path.join(script_path, 'lib', 'uchime_sh_refs_dynamic_original_985_11.03.2015.fasta')
+        uchime_db = os.path.join(parentdir, 'DB', 'uchime_sh_refs_dynamic_original_985_11.03.2015.fasta')
     log.info("Chimera Filtering (UCHIME)")
     log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s" % (usearch, otu_clean, uchime_db, uchime_out))
     subprocess.call([usearch, '-uchime_ref', otu_out, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
@@ -206,7 +207,7 @@ else:
 #option if using mock community to map OTUs to mock and add to header
 if args.mock != "False":
     if args.mc == "ufits_mock3.fa":
-        mock = os.path.join(script_path, 'lib', 'ufits_mock3.fa')
+        mock = os.path.join(parentdir, 'DB', 'ufits_mock3.fa')
     else:
         mock = args.mc
     #count seqs in mock community
@@ -255,7 +256,7 @@ subprocess.call([usearch, '-usearch_global', reads, '-strand', 'plus', '-id', '0
 
 #Build OTU table
 otu_table = args.out + '.EE' + args.maxee + '.otu_table.txt'
-uc2tab = os.path.join(script_path, 'lib', 'uc2otutable.py')
+uc2tab = os.path.join(parentdir, 'lib', 'uc2otutable.py')
 log.info("Creating OTU Table")
 log.debug("%s %s %s" % (uc2tab, uc_out, otu_table))
 subprocess.call([sys.executable, uc2tab, uc_out, otu_table], stdout = FNULL, stderr = FNULL)

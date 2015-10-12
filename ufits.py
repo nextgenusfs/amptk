@@ -3,9 +3,30 @@
 #Wrapper script for UFITS package.
 
 import sys, os, subprocess, inspect
+
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
-version = '0.1.2'
+
+def flatten(l):
+    flatList = []
+    for elem in l:
+        # if an element of a list is a list
+        # iterate over this list and add elements to flatList 
+        if type(elem) == list:
+            for e in elem:
+                flatList.append(e)
+        else:
+            flatList.append(elem)
+    return flatList
+
+def fmtcols(mylist, cols):
+    maxwidth = max(map(lambda x: len(x), mylist))
+    justifyList = map(lambda x: x.ljust(maxwidth), mylist)
+    lines = (' '.join(justifyList[i:i+cols]) 
+             for i in xrange(0,len(justifyList),cols))
+    return "\n".join(lines)
+
+version = '0.1.3'
 
 default_help = """
 Usage:      ufits <command> <arguments>
@@ -15,7 +36,11 @@ Command:    ion         pre-process Ion Torrent data (find barcodes, remove prim
             illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
             cluster     cluster OTUs (using UPARSE algorithm)
             filter      OTU table filtering
+            taxonomy    Assign taxonomy to OTUs      
             heatmap     Create heatmap from OTU table
+
+Setup:      download    Download Reference Databases
+            database    Format Reference Databases for Taxonomy
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % version
@@ -41,7 +66,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'ufits-process_ion.py')
+            cmd = os.path.join(script_path, 'bin', 'ufits-process_ion.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -69,7 +94,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'ufits-process_illumina_folder.py')
+            cmd = os.path.join(script_path, 'bin', 'ufits-process_illumina_folder.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -102,7 +127,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
        
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'ufits-OTU_cluster.py')
+            cmd = os.path.join(script_path, 'bin', 'ufits-OTU_cluster.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -118,6 +143,7 @@ version:    %s
     
 Arguments:  -i, --otu_table     Input OTU table (Required)
             -b, --mock_barcode  Name of barcode of mock community (Required)
+            -o, --out           Base name for output files. Default: use input basename
             -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.1
             -d, --delimiter     Delimiter of OTU table. Default: tsv  [csv, tsv] 
             -n, --names         Change names of barcodes (CSV mapping file). Default: off
@@ -125,13 +151,14 @@ Arguments:  -i, --otu_table     Input OTU table (Required)
             --col_order         Column order (comma separated list). Default: sort naturally
             --convert_binary    Convert OTU table to binary (1's and 0's). Default: off
             --trim_data         Filter the data. Default: on [on, off]
+            --keep_mock         Keep Spike-in mock community. Default: False
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com      
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'ufits-mock_filter.py')
+            cmd = os.path.join(script_path, 'bin', 'ufits-mock_filter.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -147,7 +174,6 @@ version:    %s
     
 Arguments:  -i, --otu_table     Input OTU table (Required)
             -o, --output        Output file (Required)
-            -d, --delimiter     Delimiter of OTU table. (Required) [csv, tsv]    
             --format            Image output format. Default: eps [eps, svg, png, pdf]
             --col_order         Column order (comma separated list). Default: sort naturally
             --square            Maintain aspect ratio. Default: off
@@ -160,7 +186,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'ufits-heatmap.py')
+            cmd = os.path.join(script_path, 'bin', 'ufits-heatmap.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -168,6 +194,122 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
         else:
             print help
             sys.exit
+    
+    elif sys.argv[1] == 'taxonomy':
+        #look in DB folder for databses
+        db_list = ['DB_name', 'FASTA originated from', 'Fwd Primer', 'Rev Primer', 'Records']
+        search_path = os.path.join(script_path, 'DB')
+        for file in os.listdir(search_path):
+            if file.endswith(".udb"):
+                info_file = file + '.txt'
+                with open(os.path.join(search_path, info_file), 'rU') as info:
+                    line = info.readlines()
+                    line = [words for segments in line for words in segments.split()]
+                    line.insert(0, file)
+                    db_list.append(line)
+        if len(db_list) < 5:
+            db_print = "No DB configured, run 'ufits database' command for format database."
+        else:
+            d = flatten(db_list)
+            db_print = fmtcols(d, 5)
+        
+        help = """
+Usage:      ufits %s <arguments>
+version:    %s
+    
+Arguments:  -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
+            -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
+            -m, --method        Taxonomy method. Default: utax [utax, usearch, blast] (Required)
+            -d, --db            Database (must be in UDB format).
+            --append_taxonomy   OTU table to append taxonomy. Default: none
+            -u, --usearch       USEARCH executable. Default: usearch8
+
+Databases Configured: 
+%s
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com   
+        """ % (sys.argv[1], version, db_print)
+
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'bin', 'ufits-assign_taxonomy.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            try:
+                dbLocation = arguments.index('-d')
+            except ValueError:
+                dbLocation = arguments.index('--db')
+            dbLocation = dbLocation + 1
+            arguments[dbLocation] = os.path.join(script_path, 'DB', arguments[dbLocation])
+            subprocess.call(arguments)
+        
+        else:
+            print help
+            sys.exit
+                    
+    elif sys.argv[1] == 'database':
+        help = """
+Usage:      ufits %s <arguments>
+version:    %s
+
+Description:    Setup/Format reference database for ufits taxonomy command.
+    
+Arguments:  -i, --fasta         Input FASTA file (UNITE DB or UNITE+INSDC)
+            -o, --out           Base Name for Output Files. Default: DB/ufits
+            -f, --fwd_primer    Forward primer. Default: GTGARTCATCGAATCTTTG (fITS7)
+            -r, --rev_primer    Reverse primer. Default: TCCTCCGCTTATTGATATGC (ITS4)
+            --unite2utax        Reformat FASTA headers to UTAX format. Default: on
+            --drop_ns           Removal sequences that have > x N's. Default: 8
+            --create_db         Create a DB. Default: usearch [utax, usearch]
+            --skip_trimming     Keep full length sequences. Default: off (not recommended)
+            -u, --usearch       USEARCH executable. Default: usearch8      
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com   
+        """ % (sys.argv[1], version)
+
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            try:
+                outLocation = arguments.index('-o')
+            except ValueError:
+                outLocation = arguments.index('--out')
+            outLocation = outLocation + 1
+            arguments[outLocation] = os.path.join(script_path, 'DB', arguments[outLocation])
+            subprocess.call(arguments)
+        
+        else:
+            print help
+            sys.exit
+    
+    elif sys.argv[1] == 'download':
+        help = """
+Usage:      ufits %s <arguments>
+version:    %s
+
+Description:    Download reference databases for ufits taxonomy command.
+    
+Arguments:  -i, --input     Database to download. [unite, unite_insd, nt]
+     
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com   
+        """ % (sys.argv[1], version)
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'bin', 'ufits-download_db.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        
+        else:
+            print help
+            sys.exit
+    
     else:
         print "%s option not recognized" % sys.argv[1]
         print default_help

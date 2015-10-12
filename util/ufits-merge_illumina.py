@@ -58,7 +58,7 @@ print "-------------------------------------------------------"
 log.info("Operating system: %s" % sys.platform)
 usearch = args.usearch
 try:
-    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0]
+    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
 except OSError:
     log.warning("%s not found in your PATH, exiting." % usearch)
     os._exit(1)
