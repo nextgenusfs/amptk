@@ -181,6 +181,7 @@ if otu_table:
                     line.append(tax)
                 join_line = ('\t'.join(str(x) for x in line))
                 outTable.write("%s\n" % join_line)
+    log.info("Taxonomy finished: %s" % taxTable)
 else:
     log.info("Unable to automatically detect OTU table, skipping append taxonomy.  Try to specifiy path to OTU table.")
 

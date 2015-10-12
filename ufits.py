@@ -26,7 +26,7 @@ def fmtcols(mylist, cols):
              for i in xrange(0,len(justifyList),cols))
     return "\n".join(lines)
 
-version = '0.1.3'
+version = '0.2.1'
 
 default_help = """
 Usage:      ufits <command> <arguments>
@@ -84,6 +84,7 @@ Arguments:  -i, --fastq         Input FASTQ file (Required)
             --reads             Paired-end or forward reads. Default: paired [paired, forward]
             -f, --fwd_primer    Forward primer sequence. Default: GTGARTCATCGAATCTTTG (fITS7)
             -r, --rev_primer    Reverse primer sequence Default: TCCTCCGCTTATTGATATGC (ITS4)
+            --require_primer    Require the Forward primer to be present. Default: on [on, off]
             -n, --name_prefix   Prefix for re-naming reads. Default: R_
             -m, --min_len       Minimum length read to keep. Default: 50
             -l, --trim_len      Length to trim/pad reads. Default: 250
@@ -207,7 +208,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
                     line = [words for segments in line for words in segments.split()]
                     line.insert(0, file)
                     db_list.append(line)
-        if len(db_list) < 5:
+        if len(db_list) < 6:
             db_print = "No DB configured, run 'ufits database' command for format database."
         else:
             d = flatten(db_list)
@@ -309,11 +310,13 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
         else:
             print help
             sys.exit
-    
+    elif sys.argv[1] == 'version' or '-version' or '--version':
+        print "ufits v.%s" % version
     else:
         print "%s option not recognized" % sys.argv[1]
         print default_help
         sys.exit()
+    
     
 else:
     print default_help

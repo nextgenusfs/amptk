@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #This script is a wrapper for -fastq_mergepairs from USEARCH8
-import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip
+import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
@@ -250,71 +250,184 @@ for i in range(len(fastq_for)):
           (SeqCount, OutCount, FwdPrimerMismatchCount, RevPrimerStrippedCount, TooShortCount, PadCount))
 
         SeqCount += 1
-        Seq = Seq
-        Qual = Qual
-        Diffs = MatchesPrimer(Seq, FwdPrimer)
-        if Diffs > MAX_PRIMER_MISMATCHES:
-            FwdPrimerMismatchCount += 1
-            if args.primer == 'on':
+        if args.primer == 'on':
+            Seq = Seq
+            Qual = Qual
+            Diffs = MatchesPrimer(Seq, FwdPrimer)
+            if Diffs > MAX_PRIMER_MISMATCHES:
+                FwdPrimerMismatchCount += 1
                 return
-            elif args.primer == 'off':
-                continue
+            else:
+                OutCount += 1
+                Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + ";"
 
-        OutCount += 1
-        Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + ";"
+                # Strip fwd primer
+                Seq = Seq[PL:]
+                Qual = Qual[PL:]
 
-    # Strip fwd primer
-        Seq = Seq[PL:]
-        Qual = Qual[PL:]
+                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, MAX_PRIMER_MISMATCHES)
+                if BestPosRev > 0:
+                    # Strip rev primer
+                    RevPrimerStrippedCount += 1
+                    StrippedSeq = Seq[:BestPosRev]
+                    StrippedQual = Qual[:BestPosRev]
 
-        BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, MAX_PRIMER_MISMATCHES)
-        if BestPosRev > 0:
-            # Strip rev primer
-            RevPrimerStrippedCount += 1
-            StrippedSeq = Seq[:BestPosRev]
-            StrippedQual = Qual[:BestPosRev]
+                    # correctness checks
+                    if 1:
+                        Tail = Seq[BestPosRev:]
+                        Diffs2 = primer.MatchPrefix(Tail, RevPrimer)
+                        if Diffs2 != BestDiffsRev:
+                            print >> sys.stderr
+                            print >> sys.stderr, " Seq=" + Seq
+                            print >> sys.stderr, "Tail=" + Tail
+                            print >> sys.stderr, "RevP=" + RevPrimer
+                            die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
+                        assert StrippedSeq + Tail == Seq
 
-            # correctness checks
-            if 1:
-                Tail = Seq[BestPosRev:]
-                Diffs2 = primer.MatchPrefix(Tail, RevPrimer)
-                if Diffs2 != BestDiffsRev:
-                    print >> sys.stderr
-                    print >> sys.stderr, " Seq=" + Seq
-                    print >> sys.stderr, "Tail=" + Tail
-                    print >> sys.stderr, "RevP=" + RevPrimer
-                    die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
-                assert StrippedSeq + Tail == Seq
+                    Seq = StrippedSeq
+                    Qual = StrippedQual
 
-            Seq = StrippedSeq
-            Qual = StrippedQual
+                    L = len(Seq)
+                    assert len(Qual) == L
 
-            L = len(Seq)
-            assert len(Qual) == L
+                    if L < MinLen:
+                        return
 
-            if L < MinLen:
-                return
+                    if L < TrimLen:
+                        PadCount += 1
+                        Seq = Seq + (TrimLen - L)*'N'
+                        Qual = Qual + (TrimLen - L)*'I'
+                        L = len(Seq)
+                        assert L == TrimLen
+                        assert len(Qual) == TrimLen
 
-            if L < TrimLen:
-                PadCount += 1
-                Seq = Seq + (TrimLen - L)*'N'
-                Qual = Qual + (TrimLen - L)*'I'
                 L = len(Seq)
+                if L < TrimLen:
+                    TooShortCount += 1
+                    return
+
+                if L > TrimLen:
+                    Seq = Seq[:TrimLen]
+                    Qual = Qual[:TrimLen]
+                    L = len(Seq)
+
                 assert L == TrimLen
                 assert len(Qual) == TrimLen
+        
+        elif args.primer == 'off':
+            Seq = Seq
+            Qual = Qual
+            Diffs = MatchesPrimer(Seq, FwdPrimer)
+            if Diffs < MAX_PRIMER_MISMATCHES:
+                OutCount += 1
+                Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + ";"
 
-        L = len(Seq)
-        if L < TrimLen:
-            TooShortCount += 1
-            return
+                # Strip fwd primer
+                Seq = Seq[PL:]
+                Qual = Qual[PL:]
 
-        if L > TrimLen:
-            Seq = Seq[:TrimLen]
-            Qual = Qual[:TrimLen]
-            L = len(Seq)
+                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, MAX_PRIMER_MISMATCHES)
+                if BestPosRev > 0:
+                    # Strip rev primer
+                    RevPrimerStrippedCount += 1
+                    StrippedSeq = Seq[:BestPosRev]
+                    StrippedQual = Qual[:BestPosRev]
 
-        assert L == TrimLen
-        assert len(Qual) == TrimLen
+                    # correctness checks
+                    if 1:
+                        Tail = Seq[BestPosRev:]
+                        Diffs2 = primer.MatchPrefix(Tail, RevPrimer)
+                        if Diffs2 != BestDiffsRev:
+                            print >> sys.stderr
+                            print >> sys.stderr, " Seq=" + Seq
+                            print >> sys.stderr, "Tail=" + Tail
+                            print >> sys.stderr, "RevP=" + RevPrimer
+                            die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
+                        assert StrippedSeq + Tail == Seq
+
+                    Seq = StrippedSeq
+                    Qual = StrippedQual
+
+                    L = len(Seq)
+                    assert len(Qual) == L
+
+                    if L < MinLen:
+                        return
+
+                    if L < TrimLen:
+                        PadCount += 1
+                        Seq = Seq + (TrimLen - L)*'N'
+                        Qual = Qual + (TrimLen - L)*'I'
+                        L = len(Seq)
+                        assert L == TrimLen
+                        assert len(Qual) == TrimLen
+
+                L = len(Seq)
+                if L < TrimLen:
+                    TooShortCount += 1
+                    return
+
+                if L > TrimLen:
+                    Seq = Seq[:TrimLen]
+                    Qual = Qual[:TrimLen]
+                    L = len(Seq)
+
+                assert L == TrimLen
+                assert len(Qual) == TrimLen
+                
+            else:
+                FwdPrimerMismatchCount += 1
+                OutCount += 1
+                Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + ";"
+                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, MAX_PRIMER_MISMATCHES)
+                if BestPosRev > 0:
+                    # Strip rev primer
+                    RevPrimerStrippedCount += 1
+                    StrippedSeq = Seq[:BestPosRev]
+                    StrippedQual = Qual[:BestPosRev]
+
+                    # correctness checks
+                    if 1:
+                        Tail = Seq[BestPosRev:]
+                        Diffs2 = primer.MatchPrefix(Tail, RevPrimer)
+                        if Diffs2 != BestDiffsRev:
+                            print >> sys.stderr
+                            print >> sys.stderr, " Seq=" + Seq
+                            print >> sys.stderr, "Tail=" + Tail
+                            print >> sys.stderr, "RevP=" + RevPrimer
+                            die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
+                        assert StrippedSeq + Tail == Seq
+
+                    Seq = StrippedSeq
+                    Qual = StrippedQual
+
+                    L = len(Seq)
+                    assert len(Qual) == L
+
+                    if L < MinLen:
+                        return
+
+                    if L < TrimLen:
+                        PadCount += 1
+                        Seq = Seq + (TrimLen - L)*'N'
+                        Qual = Qual + (TrimLen - L)*'I'
+                        L = len(Seq)
+                        assert L == TrimLen
+                        assert len(Qual) == TrimLen
+
+                L = len(Seq)
+                if L < TrimLen:
+                    TooShortCount += 1
+                    return
+
+                if L > TrimLen:
+                    Seq = Seq[:TrimLen]
+                    Qual = Qual[:TrimLen]
+                    L = len(Seq)
+
+                assert L == TrimLen
+                assert len(Qual) == TrimLen
+        
 
         fastq.WriteRec(out_file, Label, Seq, Qual)
 
