@@ -16,18 +16,22 @@ ___
 
 ####UFITS Wrapper script####
 
-UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by simply typing `ufits`, while on windows you need to type `ufits.py` (unless you have put the .py extension in your EXPATH).
+UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by simply typing `ufits`, while on windows you need to type `ufits.py` (unless you have put the .py extension in your [PATHEXT](http://stackoverflow.com/a/13023969/4386003)).
 
 ```
 $ ufits.py
 Usage:      ufits <command> <arguments>
-version:    0.1.1
+version:    0.1.3
     
-Command:    ion         pre-process Ion Torrent data (find barcodes, trim/pad)
-            illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, trim/pad, concatenate)
+Command:    ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
+            illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
             cluster     cluster OTUs (using UPARSE algorithm)
             filter      OTU table filtering
+            taxonomy    Assign taxonomy to OTUs      
             heatmap     Create heatmap from OTU table
+
+Setup:      download    Download Reference Databases
+            database    Format Reference Databases for Taxonomy
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com
 
@@ -37,7 +41,7 @@ And then by calling one of the commands, you get a help menu for each:
 ```
 $ ufits.py cluster
 Usage:      ufits cluster <arguments>
-version:    0.1.1
+version:    0.1.3
     
 Arguments:  -i, --fastq         Input FASTQ file (Required)
             -o, --out           Output base name. Default: out
@@ -81,7 +85,7 @@ You can processes a folder of Illumina data like this:
 ufits illumina -i folder_name
 ```
 
-This will find all files ending with '.fastq.gz' in the input folder, gunzip the files, and then sequentially process the paired read files.  First it will run USEARCH8 `-fastq_mergepairs`, however, since some ITS sequences are too long to overlap you can rescue longer sequences by recovering the the non-merged forward reads.  Next the forward and reverse primers are removed and the reads are trimmed/padded to a set length of clustering. Finally, the resulting FASTQ files for each of the processed samples are concatenated together into a file called `ufits.demux.fq` that will be used for the next clustering step.  The script will also output a text file called `ufits-filenames.txt` that contains a tab-delimited output of the sample name as well as [i5] and [i7] index sequences that were used.
+This will find all files ending with '.fastq.gz' in the input folder, gunzip the files, and then sequentially process the paired read files.  First it will run USEARCH8 `-fastq_mergepairs`, however, since some ITS sequences are too long to overlap you can rescue longer sequences by recovering the the non-merged forward reads.  Alternatively, you can only utilize the forward reads (R1), by passing the `--reads forward` argument.  Next the forward and reverse primers are removed and the reads are trimmed/padded to a set length of clustering. Finally, the resulting FASTQ files for each of the processed samples are concatenated together into a file called `ufits.demux.fq` that will be used for the next clustering step.  The script will also output a text file called `ufits-filenames.txt` that contains a tab-delimited output of the sample name as well as [i5] and [i7] index sequences that were used.
 
 ####OTU Clustering:####
 
@@ -102,13 +106,12 @@ The data may need some additional filtering if you included a spike-in control m
 ufits filter -i test.otu_table.txt -b BC_27
 ```
 
-This  will read the OTU table `-i`, count the number of OTUs in the barcode specified by the `-b` parameter and give you some basic stats to STDOUT.  It will then ask for a value to threshold trim the data, if you would type in a value of 2, then 2 will be subtracted from every column and a new OTU table will be saved to file ending in `.filteredX.out_table.txt` as well as a new OTU fasta file `filtered.otus.fa`.  To combat 'barcode switching' or 'index bleed', an additional filter can be run that removes OTU counts that are less than 0.1% of the total for each OTU.  If you used dual indexing on MiSeq and have a lot of indexes that were re-used, you will need to increase this filter to at least 0.5, by passing the argument `-p 0.5` to the script.
+This  will read the OTU table `-i`, count the number of OTUs in the barcode specified by the `-b` parameter and give you some basic stats to STDOUT.  It will then ask for a value to threshold trim the data, if you would type in a value of 2, then 2 will be subtracted from every column and a new OTU table will be saved to file ending in `.filteredX.out_table.txt` as well as a new OTU fasta file `filtered.otus.fa`.  To combat 'barcode switching' or 'index bleed', an additional filter can be run that removes OTU counts that are less than 0.1% of the total for each OTU.  If you used dual indexing on MiSeq and have a lot of indexes that were re-used, you will need to increase this filter to at least 0.5, by passing the argument `-p 0.5` to the script.  Finally, this script will remove the mock spike in control sample from your dataset - as it should not be included in downstream processing.
 
 
 ####Assign Taxonomy:####
 
-Coming soon....
-UTAX, RDP, BLAST
+
 
 ####Dependencies####
 python, biopython, USEARCH8 (accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8).  In order to draw a heatmap using `ufits.py heatmap` you will need to have the following python libraries installed: `matplotlib, pandas, numpy`.  They can be installed with pip, i.e. `pip install matplotlib pandas numpy`.

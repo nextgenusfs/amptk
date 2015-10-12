@@ -163,12 +163,13 @@ def makeDB(input):
     with open(db_details, 'w') as details:
         details.write(db_string)
     report = args.out + '.report.txt'
-    #Use counts to dictate which database is being made?
+    
+    
     if args.create_db == 'utax':
         #create log file for this to troubleshoot
         utax_log = args.out + '.utax.log'
-        if os.path.isfile(log_name):
-            os.remove(log_name)    
+        if os.path.isfile(utax_log):
+            os.remove(utax_log)    
         utaxLog = open(utax_log, 'w')  
         log.info("Creating UTAX Database, this may take awhile")
         log.debug("%s -makeudb_utax %s -output %s -report %s -utax_trainlevels kpcofgs -utax_splitlevels NVpcofgs" % (usearch, input, usearch_db, report))

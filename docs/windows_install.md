@@ -64,5 +64,8 @@ ufits.py illumina -i illumina_test_data/
 ufits.py cluster -i ufits.demux.fq -o miseq --uchime_ref ITS2 --mock spike
 ```
 
+#####7) Adding .PY to PATHEXT (optional)
+
+You can add the `.py` extension to your executable path by following this [walkthrough](http://stackoverflow.com/a/13023969/4386003)
 
 
