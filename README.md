@@ -21,7 +21,7 @@ UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ ufits.py
 Usage:      ufits <command> <arguments>
-version:    0.1.3
+version:    0.2.1
     
 Command:    ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
             illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
@@ -34,14 +34,14 @@ Setup:      download    Download Reference Databases
             database    Format Reference Databases for Taxonomy
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com
-
 ```
+
 And then by calling one of the commands, you get a help menu for each:
 
 ```
 $ ufits.py cluster
 Usage:      ufits cluster <arguments>
-version:    0.1.3
+version:    0.2.1
     
 Arguments:  -i, --fastq         Input FASTQ file (Required)
             -o, --out           Output base name. Default: out
@@ -111,7 +111,7 @@ This  will read the OTU table `-i`, count the number of OTUs in the barcode spec
 If you do not have a mock community spike in, you can still run the index bleed filter by just running the command without a `-b` argument, such as:
 
 ```
-ufits filter -i test.otu_table.txt -index_bleed 0.5
+ufits filter -i test.otu_table.txt --index_bleed 0.5
 ```
 
 
