@@ -3,7 +3,7 @@
 #This script filters results from ufits-OTU_cluster.py
 #written by Jon Palmer palmer.jona at gmail dot com
 
-import os, argparse, inspect, subprocess, csv
+import os, argparse, inspect, subprocess, csv, logging, sys
 from Bio import SeqIO
 from natsort import natsorted
 
@@ -11,6 +11,10 @@ from natsort import natsorted
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(script_path)
 
+class colr:
+    GRN = '\033[92m'
+    END = '\033[0m'
+    WARN = '\033[93m'
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -68,11 +72,43 @@ def greater_than(x):
     except TypeError:
         return x
 
+def setupLogging(LOGNAME):
+    global log
+    if 'win32' in sys.platform:
+        stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
+    else:
+        stdoutformat = logging.Formatter(colr.GRN+'%(asctime)s'+colr.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
+    fileformat = logging.Formatter('%(asctime)s: %(message)s')
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.DEBUG)
+    sth = logging.StreamHandler()
+    sth.setLevel(logging.INFO)
+    sth.setFormatter(stdoutformat)
+    log.addHandler(sth)
+    fhnd = logging.FileHandler(LOGNAME)
+    fhnd.setLevel(logging.DEBUG)
+    fhnd.setFormatter(fileformat)
+    log.addHandler(fhnd)
+
+#remove logfile if exists
+log_name = args.out + '.log'
+if os.path.isfile(log_name):
+    os.remove(log_name)
+
+setupLogging(log_name)
+FNULL = open(os.devnull, 'w')
+cmd_args = " ".join(sys.argv)+'\n'
+log.debug(cmd_args)
+print "-------------------------------------------------------"
+
+#initialize script, log system info and usearch version
+log.info("Operating system: %s" % sys.platform)
+log.info("Loading OTU table: %s" % args.otu_table)
         
 #check if otu_table is empty
 check = os.stat(args.otu_table).st_size
 if check == 0:
-    print "Input file is empty"
+    log.error("Input OTU table is empty")
     os.exit(1)
 
 #get base name of files
@@ -93,7 +129,8 @@ for line in mock_file:
 mock_file.close()
 
 if not args.mock_barcode:
-    print "No Mock Spike-in Barcode specified, will only apply index-bleed filter of %s percent" % args.barcodebleed
+    log.info("No Mock Spike-in Barcode specified, will only apply index-bleed filter of %s percent" % args.barcodebleed)
+    threshold = '0'
     sub_table = []
     keys = []
     trim_table = []
@@ -219,8 +256,8 @@ if not args.mock_barcode:
         SeqIO.write(seqs_seen, fasta_update, "fasta")
         fasta_update.close()
     except IOError:
-        print "Fasta file %s was not found, skipping writing fasta" % fasta_in
-    print "OTU table has been index-bleed filtered at %s percent:\nOriginal OTUs: %i\nFiltered OTUs: %i" % (args.barcodebleed, line_count, num_lines)
+        log.error( "Fasta file %s was not found, skipping writing fasta" % fasta_in)
+    log.info("OTU table Filtering stats:\nOTU table has been index-bleed filtered at %s percent:\nOriginal OTUs: %i\nFiltered OTUs: %i" % (args.barcodebleed, line_count, num_lines))
 
 else:
     #load in OTU table, get only OTU column and mock
@@ -249,8 +286,8 @@ else:
             if "OTU" in row[0]:
                 bad_otu.append(int(row[1]))
     spurious = num_otus - mock_found
-    print "\nSummarizing data for %s" % (base)
-    print "------------------------------------------"
+    log.info("Summarizing data for %s" % (base))
+    print "-------------------------------------------------------"
     print "Total OTUs in Mock:  %i" % (mock_ref_count)
     print "Total OTUs in %s:  %i" % (args.mock_barcode, num_otus)
     print "\nReal Mock OTUs found:  %i" % (mock_found)
@@ -274,6 +311,7 @@ else:
 
     if args.trim_data == 'on':
             threshold = raw_input("\nEnter threshold value to trim data:  ")
+            print "-------------------------------------------------------"
             num = int(threshold)
             new_table = []
             sub_table = []
@@ -408,5 +446,14 @@ else:
                 SeqIO.write(seqs_seen, fasta_update, "fasta")
                 fasta_update.close()
             except IOError:
-                print "\nFasta file %s was not found, skipping writing fasta" % fasta_in
-            print "\nOTU table has been filtered to %i:\nOriginal OTUs: %i\nFiltered OTUs: %i" % (num, line_count, num_lines)
+                log.error("Fasta file %s was not found, skipping writing fasta" % fasta_in)
+            log.info("OTU table Filtering stats:\nOTU table has been filtered to %i:\nOriginal OTUs: %i\nFiltered OTUs: %i" % (num, line_count, num_lines))
+print "-------------------------------------------------------"
+log.info("New OTU table created: %s" % out_name)
+log.info("New FASTA OTU file: %s" % fasta_out)
+print "-------------------------------------------------------"
+
+if 'win32' in sys.platform:
+    print "\nExample of next cmd: ufits taxonomy -i %s -m utax -d UNITE.utax.udb --append_taxonomy\n" % (fasta_out)
+else:
+    print colr.WARN + "\nExample of next cmd:" + colr.END +  " ufits taxonomy -i %s -m utax -d UNITE.utax.udb --append_taxonomy\n" % (fasta_out)

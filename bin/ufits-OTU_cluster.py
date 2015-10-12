@@ -14,7 +14,7 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
 
-class col:
+class colr:
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -84,7 +84,7 @@ def setupLogging(LOGNAME):
     if 'win32' in sys.platform:
         stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
     else:
-        stdoutformat = logging.Formatter(col.GRN+'%(asctime)s'+col.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
+        stdoutformat = logging.Formatter(colr.GRN+'%(asctime)s'+colr.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
     fileformat = logging.Formatter('%(asctime)s: %(message)s')
     log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)
@@ -125,7 +125,7 @@ log.info('{0:,}'.format(total) + ' reads')
 size = checkfastqsize(args.FASTQ)
 readablesize = convertSize(size)
 if size >= 4294967296:
-    print col.WARN + "Warning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs, exiting now." + col.END
+    print colr.WARN + "Warning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs, exiting now." + colr.END
     os._exit(1)
 
 #usearch8 fastq filtering step - expected errors
@@ -342,5 +342,7 @@ print ("OTU Table:             %s" % (otu_table))
 print ("USEARCH LogFile:       %s.log" % (args.out))
 print "-------------------------------------------------------"
 
-
-print "\nExample of next cmd: ufits filter -i %s -b <mock barcode>\n" % (otu_table)
+if 'win32' in sys.platform:
+    print "\nExample of next cmd: ufits filter -i %s -b <mock barcode>\n" % (otu_table)
+else:
+    print colr.WARN + "\nExample of next cmd:" + colr.END + " ufits filter -i %s -b <mock barcode>\n" % (otu_table)
