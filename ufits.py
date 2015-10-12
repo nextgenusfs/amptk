@@ -223,7 +223,7 @@ Arguments:  -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) 
             -m, --method        Taxonomy method. Default: utax [utax, usearch, blast] (Required)
             -d, --db            Database (must be in UDB format).
             --append_taxonomy   OTU table to append taxonomy. Default: none
-            --utax_cutoff       UTAX p-value cutoff. Default: 0.8 [0 to 0.9]
+            --utax_cutoff       UTAX confidence value cutoff. Default: 0.8 [0 to 0.9]
             -u, --usearch       USEARCH executable. Default: usearch8
 
 Databases Configured: 

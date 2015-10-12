@@ -34,7 +34,7 @@ parser.add_argument('-m','--method', dest='method', required=True, default='utax
 parser.add_argument('-d','--db', dest='db', help='Reference Database')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 parser.add_argument('--append_taxonomy', dest="otu_table", nargs='?', help='Append Taxonomy to OTU table')
-parser.add_argument('--utax_cutoff', default=0.8, type=restricted_float, help='UTAX cutoff p-value.')
+parser.add_argument('--utax_cutoff', default=0.8, type=restricted_float, help='UTAX confidence value threshold.')
 args=parser.parse_args()
 
 def countfasta(input):
