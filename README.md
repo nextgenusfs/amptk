@@ -16,7 +16,7 @@ ___
 
 ####UFITS Wrapper script####
 
-UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by simply typing `ufits`, while on windows you need to type `ufits.py` (unless you have put the .py extension in your [PATHEXT](http://stackoverflow.com/a/13023969/4386003)).
+UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by simply typing `ufits`, while on windows you need to type `ufits.py` (unless you have put the .py extension in your PATHEXT, directions [here](http://stackoverflow.com/a/13023969/4386003)).
 
 ```
 $ ufits.py
@@ -108,6 +108,12 @@ ufits filter -i test.otu_table.txt -b BC_27
 
 This  will read the OTU table `-i`, count the number of OTUs in the barcode specified by the `-b` parameter and give you some basic stats to STDOUT.  It will then ask for a value to threshold trim the data, if you would type in a value of 2, then 2 will be subtracted from every column and a new OTU table will be saved to file ending in `.filteredX.out_table.txt` as well as a new OTU fasta file `filtered.otus.fa`.  To combat 'barcode switching' or 'index bleed', an additional filter can be run that removes OTU counts that are less than 0.1% of the total for each OTU.  If you used dual indexing on MiSeq and have a lot of indexes that were re-used, you will need to increase this filter to at least 0.5, by passing the argument `-p 0.5` to the script.  Finally, this script will remove the mock spike in control sample from your dataset - as it should not be included in downstream processing.
 
+If you do not have a mock community spike in, you can still run the index bleed filter by just running the command without a `-b` argument, such as:
+
+```
+ufits filter -i test.otu_table.txt -index_bleed 0.5
+```
+
 
 ####Assign Taxonomy:####
 
@@ -148,8 +154,12 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
 And then you can use the `ufits taxonomy` command to assign taxonomy to your OTUs as well as append them to your OTU table as follows:
 
 ```
-ufits taxonomy -i data.filtered.otus.fa -m utax -d UNITE.utax.udb --append taxonomy
+ufits taxonomy -i data.filtered.otus.fa -m utax -d UNITE.utax.udb --append_taxonomy
 ```
 
 ####Dependencies####
-python, biopython, USEARCH8 (accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8).  In order to draw a heatmap using `ufits.py heatmap` you will need to have the following python libraries installed: `matplotlib, pandas, numpy`.  They can be installed with pip, i.e. `pip install matplotlib pandas numpy`.
+* Python 2
+* Biopython
+* USEARCH8 (to use UTAX you will need at least version 8.1.1756)
+
+Python and USEARCH need to accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8.  In order to draw a heatmap using `ufits.py heatmap` you will need to have the following python libraries installed: `matplotlib, pandas, numpy`.  They can be installed with pip, i.e. `pip install matplotlib pandas numpy`.
