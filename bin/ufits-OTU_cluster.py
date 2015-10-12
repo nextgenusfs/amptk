@@ -13,6 +13,7 @@ parentdir = os.path.dirname(script_path)
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
+
 class col:
     GRN = '\033[92m'
     END = '\033[0m'
@@ -341,4 +342,5 @@ print ("OTU Table:             %s" % (otu_table))
 print ("USEARCH LogFile:       %s.log" % (args.out))
 print "-------------------------------------------------------"
 
- 
+
+print "\nExample of next cmd: ufits cluster -i %s -b BC_5\n" % (otu_table)

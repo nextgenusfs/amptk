@@ -28,7 +28,7 @@ parser.add_argument('-o','--out', dest='out', default='ufits-taxonomy', help='Ou
 parser.add_argument('-m','--method', dest='method', required=True, default='utax',choices=['utax', 'usearch'], help='Taxonomy method')
 parser.add_argument('-d','--db', dest='db', help='Reference Database')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
-parser.add_argument('--append_taxonomy', dest="otu_table", default='False', nargs='?', help='Append Taxonomy to OTU table')
+parser.add_argument('--append_taxonomy', dest="otu_table", nargs='?', help='Append Taxonomy to OTU table')
 args=parser.parse_args()
 
 def countfasta(input):
