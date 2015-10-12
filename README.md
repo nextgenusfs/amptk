@@ -111,7 +111,45 @@ This  will read the OTU table `-i`, count the number of OTUs in the barcode spec
 
 ####Assign Taxonomy:####
 
+You can assign taxonomy to your OTUs using UFITS, either using UTAX from USEARCH8.1 or using usearch_global.  The databases require some initial setup before you can use the `ufits taxonomy` command.  The following will get you setup with the UNITE database:
 
+```
+#download the UNITE public release
+ufits download -i unite
+
+#Now trim priming sites and reformat FASTA headers for compatibility with UTAX
+ufits database -i sh_dynamic_01.08.2015.fasta -o UNITE --create_db utax
+```
+
+These two commands will download the newest UNITE curated ITS database.  Then the script will reformat the UNITE headers to be compatible with UTAX classifier training as well as trim the reference database to correspond to the region that you sequenced, i.e. ITS2, based on primers used.  Finally, UFITS will use the re-formatted reference to train the classifier.  The resulting database is stored in the `DB` folder of the `ufits` directory.  
+
+Issuing the `ufits taxonomy` command will inform you which databases have been properly configured:
+
+```
+$ ufits taxonomy
+Usage:      ufits taxonomy <arguments>
+version:    0.2.1
+    
+Arguments:  -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
+            -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
+            -m, --method        Taxonomy method. Default: utax [utax, usearch, blast] (Required)
+            -d, --db            Database (must be in UDB format).
+            --append_taxonomy   OTU table to append taxonomy. Default: none
+            -u, --usearch       USEARCH executable. Default: usearch8
+
+Databases Configured: 
+DB_name                       FASTA originated from         Fwd Primer                    Rev Primer                    Records                      
+UNITE.utax.udb                sh_dynamic_01.08.2015.fasta   GTGARTCATCGAATCTTTG           TCCTCCGCTTATTGATATGC          39892                        
+UNITE_INSD.usearch.udb        UNITE_public_01.08.2015.fasta GTGARTCATCGAATCTTTG           TCCTCCGCTTATTGATATGC          373101                       
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com   
+```
+
+And then you can use the `ufits taxonomy` command to assign taxonomy to your OTUs as well as append them to your OTU table as follows:
+
+```
+ufits taxonomy -i data.filtered.otus.fa -m utax -d UNITE.utax.udb --append taxonomy
+```
 
 ####Dependencies####
 python, biopython, USEARCH8 (accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8).  In order to draw a heatmap using `ufits.py heatmap` you will need to have the following python libraries installed: `matplotlib, pandas, numpy`.  They can be installed with pip, i.e. `pip install matplotlib pandas numpy`.
