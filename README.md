@@ -134,13 +134,14 @@ Issuing the `ufits taxonomy` command will inform you which databases have been p
 ```
 $ ufits taxonomy
 Usage:      ufits taxonomy <arguments>
-version:    0.2.1
+version:    0.2.2
     
 Arguments:  -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
             -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
             -m, --method        Taxonomy method. Default: utax [utax, usearch, blast] (Required)
             -d, --db            Database (must be in UDB format).
             --append_taxonomy   OTU table to append taxonomy. Default: none
+            --utax_cutoff       UTAX p-value cutoff. Default: 0.8 [0 to 0.9]
             -u, --usearch       USEARCH executable. Default: usearch8
 
 Databases Configured: 
@@ -148,7 +149,7 @@ DB_name                       FASTA originated from         Fwd Primer          
 UNITE.utax.udb                sh_dynamic_01.08.2015.fasta   GTGARTCATCGAATCTTTG           TCCTCCGCTTATTGATATGC          39892                        
 UNITE_INSD.usearch.udb        UNITE_public_01.08.2015.fasta GTGARTCATCGAATCTTTG           TCCTCCGCTTATTGATATGC          373101                       
             
-Written by Jon Palmer (2015) nextgenusfs@gmail.com   
+Written by Jon Palmer (2015) nextgenusfs@gmail.com  
 ```
 
 And then you can use the `ufits taxonomy` command to assign taxonomy to your OTUs as well as append them to your OTU table as follows:
