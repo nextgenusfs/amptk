@@ -155,7 +155,8 @@ for x in finalTable:
 
 for item in Index[0]:
     taxon = otuDict.get(item)
-    print item,taxon.split(",")[-1]
+    print item,taxon.split(",")[-1] #print the OTU and lowest taxonomic classification
+    
 #construct panda dataframe with appropriate headers and index
 df = pd.DataFrame(finalTable, index=Index, columns=Cols)
 

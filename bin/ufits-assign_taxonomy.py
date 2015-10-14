@@ -175,8 +175,11 @@ if otu_table:
         d = '\t'
     if end == 'csv':
         d = ','
-    basename = otu_table.rsplit(".", 1)[0]
-    taxTable = basename + '.taxonomy.txt'
+    if not args.out:
+        basename = otu_table.rsplit(".", 1)[0]
+        taxTable = basename + '.taxonomy.txt'
+    else:
+        taxTable = args.out + '.otu_table.taxonomy.txt'
     with open(taxTable, 'w') as outTable:
         with open(otu_table, 'rU') as inTable:
             reader = csv.reader(inTable, delimiter=d)
@@ -184,7 +187,7 @@ if otu_table:
                 if 'OTUId' in line[0]:
                     line.append('Taxonomy')
                 else:
-                    tax = otuDict.get(line[0])
+                    tax = otuDict.get(line[0]) or "No Hit"
                     line.append(tax)
                 join_line = ('\t'.join(str(x) for x in line))
                 outTable.write("%s\n" % join_line)

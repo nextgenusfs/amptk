@@ -3,9 +3,7 @@
 #Wrapper script for UFITS package.
 
 import sys, os, subprocess, inspect
-
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-
 
 def flatten(l):
     flatList = []
@@ -26,7 +24,7 @@ def fmtcols(mylist, cols):
              for i in xrange(0,len(justifyList),cols))
     return "\n".join(lines)
 
-version = '0.2.3'
+version = '0.2.4'
 
 default_help = """
 Usage:      ufits <command> <arguments>
@@ -36,7 +34,8 @@ Command:    ion         pre-process Ion Torrent data (find barcodes, remove prim
             illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
             cluster     cluster OTUs (using UPARSE algorithm)
             filter      OTU table filtering
-            taxonomy    Assign taxonomy to OTUs      
+            taxonomy    Assign taxonomy to OTUs
+            summarize   Summarize Taxonomy (create stacked bar graph and data tables)   
             heatmap     Create heatmap from OTU table
 
 Setup:      download    Download Reference Databases
@@ -199,9 +198,11 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
     elif sys.argv[1] == 'taxonomy':
         #look in DB folder for databses
         db_list = ['DB_name', 'FASTA originated from', 'Fwd Primer', 'Rev Primer', 'Records']
+        okay_list = []
         search_path = os.path.join(script_path, 'DB')
         for file in os.listdir(search_path):
             if file.endswith(".udb"):
+                okay_list.append(file)
                 info_file = file + '.txt'
                 with open(os.path.join(search_path, info_file), 'rU') as info:
                     line = info.readlines()
@@ -243,9 +244,13 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
             except ValueError:
                 dbLocation = arguments.index('--db')
             dbLocation = dbLocation + 1
-            arguments[dbLocation] = os.path.join(script_path, 'DB', arguments[dbLocation])
-            subprocess.call(arguments)
-        
+            if arguments[dbLocation] in okay_list:
+                arguments[dbLocation] = os.path.join(script_path, 'DB', arguments[dbLocation])
+                subprocess.call(arguments)
+            else:
+                print "Database %s not found, please choose a Configured DB" % arguments[dbLocation]
+                print help
+                sys.exit
         else:
             print help
             sys.exit
@@ -308,6 +313,30 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
             arguments.insert(0, exe)
             subprocess.call(arguments)
         
+        else:
+            print help
+            sys.exit
+    
+    elif sys.argv[1] == 'summarize':
+        help = """
+Usage:      ufits %s <arguments>
+version:    %s
+    
+Arguments:  -i, --table     OTU Table containing Taxonomy information (Required)
+            -o, --out       Base name for output files. Default: ufits-summary
+            --format       Image output format. Default: eps [eps, svg, png, pdf]
+            --percent       Convert numbers to Percent of Sample. Default: off
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com   
+        """ % (sys.argv[1], version)
+        
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'bin', 'ufits-summarize_taxonomy.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)        
         else:
             print help
             sys.exit
