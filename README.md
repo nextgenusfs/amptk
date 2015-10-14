@@ -21,13 +21,14 @@ UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ ufits.py
 Usage:      ufits <command> <arguments>
-version:    0.2.1
+version:    0.2.4
     
 Command:    ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
             illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
             cluster     cluster OTUs (using UPARSE algorithm)
             filter      OTU table filtering
-            taxonomy    Assign taxonomy to OTUs      
+            taxonomy    Assign taxonomy to OTUs
+            summarize   Summarize Taxonomy (create stacked bar graph and data tables)   
             heatmap     Create heatmap from OTU table
 
 Setup:      download    Download Reference Databases
@@ -41,7 +42,7 @@ And then by calling one of the commands, you get a help menu for each:
 ```
 $ ufits.py cluster
 Usage:      ufits cluster <arguments>
-version:    0.2.1
+version:    0.2.4
     
 Arguments:  -i, --fastq         Input FASTQ file (Required)
             -o, --out           Output base name. Default: out
