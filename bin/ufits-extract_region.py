@@ -173,14 +173,14 @@ def makeDB(input):
         utaxLog = open(utax_log, 'w')  
         log.info("Creating UTAX Database, this may take awhile")
         log.debug("%s -makeudb_utax %s -output %s -report %s -utax_trainlevels kpcofgs -utax_splitlevels NVpcofgs" % (usearch, input, usearch_db, report))
-        subprocess.call([usearch, '-makeudb_utax', input, '-output', usearch_db, '-report', report, '-utax_trainlevels', 'kpcofgs', '-utax_splitlevels', 'NVpcofgs'], stdout = utaxLog, stderr = utaxLog)
+        subprocess.call([usearch, '-makeudb_utax', input, '-output', usearch_db, '-report', report, '-utax_trainlevels', 'kpcofgs', '-utax_splitlevels', 'NVpcofgs', '-notrunclabels'], stdout = utaxLog, stderr = utaxLog)
         utaxLog.close()
         log.info("Database %s created successfully" % usearch_db)
         
     if args.create_db == 'usearch':
         log.info("Creating USEARCH Database")
-        log.debug("%s -makeudb_usearch %s -output %s" % (usearch, input, usearch_db))
-        subprocess.call([usearch, '-makeudb_usearch', input, '-output', usearch_db], stdout = FNULL, stderr = FNULL)
+        log.debug("%s -makeudb_usearch %s -output %s -notrunclabels" % (usearch, input, usearch_db))
+        subprocess.call([usearch, '-makeudb_usearch', input, '-output', usearch_db, '-notrunclabels'], stdout = FNULL, stderr = FNULL)
         log.info("Database %s created successfully" % usearch_db)
 
 def setupLogging(LOGNAME):
