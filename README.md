@@ -164,4 +164,6 @@ ufits taxonomy -i data.filtered.otus.fa -m utax -d UNITE.utax.udb --append_taxon
 * Biopython
 * USEARCH8 (to use UTAX you will need at least version 8.1.1756)
 
-Python and USEARCH need to accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8.  In order to draw a heatmap using `ufits.py heatmap` you will need to have the following python libraries installed: `matplotlib, pandas, numpy`.  They can be installed with pip, i.e. `pip install matplotlib pandas numpy`.
+Python and USEARCH need to accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8.  
+
+In order to draw a heatmap or stacked bar graph using `ufits.py heatmap` or `ufits summarize` you will need to have the following python libraries installed: `matplotlib, pandas, numpy`.  They can be installed with pip, i.e. `pip install matplotlib pandas numpy`.
