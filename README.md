@@ -16,7 +16,7 @@ ___
 
 ####UFITS Wrapper script####
 
-UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by simply typing `ufits`, while on windows you need to type `ufits.py` (unless you have put the .py extension in your PATHEXT, directions [here](http://stackoverflow.com/a/13023969/4386003)).
+UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by simply typing `ufits`, while on windows you may need to type `ufits.py` (not needed if you add the `.py` extension in your PATHEXT, directions [here](http://stackoverflow.com/a/13023969/4386003)).
 
 ```
 $ ufits.py
@@ -107,7 +107,7 @@ The data may need some additional filtering if you included a spike-in control m
 ufits filter -i test.otu_table.txt -b BC_27
 ```
 
-This  will read the OTU table `-i`, count the number of OTUs in the barcode specified by the `-b` parameter and give you some basic stats to STDOUT.  It will then ask for a value to threshold trim the data, if you would type in a value of 2, then 2 will be subtracted from every column and a new OTU table will be saved to file ending in `.filteredX.out_table.txt` as well as a new OTU fasta file `filtered.otus.fa`.  To combat 'barcode switching' or 'index bleed', an additional filter can be run that removes OTU counts that are less than 0.1% of the total for each OTU.  If you used dual indexing on MiSeq and have a lot of indexes that were re-used, you will need to increase this filter to at least 0.5, by passing the argument `-p 0.5` to the script.  Finally, this script will remove the mock spike in control sample from your dataset - as it should not be included in downstream processing.
+This  will read the OTU table `-i`, count the number of OTUs in the barcode specified by the `-b` parameter and give you some basic stats to STDOUT.  It will then ask for a value to threshold trim the data, if you would type in a value of 2, then 2 will be subtracted from every column and a new OTU table will be saved to file ending in `.filteredX.out_table.txt` as well as a new OTU fasta file `filtered.otus.fa`.  To combat 'barcode switching' or 'index bleed', an additional filter can be run that removes OTU counts that are less than 0.1% of the total for each OTU.  If you used dual indexing on MiSeq and have a lot of indexes that were re-used, you will need to increase this filter to at least 0.5, by passing the argument `-p 0.5` to the script.  Finally, this script will remove the mock spike in control sample from your dataset - as it should not be included in downstream processing, you can keep mock sequences if desired by passing the `--keep_mock` argument.
 
 If you do not have a mock community spike in, you can still run the index bleed filter by just running the command without a `-b` argument, such as:
 
@@ -124,7 +124,7 @@ You can assign taxonomy to your OTUs using UFITS, either using UTAX from USEARCH
 #download the UNITE public release
 ufits download -i unite
 
-#Now trim priming sites and reformat FASTA headers for compatibility with UTAX
+#Now trim priming sites and reformat FASTA headers for compatibility with UTAX/USEARCH
 ufits database -i sh_dynamic_01.08.2015.fasta -o UNITE --create_db utax
 ```
 
