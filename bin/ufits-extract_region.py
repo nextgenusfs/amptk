@@ -222,6 +222,23 @@ fwd_primer = args.fwd_primer
 rev_primer = args.rev_primer
 fwdLen = len(fwd_primer)
 
+#need usearch for this, test to make sure version is ok with utax
+if args.create_db == 'utax':
+    usearch = args.usearch
+    try:
+        usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
+    except OSError:
+        log.error("%s not found in your PATH, exiting." % usearch)
+        os._exit(1)
+    version = usearch_test.split(" v")[1]
+    majorV = version.split(".")[0]
+    minorV = version.split(".")[1]
+    if int(majorV) < 8 or (int(majorV) >= 8 and int(minorV) < 1):
+        log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % usearch_test)
+        os._exit(1)
+else:
+    log.info("USEARCH version: %s" % usearch_test)
+
 if not args.trimming:
     log.info("Searching for primers, this may take awhile")
 else:
