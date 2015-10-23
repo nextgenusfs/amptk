@@ -21,6 +21,7 @@ parser=argparse.ArgumentParser(prog='ufits-summarize_taxonomy.py', usage="%(prog
 
 parser.add_argument('-i','--table', dest="table", required=True, help='OTU Table (Required)')
 parser.add_argument('-o','--out', dest="out", default='ufits-summary', help='Base name of Output Files')
+parser.add_argument('--no_charts', dest="no_charts", action="store_true", help='Do not draw charts, only CSV tables')
 parser.add_argument('--format', dest="format", default='eps', choices=['eps','svg','png','pdf'], help='Image format')
 parser.add_argument('--percent', dest="percent", action="store_true", help='Convert to Pct of Sample')
 args=parser.parse_args()
@@ -114,62 +115,64 @@ def processTax(uniq, L, name):
         for line in OutputTable:
             new_line = ','.join(str(x) for x in line)+'\n'
             tableOut.write(new_line)    
-    percent_table = []
-    if args.percent:
-        for line in FinalTab:
-            new_line = []
-            sums = sum(line)
-            new_line.append([x/float(sums) * 100 for x in line])
-            new_line = flatten(new_line)
-            percent_table.append(new_line)
-    else:
-        percent_table = FinalTab
-    out = args.out + '.tax.' + name + '.' + args.format
-    SBG = StackedBarGrapher()
-    #load pd df
-    df = pd.DataFrame(percent_table)
-    #work on colors, 12 preferred, add to those if necessary
-    pref_colors=["#023FA5","#7D87B9","#BEC1D4","#D6BCC0",
-            "#BB7784","#4A6FE3","#8595E1","#B5BBE3",
-            "#E6AFB9","#E07B91","#D33F6A","#11C638","#8DD593",
-            "#C6DEC7","#EAD3C6","#F0B98D","#EF9708","#0FCFC0",
-            "#9CDED6","#D5EAE7","#F3E1EB","#F6C4E1","#F79CD4"]
-    length = len(uniq)
-    if length > len(pref_colors):
-        extra = length - len(pref_colors) - 1
-        add_colors = get_colors(extra)
-        pref_colors.append(add_colors) 
-        pref_colors.append('#ededed')  
-    else:
-        cut = len(uniq) - 1
-        pref_colors = pref_colors[:cut]
-        pref_colors.append('#ededed')
-    d_colors = flatten(pref_colors)
+    #check if not drawing charts
+    if not args.no_charts:
+        percent_table = []
+        if args.percent:
+            for line in FinalTab:
+                new_line = []
+                sums = sum(line)
+                new_line.append([x/float(sums) * 100 for x in line])
+                new_line = flatten(new_line)
+                percent_table.append(new_line)
+        else:
+            percent_table = FinalTab
+        out = args.out + '.tax.' + name + '.' + args.format
+        SBG = StackedBarGrapher()
+        #load pd df
+        df = pd.DataFrame(percent_table)
+        #work on colors, 12 preferred, add to those if necessary
+        pref_colors=["#023FA5","#7D87B9","#BEC1D4","#D6BCC0",
+                "#BB7784","#4A6FE3","#8595E1","#B5BBE3",
+                "#E6AFB9","#E07B91","#D33F6A","#11C638","#8DD593",
+                "#C6DEC7","#EAD3C6","#F0B98D","#EF9708","#0FCFC0",
+                "#9CDED6","#D5EAE7","#F3E1EB","#F6C4E1","#F79CD4"]
+        length = len(uniq)
+        if length > len(pref_colors):
+            extra = length - len(pref_colors) - 1
+            add_colors = get_colors(extra)
+            pref_colors.append(add_colors) 
+            pref_colors.append('#ededed')  
+        else:
+            cut = len(uniq) - 1
+            pref_colors = pref_colors[:cut]
+            pref_colors.append('#ededed')
+        d_colors = flatten(pref_colors)
 
-    #labels
-    d_labels = allSamples
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    if args.percent:
-        YLabel = "Percent of Community"
-    else:
-        YLabel = "Number of OTUs per taxonomy level"
-    SBG.stackedBarPlot(ax,df,d_colors,edgeCols=['#000000']*length,xLabels=allSamples,gap=0.25,endGaps=True,xlabel="Samples", ylabel=YLabel)
-    plt.title("Taxonomy Summary")
-    #get the legend
-    legends = [] 
-    i = 0 
-    for column in df.columns: 
-        legends.append(mpatches.Patch(color=d_colors[i], label=uniq[i])) 
-        i+=1 
-    lgd = ax.legend(handles=legends, fontsize=6, loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0)
-    ax.spines["bottom"].set_visible(True)
-    ax.spines["left"].set_visible(True)
-    #setup the plot
-    fig.subplots_adjust(bottom=0.4)
-    fig.set_tight_layout(True) 
-    fig.savefig(out, format=args.format, bbox_extra_artists=(lgd,), bbox_inches='tight')
-    plt.close(fig)
+        #labels
+        d_labels = allSamples
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        if args.percent:
+            YLabel = "Percent of Community"
+        else:
+            YLabel = "Number of OTUs per taxonomy level"
+        SBG.stackedBarPlot(ax,df,d_colors,edgeCols=['#000000']*length,xLabels=allSamples,gap=0.25,endGaps=True,xlabel="Samples", ylabel=YLabel)
+        plt.title("Taxonomy Summary")
+        #get the legend
+        legends = [] 
+        i = 0 
+        for column in df.columns: 
+            legends.append(mpatches.Patch(color=d_colors[i], label=uniq[i])) 
+            i+=1 
+        lgd = ax.legend(handles=legends, fontsize=6, loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0)
+        ax.spines["bottom"].set_visible(True)
+        ax.spines["left"].set_visible(True)
+        #setup the plot
+        fig.subplots_adjust(bottom=0.4)
+        fig.set_tight_layout(True) 
+        fig.savefig(out, format=args.format, bbox_extra_artists=(lgd,), bbox_inches='tight')
+        plt.close(fig)
 
 
 

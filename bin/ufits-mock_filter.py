@@ -30,7 +30,7 @@ parser=argparse.ArgumentParser(prog='ufits-mock_filter.py', usage="%(prog)s [opt
 parser.add_argument('-i','--otu_table', required=True, help='Input OTU table')
 parser.add_argument('-b','--mock_barcode', help='Barocde of Mock community')
 parser.add_argument('-p','--barcode_bleed', dest="barcodebleed", default='0.1', help='Index Bleed filter')
-parser.add_argument('--mc', dest="mock_community",default='ufits_mock3.fa', help='Multi-FASTA mock community')
+parser.add_argument('--mc',default='mock3', help='Multi-FASTA mock community')
 parser.add_argument('-d','--delimiter', default='tsv', choices=['csv','tsv'], help='Delimiter')
 parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
 parser.add_argument('--convert_binary', dest="binary", action='store_true', help='Convert to binary')
@@ -116,10 +116,14 @@ base = args.otu_table.split(".otu_table")
 base = base[0]
 
 #get default mock community value
-if args.mock_community == "ufits_mock3.fa":
+if args.mc == "mock3":
     mock = os.path.join(parentdir, 'DB', 'ufits_mock3.fa')
+elif args.mc == "mock2":
+    mock = os.path.join(parentdir, 'DB', 'ufits_mock2.fa')
+elif args.mc == "mock1":
+    mock = os.path.join(parentdir, 'DB', 'ufits_mock1.fa')
 else:
-    mock = args.mock_community
+    mock = args.mc
 #open mock community fasta and count records
 mock_file = open(mock, "rU")
 mock_ref_count = 0
@@ -260,12 +264,30 @@ if not args.mock_barcode:
     log.info("OTU table Filtering stats:\nOTU table has been index-bleed filtered at %s percent:\nOriginal OTUs: %i\nFiltered OTUs: %i" % (args.barcodebleed, line_count, num_lines))
 
 else:
-    #load in OTU table, get only OTU column and mock
+    #load in OTU table, get only OTU column and mock, but also apply index bleed filter before subtraction filter, so print here
     KEEP_COLUMNS = ('OTUId', args.mock_barcode)
     f = csv.reader(open(args.otu_table), delimiter='\t')
+    if args.barcodebleed != 'None':
+        pct_bleed = float(args.barcodebleed) / 100
+        int_table = []
+        for line in f:
+            int_table.append([try_int(x) for x in line]) #convert to integers
+        temp_table = []
+        for line in int_table:
+            if line[0] == 'OTUId':
+                temp_table.append(line)
+            else:
+                subline = line[1:]
+                OTU_sum = sum(subline)
+                blood_index = OTU_sum * pct_bleed #set a threshold
+                if OTU_sum > 0:
+                    temp_table.append([greater_than(x) for x in line]) #filter blood_index
+    else:
+        temp_table = f
+    
     headers = None
     results = []
-    for row in f:
+    for row in temp_table:
         if not headers:
             headers = []
             for i, col in enumerate(row):
@@ -338,7 +360,23 @@ else:
             for line in f2:
                 line_count += 1
                 new_table.append([try_int(x) for x in line]) #convert to integers
-            for line in new_table:
+            
+            if args.barcodebleed != 'None':
+                pct_bleed = float(args.barcodebleed) / 100
+                temp_table = []
+                for line in new_table:
+                    if line[0] == 'OTUId':
+                        temp_table.append(line)
+                    else:
+                        subline = line[1:]
+                        OTU_sum = sum(subline)
+                        blood_index = OTU_sum * pct_bleed #set a threshold
+                        if OTU_sum > 0:
+                            temp_table.append([greater_than(x) for x in line]) #filter blood_index
+            else:
+                temp_table = new_table  
+            
+            for line in temp_table:
                 sub_table.append([try_subtract(x,num) for x in line]) #subtract threshold          
         
             #Now sort the table by row name naturally
@@ -391,30 +429,16 @@ else:
                 if max_left >= 1:
                     trim_table.append(line) #get rid of OTUs with only zeros
                     keys.append(line[0])
-        
-            if args.barcodebleed != 'None':
-                pct_bleed = float(args.barcodebleed) / 100
-                temp_table = []
-                for line in trim_table:
-                    if line[0] == 'OTUId':
-                        temp_table.append(line)
-                    else:
-                        subline = line[1:]
-                        OTU_sum = sum(subline)
-                        blood_index = OTU_sum * pct_bleed #set a threshold
-                        if OTU_sum > 0:
-                            temp_table.append([greater_than(x) for x in line]) #filter blood_index
-            else:
-                temp_table = trim_table
+
             
             if args.binary:
-                for line in temp_table:
+                for line in trim_table:
                     if line[0] == 'OTUId':
                         binary_table.append(line)
                     else:
                         binary_table.append([convert_binary(x) for x in line]) #convert to binary
             else:
-                binary_table = temp_table
+                binary_table = trim_table
         
             finalTable = binary_table
         

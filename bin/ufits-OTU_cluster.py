@@ -33,7 +33,7 @@ parser.add_argument('-m','--minsize', default='2', help='Min size to keep for cl
 parser.add_argument('-l','--length', default='250', help='Length to trim reads')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 parser.add_argument('--mock', default="False", help='Spike-in control: <barcode label>')
-parser.add_argument('--mc', default='ufits_mock3.fa', help='Multi-Fasta Mock Community')
+parser.add_argument('--mc', default='mock3', help='Multi-Fasta Mock Community')
 parser.add_argument('--uchime_ref', default='False', choices=['ITS1','ITS2','Full'], help='Run UCHIME REF')
 parser.add_argument('--map_unfiltered', action='store_true', help='map original reads back to OTUs')
 parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOISE)')
@@ -207,8 +207,12 @@ else:
 
 #option if using mock community to map OTUs to mock and add to header
 if args.mock != "False":
-    if args.mc == "ufits_mock3.fa":
+    if args.mc == "mock3":
         mock = os.path.join(parentdir, 'DB', 'ufits_mock3.fa')
+    elif args.mc == "mock2":
+        mock = os.path.join(parentdir, 'DB', 'ufits_mock2.fa')
+    elif args.mc == "mock1":
+        mock = os.path.join(parentdir, 'DB', 'ufits_mock1.fa')
     else:
         mock = args.mc
     #count seqs in mock community

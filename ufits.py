@@ -24,7 +24,7 @@ def fmtcols(mylist, cols):
              for i in xrange(0,len(justifyList),cols))
     return "\n".join(lines)
 
-version = '0.2.4'
+version = '0.2.5'
 
 default_help = """
 Usage:      ufits <command> <arguments>
@@ -176,8 +176,11 @@ Arguments:  -i, --otu_table     Input OTU table (Required)
             -o, --output        Output file (Required)
             --format            Image output format. Default: eps [eps, svg, png, pdf]
             --col_order         Column order (comma separated list). Default: sort naturally
+            --font_size         Font Size for X/Y Axis labels. Default: 10
             --square            Maintain aspect ratio. Default: off
-            --colors            Color Palette. Default: Greys [Blues, Reds, Purples, Greens, BuPu, BuGn, OrRd, YlGnBu, YlOrRd]
+            --colors            Color Palette. Default: YlOrRd [many options, see matplotlib docs]
+            --zero_color        Color for OTUs that are missing (zero). Default: white [white, lightgray, black, snow]
+            --border_color      Color for border in-between cells. Default: black [black, white]
             --percent           Convert numbers to Percent of Sample. Default: off
             --min_num           Minimum reads per OTU to graph. Default: 1
             
@@ -221,7 +224,7 @@ version:    %s
     
 Arguments:  -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
             -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
-            -m, --method        Taxonomy method. Default: utax [utax, usearch, blast] (Required)
+            -m, --method        Taxonomy method. Default: utax [utax, usearch] (Required)
             -d, --db            Database (must be in UDB format).
             --append_taxonomy   OTU table to append taxonomy. Default: none
             --utax_cutoff       UTAX confidence value cutoff. Default: 0.8 [0 to 0.9]

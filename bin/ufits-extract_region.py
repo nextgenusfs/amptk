@@ -31,6 +31,7 @@ parser.add_argument('--skip_trimming', dest='trimming', action='store_true', hel
 parser.add_argument('--unite2utax', dest='utax', default='on', choices=['on', 'off'], help='Reformat UNITE FASTA headers for UTAX')
 parser.add_argument('--drop_ns', dest='drop_ns', type=int, default=8, help="Drop Seqeunces with more than X # of N's")
 parser.add_argument('--create_db', dest='create_db', choices=['utax', 'usearch'], help="Create USEARCH DB")
+parser.add_argument('--keep_all', dest='keep_all', action='store_true', help="Keep Seq if For primer not found Default: off")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()
 
@@ -133,7 +134,24 @@ def stripPrimer(records):
                             RevCount += 1
                             yield rec
                 else:
-                    NoMatch += 1
+                    if args.keep_all:
+                        StripSeq = Seq
+                        #now look for reverse
+                        BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, RevPrimer, MAX_PRIMER_MISMATCHES)
+                        if BestDiffsRev < MAX_PRIMER_MISMATCHES:
+                            StrippedSeq = StripSeq[:BestPosRev]
+                        else:
+                            StrippedSeq = StripSeq
+                        #after stripping primers, check for ambig bases
+                        if args.drop_ns != 0 and 'N'*args.drop_ns in StrippedSeq:
+                            continue
+                        rec.seq = StrippedSeq
+                        if rec.seq and rec.id:
+                            OutCount += 1
+                            yield rec
+                        
+                    else:
+                        NoMatch += 1
         else:
             yield rec
 
@@ -236,8 +254,6 @@ if args.create_db == 'utax':
     if int(majorV) < 8 or (int(majorV) >= 8 and int(minorV) < 1):
         log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % usearch_test)
         os._exit(1)
-else:
-    log.info("USEARCH version: %s" % usearch_test)
 
 if not args.trimming:
     log.info("Searching for primers, this may take awhile")

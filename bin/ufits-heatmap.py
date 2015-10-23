@@ -15,13 +15,17 @@ parser=argparse.ArgumentParser(prog='ufits-heatmap.py', usage="%(prog)s -i ufits
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
+map_colors = ['Accent','BrBG','BuGn','Dark2','PRGn','Pastel1', 'Pastel2','Spectral','bwr','copper','cubehelix','gist_yarg','gist_earth_r','gist_heat','Blues','Reds','Purples','Greens','BuPu','BuGn','OrRd','YlGnBu','YlOrRd','terrain', 'brg', 'gnuplot','bone_r','terrain_r']
+
 parser.add_argument('-i','--table', dest="table", required=True, help='OTU Table (Required)')
 parser.add_argument('-o','--output', dest="output", required=True, help='Output File (Required)')
 parser.add_argument('--format', dest="format", default='eps', choices=['eps','svg','png','pdf'], help='Image format')
 parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
-parser.add_argument('--font_size', dest="size", default=8, help='Font Size')
+parser.add_argument('--font_size', dest="size", default=10, help='Font Size')
+parser.add_argument('--border_color', dest="border_color", default='lightgray', choices=['black', 'white','lightgray'], help='color of border between cells')
+parser.add_argument('--zero_color', dest="zero_color", default='white', choices=['white','lightgray','black','snow'], help='Color for zeros')
 parser.add_argument('--square', dest="square", action="store_true", help='Maintain aspect ratio')
-parser.add_argument('--colors', dest="colors", default='Greys', choices=['Blues','Reds','Purples','Greens','BuPu','BuGn','OrRd','YlGnBu','YlOrRd'], help='Choose color palette')
+parser.add_argument('--colors', dest="colors", default='YlOrRd', choices=map_colors, help='Choose color palette')
 parser.add_argument('--percent', dest="percent", action="store_true", help='Convert to Pct of Sample')
 parser.add_argument('--min_num', dest="min_num", default=1, help='Min number of reads per OTU')
 args=parser.parse_args()
@@ -155,7 +159,7 @@ for x in finalTable:
 
 for item in Index[0]:
     taxon = otuDict.get(item)
-    print item,taxon.split(",")[-1] #print the OTU and lowest taxonomic classification
+    #print item,taxon.split(",")[-1] #print the OTU and lowest taxonomic classification
     
 #construct panda dataframe with appropriate headers and index
 df = pd.DataFrame(finalTable, index=Index, columns=Cols)
@@ -166,11 +170,12 @@ height = len(df.index)/4
 
 # Plot it out
 #get color palette from argparse
-colors = args.colors
+cmap = plt.get_cmap(args.colors)
+cmap.set_under(args.zero_color)
 fig, ax = plt.subplots(figsize=(width,height))
-heatmap = ax.pcolor(df, cmap=colors, linewidths=1, edgecolors='w')
+heatmap = ax.pcolor(df, cmap=cmap, vmin=0.0001, linewidths=1, edgecolors=args.border_color)
 
-cbar = plt.colorbar(heatmap, cax=None, ax=None, shrink=0.4)
+cbar = plt.colorbar(heatmap, cmap=cmap, cax=None, ax=None, shrink=0.4)
 if args.percent:
     cbar.ax.set_ylabel('Percent of reads per sample')
 else:
