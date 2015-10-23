@@ -189,8 +189,8 @@ for i in range(len(fastq_for)):
         #next run USEARCH8 mergepe
         merge_out = os.path.join(args.out, 'merged.fq')
         skip_for = os.path.join(args.out, 'notmerged.R1.fq')
-        log.debug("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastq_truncqual 5 -fastq_allowmergestagger -minhsp 12" % (usearch, pretrim_R1, pretrim_R2, merge_out, skip_for))
-        subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastq_truncqual', '5','-fastq_allowmergestagger','-minhsp', '12'], stdout = FNULL, stderr = FNULL)
+        log.debug("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastq_truncqual 5 -fastq_maxdiffs 8 -minhsp 12" % (usearch, pretrim_R1, pretrim_R2, merge_out, skip_for))
+        subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8'], stdout = FNULL, stderr = FNULL)
 
         #now concatenate files for downstream pre-process_illumina.py script
         outname = name + '.fq'

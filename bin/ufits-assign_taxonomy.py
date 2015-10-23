@@ -30,7 +30,7 @@ parser=argparse.ArgumentParser(prog='ufits-assign_taxonomy.py', usage="%(prog)s 
 
 parser.add_argument('-i','--fasta', dest='fasta', required=True, help='FASTA input')
 parser.add_argument('-o','--out', dest='out', default='ufits-taxonomy', help='Output file (FASTA)')
-parser.add_argument('-m','--method', dest='method', required=True, default='utax',choices=['utax', 'usearch'], help='Taxonomy method')
+parser.add_argument('-m','--method', dest='method', required=True, default='utax',choices=['utax', 'usearch', 'both'], help='Taxonomy method')
 parser.add_argument('-d','--db', dest='db', help='Reference Database')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 parser.add_argument('--append_taxonomy', dest="otu_table", nargs='?', help='Append Taxonomy to OTU table')
@@ -150,7 +150,96 @@ elif args.method == 'usearch':
             
     otuDict = {rows[0]:rows[1] for rows in newTable}
     
-log.info("Done classifying OTUs: %s" % utax_out)
+    log.info("Done classifying OTUs: %s" % utax_out)
+
+elif args.method == 'both':
+    if not args.db:
+        log.error("No DB specified, exiting")
+        os._exit(1)
+    #look for comma separated list
+    if not ',' in args.db:
+        log.error("You need to specify a UTAX and USEARCH DB separated by a comma")
+        os._exit(1)
+
+    #split db's
+    dbs = args.db.split(",")
+    if 'utax' in dbs[0]:
+        utax_db = os.path.join(parentdir, 'DB', dbs[0])
+        usearch_db = os.path.join(parentdir, 'DB', dbs[1])
+    else:
+        utax_db = os.path.join(parentdir, 'DB', dbs[1])
+        usearch_db = os.path.join(parentdir, 'DB', dbs[0])
+    log.info("Set %s as UTAX DB" % utax_db)
+    log.info("Set %s as USEARCH DB" % usearch_db)
+    usearch = args.usearch
+    try:
+        usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
+    except OSError:
+        log.error("%s not found in your PATH, exiting." % usearch)
+        os._exit(1)
+    version = usearch_test.split(" v")[1]
+    majorV = version.split(".")[0]
+    minorV = version.split(".")[1]
+    if int(majorV) < 8 or (int(majorV) >= 8 and int(minorV) < 1):
+        log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % usearch_test)
+        os._exit(1)
+    else:
+        log.info("USEARCH version: %s" % usearch_test)
+    
+    #Count records
+    log.info("Loading FASTA Records")
+    total = countfasta(args.fasta)
+    log.info('{0:,}'.format(total) + ' OTUs')
+    
+    #now run through UTAX
+    utax_out = args.out + '.utax.txt'
+    usearch_out = args.out + '.usearch.txt'
+    log.info("Classifying OTUs with UTAX (USEARCH8)")
+    cutoff = str(args.utax_cutoff)
+    log.debug("%s -utax %s -db %s -utaxout %s -utax_cutoff %s -strand both" % (usearch, args.fasta, utax_db, utax_out, cutoff))
+    subprocess.call([usearch, '-utax', args.fasta, '-db', utax_db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus'], stdout = FNULL, stderr = FNULL)
+    
+    #load results into dictionary for appending to OTU table
+    log.debug("Loading results into dictionary")
+    with open(utax_out, 'rU') as infile:
+        reader = csv.reader(infile, delimiter="\t")
+        utaxDict = {rows[0]:rows[2] for rows in reader}
+    
+    #run through USEARCH
+    log.info("Blasting OTUs with usearch_global")
+    log.debug("%s -usearch_global %s -db %s -id 0.7 -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, utax_out))
+    subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', '0.7', '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
+    
+    #load results into dictionary for appending to OTU table
+    log.debug("Loading usearch_global results into dictionary")
+    newTable = []
+    with open(usearch_out, 'rU') as infile:
+        reader = csv.reader(infile, delimiter="\t")
+        for line in reader:
+            if line[1] == "*":
+                utaxLook = utaxDict.get(line[0]) or "No Hit"
+                if utaxLook != "No Hit":
+                    utaxLook = 'UTAX;' + utaxLook
+                newTable.append([line[0], utaxLook])
+            elif float(line[2]) < 97:
+                utaxLook = utaxDict.get(line[0]) or "No Hit"
+                if utaxLook != "No Hit":
+                    utaxLook = 'UTAX;' + utaxLook
+                newTable.append([line[0], utaxLook])
+            else:
+                #compare the levels of taxonomy, by counting tax levels
+                utaxLook = utaxDict.get(line[0])
+                utaxCount = utaxLook.count(',')
+                usearchResult = line[1]
+                usearchCount = usearchResult.count(',')
+                if utaxCount > usearchCount:
+                    utaxLook = 'UTAX;' + utaxLook
+                    newTable.append([line[0], utaxLook])
+                else:
+                    newTable.append([line[0], re.sub("tax=", "", usearchResult)])
+            
+    otuDict = {rows[0]:rows[1] for rows in newTable}
+    
 
 if not args.otu_table:
     base = args.fasta.split('otus.fa')[0]
@@ -166,7 +255,7 @@ if not args.otu_table:
 
 else:
     otu_table = args.otu_table
-    
+
 #check if otu_table variable is empty, then load in otu table
 if otu_table:
     log.info("Appending taxonomy to OTU table")

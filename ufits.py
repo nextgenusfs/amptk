@@ -224,8 +224,8 @@ version:    %s
     
 Arguments:  -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
             -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
-            -m, --method        Taxonomy method. Default: utax [utax, usearch] (Required)
-            -d, --db            Database (must be in UDB format).
+            -m, --method        Taxonomy method. Default: both [utax, usearch, both] (Required)
+            -d, --db            Database (must be in UDB format). If -m both, list 2 DBs: UNITE.utax.udb,INSD.usearch.udb
             --append_taxonomy   OTU table to append taxonomy. Default: none
             --utax_cutoff       UTAX confidence value cutoff. Default: 0.8 [0 to 0.9]
             -u, --usearch       USEARCH executable. Default: usearch8
@@ -247,13 +247,8 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
             except ValueError:
                 dbLocation = arguments.index('--db')
             dbLocation = dbLocation + 1
-            if arguments[dbLocation] in okay_list:
-                arguments[dbLocation] = os.path.join(script_path, 'DB', arguments[dbLocation])
-                subprocess.call(arguments)
-            else:
-                print "Database %s not found, please choose a Configured DB" % arguments[dbLocation]
-                print help
-                sys.exit
+            subprocess.call(arguments)
+
         else:
             print help
             sys.exit
