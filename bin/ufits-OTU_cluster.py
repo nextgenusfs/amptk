@@ -79,20 +79,19 @@ def dereplicate(input, output):
         for sequence in seqs:
             out.write('>'+seqs[sequence]+'\n'+sequence+'\n')
 
-def MaxEEFilter(input, trunclen, maxee, output):
+def MaxEEFilter(input, trunclen, maxee):
     with open(input, 'rU') as f:
-        with open(output, 'w') as out:
-            for rec in SeqIO.parse(f, "fastq"):
-                trunclen = int(trunclen)
-                rec = rec[:trunclen]
-                ee = 0
-                for bp, Q in enumerate(rec.letter_annotations["phred_quality"]):
-                    P = 10**(float(-Q)/10)
-                    ee += P
-                if ee <= float(maxee):
-                    rec.name = ""
-                    rec.description = ""
-                    SeqIO.write(rec, out, 'fastq')
+        for rec in SeqIO.parse(f, "fastq"):
+            trunclen = int(trunclen)
+            rec = rec[:trunclen]
+            ee = 0
+            for bp, Q in enumerate(rec.letter_annotations["phred_quality"]):
+                P = 10**(float(-Q)/10)
+                ee += P
+            if ee <= float(maxee):
+                rec.name = ""
+                rec.description = ""
+                yield rec
 
 def setupLogging(LOGNAME):
     global log
@@ -140,10 +139,11 @@ size = checkfastqsize(args.FASTQ)
 readablesize = convertSize(size)
 log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
 
-#usearch8 fastq filtering step - expected errors
+#Expected Errors filtering step
 filter_out = args.out + '.EE' + args.maxee + '.filter.fq'
 log.info("Quality Filtering, expected errors < %s" % args.maxee)
-MaxEEFilter(args.FASTQ, args.length, args.maxee, filter_out)
+with open(filter_out, 'w') as output:
+    SeqIO.write(MaxEEFilter(args.FASTQ, args.length, args.maxee), output, 'fastq')
 total = countfastq(filter_out)
 log.info('{0:,}'.format(total) + ' reads passed')
 
