@@ -24,6 +24,8 @@ def fmtcols(mylist, cols):
              for i in xrange(0,len(justifyList),cols))
     return "\n".join(lines)
 
+
+
 version = '0.2.5'
 
 default_help = """
@@ -257,7 +259,7 @@ Description: Script maps OTUs to taxonomy information and can append to an OTU t
     
 Arguments:   -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
              -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
-             -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid] (Required)
+             -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid]
              --utax_db           UTAX formatted database. Default: UTAX.udb
              --usearch_db        USEARCH formatted database. Default: USEARCH.udb
              --append_taxonomy   OTU table to append taxonomy. Default: none
@@ -387,6 +389,7 @@ Description: Script downloads the UNITE and UNITE-INSD databases and formats the
 Arguments:   --install_unite     Install the UNITE Databases 
              -f, --fwd_primer    Forward primer. Default: GTGARTCATCGAATCTTTG (fITS7)
              -r, --rev_primer    Reverse primer. Default: TCCTCCGCTTATTGATATGC (ITS4)
+             --primer_mismatch   Max Primer Mismatch. Default: 3
              -u, --usearch       USEARCH executable. Default: usearch8      
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com   

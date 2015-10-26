@@ -19,20 +19,24 @@ ___
 UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by simply typing `ufits`, while on windows you may need to type `ufits.py` (not needed if you add the `.py` extension in your PATHEXT, directions [here](http://stackoverflow.com/a/13023969/4386003)).
 
 ```
-$ ufits.py
-Usage:      ufits <command> <arguments>
-version:    0.2.4
-    
-Command:    ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
-            illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
-            cluster     cluster OTUs (using UPARSE algorithm)
-            filter      OTU table filtering
-            taxonomy    Assign taxonomy to OTUs
-            summarize   Summarize Taxonomy (create stacked bar graph and data tables)   
-            heatmap     Create heatmap from OTU table
+$ ufits
+Usage:       ufits <command> <arguments>
+version:     0.2.5
 
-Setup:      download    Download Reference Databases
-            database    Format Reference Databases for Taxonomy
+Description: UFITS is a package of scripts to process fungal ITS amplicon data.  It uses the UPARSE algorithm for clustering
+             and thus USEARCH8 is a dependency.
+    
+Command:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
+             illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
+             cluster     cluster OTUs (using UPARSE algorithm)
+             filter      OTU table filtering
+             taxonomy    Assign taxonomy to OTUs
+             summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)   
+             heatmap     Create heatmap from OTU table
+
+Setup:       install     Automated DB install (executes download and database commands for UNITE DBs). Only need to run once.
+             download    Download Reference Databases
+             database    Format Reference Databases for Taxonomy
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com
 ```
@@ -40,23 +44,28 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
 And then by calling one of the commands, you get a help menu for each:
 
 ```
-$ ufits.py cluster
-Usage:      ufits cluster <arguments>
-version:    0.2.4
+$ ufits cluster
+Usage:       ufits cluster <arguments>
+version:     0.2.5
+
+Description: Script is a "wrapper" for the UPARSE algorithm.  Modifications include support for a mock spike-in
+             community.  FASTQ quality trimming via expected errors and Dereplication are run in Python which allows
+             for the use of datasets larger than 4GB.  Chimera filtering and UNOISE are also options.
     
-Arguments:  -i, --fastq         Input FASTQ file (Required)
-            -o, --out           Output base name. Default: out
-            -e, --maxee         Expected error quality trimming. Default: 1.0
-            -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
-            -m, --minsize       Minimum size to keep (singleton filter). Default: 2
-            -l, --length        Length to trim reads. Default 250
-            --mock              Name of spike-in mock community. Default: None
-            --mc                Mock community FASTA file. Default: ufits_mock3.fa
-            --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full]
-            --map_unfiltered    Map unfiltered reads back to OTUs. Default: off
-            --unoise            Run De-noising pre-clustering (UNOISE). Default: off
-            --size_annotations  Append size annotations to OTU names. Default: off
-            -u, --usearch       USEARCH executable. Default: usearch8
+Arguments:   -i, --fastq         Input FASTQ file (Required)
+             -o, --out           Output base name. Default: out
+             -e, --maxee         Expected error quality trimming. Default: 1.0
+             -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
+             -m, --minsize       Minimum size to keep (singleton filter). Default: 2
+             -l, --length        Length to trim reads. Default 250
+             --mock              Name of spike-in mock community. Default: None
+             --mc                Mock community FASTA file. Default: mock3
+             --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full]
+             --map_unfiltered    Map unfiltered reads back to OTUs. Default: off
+             --unoise            Run De-noising pre-clustering (UNOISE). Default: off
+             --size_annotations  Append size annotations to OTU names. Default: off
+             -u, --usearch       USEARCH executable. Default: usearch8
+             --cleanup           Remove intermediate files.
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com
 
@@ -121,34 +130,37 @@ ufits filter -i test.otu_table.txt --index_bleed 0.5
 You can assign taxonomy to your OTUs using UFITS, either using UTAX from USEARCH8.1 or using usearch_global.  The databases require some initial setup before you can use the `ufits taxonomy` command.  The following will get you setup with the UNITE database:
 
 ```
-#download the UNITE public release
-ufits download -i unite
-
-#Now trim priming sites and reformat FASTA headers for compatibility with UTAX/USEARCH
-ufits database -i sh_dynamic_01.08.2015.fasta -o UNITE --create_db utax
+ufits install --install_unite -f GTGARTCATCGAATCTTTG -r TCCTCCGCTTATTGATATGC
 ```
 
-These two commands will download the newest UNITE curated ITS database.  Then the script will reformat the UNITE headers to be compatible with UTAX classifier training as well as trim the reference database to correspond to the region that you sequenced, i.e. ITS2, based on primers used.  Finally, UFITS will use the re-formatted reference to train the classifier.  The resulting database is stored in the `DB` folder of the `ufits` directory.  
+This commands will download the newest UNITE curated ITS databases.  It will first download the UNITE curated general release, reformat the UNITE headers to be compatible with UTAX classifier training, trim the data to correspond to the primers you used to generate your amplicons, i.e. ITS2 via fTIS7/ITS4, and then finally will train the UTAX classifier with these data.  The script will then download the UNTIE+INSD database, reformat taxonomy in headers, trim with primers, and then create a USEARCH database.  The resulting databases are stored in the `DB` folder of the `ufits` directory and are given the names UTAX.udb and USEARCH.udb respectively.
 
-Issuing the `ufits taxonomy` command will inform you which databases have been properly configured:
+Issuing the `ufits taxonomy` command will inform you which databases have been properly configured as well as usage instructions:
 
 ```
 $ ufits taxonomy
-Usage:      ufits taxonomy <arguments>
-version:    0.2.2
+Usage:       ufits taxonomy <arguments>
+version:     0.2.5
+
+Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
+             uses a hybrid approach, e.g. gets taxonomy information from UTAX as well as BLAST-like hits from the larger
+             UNITE-INSD database, and then parses both results to extract the most taxonomy information that it can at 
+             'trustable' levels. UTAX results are used if BLAST-like search pct identity is less than 97 pct.  If pct identity
+             is greater than 97 pct, the result with most taxonomy levels is retained.
     
-Arguments:  -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
-            -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
-            -m, --method        Taxonomy method. Default: utax [utax, usearch, blast] (Required)
-            -d, --db            Database (must be in UDB format).
-            --append_taxonomy   OTU table to append taxonomy. Default: none
-            --utax_cutoff       UTAX confidence value cutoff. Default: 0.8 [0 to 0.9]
-            -u, --usearch       USEARCH executable. Default: usearch8
+Arguments:   -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
+             -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
+             -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid]
+             --utax_db           UTAX formatted database. Default: UTAX.udb
+             --usearch_db        USEARCH formatted database. Default: USEARCH.udb
+             --append_taxonomy   OTU table to append taxonomy. Default: none
+             --utax_cutoff       UTAX confidence value cutoff. Default: 0.8 [0 to 0.9]
+             -u, --usearch       USEARCH executable. Default: usearch8
 
 Databases Configured: 
-DB_name                       FASTA originated from         Fwd Primer                    Rev Primer                    Records                      
-UNITE.utax.udb                sh_dynamic_01.08.2015.fasta   GTGARTCATCGAATCTTTG           TCCTCCGCTTATTGATATGC          39892                        
-UNITE_INSD.usearch.udb        UNITE_public_01.08.2015.fasta GTGARTCATCGAATCTTTG           TCCTCCGCTTATTGATATGC          373101                       
+DB_name         DB_type    FASTA originated from         Fwd Primer            Rev Primer               Records                      
+USEARCH.udb     usearch    UNITE_public_01.08.2015.fasta GTGARTCATCGAATCTTTG   TCCTCCGCTTATTGATATGC     379612                       
+UTAX.udb        utax       sh_dynamic_01.08.2015.fasta   GTGARTCATCGAATCTTTG   TCCTCCGCTTATTGATATGC     41151                        
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com  
 ```
@@ -156,8 +168,19 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
 And then you can use the `ufits taxonomy` command to assign taxonomy to your OTUs as well as append them to your OTU table as follows:
 
 ```
-ufits taxonomy -i data.filtered.otus.fa -m utax -d UNITE.utax.udb --append_taxonomy
+ufits taxonomy -i data.filtered.otus.fa --append_taxonomy
 ```
+
+####Summarizing the Taxonomy:####
+
+After taxonomy is appended to your OTU table, you can then generate OTU-like tables for each of your samples at all of the levels of taxonomy (i.e. Kingdom, Phylum, Class, Order, Family, Genus).  At the same time, you can create a QIIME-like stacked bar graph from these data.
+
+```
+ufits summarize -i data.taxonomy.otu_table.txt -o data-summary
+```
+
+The optional `--graphs` argument will create the stacked bar graphs.  You can save in a variety of formats as well as convert the result to precent of total with the `--percent` argument.
+
 
 ####Dependencies####
 * Python 2
