@@ -3,7 +3,7 @@
 #This script runs USEARCH OTU clustering
 #written by Jon Palmer palmer.jona at gmail dot com
 
-import sys, os, argparse, subprocess, inspect, csv, re, logging
+import sys, os, argparse, subprocess, inspect, csv, re, logging, shutil
 from Bio import SeqIO
 
 #get script path for directory
@@ -38,6 +38,7 @@ parser.add_argument('--uchime_ref', default='False', choices=['ITS1','ITS2','Ful
 parser.add_argument('--map_unfiltered', action='store_true', help='map original reads back to OTUs')
 parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOISE)')
 parser.add_argument('--size_annotations', action='store_true', help='Append size annotations')
+parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
 def countfasta(input):
@@ -132,6 +133,11 @@ except OSError:
     os._exit(1)
 log.info("USEARCH version: %s" % usearch_test)
 
+#make tmp folder
+tmp = args.out + '_tmp'
+if not os.path.exists(tmp):
+    os.makedirs(tmp)
+    
 #Count FASTQ records
 log.info("Loading FASTQ Records")
 total = countfastq(args.FASTQ)
@@ -141,14 +147,21 @@ log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
 
 #Expected Errors filtering step
 filter_out = args.out + '.EE' + args.maxee + '.filter.fq'
+filter_out = os.path.join(tmp, filter_out)
 log.info("Quality Filtering, expected errors < %s" % args.maxee)
 with open(filter_out, 'w') as output:
     SeqIO.write(MaxEEFilter(args.FASTQ, args.length, args.maxee), output, 'fastq')
 total = countfastq(filter_out)
 log.info('{0:,}'.format(total) + ' reads passed')
 
+#convert to FASTA to save space for large files
+filter_fasta = args.out + '.EE' + args.maxee + '.filter.fa'
+filter_fasta = os.path.join(tmp, filter_fasta)
+SeqIO.convert(filter_out, 'fastq', filter_fasta, 'fasta')
+
 #now run full length dereplication (biopython)
 derep_out = args.out + '.EE' + args.maxee + '.derep.fa'
+derep_out = os.path.join(tmp, derep_out)
 log.info("De-replication (remove duplicate reads)")
 dereplicate(filter_out, derep_out)
 total = countfasta(derep_out)
@@ -157,6 +170,7 @@ log.info('{0:,}'.format(total) + ' reads passed')
 #optional run UNOISE
 if args.unoise:
     unoise_out = args.out + '.EE' + args.maxee + '.denoised.fa'
+    unoise_out = os.path.join(tmp, unoise_out)
     log.info("Denoising Data with UNOISE")
     log.debug("%s -cluster_fast %s -centroids %s -id 0.9 -maxdiffs 5 -abskew 10 -sizein -sizeout -sort size" % (usearch, derep_out, unoise_out))
     subprocess.call([usearch, '-cluster_fast', derep_out, '-centroids', unoise_out, '-id', '0.9', '-maxdiffs', '5', '-abskew', '10', '-sizein', '-sizeout', '-sort', 'size'], stdout = FNULL, stderr = FNULL)
@@ -167,6 +181,7 @@ else:
 
 #now run usearch 8 sort by size
 sort_out = args.out + '.EE' + args.maxee + '.sort.fa'
+sort_out = os.path.join(tmp, sort_out)
 log.info("Sorting reads by size (USEARCH8)")
 log.debug("%s -sortbysize %s -minsize %s -fastaout %s" % (usearch, unoise_out, args.minsize, sort_out))
 subprocess.call([usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '-fastaout', sort_out], stdout = FNULL, stderr = FNULL)
@@ -174,6 +189,7 @@ subprocess.call([usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '
 #now run clustering algorithm
 radius = str(100 - int(args.pct_otu))
 otu_out = args.out + '.EE' + args.maxee + '.otus.fa'
+otu_out = os.path.join(tmp, otu_out)
 log.info("Clustering OTUs (UPARSE)")
 if args.size_annotations:
     log.debug("%s -cluster_otus %s -sizein -sizeout -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
@@ -187,6 +203,7 @@ log.info('{0:,}'.format(total) + ' OTUs')
 #clean up padded N's
 log.info("Cleaning up padding from OTUs")
 otu_clean = args.out + '.EE' + args.maxee + '.clean.otus.fa'
+otu_clean = os.path.join(tmp, otu_clean)
 with open(otu_clean, 'w') as output:
     with open(otu_out, 'rU') as input:
         for line in input:
@@ -203,6 +220,7 @@ if args.uchime_ref == "False":
     uchime_out = otu_clean
 else:
     uchime_out = args.out + '.EE' + args.maxee + '.uchime.otus.fa'
+    uchime_out = os.path.join(tmp, uchime_out)
     #You might need to update these in the future, but leaving data and version in name so it is obvious where they came from
     if args.uchime_ref == "ITS1":
         uchime_db = os.path.join(parentdir, 'DB', 'uchime_sh_refs_dynamic_develop_985_11.03.2015.ITS1.fasta')
@@ -231,6 +249,7 @@ if args.mock != "False":
     
     #map OTUs to mock community
     mock_out = args.out + '.mockmap.uc'
+    mock_out = os.path.join(tmp, mock_out)
     log.info("Mapping Mock Community (USEARCH8)")
     log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, uchime_out, mock, mock_out))
     subprocess.call([usearch, '-usearch_global', uchime_out, '-strand', 'plus', '-id', '0.97', '-db', mock, '-uc', mock_out], stdout = FNULL, stderr = FNULL)
@@ -244,6 +263,7 @@ if args.mock != "False":
                 annotate_dict[line[-2]]=line[-1] 
              
     otu_new = args.out + '.EE' + args.maxee + '.mock.otus.fa'
+    otu_new = os.path.join(tmp, otu_new)
     otu_update = open(otu_new, "w")
     with open(uchime_out, "rU") as myfasta:
         for line in myfasta:
@@ -262,16 +282,18 @@ if args.mock != "False":
     
 #now map reads back to OTUs
 uc_out = args.out + '.EE' + args.maxee + '.mapping.uc'
+uc_out = os.path.join(tmp, uc_out)
 if args.map_unfiltered:
     reads = args.FASTQ
 else:
-    reads = filter_out
+    reads = filter_fasta
 log.info("Mapping Reads to OTUs (USEARCH8)")
 log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, reads, uchime_out, uc_out))
 subprocess.call([usearch, '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out], stdout = FNULL, stderr = FNULL)
 
 #Build OTU table
 otu_table = args.out + '.EE' + args.maxee + '.otu_table.txt'
+otu_table = os.path.join(tmp, otu_table)
 uc2tab = os.path.join(parentdir, 'lib', 'uc2otutable.py')
 log.info("Creating OTU Table")
 log.debug("%s %s %s" % (uc2tab, uc_out, otu_table))
@@ -341,23 +363,28 @@ if args.mock != "False" and result != 'fail':
         print "Total number of reads in Spurious OTUs: %s" % (total_bad_reads)
     os.remove(mock_out)
 
+#Move files around, delete tmp if argument passed.
+currentdir = os.getcwd()
+final_otu = args.out + '.final.otus.fa'
+final_otu = os.path.join(currentdir, final_otu)
+os.rename(uchime_out, final_otu)
+final_otu_table = args.out + '.otu_table.txt'
+final_otu_table = os.path.join(currentdir, final_otu_table)
+os.rename(otu_table, final_otu_table)
+if args.cleanup:
+    shutil.rmtree(tmp)
+
 #Print location of files to STDOUT
 print "-------------------------------------------------------"
 print "OTU Clustering Script has Finished Successfully"
 print "-------------------------------------------------------"
-print ("Input FASTQ:           %s" % (args.FASTQ))
-print ("Filtered FASTQ:        %s" % (filter_out))
-print ("Dereplicated FASTA:    %s" % (derep_out))
-print ("Sorted FASTA:          %s" % (sort_out))
-print ("Clustered OTUs:        %s" % (otu_clean))
-if args.uchime_ref != "False":
-    print ("Chimera Filtered OTUs: %s" % (uchime_out))
-print ("UCLUST Mapping file:   %s" % (uc_out))
-print ("OTU Table:             %s" % (otu_table))
-print ("USEARCH LogFile:       %s.log" % (args.out))
+if not args.cleanup:
+    print "Tmp Folder of files: %s" % tmp
+print "Clustered OTUs: %s" % final_otu
+print "OTU Table: %s" % final_otu_table
 print "-------------------------------------------------------"
 
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits filter -i %s -b <mock barcode>\n" % (otu_table)
+    print "\nExample of next cmd: ufits filter -i %s -b <mock barcode>\n" % (final_otu_table)
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " ufits filter -i %s -b <mock barcode>\n" % (otu_table)
+    print colr.WARN + "\nExample of next cmd:" + colr.END + " ufits filter -i %s -b <mock barcode>\n" % (final_otu_table)

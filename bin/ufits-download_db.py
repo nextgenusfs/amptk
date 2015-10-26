@@ -16,7 +16,7 @@ parser=argparse.ArgumentParser(prog='ufits-download_db.py', usage="%(prog)s [opt
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('-i','--input', dest='input', required=True, choices=['unite', 'unite_insd', 'rtl_ITS', 'all'], help='Download Reference Database (Required)')
+parser.add_argument('-i','--input', dest='input', required=True, choices=['unite', 'unite_insd', 'all'], help='Download Reference Database (Required)')
 args=parser.parse_args()
 
 def setupLogging(LOGNAME):
@@ -112,11 +112,8 @@ if args.input == 'unite':
 elif args.input == 'unite_insd':
     getINSD(insd_url)
 
-elif args.input == 'rtl_ITS':
-    getRTL(rtl_url)
-
 elif args.input == 'all':
     getUNITE(unite_url)
     getINSD(insd_url)
-    getRTL(rtl_url)
+
     

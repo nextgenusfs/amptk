@@ -32,6 +32,7 @@ parser.add_argument('--unite2utax', dest='utax', default='on', choices=['on', 'o
 parser.add_argument('--drop_ns', dest='drop_ns', type=int, default=8, help="Drop Seqeunces with more than X # of N's")
 parser.add_argument('--create_db', dest='create_db', choices=['utax', 'usearch'], help="Create USEARCH DB")
 parser.add_argument('--keep_all', dest='keep_all', action='store_true', help="Keep Seq if For primer not found Default: off")
+parser.add_argument('--primer_mismatch', default=3, help="Max Primer Mismatch")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()
 
@@ -91,7 +92,7 @@ def stripPrimer(records):
             rec.description = ""
         if not args.trimming:
             Seq = rec.seq
-            MAX_PRIMER_MISMATCHES = 2
+            MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
             RevPrimer = revcomp_lib.RevComp(rev_primer)
             BestPosFor, BestDiffsFor = primer.BestMatch2(Seq, fwd_primer, MAX_PRIMER_MISMATCHES)
             if BestDiffsFor < MAX_PRIMER_MISMATCHES:
@@ -172,12 +173,12 @@ def makeDB(input):
     else:
         log.info("USEARCH version: %s" % usearch_test)
     
-    db_details = args.out + '.' + args.create_db + '.udb.txt'
-    usearch_db = args.out + '.' + args.create_db +'.udb'
+    db_details = args.out + '.udb.txt'
+    usearch_db = args.out + '.udb'
     if args.trimming:
         args.fwd_primer = 'None'
         args.rev_primer = 'None'
-    db_string = args.fasta + ' ' + args.fwd_primer + ' ' + args.rev_primer + ' ' + str(Total)
+    db_string = args.create_db + ' ' + args.fasta + ' ' + args.fwd_primer + ' ' + args.rev_primer + ' ' + str(Total)
     with open(db_details, 'w') as details:
         details.write(db_string)
     report = args.out + '.report.txt'

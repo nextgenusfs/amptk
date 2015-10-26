@@ -37,7 +37,7 @@ parser.add_argument('--convert_binary', dest="binary", action='store_true', help
 parser.add_argument('--trim_data', default='on', choices=['on', 'off'], help='Threshold Trim Data')
 parser.add_argument('-n', '--names', default='False', help='CSV mapping file BC,NewName')
 parser.add_argument('--keep_mock', action='store_true', help='Keep mock sample in OTU table (Default: False)')
-parser.add_argument('-o','--out', default='False', help='Base output name')
+parser.add_argument('-o','--out', default='ufits-filter', help='Base output name')
 args=parser.parse_args()
 
 def try_int(x):
@@ -124,6 +124,7 @@ elif args.mc == "mock1":
     mock = os.path.join(parentdir, 'DB', 'ufits_mock1.fa')
 else:
     mock = args.mc
+
 #open mock community fasta and count records
 mock_file = open(mock, "rU")
 mock_ref_count = 0
@@ -146,13 +147,13 @@ if not args.mock_barcode:
         end = '.csv'
     if args.delimiter == 'tsv':
         end = '.txt'
-    if args.out != 'False':
+    if args.out != 'ufits-filter':
         out_name = args.out + '.otu_table' + end
     else:
         if args.binary:
-            out_name = base + '.filtered_' + threshold + '.otu_table.binary' + end
+            out_name = base + '.filtered.otu_table.binary' + end
         else:
-            out_name = base + '.filtered_' + threshold + '.otu_table' + end    
+            out_name = base + '.filtered.otu_table' + end    
     file_out = open(out_name, "w")
     f2 = csv.reader(open(args.otu_table), delimiter='\t')
     for line in f2:
@@ -246,11 +247,11 @@ if not args.mock_barcode:
     num_lines = sum(1 for line in open(out_name)) - 1
     line_count = line_count - 1
     #now lets write an updated OTU fasta file
-    fasta_in = base + '.mock.otus.fa'
-    if args.out != 'False':
+    fasta_in = base + '.final.otus.fa'
+    if args.out != 'ufits-filter':
         fasta_out = args.out + '.otus.fa'
     else:
-        fasta_out = base + '.filtered_' + threshold + '.otus.fa'
+        fasta_out = base + '.filtered.otus.fa'
     seqs_seen = []
     try:
         for record in SeqIO.parse(open(fasta_in, "rU"), "fasta"):
@@ -261,7 +262,7 @@ if not args.mock_barcode:
         fasta_update.close()
     except IOError:
         log.error( "Fasta file %s was not found, skipping writing fasta" % fasta_in)
-    log.info("OTU table Filtering stats:\nOTU table has been index-bleed filtered at %s percent:\nOriginal OTUs: %i\nFiltered OTUs: %i" % (args.barcodebleed, line_count, num_lines))
+    log.info("OTU table Filtering stats:\nOriginal OTUs: %i\nFiltered OTUs: %i" % (line_count, num_lines))
 
 else:
     #load in OTU table, get only OTU column and mock, but also apply index bleed filter before subtraction filter, so print here
@@ -347,7 +348,7 @@ else:
                 end = '.csv'
             if args.delimiter == 'tsv':
                 end = '.txt'
-            if args.out != 'False':
+            if args.out != 'ufits-filter':
                 out_name = args.out + '.otu_table' + end
             else:
                 if args.binary:
@@ -456,8 +457,8 @@ else:
             num_lines = sum(1 for line in open(out_name)) - 1
             line_count = line_count - 1
             #now lets write an updated OTU fasta file
-            fasta_in = base + '.mock.otus.fa'
-            if args.out != 'False':
+            fasta_in = base + '.final.otus.fa'
+            if args.out != 'ufits-filter':
                 fasta_out = args.out + '.otus.fa'
             else:
                 fasta_out = base + '.filtered_' + threshold + '.otus.fa'
@@ -478,6 +479,6 @@ log.info("New FASTA OTU file: %s" % fasta_out)
 print "-------------------------------------------------------"
 
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits taxonomy -i %s -m utax -d UNITE.utax.udb --append_taxonomy\n" % (fasta_out)
+    print "\nExample of next cmd: ufits taxonomy -i %s --append_taxonomy\n" % (fasta_out)
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END +  " ufits taxonomy -i %s -m utax -d UNITE.utax.udb --append_taxonomy\n" % (fasta_out)
+    print colr.WARN + "\nExample of next cmd:" + colr.END +  " ufits taxonomy -i %s --append_taxonomy\n" % (fasta_out)

@@ -21,7 +21,7 @@ parser=argparse.ArgumentParser(prog='ufits-summarize_taxonomy.py', usage="%(prog
 
 parser.add_argument('-i','--table', dest="table", required=True, help='OTU Table (Required)')
 parser.add_argument('-o','--out', dest="out", default='ufits-summary', help='Base name of Output Files')
-parser.add_argument('--no_charts', dest="no_charts", action="store_true", help='Do not draw charts, only CSV tables')
+parser.add_argument('--graphs', dest="graphs", action="store_true", help='Create Stacked Bar Graphs')
 parser.add_argument('--format', dest="format", default='eps', choices=['eps','svg','png','pdf'], help='Image format')
 parser.add_argument('--percent', dest="percent", action="store_true", help='Convert to Pct of Sample')
 args=parser.parse_args()
@@ -116,7 +116,7 @@ def processTax(uniq, L, name):
             new_line = ','.join(str(x) for x in line)+'\n'
             tableOut.write(new_line)    
     #check if not drawing charts
-    if not args.no_charts:
+    if args.graphs:
         percent_table = []
         if args.percent:
             for line in FinalTab:

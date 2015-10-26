@@ -30,8 +30,9 @@ parser=argparse.ArgumentParser(prog='ufits-assign_taxonomy.py', usage="%(prog)s 
 
 parser.add_argument('-i','--fasta', dest='fasta', required=True, help='FASTA input')
 parser.add_argument('-o','--out', dest='out', default='ufits-taxonomy', help='Output file (FASTA)')
-parser.add_argument('-m','--method', dest='method', required=True, default='utax',choices=['utax', 'usearch', 'both'], help='Taxonomy method')
-parser.add_argument('-d','--db', dest='db', help='Reference Database')
+parser.add_argument('-m','--method', dest='method', default='hybrid',choices=['utax', 'usearch', 'hybrid'], help='Taxonomy method')
+parser.add_argument('--utax_db', dest='utax_db', default='UTAX.udb', help='UTAX Reference Database')
+parser.add_argument('--usearch_db', dest='usearch_db', default='USEARCH.udb', help='USEARCH Reference Database')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 parser.add_argument('--append_taxonomy', dest="otu_table", nargs='?', help='Append Taxonomy to OTU table')
 parser.add_argument('--utax_cutoff', default=0.8, type=restricted_float, help='UTAX confidence value threshold.')
@@ -77,6 +78,7 @@ print "-------------------------------------------------------"
 #initialize script, log system info and usearch version
 log.info("Operating system: %s" % sys.platform)
 
+
 if args.method == 'utax':
     if not args.db:
         log.error("No DB specified, exiting")
@@ -96,6 +98,16 @@ if args.method == 'utax':
     else:
         log.info("USEARCH version: %s" % usearch_test)
     
+    #check for correct DB version
+    if not args.utax_db:
+        log.error("You must specifiy a UTAX database via --utax_db")
+        os._exit(1)
+    else: #check if exists
+        search_db = os.path.join(parentdir, 'DB', args.utax_db)
+        if not os.path.isfile(search_db):
+            log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
+        else:
+            utax_db = os.path.join(parentdir, 'DB', args.utax_db)
     #Count records
     log.info("Loading FASTA Records")
     total = countfasta(args.fasta)
@@ -105,8 +117,8 @@ if args.method == 'utax':
     utax_out = args.out + '.utax.txt'
     log.info("Classifying OTUs with UTAX (USEARCH8)")
     cutoff = str(args.utax_cutoff)
-    log.debug("%s -utax %s -db %s -utaxout %s -utax_cutoff %s -strand both" % (usearch, args.fasta, args.db, utax_out, cutoff))
-    subprocess.call([usearch, '-utax', args.fasta, '-db', args.db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus'], stdout = FNULL, stderr = FNULL)
+    log.debug("%s -utax %s -db %s -utaxout %s -utax_cutoff %s -strand both" % (usearch, args.fasta, utax_db, utax_out, cutoff))
+    subprocess.call([usearch, '-utax', args.fasta, '-db', utax_db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus'], stdout = FNULL, stderr = FNULL)
     
     #load results into dictionary for appending to OTU table
     log.debug("Loading results into dictionary")
@@ -131,11 +143,21 @@ elif args.method == 'usearch':
     total = countfasta(args.fasta)
     log.info('{0:,}'.format(total) + ' OTUs')
     
+    #check for correct DB version
+    if not args.usearch_db:
+        log.error("You must specifiy a USEARCH database via --usearch_db")
+        os._exit(1)
+    else: #check if exists
+        search_db = os.path.join(parentdir, 'DB', args.usearch_db)
+        if not os.path.isfile(search_db):
+            log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
+        else:
+            usearch_db = os.path.join(parentdir, 'DB', args.usearch_db)
     #now run through usearch global
     utax_out = args.out + '.usearch.txt'
     log.info("Blasting OTUs with usearch_global")
-    log.debug("%s -usearch_global %s -db %s -id 0.7 -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, args.db, utax_out))
-    subprocess.call([usearch, '-usearch_global', args.fasta, '-db', args.db, '-userout', utax_out, '-id', '0.7', '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
+    log.debug("%s -usearch_global %s -db %s -id 0.7 -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, utax_out))
+    subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', utax_out, '-id', '0.7', '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
     
     #load results into dictionary for appending to OTU table
     log.debug("Loading results into dictionary")
@@ -152,25 +174,7 @@ elif args.method == 'usearch':
     
     log.info("Done classifying OTUs: %s" % utax_out)
 
-elif args.method == 'both':
-    if not args.db:
-        log.error("No DB specified, exiting")
-        os._exit(1)
-    #look for comma separated list
-    if not ',' in args.db:
-        log.error("You need to specify a UTAX and USEARCH DB separated by a comma")
-        os._exit(1)
-
-    #split db's
-    dbs = args.db.split(",")
-    if 'utax' in dbs[0]:
-        utax_db = os.path.join(parentdir, 'DB', dbs[0])
-        usearch_db = os.path.join(parentdir, 'DB', dbs[1])
-    else:
-        utax_db = os.path.join(parentdir, 'DB', dbs[1])
-        usearch_db = os.path.join(parentdir, 'DB', dbs[0])
-    log.info("Set %s as UTAX DB" % utax_db)
-    log.info("Set %s as USEARCH DB" % usearch_db)
+elif args.method == 'hybrid':
     usearch = args.usearch
     try:
         usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
@@ -186,6 +190,26 @@ elif args.method == 'both':
     else:
         log.info("USEARCH version: %s" % usearch_test)
     
+    #check for correct DB version
+    if not args.utax_db:
+        log.error("You must specifiy a UTAX database via --utax_db")
+        os._exit(1)
+    else: #check if exists
+        search_db = os.path.join(parentdir, 'DB', args.utax_db)
+        if not os.path.isfile(search_db):
+            log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
+        else:
+            utax_db = os.path.join(parentdir, 'DB', args.utax_db)
+    if not args.usearch_db:
+        log.error("You must specifiy a USEARCH database via --usearch_db")
+        os._exit(1)
+    else: #check if exists
+        search_db = os.path.join(parentdir, 'DB', args.usearch_db)
+        if not os.path.isfile(search_db):
+            log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
+        else:
+            usearch_db = os.path.join(parentdir, 'DB', args.usearch_db)
+              
     #Count records
     log.info("Loading FASTA Records")
     total = countfasta(args.fasta)
