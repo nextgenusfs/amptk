@@ -32,7 +32,7 @@ parser.add_argument('--unite2utax', dest='utax', default='on', choices=['on', 'o
 parser.add_argument('--drop_ns', dest='drop_ns', type=int, default=8, help="Drop Seqeunces with more than X # of N's")
 parser.add_argument('--create_db', dest='create_db', choices=['utax', 'usearch'], help="Create USEARCH DB")
 parser.add_argument('--keep_all', dest='keep_all', action='store_true', help="Keep Seq if For primer not found Default: off")
-parser.add_argument('--primer_mismatch', default=3, help="Max Primer Mismatch")
+parser.add_argument('--primer_mismatch', default=4, help="Max Primer Mismatch")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()
 

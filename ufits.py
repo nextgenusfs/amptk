@@ -299,7 +299,7 @@ Arguments:   -i, --fasta         Input FASTA file (UNITE DB or UNITE+INSDC)
              --drop_ns           Removal sequences that have > x N's. Default: 8
              --create_db         Create a DB. Default: usearch [utax, usearch]
              --skip_trimming     Keep full length sequences. Default: off (not recommended)
-             --primer_mismatch   Max Primer Mismatch. Default: 3
+             --primer_mismatch   Max Primer Mismatch. Default: 4
              --keep_all          Keep Sequence if forward primer not found.
              -u, --usearch       USEARCH executable. Default: usearch8      
             
@@ -389,7 +389,7 @@ Description: Script downloads the UNITE and UNITE-INSD databases and formats the
 Arguments:   --install_unite     Install the UNITE Databases 
              -f, --fwd_primer    Forward primer. Default: GTGARTCATCGAATCTTTG (fITS7)
              -r, --rev_primer    Reverse primer. Default: TCCTCCGCTTATTGATATGC (ITS4)
-             --primer_mismatch   Max Primer Mismatch. Default: 3
+             --primer_mismatch   Max Primer Mismatch. Default: 4
              -u, --usearch       USEARCH executable. Default: usearch8      
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com   
