@@ -1,7 +1,7 @@
 # UFITS
 ###USEARCH Fungal ITS Clustering:###
 
-UFITS is a series of scripts to process fungal ITS amplicon data using USEARCH8
+UFITS is a series of scripts to process fungal ITS amplicon data using USEARCH8.  It can handle Ion Torrent, MiSeq, and 454 data and is cross-platform compatible (works on Windows, Mac, Linux).
 ___
 
 <img src="https://github.com/nextgenusfs/ufits/blob/master/docs/ufits.png" width="400">
@@ -21,13 +21,14 @@ UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ ufits
 Usage:       ufits <command> <arguments>
-version:     0.2.5
+version:     0.2.6
 
 Description: UFITS is a package of scripts to process fungal ITS amplicon data.  It uses the UPARSE algorithm for clustering
              and thus USEARCH8 is a dependency.
     
 Command:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
              illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
+             454         pre-process Roche 454 (pyrosequencing) data (find barcodes, remove primers, trim/pad)
              cluster     cluster OTUs (using UPARSE algorithm)
              filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
@@ -46,7 +47,7 @@ And then by calling one of the commands, you get a help menu for each:
 ```
 $ ufits cluster
 Usage:       ufits cluster <arguments>
-version:     0.2.5
+version:     0.2.6
 
 Description: Script is a "wrapper" for the UPARSE algorithm.  Modifications include support for a mock spike-in
              community.  FASTQ quality trimming via expected errors and Dereplication are run in Python which allows
@@ -68,7 +69,6 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              --cleanup           Remove intermediate files.
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com
-
 ```
 
 ####Processing Ion Torrent Data:####
@@ -81,6 +81,18 @@ ufits ion --barcodes 1,5,24 -i data.fastq -o data
 
 This will find Ion barcodes (1, 5, and 24) and relabel header with that information (barcodelabel=BC_5;). By default, it will look for all 96 Ion Xpress barcodes, specifiy the barcodes you used by a comma separated list. Next the script will find and trim both the forward and reverse primers (default is ITS2 region: fITS7 & ITS4), and then finally will trim or pad with N's to a set length (default: 250 bp).  Trimming to the same length is critcally important for USEARCH to cluster correctly, padding with N's after finding the reverse primer keeps short ITS sequences from being discarded.  These options can be customized using: `--fwd_primer`, `--rev_primer`, `--trim_len`, etc.
 
+####Processing Roche 454 Data:####
+Data from 454 instruments has the same read structure as Ion Torrent: <barcode><primer>Read<primer> and thus can be processed very similarly.  You just need to provide either an SFF file, FASTA + QUAL, or FASTQ files and then you need to specify a multi-fasta file containing the barcodes used in the project.  The data will be processed in the same fashion (see above) as the Ion Torrent Data. For example:
+
+```
+#SFF input
+ufits 454 -i data.sff --barcode_fasta my454barcodes.fa -o 454project
+
+#FASTA/QUAL input
+ufits 454 -i data.fa -q data.qual --barcode_fasta my454barcodes.fa -o 454project
+```
+
+
 ####Processing Illumina MiSeq PE Data:####
 
 Paired-end MiSeq data is typically delivered already de-multiplexed into separate read files, that have a defined naming structure from Illumina that looks like this: 
@@ -92,20 +104,20 @@ Paired-end MiSeq data is typically delivered already de-multiplexed into separat
 You can processes a folder of Illumina data like this:
 
 ```
-ufits illumina -i folder_name
+ufits illumina -i folder_name -o miseqData
 ```
 
-This will find all files ending with '.fastq.gz' in the input folder, gunzip the files, and then sequentially process the paired read files.  First it will run USEARCH8 `-fastq_mergepairs`, however, since some ITS sequences are too long to overlap you can rescue longer sequences by recovering the the non-merged forward reads.  Alternatively, you can only utilize the forward reads (R1), by passing the `--reads forward` argument.  Next the forward and reverse primers are removed and the reads are trimmed/padded to a set length of clustering. Finally, the resulting FASTQ files for each of the processed samples are concatenated together into a file called `ufits.demux.fq` that will be used for the next clustering step.  The script will also output a text file called `ufits-filenames.txt` that contains a tab-delimited output of the sample name as well as [i5] and [i7] index sequences that were used.
+This will find all files ending with '.fastq.gz' in the input folder, gunzip the files, and then sequentially process the paired read files.  First it will run USEARCH8 `-fastq_mergepairs`, however, since some ITS sequences are too long to overlap you can rescue longer sequences by recovering the the non-merged forward reads.  Alternatively, you can only utilize the forward reads (R1), by passing the `--reads forward` argument.  Next the forward and reverse primers are removed and the reads are trimmed/padded to a set length of clustering. Finally, the resulting FASTQ files for each of the processed samples are concatenated together into a file called `miseqData.demux.fq` that will be used for the next clustering step.  The script will also output a text file called `miseqData-filenames.txt` that contains a tab-delimited output of the sample name as well as [i5] and [i7] index sequences that were used.
 
 ####OTU Clustering:####
 
-Now the data from either platform (Ion or Illumina) can be clustered by running the following:
+Now the data from either platform (Ion, 454, or Illumina) can be clustered by running the following:
 
 ```
 ufits cluster -i ufits.demux.fq -o ion --mock BC_5
 ```
 
-This will run `usearch -fastq_filter` to filter the data based on expected errors, then remove duplicated sequences, sort the output by frequency, and finally `usearch -cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Another option is to process a spike-in control or mock community, you can specify a barcode name for the mock community by passing in `--mock BC_5` which will run some additional steps and report stats of the run to STDOUT.  Type `-h` for all the available options.
+This quality filter the data based on expected errors, then remove duplicated sequences, sort the output by frequency, and finally `usearch -cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Another option is to process a spike-in control or mock community, you can specify a barcode name for the mock community by passing in `--mock BC_5` which will run some additional steps and report stats of the run to STDOUT.  Type `-h` for all the available options.
 
 
 ####OTU Table Filtering####
@@ -133,14 +145,14 @@ You can assign taxonomy to your OTUs using UFITS, either using UTAX from USEARCH
 ufits install --install_unite -f GTGARTCATCGAATCTTTG -r TCCTCCGCTTATTGATATGC
 ```
 
-This commands will download the newest UNITE curated ITS databases.  It will first download the UNITE curated general release, reformat the UNITE headers to be compatible with UTAX classifier training, trim the data to correspond to the primers you used to generate your amplicons, i.e. ITS2 via fTIS7/ITS4, and then finally will train the UTAX classifier with these data.  The script will then download the UNTIE+INSD database, reformat taxonomy in headers, trim with primers, and then create a USEARCH database.  The resulting databases are stored in the `DB` folder of the `ufits` directory and are given the names UTAX.udb and USEARCH.udb respectively.
+This commands will download the newest UNITE curated ITS databases.  It will first download the UNITE curated general release, reformat the UNITE headers to be compatible with UTAX classifier training, trim the data to correspond to the primers you used to generate your amplicons, i.e. ITS2 via fTIS7/ITS4, and then finally will train the UTAX classifier with these data.  The script will then download the UNTIE+INSD database, reformat taxonomy in headers and then create a USEARCH database.  The resulting databases are stored in the `DB` folder of the `ufits` directory and are given the names UTAX.udb and USEARCH.udb respectively.
 
 Issuing the `ufits taxonomy` command will inform you which databases have been properly configured as well as usage instructions:
 
 ```
 $ ufits taxonomy
 Usage:       ufits taxonomy <arguments>
-version:     0.2.5
+version:     0.2.6
 
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
              uses a hybrid approach, e.g. gets taxonomy information from UTAX as well as BLAST-like hits from the larger

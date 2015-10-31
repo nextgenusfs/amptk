@@ -71,7 +71,10 @@ def dereplicate(input, output):
     for rec in SeqIO.parse(in_file, 'fastq'):
         sequence = str(rec.seq)
         if sequence not in seqs:
-            seqs[sequence]=rec.id+'size=1;'
+            if rec.id.endswith(';'):
+                seqs[sequence]=rec.id+'size=1;'
+            else:
+                seqs[sequence]=rec.id+';size=1;'
         else:
             count = int(seqs[sequence].split('=')[-1].rstrip(';')) + 1
             formated_string = seqs[sequence].rsplit('=', 1)[0]+'='+str(count)+';'

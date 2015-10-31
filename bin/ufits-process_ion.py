@@ -20,18 +20,17 @@ class col:
     END = '\033[0m'
     WARN = '\033[93m'
 
-#get script path and barcode file name
-pgm_barcodes = os.path.join(parentdir, 'DB', 'pgm_barcodes.fa')
-
 parser=argparse.ArgumentParser(prog='ufits-process_ion.py', usage="%(prog)s [options] -i file.fastq\n%(prog)s -h for help menu",
     description='''Script finds barcodes, strips forward and reverse primers, relabels, and then trim/pads reads to a set length''',
     epilog="""Written by Robert Edgar, modified by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('-i','--fastq', required=True, help='FASTQ file')
+parser.add_argument('-i','--fastq','--sff', '--fasta', required=True, help='FASTQ/SFF/FASTA file')
+parser.add_argument('-q','--qual', help='QUAL file (if -i is FASTA)')
 parser.add_argument('-o','--out', dest="out", default='ion', help='Base name for output')
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='AGTGARTCATCGAATCTTTG', help='Forward Primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='TCCTCCGCTTATTGATATGC', help='Reverse Primer (ITS4)')
+parser.add_argument('--barcode_fasta', default='pgm_barcodes.fa', help='FASTA file containing Barcodes (Names & Sequences)')
 parser.add_argument('-b','--list_barcodes', dest="barcodes", default='all', help='Enter Barcodes used separated by commas')
 parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
 parser.add_argument('-m','--min_len', default='50', help='Minimum read length to keep')
@@ -39,6 +38,18 @@ parser.add_argument('-l','--trim_len', default='250', help='Trim length for read
 parser.add_argument('--mult_samples', dest="multi", default='False', help='Combine multiple samples (i.e. FACE1)')
 args=parser.parse_args()
 
+def faqual2fastq(fasta, qual, fastq):
+    global skipCount
+    from Bio.SeqIO.QualityIO import PairedFastaQualIterator
+    with open(fastq, 'w') as output:
+        records = PairedFastaQualIterator(open(fasta), open(qual))
+        for rec in records:
+            try:
+                SeqIO.write(rec, output, 'fastq')
+            except ValueError:
+                skipCount +1
+    return skipCount
+    
 def convertSize(num, suffix='B'):
     for unit in ['','K','M','G','T','P','E','Z']:
         if abs(num) < 1024.0:
@@ -73,9 +84,30 @@ cmd_args = " ".join(sys.argv)+'\n'
 log.debug(cmd_args)
 print "-------------------------------------------------------"
 
-MAX_PRIMER_MISMATCHES = 2
+#if SFF file passed, convert to FASTQ with biopython
+if args.fastq.endswith(".sff"):
+    if args.barcode_fasta == 'pgm_barcodes.fa':
+        log.error("You did not specify a --barcode_fasta, it is required for 454 data")
+        os._exit(1)
+    log.info("SFF input detected, converting to FASTQ")
+    SeqIn = args.out + '.sff.extract.fastq'
+    SeqIO.convert(args.fastq, "sff-trim", SeqIn, "fastq")
+elif args.fastq.endswith(".fas") or args.fastq.endswith(".fasta") or args.fastq.endswith(".fa"):
+    if not args.qual:
+        log.error("FASTA input detected, however no QUAL file was given.  You must have FASTA + QUAL files")
+        os._exit(1)
+    else:
+        if args.barcode_fasta == 'pgm_barcodes.fa':
+            log.error("You did not specify a --barcode_fasta, it is required for 454 data")
+            os._exit(1)
+        SeqIn = args.out + '.fastq'
+        log.info("FASTA + QUAL detected, converting to FASTQ")
+        faqual2fastq(args.fastq, args.qual, SeqIn)
+else:
+    SeqIn = args.fastq
 
-FileName = args.fastq
+MAX_PRIMER_MISMATCHES = 2
+FileName = SeqIn
 FwdPrimer = args.F_primer
 RevPrimer = args.R_primer
 LabelPrefix = args.prefix
@@ -87,26 +119,31 @@ TrimLen = int(args.trim_len)
 base = args.fastq.split(".")
 base = base[0]
 
-#get barcode list
+#dealing with Barcodes
 barcode_file = base + ".barcodes_used.fa"
 if os.path.isfile(barcode_file):
     os.remove(barcode_file)
-if args.barcodes == "all":
-    shutil.copyfile(pgm_barcodes, barcode_file)
-else:
-    bc_list = args.barcodes.split(",")
-    inputSeqFile = open(pgm_barcodes, "rU")
-    SeqRecords = SeqIO.to_dict(SeqIO.parse(inputSeqFile, "fasta"))
-    for rec in bc_list:
-        name = "BC_" + rec
-        seq = SeqRecords[name].seq
-        outputSeqFile = open(barcode_file, "a")
-        outputSeqFile.write(">%s\n%s\n" % (name, seq))
-    outputSeqFile.close()
-    inputSeqFile.close()
-BarcodeFileName = barcode_file
-RevPrimer = revcomp_lib.RevComp(RevPrimer)
 
+if args.barcode_fasta == 'pgm_barcodes.fa':
+    #get script path and barcode file name
+    pgm_barcodes = os.path.join(parentdir, 'DB', args.barcode_fasta)
+    if args.barcodes == "all":
+        shutil.copyfile(pgm_barcodes, barcode_file)
+    else:
+        bc_list = args.barcodes.split(",")
+        inputSeqFile = open(pgm_barcodes, "rU")
+        SeqRecords = SeqIO.to_dict(SeqIO.parse(inputSeqFile, "fasta"))
+        for rec in bc_list:
+            name = "BC_" + rec
+            seq = SeqRecords[name].seq
+            outputSeqFile = open(barcode_file, "a")
+            outputSeqFile.write(">%s\n%s\n" % (name, seq))
+        outputSeqFile.close()
+        inputSeqFile.close()
+else:
+    shutil.copyfile(args.barcode_fasta, barcode_file)
+
+RevPrimer = revcomp_lib.RevComp(RevPrimer)
 log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
 
 SeqCount = 0
@@ -121,109 +158,117 @@ out_file = open(demuxname, 'w')
 
 PL = len(FwdPrimer)
 
-Barcodes = fasta.ReadSeqsDict(BarcodeFileName)
-
+Barcodes = fasta.ReadSeqsDict(barcode_file)
+BarcodeCount = {}
 def MatchesPrimer(Seq, Primer):
-	return primer.MatchPrefix(Seq, Primer)
+    return primer.MatchPrefix(Seq, Primer)
 
 def FindBarcode(Seq):
-	global Barcodes
-	for BarcodeLabel in Barcodes.keys():
-		Barcode = Barcodes[BarcodeLabel]
-		if Seq.startswith(Barcode):
-			return Barcode, BarcodeLabel
-	return "", ""
+    global Barcodes
+    for BarcodeLabel in Barcodes.keys():
+        Barcode = Barcodes[BarcodeLabel]
+        if Seq.startswith(Barcode):
+            return Barcode, BarcodeLabel
+    return "", ""
 
 def OnRec(Label, Seq, Qual):
-	global PL, LabelPrefix, Barcode, SeqCount, OutCount, TooShortCount, PadCount
-	global BarcodeMismatchCount, FwdPrimerMismatchCount, RevPrimerStrippedCount
-	global FwdPrimer, RevPrimer
+    global PL, LabelPrefix, Barcode, SeqCount, OutCount, TooShortCount, PadCount
+    global BarcodeMismatchCount, FwdPrimerMismatchCount, RevPrimerStrippedCount
+    global FwdPrimer, RevPrimer
+    global BarcodeCount
 
-	if SeqCount == 0:
-		progress.InitFile(fastq.File)
+    if SeqCount == 0:
+        progress.InitFile(fastq.File)
 
-	progress.File("%u reads, %u outupt, %u bad barcode, %u bad fwd primer, %u rev primer stripped, %u too short. %u padded" % \
-	  (SeqCount, OutCount, BarcodeMismatchCount, FwdPrimerMismatchCount, RevPrimerStrippedCount, TooShortCount, PadCount))
+    progress.File("%u reads, %u outupt, %u bad barcode, %u bad fwd primer, %u rev primer stripped, %u too short. %u padded" % \
+      (SeqCount, OutCount, BarcodeMismatchCount, FwdPrimerMismatchCount, RevPrimerStrippedCount, TooShortCount, PadCount))
 
-	SeqCount += 1
-	Barcode, BarcodeLabel = FindBarcode(Seq)
-	if Barcode == "":
-		BarcodeMismatchCount += 1
-		return
+    SeqCount += 1
+    Barcode, BarcodeLabel = FindBarcode(Seq)
+    if Barcode == "":
+        BarcodeMismatchCount += 1
+        return
+          
+    BarcodeLength = len(Barcode)
+    Seq = Seq[BarcodeLength:]
+    Qual = Qual[BarcodeLength:]
 
-	BarcodeLength = len(Barcode)
-	Seq = Seq[BarcodeLength:]
-	Qual = Qual[BarcodeLength:]
+    Diffs = MatchesPrimer(Seq, FwdPrimer)
+    if Diffs > MAX_PRIMER_MISMATCHES:
+        FwdPrimerMismatchCount += 1
+        return
 
-	Diffs = MatchesPrimer(Seq, FwdPrimer)
-	if Diffs > MAX_PRIMER_MISMATCHES:
-		FwdPrimerMismatchCount += 1
-		return
+    OutCount += 1
+    
+    if BarcodeLabel not in BarcodeCount:
+        BarcodeCount[BarcodeLabel] = 0
+    else:
+        BarcodeCount[BarcodeLabel] += 1
 
-	OutCount += 1
-	if SampleLabel == "False":
-	    Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + BarcodeLabel + ";"
-	else:
-	    Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + "_" + BarcodeLabel + ";"
+    
+    if SampleLabel == "False":
+        Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + BarcodeLabel + ";"
+    else:
+        Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + "_" + BarcodeLabel + ";"
 
 # Strip fwd primer
-	Seq = Seq[PL:]
-	Qual = Qual[PL:]
+    Seq = Seq[PL:]
+    Qual = Qual[PL:]
 
-	BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, MAX_PRIMER_MISMATCHES)
-	if BestPosRev > 0:
-		# Strip rev primer
-		RevPrimerStrippedCount += 1
-		StrippedSeq = Seq[:BestPosRev]
-		StrippedQual = Qual[:BestPosRev]
+    BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, MAX_PRIMER_MISMATCHES)
+    if BestPosRev > 0:
+        # Strip rev primer
+        RevPrimerStrippedCount += 1
+        StrippedSeq = Seq[:BestPosRev]
+        StrippedQual = Qual[:BestPosRev]
 
-		# correctness checks
-		if 1:
-			Tail = Seq[BestPosRev:]
-			Diffs2 = primer.MatchPrefix(Tail, RevPrimer)
-			if Diffs2 != BestDiffsRev:
-				print >> sys.stderr
-				print >> sys.stderr, " Seq=" + Seq
-				print >> sys.stderr, "Tail=" + Tail
-				print >> sys.stderr, "RevP=" + RevPrimer
-				die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
-			assert StrippedSeq + Tail == Seq
+        # correctness checks
+        if 1:
+            Tail = Seq[BestPosRev:]
+            Diffs2 = primer.MatchPrefix(Tail, RevPrimer)
+            if Diffs2 != BestDiffsRev:
+                print >> sys.stderr
+                print >> sys.stderr, " Seq=" + Seq
+                print >> sys.stderr, "Tail=" + Tail
+                print >> sys.stderr, "RevP=" + RevPrimer
+                die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
+            assert StrippedSeq + Tail == Seq
 
-		Seq = StrippedSeq
-		Qual = StrippedQual
+        Seq = StrippedSeq
+        Qual = StrippedQual
 
-		L = len(Seq)
-		assert len(Qual) == L
+        L = len(Seq)
+        assert len(Qual) == L
 
-		if L < MinLen:
-			return
+        if L < MinLen:
+            return
 
-		if L < TrimLen:
-			PadCount += 1
-			Seq = Seq + (TrimLen - L)*'N'
-			Qual = Qual + (TrimLen - L)*'I'
-			L = len(Seq)
-			assert L == TrimLen
-			assert len(Qual) == TrimLen
+        if L < TrimLen:
+            PadCount += 1
+            Seq = Seq + (TrimLen - L)*'N'
+            Qual = Qual + (TrimLen - L)*'I'
+            L = len(Seq)
+            assert L == TrimLen
+            assert len(Qual) == TrimLen
 
-	L = len(Seq)
-	if L < TrimLen:
-		TooShortCount += 1
-		return
+    L = len(Seq)
+    if L < TrimLen:
+        TooShortCount += 1
+        return
 
-	if L > TrimLen:
-		Seq = Seq[:TrimLen]
-		Qual = Qual[:TrimLen]
-		L = len(Seq)
+    if L > TrimLen:
+        Seq = Seq[:TrimLen]
+        Qual = Qual[:TrimLen]
+        L = len(Seq)
 
-	assert L == TrimLen
-	assert len(Qual) == TrimLen
+    assert L == TrimLen
+    assert len(Qual) == TrimLen
 
-	fastq.WriteRec(out_file, Label, Seq, Qual)
+    fastq.WriteRec(out_file, Label, Seq, Qual)
 
 fastq.ReadRecs(FileName, OnRec)
 progress.FileDone("%u reads, %u outupt, %u bad barcode, %u bad fwd primer, %u rev primer stripped, %u too short" % \
-	  (SeqCount, OutCount, BarcodeMismatchCount, FwdPrimerMismatchCount, RevPrimerStrippedCount, TooShortCount))
+      (SeqCount, OutCount, BarcodeMismatchCount, FwdPrimerMismatchCount, RevPrimerStrippedCount, TooShortCount))
 
 log.info("Stats for demuxing: \
 \n%10u seqs \
@@ -236,19 +281,18 @@ log.info("Stats for demuxing: \
 (SeqCount, BarcodeMismatchCount, FwdPrimerMismatchCount, FwdPrimerMismatchCount*100.0/SeqCount, RevPrimerStrippedCount, RevPrimerStrippedCount*100.0/SeqCount, PadCount, PadCount*100.0/SeqCount, TooShortCount, TooShortCount*100.0/SeqCount, OutCount, OutCount*100.0/SeqCount))
 out_file.close()
 
-#get file size and issue warning if over 4.0 GB
+#now let's count the barcodes found and count the number of times they are found.
+log.info("Found %i barcoded samples\n%30s:  %s" % (len(BarcodeCount), 'Sample', 'Count'))
+for key,value in BarcodeCount.iteritems():
+    print "%30s:  %s" % (key, str(value))
+#get file size
 filesize = os.path.getsize(demuxname)
 readablesize = convertSize(filesize)
-log.info("File size:  %s" % readablesize)
+log.info("Output file: %s (%s)" % (demuxname, readablesize))
+
 print "-------------------------------------------------------"
-if filesize >= 4294967296:
-    if 'win32' in sys.platform:
-        print "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs"
-    else:
-        print col.WARN + "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs" + col.END
+if 'win32' in sys.platform:
+    print "\nExample of next cmd: ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (demuxname)
 else:
-    if 'win32' in sys.platform:
-        print "\nExample of next cmd: ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (demuxname)
-    else:
-        print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (demuxname)
+    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (demuxname)
 

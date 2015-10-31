@@ -15,7 +15,7 @@ parser=argparse.ArgumentParser(prog='ufits-heatmap.py', usage="%(prog)s -i ufits
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
-map_colors = ['Accent','BrBG','BuGn','Dark2','PRGn','Pastel1', 'Pastel2','Spectral','bwr','copper','cubehelix','gist_yarg','gist_earth_r','gist_heat','Blues','Reds','Purples','Greens','BuPu','BuGn','OrRd','YlGnBu','YlOrRd','terrain', 'brg', 'gnuplot','bone_r','terrain_r']
+map_colors = ['Accent','BrBG','BuGn','Dark2','PRGn','Pastel1', 'Pastel2','Spectral','bwr','copper','cubehelix','gist_yarg','gist_earth_r','gist_heat','Blues','Reds','Purples','Greens','BuPu','BuGn','OrRd','YlGnBu','YlOrRd','terrain', 'brg', 'gnuplot','bone_r','terrain_r','sprint','summer','ocean_r']
 
 parser.add_argument('-i','--table', dest="table", required=True, help='OTU Table (Required)')
 parser.add_argument('-o','--output', dest="output", required=True, help='Output File (Required)')
@@ -106,7 +106,7 @@ if args.percent:
     for line in min_table[1:]:
         new_line = []
         new_line.insert(0,line[0])
-        new_line.append([x/y * 100 for x,y in zip(line[1:], sums[1:])])
+        new_line.append([x/y * 100 for x,y in zip(line[1:], sums[1:])])     
         new_line = flatten(new_line)
         binary_table.append(new_line)
     binary_table.insert(0,header)

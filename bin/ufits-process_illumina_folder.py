@@ -31,6 +31,7 @@ parser.add_argument('--reads', dest="reads", default='paired', choices=['paired'
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='GTGARTCATCGAATCTTTG', help='Forward Primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='TCCTCCGCTTATTGATATGC', help='Reverse Primer (ITS4)')
 parser.add_argument('--require_primer', dest="primer", default='on', choices=['on', 'off'], help='Require Fwd primer to be present')
+parser.add_argument('--rescue_forward', action="store_true", help='Rescue Not-merged forward reads')
 parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
 parser.add_argument('-m','--min_len', default='50', help='Minimum read length to keep')
 parser.add_argument('-l','--trim_len', default='250', help='Trim length for reads')
@@ -134,7 +135,7 @@ if '_R1' not in filenames[0]:
 uniq_names = []
 fastq_for = []
 fastq_rev = []
-map = 'ufits-filenames.txt'
+map = args.out + '-filenames.txt'
 map_file = open(map, 'w')
 map_file.write("Name\t[i5]\t[i7]\tLane\tSet_num\n")
 for item in sorted(filenames):
@@ -159,10 +160,14 @@ for item in sorted(filenames):
                 log.debug("Non-standard names detected, skipping mapping file")
 map_file.close()
 
-
+BarcodeCount = {}
 #loop through each set
 for i in range(len(fastq_for)):
     name = fastq_for[i].split("_")[0]
+    outname = name + '.fq'
+    if os.path.isfile(os.path.join(args.out, outname)):
+        log.info("Output for %s detected, skipping files" % outname)
+        continue
     for_reads = os.path.join(args.input, fastq_for[i])
     rev_reads = os.path.join(args.input, fastq_rev[i])
     log.info("Working on reads from sample %s" % name)
@@ -197,7 +202,8 @@ for i in range(len(fastq_for)):
         final_out = os.path.join(args.out, outname)
         cat_file = open(final_out, 'wb')
         shutil.copyfileobj(open(merge_out,'rU'), cat_file)
-        shutil.copyfileobj(open(skip_for,'rU'), cat_file)
+        if args.rescue_forward:
+            shutil.copyfileobj(open(skip_for,'rU'), cat_file)
         cat_file.close()
 
         #clean and close up intermediate files
@@ -435,6 +441,7 @@ for i in range(len(fastq_for)):
     progress.FileDone("%u reads, %u outupt, %u bad fwd primer, %u rev primer stripped, %u too short" % \
           (SeqCount, OutCount, FwdPrimerMismatchCount, RevPrimerStrippedCount, TooShortCount))
 
+    BarcodeCount[SampleLabel] = OutCount
     log.info("Stats for demuxing: \
     \n%10u seqs \
     \n%10u fwd primer mismatches (%.1f%% discarded) \
@@ -449,7 +456,7 @@ print "-------------------------------------------------------"
 #Now concatenate all of the demuxed files together
 log.info("Concatenating Demuxed Files")
 
-catDemux = 'ufits.demux.fq'
+catDemux = args.out + '.demux.fq'
 with open(catDemux, 'wb') as outfile:
     for filename in glob.glob(os.path.join(args.out,'*.demux.fq')):
         if filename == catDemux:
@@ -461,20 +468,18 @@ log.info("Counting FASTQ Records")
 num_lines = sum(1 for line in open(catDemux))
 total = int(num_lines) / 4
 log.info('{0:,}'.format(total) + ' reads processed')
-log.info("Output file:  %s" % catDemux)
 
-#get file size and issue warning if over 4.0 GB
+#now let's count the barcodes found and count the number of times they are found.
+log.info("Found %i barcoded samples\n%30s:  %s" % (len(BarcodeCount), 'Sample', 'Count'))
+for key,value in BarcodeCount.iteritems():
+    print "%30s:  %s" % (key, str(value))
+
+#get file size
 filesize = os.path.getsize(catDemux)
 readablesize = convertSize(filesize)
-log.info("File size:  %s" % readablesize)
+log.info("Output file:  %s (%s)" % (catDemux, readablesize))
 print "-------------------------------------------------------"
-if filesize >= 4294967296:
-    if 'win32' in sys.platform:
-        print "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs"
-    else:
-        print col.WARN + "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs" + col.END
+if 'win32' in sys.platform:
+    print "\nExample of next cmd: ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: spike)\n" % (catDemux)
 else:
-    if 'win32' in sys.platform:
-        print "\nExample of next cmd: ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: spike)\n" % (catDemux)
-    else:
-        print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: spike)\n" % (catDemux)
+    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: spike)\n" % (catDemux)

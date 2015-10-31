@@ -80,7 +80,7 @@ log.info("Operating system: %s" % sys.platform)
 
 
 if args.method == 'utax':
-    if not args.db:
+    if not args.utax_db:
         log.error("No DB specified, exiting")
         os._exit(1)
     usearch = args.usearch
@@ -128,7 +128,7 @@ if args.method == 'utax':
     
     
 elif args.method == 'usearch':
-    if not args.db:
+    if not args.usearch_db:
         log.error("No DB specified, exiting")
         os._exit(1)
     usearch = args.usearch

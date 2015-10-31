@@ -26,7 +26,7 @@ def fmtcols(mylist, cols):
 
 
 
-version = '0.2.5'
+version = '0.2.6'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -37,6 +37,7 @@ Description: UFITS is a package of scripts to process fungal ITS amplicon data. 
     
 Command:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
              illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
+             454         pre-process Roche 454 (pyrosequencing) data (find barcodes, remove primers, trim/pad)
              cluster     cluster OTUs (using UPARSE algorithm)
              filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
@@ -65,6 +66,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -o, --out           Output base name. Default: out
              -f, --fwd_primer    Forward primer sequence. Default: AGTGARTCATCGAATCTTTG (fITS7)
              -r, --rev_primer    Reverse primer sequence Default: TCCTCCGCTTATTGATATGC (ITS4)
+             --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
              -b, --barcodes      Barcodes used (list, e.g: 1,3,4,5,20). Default: all
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -m, --min_len       Minimum length read to keep. Default: 50
@@ -96,6 +98,7 @@ Description: Script takes a folder of Illumina MiSeq data that is already de-mul
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              -o, --out           Output folder name. Default: ufits-data
              --reads             Paired-end or forward reads. Default: paired [paired, forward]
+             --rescue_forward    Rescue Forward Reads if PE do not merge, e.g. abnormally long amplicons
              -f, --fwd_primer    Forward primer sequence. Default: GTGARTCATCGAATCTTTG (fITS7)
              -r, --rev_primer    Reverse primer sequence Default: TCCTCCGCTTATTGATATGC (ITS4)
              --require_primer    Require the Forward primer to be present. Default: on [on, off]
@@ -117,7 +120,38 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
         else:
             print help
             os._exit(1)
+    elif sys.argv[1] == '454':
+        help = """
+Usage:       ufits %s <arguments>
+version:     %s
+
+Description: Script processes Roche 454 data for UFITS clustering.  The input to this script should be either a 
+             SFF file, FASTA+QUAL files, or FASTQ file.  This script does the following: 1) finds barcode sequences, 
+             2) relabels headers with appropriate barcode name, 3) removes primer sequences, 4) trim/pad reads to a set length.
     
+Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
+             -q, --qual          QUAL file (Required if -i is FASTA).
+             -o, --out           Output base name. Default: out
+             -f, --fwd_primer    Forward primer sequence. Default: AGTGARTCATCGAATCTTTG (fITS7)
+             -r, --rev_primer    Reverse primer sequence Default: TCCTCCGCTTATTGATATGC (ITS4)
+             --barcode_fasta     FASTA file containing barcodes. (Required)
+             -n, --name_prefix   Prefix for re-naming reads. Default: R_
+             -m, --min_len       Minimum length read to keep. Default: 50
+             -l, --trim_len      Length to trim/pad reads. Default: 250
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com
+        """ % (sys.argv[1], version)
+        
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'bin', 'ufits-process_ion.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            os._exit(1)
     elif sys.argv[1] == 'cluster':
         help = """
 Usage:       ufits %s <arguments>
@@ -433,7 +467,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
                 DB_location = os.path.join(script_path, 'DB', 'USEARCH')
                 #now process DB
                 arguments2 = primers
-                arguments2.append(['-i', 'UNITE_public_01.08.2015.fasta', '--create_db', 'usearch', '-o', DB_location])
+                arguments2.append(['-i', 'UNITE_public_01.08.2015.fasta', '--skip_trimming','--create_db', 'usearch', '-o', DB_location])
                 arguments2 = flatten(arguments2)
                 cmd2 = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
                 arguments2.insert(0, cmd2)
@@ -442,7 +476,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
             else:
                 print help
                 os._exit(1)
-    elif sys.argv[1] == 'version' or '-version' or '--version':
+    elif sys.argv[1] == 'version':
         print "ufits v.%s" % version
     else:
         print "%s option not recognized" % sys.argv[1]

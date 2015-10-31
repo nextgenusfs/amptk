@@ -29,7 +29,8 @@ parser=argparse.ArgumentParser(prog='ufits-mock_filter.py', usage="%(prog)s [opt
 
 parser.add_argument('-i','--otu_table', required=True, help='Input OTU table')
 parser.add_argument('-b','--mock_barcode', help='Barocde of Mock community')
-parser.add_argument('-p','--barcode_bleed', dest="barcodebleed", default='0.1', help='Index Bleed filter')
+parser.add_argument('-p','--index_bleed', dest="barcodebleed", default='0.1', help='Index Bleed filter')
+parser.add_argument('-s','--subtract_threshold', default=0, type=int, help='Threshold to subtract')
 parser.add_argument('--mc',default='mock3', help='Multi-FASTA mock community')
 parser.add_argument('-d','--delimiter', default='tsv', choices=['csv','tsv'], help='Delimiter')
 parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
@@ -109,7 +110,7 @@ log.info("Loading OTU table: %s" % args.otu_table)
 check = os.stat(args.otu_table).st_size
 if check == 0:
     log.error("Input OTU table is empty")
-    os.exit(1)
+    os._exit(1)
 
 #get base name of files
 base = args.otu_table.split(".otu_table")
@@ -160,8 +161,17 @@ if not args.mock_barcode:
         line_count += 1
         sub_table.append([try_int(x) for x in line]) #convert to integers
     
+
+    #shouldn't use subtract filter without mock community, but adding it here for another purpose
+    tempTable = []
+    if args.subtract_threshold != 0:
+        log.info("Threshold subtracting table by %i" % args.subtract_threshold)
+        for line in sub_table:
+            tempTable.append([try_subtract(x,args.subtract_threshold) for x in line]) #subtract threshold 
+    else:
+        tempTable = sub_table
     #Now sort the table by row name naturally
-    header = sub_table[:1] #pull out header row
+    header = tempTable[:1] #pull out header row
     header = header[0] #just get first list, double check
         
      #convert header names (optional)
@@ -184,7 +194,7 @@ if not args.mock_barcode:
     sortHead.insert(0, sortHead.pop(otu)) #re-insert the OTU header in first column
 
     #sort the table without header row and then add back
-    sortTable = natsorted(sub_table[1:]) #sort the table without header row
+    sortTable = natsorted(tempTable[1:]) #sort the table without header row
     sortTable.insert(0,header) #now add back header row
 
     #get index of the sorted header list 
