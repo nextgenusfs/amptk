@@ -26,7 +26,7 @@ def fmtcols(mylist, cols):
 
 
 
-version = '0.2.6'
+version = '0.2.7'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -37,6 +37,7 @@ Description: UFITS is a package of scripts to process fungal ITS amplicon data. 
     
 Command:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
              illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
+             illumina2   pre-process Illumina data from a single file (assumes Ion/454 read structure: <barcode><f_primer>READ)
              454         pre-process Roche 454 (pyrosequencing) data (find barcodes, remove primers, trim/pad)
              cluster     cluster OTUs (using UPARSE algorithm)
              filter      OTU table filtering
@@ -64,8 +65,8 @@ Description: Script processes Ion Torrent PGM data for UFITS clustering.  The in
     
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              -o, --out           Output base name. Default: out
-             -f, --fwd_primer    Forward primer sequence. Default: AGTGARTCATCGAATCTTTG (fITS7)
-             -r, --rev_primer    Reverse primer sequence Default: TCCTCCGCTTATTGATATGC (ITS4)
+             -f, --fwd_primer    Forward primer sequence. Default: fITS7
+             -r, --rev_primer    Reverse primer sequence Default: ITS4
              --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
              -b, --barcodes      Barcodes used (list, e.g: 1,3,4,5,20). Default: all
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
@@ -80,6 +81,42 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
         if len(arguments) > 1:
             cmd = os.path.join(script_path, 'bin', 'ufits-process_ion.py')
             arguments.insert(0, cmd)
+            arguments.append('--ion')
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            os._exit(1)
+    elif sys.argv[1] == 'illumina2':
+        help = """
+Usage:       ufits %s <arguments>
+version:     %s
+
+Description: Script takes Illumina MiSeq data that is not de-multiplexed and has read structure similar to Ion/454
+             such that the reads are <barcode><fwd_primer>Read<rev_primer> for clustering using UFITS.  The default 
+             behavior is to: 1) merge the PE reads using USEARCH, 2) find barcodes, 3)find and trim primers, 
+             3) rename reads according to sample name, 4) trim/pad reads to a set length.
+    
+Arguments:   -i, --fastq         Input FASTQ file (Required)
+             --reverse           Illumina PE reverse reads.
+             -o, --out           Output base name. Default: out
+             --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
+             -f, --fwd_primer    Forward primer sequence. Default: fITS7
+             -r, --rev_primer    Reverse primer sequence Default: ITS4
+             -n, --name_prefix   Prefix for re-naming reads. Default: R_
+             -m, --min_len       Minimum length read to keep. Default: 50
+             -l, --trim_len      Length to trim/pad reads. Default: 250
+             -u, --usearch       USEARCH executable. Default: usearch8
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com
+        """ % (sys.argv[1], version)
+        
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'bin', 'ufits-process_ion.py')
+            arguments.insert(0, cmd)
+            arguments.append('--illumina')
             exe = sys.executable
             arguments.insert(0, exe)
             subprocess.call(arguments)
@@ -99,8 +136,8 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -o, --out           Output folder name. Default: ufits-data
              --reads             Paired-end or forward reads. Default: paired [paired, forward]
              --rescue_forward    Rescue Forward Reads if PE do not merge, e.g. abnormally long amplicons
-             -f, --fwd_primer    Forward primer sequence. Default: GTGARTCATCGAATCTTTG (fITS7)
-             -r, --rev_primer    Reverse primer sequence Default: TCCTCCGCTTATTGATATGC (ITS4)
+             -f, --fwd_primer    Forward primer sequence. Default: fITS7
+             -r, --rev_primer    Reverse primer sequence Default: ITS4
              --require_primer    Require the Forward primer to be present. Default: on [on, off]
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -m, --min_len       Minimum length read to keep. Default: 50
@@ -132,8 +169,8 @@ Description: Script processes Roche 454 data for UFITS clustering.  The input to
 Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
              -q, --qual          QUAL file (Required if -i is FASTA).
              -o, --out           Output base name. Default: out
-             -f, --fwd_primer    Forward primer sequence. Default: AGTGARTCATCGAATCTTTG (fITS7)
-             -r, --rev_primer    Reverse primer sequence Default: TCCTCCGCTTATTGATATGC (ITS4)
+             -f, --fwd_primer    Forward primer sequence. Default: fITS7
+             -r, --rev_primer    Reverse primer sequence Default: ITS4
              --barcode_fasta     FASTA file containing barcodes. (Required)
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -m, --min_len       Minimum length read to keep. Default: 50
@@ -146,6 +183,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
         if len(arguments) > 1:
             cmd = os.path.join(script_path, 'bin', 'ufits-process_ion.py')
             arguments.insert(0, cmd)
+            arguments.append('--454')
             exe = sys.executable
             arguments.insert(0, exe)
             subprocess.call(arguments)
@@ -286,18 +324,23 @@ Usage:       ufits %s <arguments>
 version:     %s
 
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
-             uses a hybrid approach, e.g. gets taxonomy information from UTAX as well as BLAST-like hits from the larger
+             uses a hybrid approach, e.g. gets taxonomy information from UTAX as well as global alignment hits from the larger
              UNITE-INSD database, and then parses both results to extract the most taxonomy information that it can at 
              'trustable' levels. UTAX results are used if BLAST-like search pct identity is less than 97 pct.  If pct identity
              is greater than 97 pct, the result with most taxonomy levels is retained.
     
 Arguments:   -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
              -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
-             -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid]
+             -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid, rdp, blast]
              --utax_db           UTAX formatted database. Default: UTAX.udb
+             --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --usearch_db        USEARCH formatted database. Default: USEARCH.udb
+             --usearch_cutoff    USEARCH threshold percent identity. Default 0.7
+             -r, --rdp           Path to RDP Classifier. Required if -m rdp
+             --rdp_db            RDP Classifer DB set. [fungalits_unite, fungalits_warcup. fungallsu, 16srrna]  
+             --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
+             --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
              --append_taxonomy   OTU table to append taxonomy. Default: none
-             --utax_cutoff       UTAX confidence value cutoff. Default: 0.8 [0 to 0.9]
              -u, --usearch       USEARCH executable. Default: usearch8
 
 Databases Configured: 

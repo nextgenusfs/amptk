@@ -25,16 +25,27 @@ parser=argparse.ArgumentParser(prog='ufits-extract_region.py', usage="%(prog)s [
 
 parser.add_argument('-i','--fasta', dest='fasta', required=True, help='FASTA input')
 parser.add_argument('-o','--out', dest='out', default='ufits', help='Base Name Output files')
-parser.add_argument('-f','--fwd_primer', dest='fwd_primer', default='GTGARTCATCGAATCTTTG', help='Forward primer (fITS7)')
-parser.add_argument('-r','--rev_primer', dest='rev_primer', default='TCCTCCGCTTATTGATATGC', help='Reverse primer (ITS4)')
+parser.add_argument('-f','--fwd_primer', dest='F_primer', default='fITS7', help='Forward primer (fITS7)')
+parser.add_argument('-r','--rev_primer', dest='R_primer', default='ITS4', help='Reverse primer (ITS4)')
 parser.add_argument('--skip_trimming', dest='trimming', action='store_true', help='Skip Primer trimming (not recommended)')
-parser.add_argument('--unite2utax', dest='utax', default='on', choices=['on', 'off'], help='Reformat UNITE FASTA headers for UTAX')
+parser.add_argument('--format', dest='utax', default='unite2utax', choices=['unite2utax', 'rdp2utax', 'off'], help='Reformat FASTA headers for UTAX')
 parser.add_argument('--drop_ns', dest='drop_ns', type=int, default=8, help="Drop Seqeunces with more than X # of N's")
 parser.add_argument('--create_db', dest='create_db', choices=['utax', 'usearch'], help="Create USEARCH DB")
 parser.add_argument('--keep_all', dest='keep_all', action='store_true', help="Keep Seq if For primer not found Default: off")
 parser.add_argument('--primer_mismatch', default=4, help="Max Primer Mismatch")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()
+
+#look up primer db otherwise default to entry
+primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC'}
+if args.F_primer in primer_db:
+    FwdPrimer = primer_db.get(args.F_primer)
+else:
+    FwdPrimer = args.F_primer
+if args.R_primer in primer_db:
+    RevPrimer = primer_db.get(args.R_primer)
+else:
+    RevPrimer = args.R_primer
 
 def stripPrimer(records):
     global SeqCount, OutCount, RevCount, NoMatch	  
@@ -46,7 +57,7 @@ def stripPrimer(records):
         (SeqCount, OutCount, RevCount, NoMatch))
 
         SeqCount += 1
-        if args.utax == 'on':
+        if args.utax == 'unite2utax':
             fields = rec.description.split("|")
             for i in fields:
                 if i.startswith("k__"):
@@ -90,18 +101,67 @@ def stripPrimer(records):
                 rec.id = ""
             rec.name = ""
             rec.description = ""
+        elif args.utax == 'rdp2utax':
+            temp = rec.description.split("\t")
+            taxLevels = temp[-1]
+            split_temp = temp[0].split(";")
+            ID = split_temp[0].split(" ")[0]
+            s = "s:" + split_temp[0].split(" ", 1)[-1]
+            s = re.sub(',', '_', s)
+            split_tax = taxLevels.split(";")
+            if "domain" in split_tax:
+                ki = split_tax.index("domain") -1
+                k = "k:" + split_tax[ki]
+            if "phylum" in split_tax:
+                pi = split_tax.index("phylum") -1
+                p = "p:" + split_tax[pi]
+            if "class" in split_tax:
+                ci = split_tax.index("class") -1
+                c = "c:" + split_tax[ci]
+            if "order" in split_tax:
+                oi = split_tax.index("order") -1
+                o = "o:" + split_tax[oi]
+            if "family" in split_tax:
+                fi = split_tax.index("family") -1
+                f = "f:" + split_tax[fi]
+            if "genus" in split_tax:
+                gi = split_tax.index("genus") -1
+                g = "g:" + split_tax[gi]
+            reformat_tax = []
+            removal = ("unidentified", "Incertae", "uncultured", "incertae")
+            sp_removal = (" sp", "_sp", "uncultured")
+            if not any(x in k for x in removal):
+                reformat_tax.append(k)
+            if not any(x in p for x in removal):
+                reformat_tax.append(p)
+            if not any(x in c for x in removal):
+                reformat_tax.append(c)
+            if not any(x in o for x in removal):
+                reformat_tax.append(o)
+            if not any(x in f for x in removal):
+                reformat_tax.append(f)
+            if not any(x in g for x in removal):
+                reformat_tax.append(g)
+            if not any(x in s for x in sp_removal):
+                reformat_tax.append(s)
+            rec.id = ID+";tax="+",".join(reformat_tax)
+            rec.id = re.sub(",s:$", "", rec.id)
+            if rec.id.endswith(";tax="): #if there is no taxonomy, get rid of it
+                rec.id = ""
+            rec.name = ""
+            rec.description = ""
         if not args.trimming:
             Seq = rec.seq
             MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
-            RevPrimer = revcomp_lib.RevComp(rev_primer)
-            BestPosFor, BestDiffsFor = primer.BestMatch2(Seq, fwd_primer, MAX_PRIMER_MISMATCHES)
+            revPrimer = revcomp_lib.RevComp(RevPrimer)
+            BestPosFor, BestDiffsFor = primer.BestMatch2(Seq, FwdPrimer, MAX_PRIMER_MISMATCHES)
             if BestDiffsFor < MAX_PRIMER_MISMATCHES:
                 if BestPosFor > 0:
                     stripfwdlen = fwdLen + BestPosFor
                     StripSeq = Seq[stripfwdlen:]
                 
                     #now look for reverse
-                    BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, RevPrimer, MAX_PRIMER_MISMATCHES)
+                    BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, revPrimer, MAX_PRIMER_MISMATCHES)
                     if BestDiffsRev < MAX_PRIMER_MISMATCHES:
                         StrippedSeq = StripSeq[:BestPosRev]
                     else:
@@ -115,14 +175,14 @@ def stripPrimer(records):
                         yield rec
             else: #if can't find forward primer, try to reverse complement and look again
                 RevSeq = revcomp_lib.RevComp(Seq)
-                BestPosFor, BestDiffsFor = primer.BestMatch2(RevSeq, fwd_primer, MAX_PRIMER_MISMATCHES)
+                BestPosFor, BestDiffsFor = primer.BestMatch2(RevSeq, FwdPrimer, MAX_PRIMER_MISMATCHES)
                 if BestDiffsFor < MAX_PRIMER_MISMATCHES:
                     if BestPosFor > 0:
                         stripfwdlen = fwdLen + BestPosFor
                         StripSeq = Seq[stripfwdlen:]
                 
                         #now look for reverse
-                        BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, RevPrimer, MAX_PRIMER_MISMATCHES)
+                        BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, revPrimer, MAX_PRIMER_MISMATCHES)
                         if BestDiffsRev < MAX_PRIMER_MISMATCHES:
                             StrippedSeq = StripSeq[:BestPosRev]
                         else:
@@ -138,7 +198,7 @@ def stripPrimer(records):
                     if args.keep_all:
                         StripSeq = Seq
                         #now look for reverse
-                        BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, RevPrimer, MAX_PRIMER_MISMATCHES)
+                        BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, revPrimer, MAX_PRIMER_MISMATCHES)
                         if BestDiffsRev < MAX_PRIMER_MISMATCHES:
                             StrippedSeq = StripSeq[:BestPosRev]
                         else:
@@ -176,9 +236,9 @@ def makeDB(input):
     db_details = args.out + '.udb.txt'
     usearch_db = args.out + '.udb'
     if args.trimming:
-        args.fwd_primer = 'None'
-        args.rev_primer = 'None'
-    db_string = args.create_db + ' ' + args.fasta + ' ' + args.fwd_primer + ' ' + args.rev_primer + ' ' + str(Total)
+        FwdPrimer = 'None'
+        RevPrimer = 'None'
+    db_string = args.create_db + ' ' + args.fasta + ' ' + args.F_primer + ' ' + args.R_primer + ' ' + str(Total)
     with open(db_details, 'w') as details:
         details.write(db_string)
     report = args.out + '.report.txt'
@@ -194,13 +254,20 @@ def makeDB(input):
         log.debug("%s -makeudb_utax %s -output %s -report %s -utax_trainlevels kpcofgs -utax_splitlevels NVpcofgs" % (usearch, input, usearch_db, report))
         subprocess.call([usearch, '-makeudb_utax', input, '-output', usearch_db, '-report', report, '-utax_trainlevels', 'kpcofgs', '-utax_splitlevels', 'NVpcofgs', '-notrunclabels'], stdout = utaxLog, stderr = utaxLog)
         utaxLog.close()
-        log.info("Database %s created successfully" % usearch_db)
+        #check if file is actually there
+        if os.path.isfile(usearch_db):
+            log.info("Database %s created successfully" % usearch_db)
+        else:
+            log.error("There was a problem creating the DB, check the UTAX log file %s" % utax_log)
         
     if args.create_db == 'usearch':
         log.info("Creating USEARCH Database")
         log.debug("%s -makeudb_usearch %s -output %s -notrunclabels" % (usearch, input, usearch_db))
         subprocess.call([usearch, '-makeudb_usearch', input, '-output', usearch_db, '-notrunclabels'], stdout = FNULL, stderr = FNULL)
-        log.info("Database %s created successfully" % usearch_db)
+        if os.path.isfile(usearch_db):
+            log.info("Database %s created successfully" % usearch_db)
+        else:
+            log.error("There was a problem creating the DB, check the log file %s" % utax_log)
 
 def setupLogging(LOGNAME):
     global log
@@ -237,9 +304,7 @@ RevCount = 0
 NoMatch = 0
 
 FileName = args.fasta
-fwd_primer = args.fwd_primer
-rev_primer = args.rev_primer
-fwdLen = len(fwd_primer)
+fwdLen = len(FwdPrimer)
 
 #need usearch for this, test to make sure version is ok with utax
 if args.create_db == 'utax':

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, inpsect
+import sys, os, inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
@@ -31,7 +31,6 @@ def OnRec(Label, Seq, Qual):
     SeqCount += 1
     Seq = Seq
     Qual = Qual
-    OutCount += 1
     L = len(Seq)
     assert len(Qual) == L
 
@@ -51,7 +50,8 @@ def OnRec(Label, Seq, Qual):
         Seq = Seq[:TrimLen]
         Qual = Qual[:TrimLen]
         L = len(Seq)
-
+    OutCount += 1
+    
     assert L == TrimLen
     assert len(Qual) == TrimLen
 

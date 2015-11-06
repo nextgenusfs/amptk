@@ -140,9 +140,12 @@ def processTax(uniq, L, name):
         length = len(uniq)
         if length > len(pref_colors):
             extra = length - len(pref_colors) - 1
-            add_colors = get_colors(extra)
-            pref_colors.append(add_colors) 
-            pref_colors.append('#ededed')  
+            if extra > 0:
+                add_colors = get_colors(extra)
+                pref_colors.append(add_colors)
+                pref_colors.append('#ededed') 
+            else:
+                pref_colors.append('#ededed')
         else:
             cut = len(uniq) - 1
             pref_colors = pref_colors[:cut]
@@ -183,7 +186,7 @@ for line in f2:
     
 header = sub_table[:1] #pull out header row
 header = header[0] #just get first list, double check
-headerCount = len(header) - 2
+headerCount = len(header) - 1
 
 allSamples, Lk, Lp, Lc, Lo, Lf, Lg, Ls, Tk, Tp, Tc, To, Tf, Tg, Ts = ([] for i in range(15))
 for i in range(1,headerCount):
@@ -220,11 +223,12 @@ for i in range(1,headerCount):
     Genus['unclassified'] = OTUs - sum(Genus.values())
     Lg.append(dict(Genus))
     Tg.append(list(set(Genus)))   
+    '''
     Species = tally(s)
     Species['unclassified'] = OTUs - sum(Species.values())
     Ls.append(dict(Species))
     Ts.append(list(set(Species)))
-
+    '''
 #kingdom
 uniqK = list(set(flatten(Tk)))
 uniqK.sort()

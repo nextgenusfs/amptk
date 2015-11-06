@@ -31,6 +31,7 @@ parser.add_argument('--reads', dest="reads", default='paired', choices=['paired'
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='GTGARTCATCGAATCTTTG', help='Forward Primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='TCCTCCGCTTATTGATATGC', help='Reverse Primer (ITS4)')
 parser.add_argument('--require_primer', dest="primer", default='on', choices=['on', 'off'], help='Require Fwd primer to be present')
+parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--rescue_forward', action="store_true", help='Rescue Not-merged forward reads')
 parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
 parser.add_argument('-m','--min_len', default='50', help='Minimum read length to keep')
@@ -217,7 +218,7 @@ for i in range(len(fastq_for)):
     log.info("Strip primers, trim/pad to %s bp" % args.trim_len)
     
     #now rest of script for demultiplexing here
-    MAX_PRIMER_MISMATCHES = 2
+    MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
     FileName = final_out
     FwdPrimer = args.F_primer
     RevPrimer = args.R_primer

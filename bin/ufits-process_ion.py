@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, inspect, argparse, shutil, logging
+import sys, os, inspect, argparse, shutil, logging, subprocess
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -28,14 +28,20 @@ parser=argparse.ArgumentParser(prog='ufits-process_ion.py', usage="%(prog)s [opt
 parser.add_argument('-i','--fastq','--sff', '--fasta', required=True, help='FASTQ/SFF/FASTA file')
 parser.add_argument('-q','--qual', help='QUAL file (if -i is FASTA)')
 parser.add_argument('-o','--out', dest="out", default='ion', help='Base name for output')
-parser.add_argument('-f','--fwd_primer', dest="F_primer", default='AGTGARTCATCGAATCTTTG', help='Forward Primer (fITS7)')
-parser.add_argument('-r','--rev_primer', dest="R_primer", default='TCCTCCGCTTATTGATATGC', help='Reverse Primer (ITS4)')
+parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer')
+parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer')
+parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--barcode_fasta', default='pgm_barcodes.fa', help='FASTA file containing Barcodes (Names & Sequences)')
 parser.add_argument('-b','--list_barcodes', dest="barcodes", default='all', help='Enter Barcodes used separated by commas')
 parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
 parser.add_argument('-m','--min_len', default='50', help='Minimum read length to keep')
 parser.add_argument('-l','--trim_len', default='250', help='Trim length for reads')
 parser.add_argument('--mult_samples', dest="multi", default='False', help='Combine multiple samples (i.e. FACE1)')
+parser.add_argument('--illumina', action='store_true', help='Input data is single file Illumina')
+parser.add_argument('--ion', action='store_true', help='Input data is Ion Torrent')
+parser.add_argument('--454', action='store_true', help='Input data is 454')
+parser.add_argument('--reverse', help='Illumina reverse reads')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()
 
 def faqual2fastq(fasta, qual, fastq):
@@ -83,6 +89,8 @@ setupLogging(log_name)
 cmd_args = " ".join(sys.argv)+'\n'
 log.debug(cmd_args)
 print "-------------------------------------------------------"
+#initialize script, log system info and usearch version
+log.info("Operating system: %s" % sys.platform)
 
 #if SFF file passed, convert to FASTQ with biopython
 if args.fastq.endswith(".sff"):
@@ -106,10 +114,48 @@ elif args.fastq.endswith(".fas") or args.fastq.endswith(".fasta") or args.fastq.
 else:
     SeqIn = args.fastq
 
-MAX_PRIMER_MISMATCHES = 2
+#check if illumina argument is passed, if so then run merge PE
+if args.illumina:
+    if args.barcode_fasta == 'pgm_barcodes.fa':
+        log.error("You did not specify a --barcode_fasta, it is required this type of data")
+        os._exit(1)
+    if args.reverse:
+        FNULL = open(os.devnull, 'w')
+        #test for usearch
+        usearch = args.usearch
+        try:
+            usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
+        except OSError:
+            log.warning("%s not found in your PATH, exiting." % usearch)
+            os._exit(1)
+        log.info("USEARCH version: %s" % usearch_test)
+        
+        #next run USEARCH8 mergepe
+        SeqIn = args.out + '.merged.fq'
+        log.info("Merging PE Illumina reads with USEARCH")
+        log.debug("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastq_truncqual 5 -fastq_maxdiffs 8 -minhsp 12" % (usearch, args.fastq, args.reverse, SeqIn))
+        subprocess.call([usearch, '-fastq_mergepairs', args.fastq, '-reverse', args.reverse, '-fastqout', SeqIn, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8'], stdout = FNULL, stderr = FNULL)
+    else:
+        log.info("Running UFITS on forward Illumina reads")
+        SeqIn = args.fastq 
+
+#look up primer db otherwise default to entry
+primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC'}
+if args.F_primer in primer_db:
+    FwdPrimer = primer_db.get(args.F_primer)
+else:
+    FwdPrimer = args.F_primer
+if args.R_primer in primer_db:
+    RevPrimer = primer_db.get(args.R_primer)
+else:
+    RevPrimer = args.R_primer
+
+#because we use an 'A' linker between barcode and primer sequence, add an A if ion is chemistry
+if args.ion:
+    FwdPrimer = 'A' + FwdPrimer
+
+MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
 FileName = SeqIn
-FwdPrimer = args.F_primer
-RevPrimer = args.R_primer
 LabelPrefix = args.prefix
 SampleLabel = args.multi
 MinLen = int(args.min_len)
@@ -120,7 +166,7 @@ base = args.fastq.split(".")
 base = base[0]
 
 #dealing with Barcodes
-barcode_file = base + ".barcodes_used.fa"
+barcode_file = args.out + ".barcodes_used.fa"
 if os.path.isfile(barcode_file):
     os.remove(barcode_file)
 
@@ -198,20 +244,7 @@ def OnRec(Label, Seq, Qual):
         FwdPrimerMismatchCount += 1
         return
 
-    OutCount += 1
-    
-    if BarcodeLabel not in BarcodeCount:
-        BarcodeCount[BarcodeLabel] = 0
-    else:
-        BarcodeCount[BarcodeLabel] += 1
-
-    
-    if SampleLabel == "False":
-        Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + BarcodeLabel + ";"
-    else:
-        Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + "_" + BarcodeLabel + ";"
-
-# Strip fwd primer
+    # Strip fwd primer
     Seq = Seq[PL:]
     Qual = Qual[PL:]
 
@@ -260,7 +293,19 @@ def OnRec(Label, Seq, Qual):
         Seq = Seq[:TrimLen]
         Qual = Qual[:TrimLen]
         L = len(Seq)
-
+        
+    OutCount += 1
+    
+    if BarcodeLabel not in BarcodeCount:
+        BarcodeCount[BarcodeLabel] = 1
+    else:
+        BarcodeCount[BarcodeLabel] += 1
+    
+    if SampleLabel == "False":
+        Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + BarcodeLabel + ";"
+    else:
+        Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + "_" + BarcodeLabel + ";"
+    
     assert L == TrimLen
     assert len(Qual) == TrimLen
 
