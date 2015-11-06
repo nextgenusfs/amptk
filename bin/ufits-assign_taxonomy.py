@@ -34,7 +34,7 @@ parser.add_argument('-m','--method', dest='method', default='hybrid',choices=['u
 parser.add_argument('--utax_db', dest='utax_db', default='UTAX.udb', help='UTAX Reference Database')
 parser.add_argument('--utax_cutoff', default=0.8, type=restricted_float, help='UTAX confidence value threshold.')
 parser.add_argument('--usearch_db', dest='usearch_db', default='USEARCH.udb', help='USEARCH Reference Database')
-parser.add_argument('--usearch_cutoff', default='0.7', type=restricted_float, help='USEARCH percent ID threshold.')
+parser.add_argument('--usearch_cutoff', default=0.7, type=restricted_float, help='USEARCH percent ID threshold.')
 parser.add_argument('-r', '--rdp', dest='rdp', default='/Users/jon/scripts/rdp_classifier_2.10.1/dist/classifier.jar', help='Path to RDP Classifier')
 parser.add_argument('--rdp_db', dest='rdp_tax', default='fungalits_unite', choices=['16srrna', 'fungallsu', 'fungalits_warcup', 'fungalits_unite'], help='Training set for RDP Classifier')
 parser.add_argument('--rdp_cutoff', default=0.8, type=restricted_float, help='RDP confidence value threshold')
@@ -162,8 +162,8 @@ elif args.method == 'usearch':
     #now run through usearch global
     utax_out = args.out + '.usearch.txt'
     log.info("Blasting OTUs with usearch_global")
-    log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, args.usearch_cutoff, utax_out))
-    subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', utax_out, '-id', args.usearch_cutoff, '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
+    log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, str(args.usearch_cutoff), utax_out))
+    subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', utax_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
     
     #load results into dictionary for appending to OTU table
     log.debug("Loading results into dictionary")
@@ -237,8 +237,8 @@ elif args.method == 'hybrid':
     
     #run through USEARCH
     log.info("Blasting OTUs with usearch_global")
-    log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, args.usearch_cutoff, utax_out))
-    subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', args.usearch_cutoff, '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
+    log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, str(args.usearch_cutoff), utax_out))
+    subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
     
     #load results into dictionary for appending to OTU table
     log.debug("Loading usearch_global results into dictionary")
