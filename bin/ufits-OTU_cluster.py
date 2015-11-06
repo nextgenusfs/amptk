@@ -233,7 +233,7 @@ else:
         uchime_db = os.path.join(parentdir, 'DB', 'uchime_sh_refs_dynamic_original_985_11.03.2015.fasta')
     log.info("Chimera Filtering (UCHIME)")
     log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s" % (usearch, otu_clean, uchime_db, uchime_out))
-    subprocess.call([usearch, '-uchime_ref', otu_out, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
+    subprocess.call([usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
     total = countfasta(uchime_out)
     log.info('{0:,}'.format(total) + ' OTUs passed')
 
