@@ -370,10 +370,10 @@ if args.mock != "False" and result != 'fail':
 currentdir = os.getcwd()
 final_otu = args.out + '.final.otus.fa'
 final_otu = os.path.join(currentdir, final_otu)
-os.rename(uchime_out, final_otu)
+shutil.copyfile(uchime_out, final_otu)
 final_otu_table = args.out + '.otu_table.txt'
 final_otu_table = os.path.join(currentdir, final_otu_table)
-os.rename(otu_table, final_otu_table)
+shutil.copyfile(otu_table, final_otu_table)
 if args.cleanup:
     shutil.rmtree(tmp)
 
