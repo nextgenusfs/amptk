@@ -18,15 +18,20 @@ def flatten(l):
     return flatList
 
 def fmtcols(mylist, cols):
-    maxwidth = max(map(lambda x: len(x), mylist))
-    justifyList = map(lambda x: x.ljust(maxwidth), mylist)
-    lines = (' '.join(justifyList[i:i+cols]) 
-             for i in xrange(0,len(justifyList),cols))
+    justify = []
+    for i in range(0,cols):
+        length = max(map(lambda x: len(x), mylist[i::cols]))
+        length += 2
+        ljust = map(lambda x: x.ljust(length), mylist[i::cols])
+        justify.append(ljust)
+    justify = flatten(justify)
+    num_lines = len(mylist) / cols
+    lines = (' '.join(justify[i::num_lines]) 
+             for i in range(0,num_lines))
     return "\n".join(lines)
 
 
-
-version = '0.2.7'
+version = '0.2.8'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -332,7 +337,7 @@ Description: Script maps OTUs to taxonomy information and can append to an OTU t
 Arguments:   -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
              -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
              -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid, rdp, blast]
-             --utax_db           UTAX formatted database. Default: UTAX.udb
+             --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --usearch_db        USEARCH formatted database. Default: USEARCH.udb
              --usearch_cutoff    USEARCH threshold percent identity. Default 0.7
@@ -370,9 +375,9 @@ Description: Setup/Format reference database for ufits taxonomy command.
     
 Arguments:   -i, --fasta         Input FASTA file (UNITE DB or UNITE+INSDC)
              -o, --out           Base Name for Output Files. Default: DB of ufits folder
-             -f, --fwd_primer    Forward primer. Default: GTGARTCATCGAATCTTTG (fITS7)
-             -r, --rev_primer    Reverse primer. Default: TCCTCCGCTTATTGATATGC (ITS4)
-             --unite2utax        Reformat FASTA headers to UTAX format. Default: on
+             -f, --fwd_primer    Forward primer. Default: fITS7
+             -r, --rev_primer    Reverse primer. Default: ITS4
+             --format            Reformat FASTA headers to UTAX format. Default: unite2utax [unite2utax, rdp2utax, off]
              --drop_ns           Removal sequences that have > x N's. Default: 8
              --create_db         Create a DB. Default: usearch [utax, usearch]
              --skip_trimming     Keep full length sequences. Default: off (not recommended)
@@ -461,11 +466,9 @@ Usage:       ufits %s <arguments>
 version:     %s
 
 Description: Script downloads the UNITE and UNITE-INSD databases and formats them for use with the 
-             `ufits taxonomy` command.  
+             `ufits taxonomy` command. By default UTAX is trained for ITS1, ITS2, and Full ITS. 
     
 Arguments:   --install_unite     Install the UNITE Databases 
-             -f, --fwd_primer    Forward primer. Default: GTGARTCATCGAATCTTTG (fITS7)
-             -r, --rev_primer    Reverse primer. Default: TCCTCCGCTTATTGATATGC (ITS4)
              --primer_mismatch   Max Primer Mismatch. Default: 4
              -u, --usearch       USEARCH executable. Default: usearch8      
             
@@ -481,7 +484,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
                 arguments.remove('--install_unite')
                 primers = arguments
                 #now check for UTAX and USEARCH in DB folder
-                if os.path.isfile(os.path.join(script_path, 'DB', 'UTAX.udb')):
+                if os.path.isfile(os.path.join(script_path, 'DB', 'FULL.udb')):
                     print("A formated database was found, thus this command was already run.  You can add more custom databases by using the `ufits database` command.")
                     os._exit(1)
                 #get UNITE general release
@@ -491,15 +494,33 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
                 exe = sys.executable
                 arguments.insert(0, exe)
                 subprocess.call(arguments)
-                #now process DB
-                DB_location = os.path.join(script_path, 'DB', 'UTAX')
+                #now process DB for Full length and make UTAX db
+                DB_location = os.path.join(script_path, 'DB', 'FULL')
                 arguments1 = primers
-                arguments1.append(['-i', 'sh_dynamic_01.08.2015.fasta', '--create_db', 'utax', '-o', DB_location])
+                arguments1.append(['-i', 'sh_dynamic_01.08.2015.fasta', '-f', 'ITS1-F', '-r', 'ITS4', '--keep_all', '--create_db', 'utax', '-o', DB_location])
                 arguments1 = flatten(arguments1)
                 cmd1 = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
                 arguments1.insert(0, cmd1)
                 arguments1.insert(0, exe)
                 subprocess.call(arguments1)
+                #now process DB for ITS1 and make UTAX db
+                DB_location = os.path.join(script_path, 'DB', 'ITS1')
+                arguments1 = primers
+                arguments1.append(['-i', 'sh_dynamic_01.08.2015.fasta', '-f', 'ITS1-F', '-r', 'ITS2', '--keep_all', '--create_db', 'utax', '-o', DB_location])
+                arguments1 = flatten(arguments1)
+                cmd1 = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
+                arguments1.insert(0, cmd1)
+                arguments1.insert(0, exe)
+                subprocess.call(arguments1)
+                #now process DB for ITS2 and make UTAX db
+                DB_location = os.path.join(script_path, 'DB', 'ITS2')
+                arguments1 = primers
+                arguments1.append(['-i', 'sh_dynamic_01.08.2015.fasta', '-f', 'fITS7', '-r', 'ITS4','--create_db', 'utax', '-o', DB_location])
+                arguments1 = flatten(arguments1)
+                cmd1 = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
+                arguments1.insert(0, cmd1)
+                arguments1.insert(0, exe)
+                subprocess.call(arguments1)             
                 #now get UNITE-INSD
                 arguments = ['-i', 'unite_insd']
                 cmd = os.path.join(script_path, 'bin', 'ufits-download_db.py')

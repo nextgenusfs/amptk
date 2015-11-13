@@ -28,8 +28,8 @@ parser=argparse.ArgumentParser(prog='ufits-process_illumina_folder.py', usage="%
 parser.add_argument('-i','--input', dest='input', required=True, help='Folder of Illumina Data')
 parser.add_argument('-o','--out', dest="out", default='ufits-data', help='Name for output folder')
 parser.add_argument('--reads', dest="reads", default='paired', choices=['paired', 'forward'], help='PE or forward reads')
-parser.add_argument('-f','--fwd_primer', dest="F_primer", default='GTGARTCATCGAATCTTTG', help='Forward Primer (fITS7)')
-parser.add_argument('-r','--rev_primer', dest="R_primer", default='TCCTCCGCTTATTGATATGC', help='Reverse Primer (ITS4)')
+parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer (fITS7)')
+parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer (ITS4)')
 parser.add_argument('--require_primer', dest="primer", default='on', choices=['on', 'off'], help='Require Fwd primer to be present')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--rescue_forward', action="store_true", help='Rescue Not-merged forward reads')
@@ -38,6 +38,17 @@ parser.add_argument('-m','--min_len', default='50', help='Minimum read length to
 parser.add_argument('-l','--trim_len', default='250', help='Trim length for reads')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()      
+
+#look up primer db otherwise default to entry
+primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC'}
+if args.F_primer in primer_db:
+    FwdPrimer = primer_db.get(args.F_primer)
+else:
+    FwdPrimer = args.F_primer
+if args.R_primer in primer_db:
+    RevPrimer = primer_db.get(args.R_primer)
+else:
+    RevPrimer = args.R_primer
 
 def convertSize(num, suffix='B'):
     for unit in ['','K','M','G','T','P','E','Z']:
@@ -220,8 +231,6 @@ for i in range(len(fastq_for)):
     #now rest of script for demultiplexing here
     MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
     FileName = final_out
-    FwdPrimer = args.F_primer
-    RevPrimer = args.R_primer
     LabelPrefix = args.prefix
     SampleLabel = name
     MinLen = int(args.min_len)
@@ -238,9 +247,9 @@ for i in range(len(fastq_for)):
     PadCount = 0
 
     PL = len(FwdPrimer)
-    RevPrimer = revcomp_lib.RevComp(RevPrimer)
+    revPrimer = revcomp_lib.RevComp(RevPrimer)
     
-    log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
+    log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, revPrimer))
 
     def MatchesPrimer(Seq, Primer):
         return primer.MatchPrefix(Seq, Primer)
@@ -248,7 +257,7 @@ for i in range(len(fastq_for)):
     def OnRec(Label, Seq, Qual):
         global PL, LabelPrefix, SeqCount, OutCount, TooShortCount, PadCount
         global FwdPrimerMismatchCount, RevPrimerStrippedCount
-        global FwdPrimer, RevPrimer
+        global FwdPrimer, revPrimer
 
         if SeqCount == 0:
             progress.InitFile(fastq.File)
@@ -272,7 +281,7 @@ for i in range(len(fastq_for)):
                 Seq = Seq[PL:]
                 Qual = Qual[PL:]
 
-                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, MAX_PRIMER_MISMATCHES)
+                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, revPrimer, MAX_PRIMER_MISMATCHES)
                 if BestPosRev > 0:
                     # Strip rev primer
                     RevPrimerStrippedCount += 1
@@ -282,12 +291,12 @@ for i in range(len(fastq_for)):
                     # correctness checks
                     if 1:
                         Tail = Seq[BestPosRev:]
-                        Diffs2 = primer.MatchPrefix(Tail, RevPrimer)
+                        Diffs2 = primer.MatchPrefix(Tail, revPrimer)
                         if Diffs2 != BestDiffsRev:
                             print >> sys.stderr
                             print >> sys.stderr, " Seq=" + Seq
                             print >> sys.stderr, "Tail=" + Tail
-                            print >> sys.stderr, "RevP=" + RevPrimer
+                            print >> sys.stderr, "RevP=" + revPrimer
                             die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
                         assert StrippedSeq + Tail == Seq
 
@@ -333,7 +342,7 @@ for i in range(len(fastq_for)):
                 Seq = Seq[PL:]
                 Qual = Qual[PL:]
 
-                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, MAX_PRIMER_MISMATCHES)
+                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, revPrimer, MAX_PRIMER_MISMATCHES)
                 if BestPosRev > 0:
                     # Strip rev primer
                     RevPrimerStrippedCount += 1
@@ -343,12 +352,12 @@ for i in range(len(fastq_for)):
                     # correctness checks
                     if 1:
                         Tail = Seq[BestPosRev:]
-                        Diffs2 = primer.MatchPrefix(Tail, RevPrimer)
+                        Diffs2 = primer.MatchPrefix(Tail, revPrimer)
                         if Diffs2 != BestDiffsRev:
                             print >> sys.stderr
                             print >> sys.stderr, " Seq=" + Seq
                             print >> sys.stderr, "Tail=" + Tail
-                            print >> sys.stderr, "RevP=" + RevPrimer
+                            print >> sys.stderr, "RevP=" + revPrimer
                             die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
                         assert StrippedSeq + Tail == Seq
 
@@ -386,7 +395,7 @@ for i in range(len(fastq_for)):
                 FwdPrimerMismatchCount += 1
                 OutCount += 1
                 Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + ";"
-                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, MAX_PRIMER_MISMATCHES)
+                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, revPrimer, MAX_PRIMER_MISMATCHES)
                 if BestPosRev > 0:
                     # Strip rev primer
                     RevPrimerStrippedCount += 1
@@ -396,12 +405,12 @@ for i in range(len(fastq_for)):
                     # correctness checks
                     if 1:
                         Tail = Seq[BestPosRev:]
-                        Diffs2 = primer.MatchPrefix(Tail, RevPrimer)
+                        Diffs2 = primer.MatchPrefix(Tail, revPrimer)
                         if Diffs2 != BestDiffsRev:
                             print >> sys.stderr
                             print >> sys.stderr, " Seq=" + Seq
                             print >> sys.stderr, "Tail=" + Tail
-                            print >> sys.stderr, "RevP=" + RevPrimer
+                            print >> sys.stderr, "RevP=" + revPrimer
                             die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
                         assert StrippedSeq + Tail == Seq
 

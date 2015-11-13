@@ -31,7 +31,7 @@ parser=argparse.ArgumentParser(prog='ufits-assign_taxonomy.py', usage="%(prog)s 
 parser.add_argument('-i','--fasta', dest='fasta', required=True, help='FASTA input')
 parser.add_argument('-o','--out', dest='out', default='ufits-taxonomy', help='Output file (FASTA)')
 parser.add_argument('-m','--method', dest='method', default='hybrid',choices=['utax', 'usearch', 'hybrid', 'rdp', 'blast'], help='Taxonomy method')
-parser.add_argument('--utax_db', dest='utax_db', default='UTAX.udb', help='UTAX Reference Database')
+parser.add_argument('--utax_db', dest='utax_db', default='ITS2.udb', help='UTAX Reference Database')
 parser.add_argument('--utax_cutoff', default=0.8, type=restricted_float, help='UTAX confidence value threshold.')
 parser.add_argument('--usearch_db', dest='usearch_db', default='USEARCH.udb', help='USEARCH Reference Database')
 parser.add_argument('--usearch_cutoff', default=0.7, type=restricted_float, help='USEARCH percent ID threshold.')

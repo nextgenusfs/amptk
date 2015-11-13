@@ -9,6 +9,11 @@ import lib.fastq as fastq
 import lib.progress as progress
 import lib.die as die
 
+if len(sys.argv) < 2:
+    print "Usage: fastq_trim_pad.py input.fastq trimlen"
+    sys.exit()
+
+
 FileName = sys.argv[1]
 MinLen = 50
 TrimLen = int(sys.argv[2])

@@ -3,6 +3,11 @@
 import sys, os
 from Bio import SeqIO
 
+if len(sys.argv) < 2:
+    print "Usage: fasta_trim_pad.py input.fasta trimlen"
+    sys.exit()
+
+
 FileName = sys.argv[1]
 MinLen = 50
 TrimLen = int(sys.argv[2])
