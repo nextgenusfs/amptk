@@ -2,6 +2,7 @@
 
 import sys, os, inspect, argparse, shutil, logging, subprocess
 from Bio import SeqIO
+from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
@@ -327,9 +328,11 @@ log.info("Stats for demuxing: \
 out_file.close()
 
 #now let's count the barcodes found and count the number of times they are found.
-log.info("Found %i barcoded samples\n%30s:  %s" % (len(BarcodeCount), 'Sample', 'Count'))
-for key,value in BarcodeCount.iteritems():
-    print "%30s:  %s" % (key, str(value))
+barcode_counts = "%10s:  %s" % ('Sample', 'Count')
+for key,value in natsorted(BarcodeCount.iteritems()):
+    barcode_counts += "\n%10s:  %s" % (key, str(value))
+log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
+
 #get file size
 filesize = os.path.getsize(demuxname)
 readablesize = convertSize(filesize)

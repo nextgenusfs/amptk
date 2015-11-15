@@ -2,6 +2,7 @@
 
 #This script is a wrapper for -fastq_mergepairs from USEARCH8
 import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect
+from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
@@ -274,7 +275,6 @@ for i in range(len(fastq_for)):
                 FwdPrimerMismatchCount += 1
                 return
             else:
-                OutCount += 1
                 Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + ";"
 
                 # Strip fwd primer
@@ -329,13 +329,14 @@ for i in range(len(fastq_for)):
 
                 assert L == TrimLen
                 assert len(Qual) == TrimLen
-        
+                OutCount += 1
+                
         elif args.primer == 'off':
             Seq = Seq
             Qual = Qual
             Diffs = MatchesPrimer(Seq, FwdPrimer)
             if Diffs < MAX_PRIMER_MISMATCHES:
-                OutCount += 1
+                
                 Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + ";"
 
                 # Strip fwd primer
@@ -390,10 +391,11 @@ for i in range(len(fastq_for)):
 
                 assert L == TrimLen
                 assert len(Qual) == TrimLen
+                OutCount += 1
                 
             else:
                 FwdPrimerMismatchCount += 1
-                OutCount += 1
+                
                 Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + ";"
                 BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, revPrimer, MAX_PRIMER_MISMATCHES)
                 if BestPosRev > 0:
@@ -443,6 +445,7 @@ for i in range(len(fastq_for)):
 
                 assert L == TrimLen
                 assert len(Qual) == TrimLen
+                OutCount += 1
         
 
         fastq.WriteRec(out_file, Label, Seq, Qual)
@@ -480,9 +483,10 @@ total = int(num_lines) / 4
 log.info('{0:,}'.format(total) + ' reads processed')
 
 #now let's count the barcodes found and count the number of times they are found.
-log.info("Found %i barcoded samples\n%30s:  %s" % (len(BarcodeCount), 'Sample', 'Count'))
-for key,value in BarcodeCount.iteritems():
-    print "%30s:  %s" % (key, str(value))
+barcode_counts = "%10s:  %s" % ('Sample', 'Count')
+for key,value in natsorted(BarcodeCount.iteritems()):
+    barcode_counts += "\n%10s:  %s" % (key, str(value))
+log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
 #get file size
 filesize = os.path.getsize(catDemux)

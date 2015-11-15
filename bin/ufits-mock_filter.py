@@ -154,15 +154,19 @@ if not args.mock_barcode:
         if args.binary:
             out_name = base + '.filtered.otu_table.binary' + end
         else:
-            out_name = base + '.filtered.otu_table' + end    
+            out_name = base + '.filtered.otu_table' + end
+    #check to make sure outfile name is not same as input, if it is modified name to accomodate
+    if args.otu_table == out_name:
+        log.error("Input file name is the same as output, choose a unique output base name")
+        os._exit(1) 
     file_out = open(out_name, "w")
-    f2 = csv.reader(open(args.otu_table), delimiter='\t')
-    for line in f2:
-        line_count += 1
-        sub_table.append([try_int(x) for x in line]) #convert to integers
-    
+    with open(args.otu_table, 'rU') as FileIn:
+        f2 = csv.reader(FileIn, delimiter='\t')
+        for line in f2:
+            line_count += 1
+            sub_table.append([try_int(x) for x in line]) #convert to integers
 
-    #shouldn't use subtract filter without mock community, but adding it here for another purpose
+    #shouldn't use subtract filter without mock community, but adding it here for a one-time purpose
     tempTable = []
     if args.subtract_threshold != 0:
         log.info("Threshold subtracting table by %i" % args.subtract_threshold)
@@ -171,7 +175,7 @@ if not args.mock_barcode:
     else:
         tempTable = sub_table
     #Now sort the table by row name naturally
-    header = tempTable[:1] #pull out header row
+    header = sub_table[:1] #pull out header row
     header = header[0] #just get first list, double check
         
      #convert header names (optional)
