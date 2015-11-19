@@ -207,6 +207,7 @@ The optional `--graphs` argument will create the stacked bar graphs.  You can sa
 * Python 2
 * Biopython
 * USEARCH8 (to use UTAX you will need at least version 8.1.1756)
+* natsort python module
 
 Python and USEARCH need to accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8.  
 
