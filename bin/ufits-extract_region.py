@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*- 
 
-import sys, os, re, argparse, logging, subprocess, inspect, codecs
+import sys, os, re, argparse, logging, subprocess, inspect, codecs, shutil, glob
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -9,6 +9,7 @@ sys.path.insert(0,parentdir)
 import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
 import lib.progress as progress
+import multiprocessing
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -33,12 +34,14 @@ parser.add_argument('--format', dest='utax', default='unite2utax', choices=['uni
 parser.add_argument('--drop_ns', dest='drop_ns', type=int, default=8, help="Drop Seqeunces with more than X # of N's")
 parser.add_argument('--create_db', dest='create_db', choices=['utax', 'usearch'], help="Create USEARCH DB")
 parser.add_argument('--keep_all', dest='keep_all', action='store_true', help="Keep Seq if For primer not found Default: off")
+parser.add_argument('--derep_fulllength', action='store_true', help="De-replicate sequences. Default: off")
 parser.add_argument('--primer_mismatch', default=4, help="Max Primer Mismatch")
+parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: max")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()
 
 #look up primer db otherwise default to entry
-primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC'}
+primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC'}
 if args.F_primer in primer_db:
     FwdPrimer = primer_db.get(args.F_primer)
 else:
@@ -48,7 +51,6 @@ if args.R_primer in primer_db:
 else:
     RevPrimer = args.R_primer
     
-
 latin_dict = {
 u"¡": u"!", u"¢": u"c", u"£": u"L", u"¤": u"o", u"¥": u"Y",
 u"¦": u"|", u"§": u"S", u"¨": u"`", u"©": u"c", u"ª": u"a",
@@ -75,16 +77,38 @@ def latin2ascii(error):
     return latin_dict[error.object[error.start]], error.start+1
 codecs.register_error('latin2ascii', latin2ascii)
 
-def stripPrimer(records):
-    global SeqCount, OutCount, RevCount, NoMatch, FwdPrimerFound, RevPrimerFound, TooShort
-    for rec in records:
-        if SeqCount == 0:
-		    progress.InitFile(input)
-    
-        progress.File2("%u seqs processed, %u seqs pass, %u rev_comp'd pass, %u seqs skipped" % \
-        (SeqCount, OutCount, RevCount, NoMatch))
+def invert_dict(d):
+    return dict((v, k) for k in d for v in d[k])
 
-        SeqCount += 1
+def dereplicate(input, output):
+    seqs = {}
+    in_file = open(input, 'rU')
+    for rec in SeqIO.parse(in_file, 'fasta'):
+        rec.id = rec.description
+        sequence = str(rec.seq)
+        if sequence not in seqs:
+            seqs[sequence] = [rec.id]
+        else:
+            new = rec.id.split(";")[1]
+            hit = seqs.get(sequence)
+            hit_string = " ".join(hit)
+            if not new in hit_string:
+                hit.append(new)
+    seqs_inv = invert_dict(seqs)
+    with open(output, 'w') as out:
+        for key,value in seqs_inv.iteritems():
+            out.write('>'+key+'\n'+value+'\n')
+            
+def countfasta(input):
+    count = 0
+    with open(input, 'rU') as f:
+        for line in f:
+            if line.startswith (">"):
+                count += 1
+    return count
+
+def stripPrimer(records):
+    for rec in records:
         if args.utax == 'unite2utax':
             latin = unicode(rec.description, 'utf-8')
             test = latin.encode('ascii', 'latin2ascii')            
@@ -163,35 +187,59 @@ def stripPrimer(records):
             if "domain" in split_tax:
                 ki = split_tax.index("domain") -1
                 k = "k:" + split_tax[ki]
+                k = k.replace('"','')
+                k = k.split(" ")[0]
+            else:
+                k = ""
             if "phylum" in split_tax:
                 pi = split_tax.index("phylum") -1
                 p = "p:" + split_tax[pi]
+                p = p.replace('"','')
+                p = p.split(" ")[0]
+            else:
+                p = ""
             if "class" in split_tax:
                 ci = split_tax.index("class") -1
                 c = "c:" + split_tax[ci]
+                c = c.replace('"','')
+                c = c.split(" ")[0]
+            else:
+                c = ""
             if "order" in split_tax:
                 oi = split_tax.index("order") -1
                 o = "o:" + split_tax[oi]
+                o = o.replace('"','')
+                o = o.split(" ")[0]
+            else:
+                o = ""
             if "family" in split_tax:
                 fi = split_tax.index("family") -1
                 f = "f:" + split_tax[fi]
+                f = f.replace('"','')
+                f = f.split(" ")[0]
+            else:
+                f = ""
             if "genus" in split_tax:
                 gi = split_tax.index("genus") -1
                 g = "g:" + split_tax[gi]
+                g = g.replace('"','')
+                g = g.split(" ")[0]
+            else:
+                g = ""
             reformat_tax = []
-            removal = ("unidentified", "Incertae", "uncultured", "Group", "incertae")
-            sp_removal = (" sp", "_sp", "uncultured", "isolate", "mycorrhizae", "vouchered", "fungal", "basidiomycete", "ascomycete", "fungus", "symbiont")
-            if not any(x in k for x in removal):
+            removal = ("unidentified", "Incertae", "uncultured", "Group", "incertae", "Chloroplast", "unclassified", "Family")
+            sp_removal = (" sp", "_sp", "uncultured", "isolate", "mycorrhizae", "vouchered", "fungal", "basidiomycete", "ascomycete", "fungus", "symbiont", "unclassified", "unidentified", "bacterium", "phytoplasma")
+            if not any(x in k for x in removal) and k != "":
                 reformat_tax.append(k)
-            if not any(x in p for x in removal):
+            if not any(x in p for x in removal) and p != "":
                 reformat_tax.append(p)
-            if not any(x in c for x in removal):
+            if not any(x in c for x in removal) and c != "":
                 reformat_tax.append(c)
-            if not any(x in o for x in removal):
+            if not any(x in o for x in removal) and o != "":
                 reformat_tax.append(o)
-            if not any(x in f for x in removal):
+            if not any(x in f for x in removal) and f != "":
                 reformat_tax.append(f)
-            if not any(x in g for x in removal):
+            if not any(x in g for x in removal) and g != "":
                 reformat_tax.append(g)
             if not any(x in s for x in sp_removal):
                 reformat_tax.append(s)
@@ -210,7 +258,6 @@ def stripPrimer(records):
             BestPosFor, BestDiffsFor = primer.BestMatch2(Seq, FwdPrimer, MAX_PRIMER_MISMATCHES)
             if BestDiffsFor < MAX_PRIMER_MISMATCHES:
                 if BestPosFor > 0:
-                    FwdPrimerFound += 1
                     stripfwdlen = fwdLen + BestPosFor
                     StripSeq = Seq[stripfwdlen:]
                 
@@ -218,7 +265,6 @@ def stripPrimer(records):
                     BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, revPrimer, MAX_PRIMER_MISMATCHES)
                     if BestDiffsRev < MAX_PRIMER_MISMATCHES:
                         StrippedSeq = StripSeq[:BestPosRev]
-                        RevPrimerFound += 1
                     else:
                         StrippedSeq = StripSeq
                     #after stripping primers, check for ambig bases
@@ -226,10 +272,7 @@ def stripPrimer(records):
                         continue
                     rec.seq = StrippedSeq
                     if rec.id != "" and rec.seq != "" and len(rec.seq) > 50:
-                        OutCount += 1
                         yield rec
-                    else:
-                        TooShort += +1
             else: #if can't find forward primer, try to reverse complement and look again
                 RevSeq = revcomp_lib.RevComp(Seq)
                 BestPosFor, BestDiffsFor = primer.BestMatch2(RevSeq, FwdPrimer, MAX_PRIMER_MISMATCHES)
@@ -249,10 +292,7 @@ def stripPrimer(records):
                             continue
                         rec.seq = StrippedSeq
                         if rec.id != "" and rec.seq != "" and len(rec.seq) > 50:
-                            RevCount += 1
                             yield rec
-                        else:
-                            TooShort += 1
                 else:
                     if args.keep_all:
                         StripSeq = Seq
@@ -260,7 +300,6 @@ def stripPrimer(records):
                         BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, revPrimer, MAX_PRIMER_MISMATCHES)
                         if BestDiffsRev < MAX_PRIMER_MISMATCHES:
                             StrippedSeq = StripSeq[:BestPosRev]
-                            RevPrimerFound += 1
                         else:
                             StrippedSeq = StripSeq
                         #after stripping primers, check for ambig bases
@@ -268,24 +307,14 @@ def stripPrimer(records):
                             continue
                         rec.seq = StrippedSeq
                         if rec.id != "" and rec.seq != "" and len(rec.seq) > 50:
-                            OutCount += 1
                             yield rec
-                        else:
-                            TooShort += 1
-                        
-                    else:
-                        NoMatch += 1
         else:
             #check for ambig bases
             Seq = str(rec.seq)
             if args.drop_ns != 0 and 'N'*args.drop_ns in Seq:
                 continue
             if rec.id != "" and rec.seq != "" and len(rec.seq) > 50:
-                OutCount += 1
                 yield rec
-            else:
-                TooShort += 1
-
 
 def makeDB(input):
     #need usearch for this, test to make sure version is ok with utax
@@ -340,6 +369,29 @@ def makeDB(input):
         else:
             log.error("There was a problem creating the DB, check the log file %s" % utax_log)
 
+def batch_iterator(iterator, batch_size):
+    entry = True #Make sure we loop once
+    while entry :
+        batch = []
+        while len(batch) < batch_size :
+            try :
+                entry = iterator.next()
+            except StopIteration :
+                entry = None
+            if entry is None :
+                #End of file
+                break
+            batch.append(entry)
+        if batch :
+            yield batch
+
+def worker(input):
+    output = input.split(".",-1)[0] + '.extracted.fa'
+    with open(output, 'w') as o:
+        with open(input, 'rU') as i:
+            SeqRecords = SeqIO.parse(i, 'fasta')
+            SeqIO.write(stripPrimer(SeqRecords), o, 'fasta')  
+
 def setupLogging(LOGNAME):
     global log
     if 'win32' in sys.platform:
@@ -369,56 +421,75 @@ cmd_args = " ".join(sys.argv)+'\n'
 log.debug(cmd_args)
 print "-------------------------------------------------------"
 
-SeqCount = 0
-OutCount = 0
-RevCount = 0
-NoMatch = 0
-FwdPrimerFound = 0
-RevPrimerFound = 0
-TooShort = 0
-
 FileName = args.fasta
 fwdLen = len(FwdPrimer)
-
-#need usearch for this, test to make sure version is ok with utax
-if args.create_db == 'utax':
-    usearch = args.usearch
-    try:
-        usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
-    except OSError:
-        log.error("%s not found in your PATH, exiting." % usearch)
-        os._exit(1)
-    version = usearch_test.split(" v")[1]
-    majorV = version.split(".")[0]
-    minorV = version.split(".")[1]
-    if int(majorV) < 8 or (int(majorV) >= 8 and int(minorV) < 1):
-        log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % usearch_test)
-        os._exit(1)
 
 if not args.trimming:
     log.info("Searching for primers, this may take awhile: Fwd: %s  Rev: %s" % (args.F_primer, args.R_primer))
 else:
     log.info("Working on file: %s" % FileName)
 
+if not args.cpus:
+    cpus = multiprocessing.cpu_count()
+else:
+    cpus = args.cpus
+
+with open(FileName, 'rU') as input:
+    SeqCount = countfasta(FileName)
+    log.info('{0:,}'.format(SeqCount) + ' records loaded')
+    SeqRecords = SeqIO.parse(FileName, 'fasta')
+    chunks = SeqCount / cpus + 1
+    log.info("Using %i cpus to process data" % cpus)
+    #divide into chunks, store in tmp file
+    pid = os.getpid()
+    folder = 'ufits_tmp_' + str(pid)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    for i, batch in enumerate(batch_iterator(SeqRecords, chunks)) :
+        filename = "chunk_%i.fa" % (i+1)
+        tmpout = os.path.join(folder, filename)
+        handle = open(tmpout, "w")
+        count = SeqIO.write(batch, handle, "fasta")
+        handle.close()
+
+file_list = []
+for file in os.listdir(folder):
+    if file.endswith(".fa"):
+        file = os.path.join(folder, file)
+        file_list.append(file)
+
+p = multiprocessing.Pool(cpus)
+for f in file_list:
+    p.apply_async(worker, [f])
+p.close()
+p.join()
+
+#now concatenate outputs together
 OutName = args.out + '.extracted.fa'
-with open(OutName, 'w') as output:
-    with open(FileName, 'rU') as input:
-        SeqRecords = SeqIO.parse(FileName, 'fasta')
-        SeqIO.write(stripPrimer(SeqRecords), output, 'fasta')
-progress.FileDone("%u seqs processed, %u seqs pass, %u rev_comp'd pass, %u seqs skipped" % \
-        (SeqCount, OutCount, RevCount, NoMatch))
-Total = OutCount + RevCount
-if args.trimming:
-    Total = SeqCount    
-log.info("Stats for extracting region: \
-\n%10u seqs input \
-\n%10u fwd primer found \
-\n%10u rev primer found \
-\n%10u seqs rescued from rev strand \
-\n%10u seqs skipped because of no tax or seq less than 50 bp \
-\n%10u total seqs output (%.2f%%)" % (SeqCount, FwdPrimerFound, RevPrimerFound, RevCount, TooShort, Total, Total*100.0/SeqCount))
+with open(OutName, 'w') as outfile:
+    for filename in glob.glob(os.path.join(folder,'*.extracted.fa')):
+        if filename == OutName:
+            continue
+        with open(filename, 'rU') as readfile:
+            shutil.copyfileobj(readfile, outfile)
+#clean up tmp folder
+shutil.rmtree(folder)
+
+if args.derep_fulllength:
+    Passed = countfasta(OutName)
+    log.info('{0:,}'.format(Passed) + ' records passed (%.2f%%)' % (Passed*100.0/SeqCount))
+    log.info("Now dereplicating sequences (remove if sequence and header identical)")
+    Derep = args.out + '.derep.extracted.fa'
+    dereplicate(OutName, Derep)
+    Total = countfasta(Derep)
+    log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/Passed))
+    os.remove(OutName)
+else:
+    Total = countfasta(OutName)
+    log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
+    Derep = OutName
 
 if args.create_db:
-    makeDB(OutName)
+    makeDB(Derep)
 
 print "-------------------------------------------------------"

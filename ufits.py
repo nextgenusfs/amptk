@@ -31,7 +31,7 @@ def fmtcols(mylist, cols):
     return "\n".join(lines)
 
 
-version = '0.2.8'
+version = '0.2.9'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -147,6 +147,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -m, --min_len       Minimum length read to keep. Default: 50
              -l, --trim_len      Length to trim/pad reads. Default: 250
+             --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch8
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com
@@ -383,6 +384,7 @@ Arguments:   -i, --fasta         Input FASTA file (UNITE DB or UNITE+INSDC)
              --skip_trimming     Keep full length sequences. Default: off (not recommended)
              --primer_mismatch   Max Primer Mismatch. Default: 4
              --keep_all          Keep Sequence if forward primer not found.
+             --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch8      
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com   
@@ -497,7 +499,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
                 #now process DB for Full length and make UTAX db
                 DB_location = os.path.join(script_path, 'DB', 'FULL')
                 arguments1 = primers
-                arguments1.append(['-i', 'sh_dynamic_01.08.2015.fasta', '-f', 'ITS1-F', '-r', 'ITS4', '--keep_all', '--create_db', 'utax', '-o', DB_location])
+                arguments1.append(['-i', 'sh_dynamic_01.08.2015.fasta', '-f', 'ITS1-F', '-r', 'ITS4', '--keep_all', '--derep_fulllength', '--create_db', 'utax', '-o', DB_location])
                 arguments1 = flatten(arguments1)
                 cmd1 = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
                 arguments1.insert(0, cmd1)
@@ -506,7 +508,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
                 #now process DB for ITS1 and make UTAX db
                 DB_location = os.path.join(script_path, 'DB', 'ITS1')
                 arguments1 = primers
-                arguments1.append(['-i', 'sh_dynamic_01.08.2015.fasta', '-f', 'ITS1-F', '-r', 'ITS2', '--keep_all', '--create_db', 'utax', '-o', DB_location])
+                arguments1.append(['-i', 'sh_dynamic_01.08.2015.fasta', '-f', 'ITS1-F', '-r', 'ITS2', '--keep_all', '--derep_fulllength', '--create_db', 'utax', '-o', DB_location])
                 arguments1 = flatten(arguments1)
                 cmd1 = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
                 arguments1.insert(0, cmd1)
@@ -515,7 +517,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
                 #now process DB for ITS2 and make UTAX db
                 DB_location = os.path.join(script_path, 'DB', 'ITS2')
                 arguments1 = primers
-                arguments1.append(['-i', 'sh_dynamic_01.08.2015.fasta', '-f', 'fITS7', '-r', 'ITS4','--create_db', 'utax', '-o', DB_location])
+                arguments1.append(['-i', 'sh_dynamic_01.08.2015.fasta', '-f', 'fITS7', '-r', 'ITS4','--derep_fulllength', '--create_db', 'utax', '-o', DB_location])
                 arguments1 = flatten(arguments1)
                 cmd1 = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
                 arguments1.insert(0, cmd1)
@@ -531,7 +533,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
                 DB_location = os.path.join(script_path, 'DB', 'USEARCH')
                 #now process DB
                 arguments2 = primers
-                arguments2.append(['-i', 'UNITE_public_01.08.2015.fasta', '--skip_trimming','--create_db', 'usearch', '-o', DB_location])
+                arguments2.append(['-i', 'UNITE_public_01.08.2015.fasta', '--skip_trimming', '--derep_fulllength', '--create_db', 'usearch', '-o', DB_location])
                 arguments2 = flatten(arguments2)
                 cmd2 = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
                 arguments2.insert(0, cmd2)

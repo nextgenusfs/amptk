@@ -1,17 +1,14 @@
 #!/usr/bin/env python
 
 #This script is a wrapper for -fastq_mergepairs from USEARCH8
-import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect
+import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect, multiprocessing
 from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
-import lib.fasta as fasta
-import lib.fastq as fastq
 import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
-import lib.progress as progress
-import lib.die as die
+from Bio import SeqIO
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -37,11 +34,13 @@ parser.add_argument('--rescue_forward', action="store_true", help='Rescue Not-me
 parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
 parser.add_argument('-m','--min_len', default='50', help='Minimum read length to keep')
 parser.add_argument('-l','--trim_len', default='250', help='Trim length for reads')
+parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()      
 
 #look up primer db otherwise default to entry
-primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC'}
+primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC'}
+
 if args.F_primer in primer_db:
     FwdPrimer = primer_db.get(args.F_primer)
 else:
@@ -60,6 +59,117 @@ def convertSize(num, suffix='B'):
 
 def myround(x, base=10):
     return int(base * round(float(x)/base))
+
+def countfastq(input):
+    lines = sum(1 for line in open(input))
+    count = int(lines) / 4
+    return count
+    
+def MergeReads(R1, R2, outname, read_length):
+    usearch = args.usearch
+    pretrim_R1 = outname + '.pretrim_R1.fq'
+    pretrim_R2 = outname + '.pretrim_R2.fq'
+    log.debug("%s -fastq_filter %s -fastq_trunclen %s -fastqout %s" % (usearch, R1, str(read_length), pretrim_R1))
+    log.debug("%s -fastq_filter %s -fastq_trunclen %s -fastqout %s" % (usearch, R2, str(read_length), pretrim_R2))
+    subprocess.call([usearch, '-fastq_filter', R1, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R1], stdout = FNULL, stderr = FNULL)
+    subprocess.call([usearch, '-fastq_filter', R2, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R2], stdout = FNULL, stderr = FNULL)
+
+    #next run USEARCH8 mergepe
+    merge_out = outname + '.merged.fq'
+    skip_for = outname + '.notmerged.R1.fq'
+    log.debug("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastq_truncqual 5 -fastq_maxdiffs 8 -minhsp 12" % (usearch, pretrim_R1, pretrim_R2, merge_out, skip_for))
+    subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8'], stdout = FNULL, stderr = FNULL)
+
+    #now concatenate files for downstream pre-process_illumina.py script
+    outname = outname + '.fq'
+    final_out = os.path.join(args.out, outname)
+    cat_file = open(final_out, 'w')
+    shutil.copyfileobj(open(merge_out,'rU'), cat_file)
+    if args.rescue_forward:
+        shutil.copyfileobj(open(skip_for,'rU'), cat_file)
+    cat_file.close()
+
+    #clean and close up intermediate files
+    os.remove(merge_out)
+    os.remove(pretrim_R1)
+    os.remove(pretrim_R2)
+    os.remove(skip_for)
+
+def MatchesPrimer(Seq, Primer):
+    return primer.MatchPrefix(Seq, Primer)
+    
+def ProcessReads(records):
+    OutCount = 0
+    MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
+    LabelPrefix = args.prefix
+    MinLen = int(args.min_len)
+    TrimLen = int(args.trim_len)
+    PL = len(FwdPrimer)
+    revPrimer = revcomp_lib.RevComp(RevPrimer)
+    for rec in records:
+        OutCount += 1
+        rec.id = LabelPrefix + str(OutCount) + ";barcodelabel=" + name + ";"
+        rec.name = ""
+        rec.description = ""
+        #turn sequence into string for matching
+        Seq = str(rec.seq)
+        Diffs = MatchesPrimer(Seq, FwdPrimer)
+        if args.primer == "on":
+            if Diffs > MAX_PRIMER_MISMATCHES:
+                continue
+            # Strip fwd primer from rec
+            rec = rec[PL:]
+        elif args.primer == "off":
+            if Diffs < MAX_PRIMER_MISMATCHES:
+                # Strip fwd primer from rec
+                rec = rec[PL:]
+                
+        #turn seq into str again
+        Seq = str(rec.seq)
+        #look for reverse primer
+        BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, revPrimer, MAX_PRIMER_MISMATCHES)
+        if BestPosRev > 0:
+            # Strip rev primer from rec.seq
+            rec = rec[:BestPosRev]
+            #check length       
+            L = len(rec.seq)
+            if L < MinLen:
+                continue
+            #now check trim length, pad if necessary
+            if L < TrimLen:
+                pad = TrimLen - L
+                Seq = str(rec.seq)
+                Seq = Seq + pad*'N'
+                Qual = rec.letter_annotations["phred_quality"]
+                pad = TrimLen - L
+                add = [40] * pad
+                Qual.extend(add)
+                del rec.letter_annotations["phred_quality"]
+                rec.seq = Seq
+                rec.letter_annotations["phred_quality"] = Qual
+                yield rec
+            elif L >= TrimLen:   
+                rec = rec[:TrimLen]
+                yield rec
+
+        else:
+            #check length
+            L = len(rec.seq)
+            #truncate down to trim length
+            if L >= TrimLen:
+                rec = rec[:TrimLen]        
+                yield rec
+
+def worker(file):
+    name = file.split(".",-1)[0]
+    name = name.split("/",1)[1]
+    demuxname = name + '.demux.fq'
+    DemuxOut = os.path.join(args.out, demuxname)
+    with open(DemuxOut, 'w') as output:
+        with open(file, 'rU') as input:
+            SeqRecords = SeqIO.parse(input, 'fastq')
+            SeqIO.write(ProcessReads(SeqRecords), output, 'fastq')
+    
 
 def setupLogging(LOGNAME):
     global log
@@ -173,8 +283,10 @@ for item in sorted(filenames):
                 log.debug("Non-standard names detected, skipping mapping file")
 map_file.close()
 
-BarcodeCount = {}
-#loop through each set
+
+#loop through each set and merge reads
+if args.reads == 'paired':
+    log.info("Merging Overlaping Pairs using USEARCH8")
 for i in range(len(fastq_for)):
     name = fastq_for[i].split("_")[0]
     outname = name + '.fq'
@@ -183,7 +295,7 @@ for i in range(len(fastq_for)):
         continue
     for_reads = os.path.join(args.input, fastq_for[i])
     rev_reads = os.path.join(args.input, fastq_rev[i])
-    log.info("Working on reads from sample %s" % name)
+    log.info("  merging reads from sample %s" % name)
     if args.reads == 'paired':
         #get read length
         fp = open(for_reads)
@@ -194,276 +306,40 @@ for i in range(len(fastq_for)):
             elif i > 2:
                 break
         fp.close()
-
-        #now trim the last bp off of the Illumina data (there for phasing, i.e. 250 bp reads are 251 bp)
-        pretrim_R1 = os.path.join(args.out, 'pretrim_R1.fq')
-        pretrim_R2 = os.path.join(args.out, 'pretrim_R2.fq')
-        log.info("Merging Overlaping Pairs using USEARCH8")
-        log.debug("%s -fastq_filter %s -fastq_trunclen %s -fastqout %s" % (usearch, for_reads, str(read_length), pretrim_R1))
-        log.debug("%s -fastq_filter %s -fastq_trunclen %s -fastqout %s" % (usearch, rev_reads, str(read_length), pretrim_R2))
-        subprocess.call([usearch, '-fastq_filter', for_reads, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R1], stdout = FNULL, stderr = FNULL)
-        subprocess.call([usearch, '-fastq_filter', rev_reads, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R2], stdout = FNULL, stderr = FNULL)
-
-        #next run USEARCH8 mergepe
-        merge_out = os.path.join(args.out, 'merged.fq')
-        skip_for = os.path.join(args.out, 'notmerged.R1.fq')
-        log.debug("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastq_truncqual 5 -fastq_maxdiffs 8 -minhsp 12" % (usearch, pretrim_R1, pretrim_R2, merge_out, skip_for))
-        subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8'], stdout = FNULL, stderr = FNULL)
-
-        #now concatenate files for downstream pre-process_illumina.py script
-        outname = name + '.fq'
-        final_out = os.path.join(args.out, outname)
-        cat_file = open(final_out, 'wb')
-        shutil.copyfileobj(open(merge_out,'rU'), cat_file)
-        if args.rescue_forward:
-            shutil.copyfileobj(open(skip_for,'rU'), cat_file)
-        cat_file.close()
-
-        #clean and close up intermediate files
-        os.remove(merge_out)
-        os.remove(pretrim_R1)
-        os.remove(pretrim_R2)
-        os.remove(skip_for)
-    elif args.reads == 'forward':
-        final_out = for_reads
-
-    log.info("Strip primers, trim/pad to %s bp" % args.trim_len)
-    
-    #now rest of script for demultiplexing here
-    MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
-    FileName = final_out
-    LabelPrefix = args.prefix
-    SampleLabel = name
-    MinLen = int(args.min_len)
-    TrimLen = int(args.trim_len)
-    demuxname = name + '.demux.fq'
-    DemuxOut = os.path.join(args.out, demuxname)
-    out_file = open(DemuxOut, 'w')
-    
-    SeqCount = 0
-    OutCount = 0
-    FwdPrimerMismatchCount = 0
-    RevPrimerStrippedCount = 0
-    TooShortCount = 0
-    PadCount = 0
-
-    PL = len(FwdPrimer)
-    revPrimer = revcomp_lib.RevComp(RevPrimer)
-    
-    log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, revPrimer))
-
-    def MatchesPrimer(Seq, Primer):
-        return primer.MatchPrefix(Seq, Primer)
-
-    def OnRec(Label, Seq, Qual):
-        global PL, LabelPrefix, SeqCount, OutCount, TooShortCount, PadCount
-        global FwdPrimerMismatchCount, RevPrimerStrippedCount
-        global FwdPrimer, revPrimer
-
-        if SeqCount == 0:
-            progress.InitFile(fastq.File)
-
-        progress.File("%u reads, %u outupt, %u bad fwd primer, %u rev primer stripped, %u too short. %u padded" % \
-          (SeqCount, OutCount, FwdPrimerMismatchCount, RevPrimerStrippedCount, TooShortCount, PadCount))
-
-        SeqCount += 1
-        if args.primer == 'on':
-            Seq = Seq
-            Qual = Qual
-            Diffs = MatchesPrimer(Seq, FwdPrimer)
-            if Diffs > MAX_PRIMER_MISMATCHES:
-                FwdPrimerMismatchCount += 1
-                return
-            else:
-                Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + ";"
-
-                # Strip fwd primer
-                Seq = Seq[PL:]
-                Qual = Qual[PL:]
-
-                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, revPrimer, MAX_PRIMER_MISMATCHES)
-                if BestPosRev > 0:
-                    # Strip rev primer
-                    RevPrimerStrippedCount += 1
-                    StrippedSeq = Seq[:BestPosRev]
-                    StrippedQual = Qual[:BestPosRev]
-
-                    # correctness checks
-                    if 1:
-                        Tail = Seq[BestPosRev:]
-                        Diffs2 = primer.MatchPrefix(Tail, revPrimer)
-                        if Diffs2 != BestDiffsRev:
-                            print >> sys.stderr
-                            print >> sys.stderr, " Seq=" + Seq
-                            print >> sys.stderr, "Tail=" + Tail
-                            print >> sys.stderr, "RevP=" + revPrimer
-                            die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
-                        assert StrippedSeq + Tail == Seq
-
-                    Seq = StrippedSeq
-                    Qual = StrippedQual
-
-                    L = len(Seq)
-                    assert len(Qual) == L
-
-                    if L < MinLen:
-                        return
-
-                    if L < TrimLen:
-                        PadCount += 1
-                        Seq = Seq + (TrimLen - L)*'N'
-                        Qual = Qual + (TrimLen - L)*'I'
-                        L = len(Seq)
-                        assert L == TrimLen
-                        assert len(Qual) == TrimLen
-
-                L = len(Seq)
-                if L < TrimLen:
-                    TooShortCount += 1
-                    return
-
-                if L > TrimLen:
-                    Seq = Seq[:TrimLen]
-                    Qual = Qual[:TrimLen]
-                    L = len(Seq)
-
-                assert L == TrimLen
-                assert len(Qual) == TrimLen
-                OutCount += 1
-                
-        elif args.primer == 'off':
-            Seq = Seq
-            Qual = Qual
-            Diffs = MatchesPrimer(Seq, FwdPrimer)
-            if Diffs < MAX_PRIMER_MISMATCHES:
-                
-                Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + ";"
-
-                # Strip fwd primer
-                Seq = Seq[PL:]
-                Qual = Qual[PL:]
-
-                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, revPrimer, MAX_PRIMER_MISMATCHES)
-                if BestPosRev > 0:
-                    # Strip rev primer
-                    RevPrimerStrippedCount += 1
-                    StrippedSeq = Seq[:BestPosRev]
-                    StrippedQual = Qual[:BestPosRev]
-
-                    # correctness checks
-                    if 1:
-                        Tail = Seq[BestPosRev:]
-                        Diffs2 = primer.MatchPrefix(Tail, revPrimer)
-                        if Diffs2 != BestDiffsRev:
-                            print >> sys.stderr
-                            print >> sys.stderr, " Seq=" + Seq
-                            print >> sys.stderr, "Tail=" + Tail
-                            print >> sys.stderr, "RevP=" + revPrimer
-                            die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
-                        assert StrippedSeq + Tail == Seq
-
-                    Seq = StrippedSeq
-                    Qual = StrippedQual
-
-                    L = len(Seq)
-                    assert len(Qual) == L
-
-                    if L < MinLen:
-                        return
-
-                    if L < TrimLen:
-                        PadCount += 1
-                        Seq = Seq + (TrimLen - L)*'N'
-                        Qual = Qual + (TrimLen - L)*'I'
-                        L = len(Seq)
-                        assert L == TrimLen
-                        assert len(Qual) == TrimLen
-
-                L = len(Seq)
-                if L < TrimLen:
-                    TooShortCount += 1
-                    return
-
-                if L > TrimLen:
-                    Seq = Seq[:TrimLen]
-                    Qual = Qual[:TrimLen]
-                    L = len(Seq)
-
-                assert L == TrimLen
-                assert len(Qual) == TrimLen
-                OutCount += 1
-                
-            else:
-                FwdPrimerMismatchCount += 1
-                
-                Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + ";"
-                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, revPrimer, MAX_PRIMER_MISMATCHES)
-                if BestPosRev > 0:
-                    # Strip rev primer
-                    RevPrimerStrippedCount += 1
-                    StrippedSeq = Seq[:BestPosRev]
-                    StrippedQual = Qual[:BestPosRev]
-
-                    # correctness checks
-                    if 1:
-                        Tail = Seq[BestPosRev:]
-                        Diffs2 = primer.MatchPrefix(Tail, revPrimer)
-                        if Diffs2 != BestDiffsRev:
-                            print >> sys.stderr
-                            print >> sys.stderr, " Seq=" + Seq
-                            print >> sys.stderr, "Tail=" + Tail
-                            print >> sys.stderr, "RevP=" + revPrimer
-                            die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
-                        assert StrippedSeq + Tail == Seq
-
-                    Seq = StrippedSeq
-                    Qual = StrippedQual
-
-                    L = len(Seq)
-                    assert len(Qual) == L
-
-                    if L < MinLen:
-                        return
-
-                    if L < TrimLen:
-                        PadCount += 1
-                        Seq = Seq + (TrimLen - L)*'N'
-                        Qual = Qual + (TrimLen - L)*'I'
-                        L = len(Seq)
-                        assert L == TrimLen
-                        assert len(Qual) == TrimLen
-
-                L = len(Seq)
-                if L < TrimLen:
-                    TooShortCount += 1
-                    return
-
-                if L > TrimLen:
-                    Seq = Seq[:TrimLen]
-                    Qual = Qual[:TrimLen]
-                    L = len(Seq)
-
-                assert L == TrimLen
-                assert len(Qual) == TrimLen
-                OutCount += 1
         
+        MergeReads(for_reads, rev_reads, name, read_length)
+    else:
+        shutil.copy(for_reads, os.path.join(args.out, outname))
+    
+#Now all the data is in folder args.out that needs to be de-multiplexed
+if not args.cpus:
+    cpus = multiprocessing.cpu_count()
+else:
+    cpus = args.cpus
 
-        fastq.WriteRec(out_file, Label, Seq, Qual)
+#get list of files to demux
+file_list = []
+for file in os.listdir(args.out):
+    if file.endswith(".fq"):
+        file = os.path.join(args.out, file)
+        file_list.append(file)
+log.info("Stripping primers and trim/pad to %s bp" % (args.trim_len))
+log.info("  utilizing %i cpus for this process, this may take awhile" % (cpus))
+#parallize over number of cpus
+p = multiprocessing.Pool(cpus)
+for f in file_list:
+    p.apply_async(worker, [f])
+p.close()
+p.join()
 
-    fastq.ReadRecs(FileName, OnRec)
-    progress.FileDone("%u reads, %u outupt, %u bad fwd primer, %u rev primer stripped, %u too short" % \
-          (SeqCount, OutCount, FwdPrimerMismatchCount, RevPrimerStrippedCount, TooShortCount))
-
-    BarcodeCount[SampleLabel] = OutCount
-    log.info("Stats for demuxing: \
-    \n%10u seqs \
-    \n%10u fwd primer mismatches (%.1f%% discarded) \
-    \n%10u rev primer stripped (%.2f%% kept) \
-    \n%10u padded (%.2f%%) \
-    \n%10u too short (%.2f%%) \
-    \n%10u output (%.1f%%)" % \
-    (SeqCount, FwdPrimerMismatchCount, FwdPrimerMismatchCount*100.0/SeqCount, RevPrimerStrippedCount, RevPrimerStrippedCount*100.0/SeqCount, PadCount, PadCount*100.0/SeqCount, TooShortCount, TooShortCount*100.0/SeqCount, OutCount, OutCount*100.0/SeqCount))
-    out_file.close()
+#Count up results, store in dictionary
+BarcodeCount = {}
+file_list = []
+for file in os.listdir(args.out):
+    if file.endswith(".demux.fq"):
+        name = file.split(".")[0]
+        Counts = countfastq(os.path.join(args.out, file))
+        BarcodeCount[name] = Counts
 
 print "-------------------------------------------------------"
 #Now concatenate all of the demuxed files together

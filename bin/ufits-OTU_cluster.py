@@ -34,7 +34,7 @@ parser.add_argument('-l','--length', default='250', help='Length to trim reads')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 parser.add_argument('--mock', default="False", help='Spike-in control: <barcode label>')
 parser.add_argument('--mc', default='mock3', help='Multi-Fasta Mock Community')
-parser.add_argument('--uchime_ref', default='False', choices=['ITS1','ITS2','Full'], help='Run UCHIME REF')
+parser.add_argument('--uchime_ref', default='False', choices=['ITS1','ITS2','Full','16S'], help='Run UCHIME REF')
 parser.add_argument('--map_unfiltered', action='store_true', help='map original reads back to OTUs')
 parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOISE)')
 parser.add_argument('--size_annotations', action='store_true', help='Append size annotations')
@@ -231,6 +231,8 @@ else:
         uchime_db = os.path.join(parentdir, 'DB', 'uchime_sh_refs_dynamic_develop_985_11.03.2015.ITS2.fasta')
     if args.uchime_ref == "Full":
         uchime_db = os.path.join(parentdir, 'DB', 'uchime_sh_refs_dynamic_original_985_11.03.2015.fasta')
+    if args.uchime_ref == "16S":
+        uchime_db = os.path.join(parentdir, 'DB', 'rdp_gold.fa')
     log.info("Chimera Filtering (UCHIME)")
     log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s" % (usearch, otu_clean, uchime_db, uchime_out))
     subprocess.call([usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
