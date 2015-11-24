@@ -172,10 +172,9 @@ def processTax(uniq, L, name):
         lgd = ax.legend(handles=legends, fontsize=6, loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0)
         ax.spines["bottom"].set_visible(True)
         ax.spines["left"].set_visible(True)
-        '''#set the font size - i wish I knew how to do this proportionately.....
-        for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
-                ax.get_xticklabels() + ax.get_yticklabels()):
-            item.set_fontsize(args.font_size)'''
+        #set the font size - i wish I knew how to do this proportionately.....
+        ax.get_xticklabels().set_fontsize(int(args.font_size))
+
         #setup the plot
         fig.subplots_adjust(bottom=0.4)
         fig.set_tight_layout(True) 
