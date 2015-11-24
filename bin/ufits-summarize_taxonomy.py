@@ -24,7 +24,7 @@ parser.add_argument('-o','--out', dest="out", default='ufits-summary', help='Bas
 parser.add_argument('--graphs', dest="graphs", action="store_true", help='Create Stacked Bar Graphs')
 parser.add_argument('--format', dest="format", default='eps', choices=['eps','svg','png','pdf'], help='Image format')
 parser.add_argument('--percent', dest="percent", action="store_true", help='Convert to Pct of Sample')
-parser.add_argument('--font_size', dest="size", default=8, help='Font Size')
+parser.add_argument('--font_size', dest="size", type=int, default=8, help='Font Size')
 args=parser.parse_args()
 
 def try_int(x):
@@ -173,7 +173,8 @@ def processTax(uniq, L, name):
         ax.spines["bottom"].set_visible(True)
         ax.spines["left"].set_visible(True)
         #set the font size - i wish I knew how to do this proportionately.....
-        ax.get_xticklabels().set_fontsize(int(args.font_size))
+        for item in ax.get_xticklabels():
+            item.set_fontsize(args.size)
 
         #setup the plot
         fig.subplots_adjust(bottom=0.4)
