@@ -61,10 +61,18 @@ def countBarcodes(file):
                 BarcodeCount[ID] += 1
 
     #now let's count the barcodes found and count the number of times they are found.
-    barcode_counts = "%25s:  %s" % ('Sample', 'Count')
+    barcode_counts = "%20s:  %s" % ('Sample', 'Count')
     for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
-        barcode_counts += "\n%25s:  %s" % (k, str(BarcodeCount[k]))
+        barcode_counts += "\n%20s:  %s" % (k, str(BarcodeCount[k]))
     print("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
+    
+def filterSeqs(file, lst):
+    with open(file, 'rU') as input:
+        SeqRecords = SeqIO.parse(input, 'fastq')
+        for rec in SeqRecords:
+            bc = rec.id.split("=")[-1].split(";")[0]
+            if bc in lst:
+                yield rec
 
 countBarcodes(sys.argv[1])
 cpus = multiprocessing.cpu_count()
@@ -123,12 +131,11 @@ for k,v in BarcodeCount.items():
 
 #now loop through filtered records and save those to sys.argv[2]
 with open(sys.argv[2], 'w') as output:
-    with open(catDemux, 'rU') as input:
-        SeqRecords = SeqIO.parse(input, 'fastq')
-        for rec in SeqRecords:
-            bc = rec.id.split("=")[-1].split(";")[0]
-            if bc in keep:
-                SeqIO.write(rec, output, 'fastq')
+    SeqIO.write(filterSeqs(catDemux, keep), output, 'fastq')
 
 countBarcodes(sys.argv[2])
+print "----------------------------------"
+print "Script finished, output in %s" % sys.argv[2]
+#finally remove temp file
+os.remove(catDemux)
 

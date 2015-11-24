@@ -24,6 +24,7 @@ parser.add_argument('-o','--out', dest="out", default='ufits-summary', help='Bas
 parser.add_argument('--graphs', dest="graphs", action="store_true", help='Create Stacked Bar Graphs')
 parser.add_argument('--format', dest="format", default='eps', choices=['eps','svg','png','pdf'], help='Image format')
 parser.add_argument('--percent', dest="percent", action="store_true", help='Convert to Pct of Sample')
+parser.add_argument('--font_size', dest="size", default=8, help='Font Size')
 args=parser.parse_args()
 
 def try_int(x):
@@ -171,6 +172,10 @@ def processTax(uniq, L, name):
         lgd = ax.legend(handles=legends, fontsize=6, loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0)
         ax.spines["bottom"].set_visible(True)
         ax.spines["left"].set_visible(True)
+        #set the font size - i wish I knew how to do this proportionately.....
+        for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
+                ax.get_xticklabels() + ax.get_yticklabels()):
+            item.set_fontsize(args.fontsize)
         #setup the plot
         fig.subplots_adjust(bottom=0.4)
         fig.set_tight_layout(True) 

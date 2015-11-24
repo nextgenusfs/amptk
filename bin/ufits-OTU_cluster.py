@@ -38,6 +38,7 @@ parser.add_argument('--uchime_ref', default='False', choices=['ITS1','ITS2','Ful
 parser.add_argument('--map_unfiltered', action='store_true', help='map original reads back to OTUs')
 parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOISE)')
 parser.add_argument('--size_annotations', action='store_true', help='Append size annotations')
+parser.add_argument('--skip_quality', action='store_true', help='Skip Quality trimming (data is already Q-trimmed)')
 parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
@@ -151,12 +152,14 @@ log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
 #Expected Errors filtering step
 filter_out = args.out + '.EE' + args.maxee + '.filter.fq'
 filter_out = os.path.join(tmp, filter_out)
-log.info("Quality Filtering, expected errors < %s" % args.maxee)
-with open(filter_out, 'w') as output:
-    SeqIO.write(MaxEEFilter(args.FASTQ, args.length, args.maxee), output, 'fastq')
-total = countfastq(filter_out)
-log.info('{0:,}'.format(total) + ' reads passed')
-
+if args.skip_quality:
+    log.info("Quality Filtering, expected errors < %s" % args.maxee)
+    with open(filter_out, 'w') as output:
+        SeqIO.write(MaxEEFilter(args.FASTQ, args.length, args.maxee), output, 'fastq')
+    total = countfastq(filter_out)
+    log.info('{0:,}'.format(total) + ' reads passed')
+else:
+    filter_out = args.FASTQ
 #convert to FASTA to save space for large files
 filter_fasta = args.out + '.EE' + args.maxee + '.filter.fa'
 filter_fasta = os.path.join(tmp, filter_fasta)
