@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #This script is a wrapper for -fastq_mergepairs from USEARCH8
-import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect, multiprocessing
+import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect, multiprocessing, itertools
 from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -26,6 +26,7 @@ parser=argparse.ArgumentParser(prog='ufits-process_illumina_folder.py', usage="%
 parser.add_argument('-i','--input', dest='input', required=True, help='Folder of Illumina Data')
 parser.add_argument('-o','--out', dest="out", default='ufits-data', help='Name for output folder')
 parser.add_argument('--reads', dest="reads", default='paired', choices=['paired', 'forward'], help='PE or forward reads')
+parser.add_argument('--read_length', default=300, type=int, help='Read length, i.e. 2 x 300 bp = 300')
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer (ITS4)')
 parser.add_argument('--require_primer', dest="primer", default='on', choices=['on', 'off'], help='Require Fwd primer to be present')
@@ -39,7 +40,7 @@ parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='
 args=parser.parse_args()      
 
 #look up primer db otherwise default to entry
-primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC'}
+primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC', 'ITS3_KYO2': 'GATGAAGAACGYAGYRAA'}
 
 if args.F_primer in primer_db:
     FwdPrimer = primer_db.get(args.F_primer)
@@ -161,6 +162,7 @@ def ProcessReads(records):
                 yield rec
 
 def worker(file):
+    global name
     name = file.split(".",-1)[0]
     name = name.split("/",1)[1]
     demuxname = name + '.demux.fq'
@@ -283,7 +285,6 @@ for item in sorted(filenames):
                 log.debug("Non-standard names detected, skipping mapping file")
 map_file.close()
 
-
 #loop through each set and merge reads
 if args.reads == 'paired':
     log.info("Merging Overlaping Pairs using USEARCH8")
@@ -295,7 +296,7 @@ for i in range(len(fastq_for)):
         continue
     for_reads = os.path.join(args.input, fastq_for[i])
     rev_reads = os.path.join(args.input, fastq_rev[i])
-    log.info("  merging reads from sample %s" % name)
+    log.info("working on sample %s" % name)
     if args.reads == 'paired':
         #get read length
         fp = open(for_reads)
@@ -306,7 +307,14 @@ for i in range(len(fastq_for)):
             elif i > 2:
                 break
         fp.close()
-        
+
+        if args.read_length != read_length:
+            log.warning("Measured read length (%i bp) does not equal %i bp, proceeding with larger value" % (read_length, args.read_length))
+            if args.read_length > read_length:
+                read_length = args.read_length
+            else:
+                read_length = read_length
+                
         MergeReads(for_reads, rev_reads, name, read_length)
     else:
         shutil.copy(for_reads, os.path.join(args.out, outname))
@@ -324,22 +332,13 @@ for file in os.listdir(args.out):
         file = os.path.join(args.out, file)
         file_list.append(file)
 log.info("Stripping primers and trim/pad to %s bp" % (args.trim_len))
-log.info("  utilizing %i cpus for this process, this may take awhile" % (cpus))
+log.info("utilizing %i cpus, this may take awhile" % (cpus))
 #parallize over number of cpus
 p = multiprocessing.Pool(cpus)
 for f in file_list:
     p.apply_async(worker, [f])
 p.close()
 p.join()
-
-#Count up results, store in dictionary
-BarcodeCount = {}
-file_list = []
-for file in os.listdir(args.out):
-    if file.endswith(".demux.fq"):
-        name = file.split(".")[0]
-        Counts = countfastq(os.path.join(args.out, file))
-        BarcodeCount[name] = Counts
 
 print "-------------------------------------------------------"
 #Now concatenate all of the demuxed files together
@@ -354,14 +353,24 @@ with open(catDemux, 'wb') as outfile:
             shutil.copyfileobj(readfile, outfile)
             
 log.info("Counting FASTQ Records")
-num_lines = sum(1 for line in open(catDemux))
-total = int(num_lines) / 4
+total = countfastq(catDemux)
 log.info('{0:,}'.format(total) + ' reads processed')
 
+#now loop through data and find barcoded samples, counting each.....
+BarcodeCount = {}
+with open(catDemux, 'rU') as input:
+    header = itertools.islice(input, 0, None, 4)
+    for line in header:
+        ID = line.split("=")[-1].split(";")[0]
+        if ID not in BarcodeCount:
+            BarcodeCount[ID] = 1
+        else:
+            BarcodeCount[ID] += 1
+
 #now let's count the barcodes found and count the number of times they are found.
-barcode_counts = "%10s:  %s" % ('Sample', 'Count')
+barcode_counts = "%30s:  %s" % ('Sample', 'Count')
 for key,value in natsorted(BarcodeCount.iteritems()):
-    barcode_counts += "\n%10s:  %s" % (key, str(value))
+    barcode_counts += "\n%30s:  %s" % (key, str(value))
 log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
 #get file size
