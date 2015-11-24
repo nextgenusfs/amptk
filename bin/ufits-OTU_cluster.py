@@ -152,7 +152,7 @@ log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
 #Expected Errors filtering step
 filter_out = args.out + '.EE' + args.maxee + '.filter.fq'
 filter_out = os.path.join(tmp, filter_out)
-if args.skip_quality:
+if not args.skip_quality:
     log.info("Quality Filtering, expected errors < %s" % args.maxee)
     with open(filter_out, 'w') as output:
         SeqIO.write(MaxEEFilter(args.FASTQ, args.length, args.maxee), output, 'fastq')
