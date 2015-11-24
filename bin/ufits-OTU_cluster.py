@@ -160,6 +160,7 @@ if not args.skip_quality:
     log.info('{0:,}'.format(total) + ' reads passed')
 else:
     filter_out = args.FASTQ
+    
 #convert to FASTA to save space for large files
 filter_fasta = args.out + '.EE' + args.maxee + '.filter.fa'
 filter_fasta = os.path.join(tmp, filter_fasta)
