@@ -27,12 +27,14 @@ def batch_iterator(iterator, batch_size):
 
 def MaxEEFilter(records):
     for rec in records:
-        rec = rec[:275]
+        trunclen = int(sys.argv[3])
+        maxee = float(sys.argv[4])
+        rec = rec[:trunclen]
         ee = 0
         for bp, Q in enumerate(rec.letter_annotations["phred_quality"]):
             P = 10**(float(-Q)/10)
             ee += P
-        if ee <= 1.0:
+        if ee <= maxee:
             rec.name = ""
             rec.description = ""
             yield rec
