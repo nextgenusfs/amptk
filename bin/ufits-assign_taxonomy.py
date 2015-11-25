@@ -370,7 +370,7 @@ else:
 
 #check if otu_table variable is empty, then load in otu table
 if otu_table:
-    log.info("Appending taxonomy to OTU table")
+    log.info("Appending taxonomy to OTU table and OTUs")
     end = otu_table.rsplit(".", 1)[1]
     if end == 'txt':
         d = '\t'
@@ -379,8 +379,12 @@ if otu_table:
     if not args.out:
         basename = otu_table.rsplit(".", 1)[0]
         taxTable = basename + '.taxonomy.txt'
+        otuTax = base + '.otus.taxonomy.fa'
     else:
         taxTable = args.out + '.otu_table.taxonomy.txt'
+        otuTax = args.out + '.otus.taxonomy.fa'
+    
+    #append to OTU table
     with open(taxTable, 'w') as outTable:
         with open(otu_table, 'rU') as inTable:
             reader = csv.reader(inTable, delimiter=d)
@@ -392,6 +396,15 @@ if otu_table:
                     line.append(tax)
                 join_line = ('\t'.join(str(x) for x in line))
                 outTable.write("%s\n" % join_line)
+    #append to OTUs         
+    with open(otuTax, 'w') as output:
+        with open(args.fasta, 'rU') as input:
+            SeqRecords = SeqIO.parse(input, 'fasta')
+            for rec in SeqRecords:
+                tax = otuDict.get(rec.id) or "No hit"
+                rec.description = tax
+                SeqIO.write(rec, output, 'fasta')
+            
     log.info("Taxonomy finished: %s" % taxTable)
 else:
     log.info("Unable to automatically detect OTU table, skipping append taxonomy.  Try to specifiy path to OTU table.")
