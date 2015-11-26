@@ -27,12 +27,12 @@ def IndexSeqs(file):
     global SeqIndex
     SeqIndex = SeqIO.index(file, 'fastq')
 
-def filterSeqs(file, lst):
-    with open(file, 'rU') as input:
-        SeqRecords = SeqIO.parse(input, 'fastq')
-        for rec in SeqRecords:
-            if rec.id in lst:
-                yield rec
+def filterSeqs(file, lst, out):
+    from Bio.SeqIO.QualityIO import FastqGeneralIterator
+    with open(out, 'w') as output:
+        for title, seq, qual in FastqGeneralIterator(open(file)):
+            if title in lst:
+               output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
 
 if len(sys.argv) < 2:
     print "Usage: %s input.fastq output.fastq number\nExample: %s test.demux.fq test.rare.fq 10000" % (sys.argv[0], sys.argv[0])
@@ -50,7 +50,7 @@ for key, value in BarcodeCount.items():
         if key == ID:
             sample.append(rec)
     Reads.append(sample)
-
+print "Finished indexing reads, split up by barcodelabel"
 Subsample = []
 for line in Reads:
     if len(line) > int(sys.argv[3]):
@@ -59,9 +59,11 @@ for line in Reads:
 
 Subsample = [item for sublist in Subsample for item in sublist]
 
-with open(sys.argv[2], 'w') as output:
-    SeqIO.write(filterSeqs(sys.argv[1], Subsample), output, 'fastq')
+#convert list to set for faster lookup
+Lookup = set(Subsample)
 
+print "Finished randomly sampling reads, now writing %i sequences to %s" % (len(Lookup), sys.argv[2])
+filterSeqs(sys.argv[1], Lookup, sys.argv[2])
 print "----------------------------------"
 countBarcodes(sys.argv[2])
 print "----------------------------------"
