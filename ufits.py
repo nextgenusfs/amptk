@@ -31,7 +31,7 @@ def fmtcols(mylist, cols):
     return "\n".join(lines)
 
 
-version = '0.2.9'
+version = '0.2.10'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -140,6 +140,7 @@ Description: Script takes a folder of Illumina MiSeq data that is already de-mul
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              -o, --out           Output folder name. Default: ufits-data
              --reads             Paired-end or forward reads. Default: paired [paired, forward]
+             --read_length       Illumina Read length (250 if 2 x 250 bp run). Default: 300 
              --rescue_forward    Rescue Forward Reads if PE do not merge, e.g. abnormally long amplicons
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4
@@ -447,6 +448,7 @@ Arguments:   -i, --table     OTU Table containing Taxonomy information (Required
              --graphs        Create stacked Bar Graphs.
              --format        Image output format. Default: eps [eps, svg, png, pdf]
              --percent       Convert numbers to Percent for Graphs. Default: off
+             --font_size     Adjust font size for X-axis sample lables. Default: 8
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com   
         """ % (sys.argv[1], version)

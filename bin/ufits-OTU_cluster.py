@@ -3,8 +3,12 @@
 #This script runs USEARCH OTU clustering
 #written by Jon Palmer palmer.jona at gmail dot com
 
-import sys, os, argparse, subprocess, inspect, csv, re, logging, shutil
+import sys, os, argparse, subprocess, inspect, csv, re, logging, shutil, multiprocessing
 from Bio import SeqIO
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir) 
+import lib.ufitslib as ufitslib
 
 #get script path for directory
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -42,100 +46,30 @@ parser.add_argument('--skip_quality', action='store_true', help='Skip Quality tr
 parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
-def countfasta(input):
-    count = 0
-    with open(input, 'rU') as f:
-        for line in f:
-            if line.startswith (">"):
-                count += 1
-    return count
-
-def countfastq(input):
-    lines = sum(1 for line in open(input))
-    count = int(lines) / 4
-    return count
-
-def convertSize(num, suffix='B'):
-    for unit in ['','K','M','G','T','P','E','Z']:
-        if abs(num) < 1024.0:
-            return "%3.1f %s%s" % (num, unit, suffix)
-        num /= 1024.0
-    return "%.1f%s%s" % (num, 'Y', suffix) 
-
 def checkfastqsize(input):
     filesize = os.path.getsize(input)
     return filesize
-
-def dereplicate(input, output):
-    seqs = {}
-    in_file = open(input, 'rU')
-    for rec in SeqIO.parse(in_file, 'fastq'):
-        sequence = str(rec.seq)
-        if sequence not in seqs:
-            if rec.id.endswith(';'):
-                seqs[sequence]=rec.id+'size=1;'
-            else:
-                seqs[sequence]=rec.id+';size=1;'
-        else:
-            count = int(seqs[sequence].split('=')[-1].rstrip(';')) + 1
-            formated_string = seqs[sequence].rsplit('=', 1)[0]+'='+str(count)+';'
-            seqs[sequence] = formated_string
-    with open(output, 'wb') as out:
-        for sequence in seqs:
-            out.write('>'+seqs[sequence]+'\n'+sequence+'\n')
-
-def MaxEEFilter(input, trunclen, maxee):
-    with open(input, 'rU') as f:
-        for rec in SeqIO.parse(f, "fastq"):
-            trunclen = int(trunclen)
-            rec = rec[:trunclen]
-            ee = 0
-            for bp, Q in enumerate(rec.letter_annotations["phred_quality"]):
-                P = 10**(float(-Q)/10)
-                ee += P
-            if ee <= float(maxee):
-                rec.name = ""
-                rec.description = ""
-                yield rec
-
-def setupLogging(LOGNAME):
-    global log
-    if 'win32' in sys.platform:
-        stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
-    else:
-        stdoutformat = logging.Formatter(colr.GRN+'%(asctime)s'+colr.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
-    fileformat = logging.Formatter('%(asctime)s: %(message)s')
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.DEBUG)
-    sth = logging.StreamHandler()
-    sth.setLevel(logging.INFO)
-    sth.setFormatter(stdoutformat)
-    log.addHandler(sth)
-    fhnd = logging.FileHandler(LOGNAME)
-    fhnd.setLevel(logging.DEBUG)
-    fhnd.setFormatter(fileformat)
-    log.addHandler(fhnd)
 
 #remove logfile if exists
 log_name = args.out + '.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
-setupLogging(log_name)
+ufitslib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
-log.debug(cmd_args)
+ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-log.info("Operating system: %s" % sys.platform)
+ufitslib.log.info("Operating system: %s" % sys.platform)
 usearch = args.usearch
 try:
     usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
 except OSError:
-    log.warning("%s not found in your PATH, exiting." % usearch)
+    ufitslib.log.warning("%s not found in your PATH, exiting." % usearch)
     os._exit(1)
-log.info("USEARCH version: %s" % usearch_test)
+ufitslib.log.info("USEARCH version: %s" % usearch_test)
 
 #make tmp folder
 tmp = args.out + '_tmp'
@@ -143,21 +77,21 @@ if not os.path.exists(tmp):
     os.makedirs(tmp)
     
 #Count FASTQ records
-log.info("Loading FASTQ Records")
-total = countfastq(args.FASTQ)
+ufitslib.log.info("Loading FASTQ Records")
+total = ufitslib.countfastq(args.FASTQ)
 size = checkfastqsize(args.FASTQ)
-readablesize = convertSize(size)
-log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
+readablesize = ufitslib.convertSize(size)
+ufitslib.log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
 
 #Expected Errors filtering step
 filter_out = args.out + '.EE' + args.maxee + '.filter.fq'
 filter_out = os.path.join(tmp, filter_out)
 if not args.skip_quality:
-    log.info("Quality Filtering, expected errors < %s" % args.maxee)
+    ufitslib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
     with open(filter_out, 'w') as output:
-        SeqIO.write(MaxEEFilter(args.FASTQ, args.length, args.maxee), output, 'fastq')
-    total = countfastq(filter_out)
-    log.info('{0:,}'.format(total) + ' reads passed')
+        SeqIO.write(ufitslib.MaxEEFilter(args.FASTQ, args.length, args.maxee), output, 'fastq')
+    total = ufitslib.countfastq(filter_out)
+    ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 else:
     filter_out = args.FASTQ
     
@@ -169,46 +103,46 @@ SeqIO.convert(filter_out, 'fastq', filter_fasta, 'fasta')
 #now run full length dereplication (biopython)
 derep_out = args.out + '.EE' + args.maxee + '.derep.fa'
 derep_out = os.path.join(tmp, derep_out)
-log.info("De-replication (remove duplicate reads)")
-dereplicate(filter_out, derep_out)
-total = countfasta(derep_out)
-log.info('{0:,}'.format(total) + ' reads passed')
+ufitslib.log.info("De-replication (remove duplicate reads)")
+ufitslib.dereplicate(filter_out, derep_out)
+total = ufitslib.countfasta(derep_out)
+ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 
 #optional run UNOISE
 if args.unoise:
     unoise_out = args.out + '.EE' + args.maxee + '.denoised.fa'
     unoise_out = os.path.join(tmp, unoise_out)
-    log.info("Denoising Data with UNOISE")
-    log.debug("%s -cluster_fast %s -centroids %s -id 0.9 -maxdiffs 5 -abskew 10 -sizein -sizeout -sort size" % (usearch, derep_out, unoise_out))
+    ufitslib.log.info("Denoising Data with UNOISE")
+    ufitslib.log.debug("%s -cluster_fast %s -centroids %s -id 0.9 -maxdiffs 5 -abskew 10 -sizein -sizeout -sort size" % (usearch, derep_out, unoise_out))
     subprocess.call([usearch, '-cluster_fast', derep_out, '-centroids', unoise_out, '-id', '0.9', '-maxdiffs', '5', '-abskew', '10', '-sizein', '-sizeout', '-sort', 'size'], stdout = FNULL, stderr = FNULL)
-    total = countfasta(unoise_out)
-    log.info('{0:,}'.format(total) + ' reads passed')
+    total = ufitslib.countfasta(unoise_out)
+    ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 else:
     unoise_out = derep_out
 
 #now run usearch 8 sort by size
 sort_out = args.out + '.EE' + args.maxee + '.sort.fa'
 sort_out = os.path.join(tmp, sort_out)
-log.info("Sorting reads by size (USEARCH8)")
-log.debug("%s -sortbysize %s -minsize %s -fastaout %s" % (usearch, unoise_out, args.minsize, sort_out))
+ufitslib.log.info("Sorting reads by size (USEARCH8)")
+ufitslib.log.debug("%s -sortbysize %s -minsize %s -fastaout %s" % (usearch, unoise_out, args.minsize, sort_out))
 subprocess.call([usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '-fastaout', sort_out], stdout = FNULL, stderr = FNULL)
 
 #now run clustering algorithm
 radius = str(100 - int(args.pct_otu))
 otu_out = args.out + '.EE' + args.maxee + '.otus.fa'
 otu_out = os.path.join(tmp, otu_out)
-log.info("Clustering OTUs (UPARSE)")
+ufitslib.log.info("Clustering OTUs (UPARSE)")
 if args.size_annotations:
-    log.debug("%s -cluster_otus %s -sizein -sizeout -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
+    ufitslib.log.debug("%s -cluster_otus %s -sizein -sizeout -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
     subprocess.call([usearch, '-cluster_otus', sort_out, '-sizein', '-sizeout', '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout = FNULL, stderr = FNULL)
 else:
-    log.debug("%s -cluster_otus %s -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
+    ufitslib.log.debug("%s -cluster_otus %s -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
     subprocess.call([usearch, '-cluster_otus', sort_out, '-sizein', '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout = FNULL, stderr = FNULL)
-total = countfasta(otu_out)
-log.info('{0:,}'.format(total) + ' OTUs')
+total = ufitslib.countfasta(otu_out)
+ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
 
 #clean up padded N's
-log.info("Cleaning up padding from OTUs")
+ufitslib.log.info("Cleaning up padding from OTUs")
 otu_clean = args.out + '.EE' + args.maxee + '.clean.otus.fa'
 otu_clean = os.path.join(tmp, otu_clean)
 with open(otu_clean, 'w') as output:
@@ -237,11 +171,11 @@ else:
         uchime_db = os.path.join(parentdir, 'DB', 'uchime_sh_refs_dynamic_original_985_11.03.2015.fasta')
     if args.uchime_ref == "16S":
         uchime_db = os.path.join(parentdir, 'DB', 'rdp_gold.fa')
-    log.info("Chimera Filtering (UCHIME)")
-    log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s" % (usearch, otu_clean, uchime_db, uchime_out))
-    subprocess.call([usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
-    total = countfasta(uchime_out)
-    log.info('{0:,}'.format(total) + ' OTUs passed')
+    ufitslib.log.info("Chimera Filtering (UCHIME)")
+    ufitslib.log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s -minh 1.0" % (usearch, otu_clean, uchime_db, uchime_out))
+    subprocess.call([usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out, '-minh', '1.0'], stdout = FNULL, stderr = FNULL)
+    total = ufitslib.countfasta(uchime_out)
+    ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed')
 
 #option if using mock community to map OTUs to mock and add to header
 if args.mock != "False":
@@ -254,13 +188,13 @@ if args.mock != "False":
     else:
         mock = args.mc
     #count seqs in mock community
-    mock_ref_count = countfasta(mock)
+    mock_ref_count = ufitslib.countfasta(mock)
     
     #map OTUs to mock community
     mock_out = args.out + '.mockmap.uc'
     mock_out = os.path.join(tmp, mock_out)
-    log.info("Mapping Mock Community (USEARCH8)")
-    log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, uchime_out, mock, mock_out))
+    ufitslib.log.info("Mapping Mock Community (USEARCH8)")
+    ufitslib.log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, uchime_out, mock, mock_out))
     subprocess.call([usearch, '-usearch_global', uchime_out, '-strand', 'plus', '-id', '0.97', '-db', mock, '-uc', mock_out], stdout = FNULL, stderr = FNULL)
     
     #generate dictionary for name change
@@ -296,16 +230,16 @@ if args.map_unfiltered:
     reads = args.FASTQ
 else:
     reads = filter_fasta
-log.info("Mapping Reads to OTUs (USEARCH8)")
-log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, reads, uchime_out, uc_out))
+ufitslib.log.info("Mapping Reads to OTUs (USEARCH8)")
+ufitslib.log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, reads, uchime_out, uc_out))
 subprocess.call([usearch, '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out], stdout = FNULL, stderr = FNULL)
 
 #Build OTU table
 otu_table = args.out + '.EE' + args.maxee + '.otu_table.txt'
 otu_table = os.path.join(tmp, otu_table)
 uc2tab = os.path.join(parentdir, 'lib', 'uc2otutable.py')
-log.info("Creating OTU Table")
-log.debug("%s %s %s" % (uc2tab, uc_out, otu_table))
+ufitslib.log.info("Creating OTU Table")
+ufitslib.log.debug("%s %s %s" % (uc2tab, uc_out, otu_table))
 subprocess.call([sys.executable, uc2tab, uc_out, otu_table], stdout = FNULL, stderr = FNULL)
 
 if args.mock != "False":
@@ -315,7 +249,7 @@ if args.mock != "False":
         check = first_line.split('\t')
         if args.mock not in check:
             result = 'fail'
-            log.info("%s not found in OTU table, skipping stats. (use ufits-mock_filter.py for stats)" % args.mock)
+            ufitslib.log.info("%s not found in OTU table, skipping stats. (use ufits-mock_filter.py for stats)" % args.mock)
         else:
             result = 'pass'
             

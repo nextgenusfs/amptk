@@ -161,7 +161,7 @@ elif args.method == 'usearch':
             usearch_db = os.path.join(parentdir, 'DB', args.usearch_db)
     #now run through usearch global
     utax_out = args.out + '.usearch.txt'
-    log.info("Blasting OTUs with usearch_global")
+    log.info("Global alignment OTUs with usearch_global")
     log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, str(args.usearch_cutoff), utax_out))
     subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', utax_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
     
@@ -236,7 +236,7 @@ elif args.method == 'hybrid':
         utaxDict = {rows[0]:rows[2] for rows in reader}
     
     #run through USEARCH
-    log.info("Blasting OTUs with usearch_global")
+    log.info("Global alignment OTUs with usearch_global")
     log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, str(args.usearch_cutoff), utax_out))
     subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
     
