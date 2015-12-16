@@ -41,14 +41,12 @@ parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='
 args=parser.parse_args()      
 
 #look up primer db otherwise default to entry
-primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC', 'ITS3_KYO2': 'GATGAAGAACGYAGYRAA'}
-
-if args.F_primer in primer_db:
-    FwdPrimer = primer_db.get(args.F_primer)
+if args.F_primer in ufitslib.primer_db:
+    FwdPrimer = ufitslib.primer_db.get(args.F_primer)
 else:
     FwdPrimer = args.F_primer
-if args.R_primer in primer_db:
-    RevPrimer = primer_db.get(args.R_primer)
+if args.R_primer in ufitslib.primer_db:
+    RevPrimer = ufitslib.primer_db.get(args.R_primer)
 else:
     RevPrimer = args.R_primer
     
@@ -217,7 +215,7 @@ for file in os.listdir(args.input):
 
 if len(filenames) % 2 != 0:
     print "Check your input files, they do not seem to be properly paired"
-    os.exit(1)
+    os._exit(1)
 
 #check list for files, i.e. they need to have _R1 and _R2 in the filenames, otherwise through exception
 if '_R1' not in filenames[0]:

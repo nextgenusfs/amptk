@@ -141,13 +141,12 @@ if args.illumina:
         SeqIn = args.fastq 
 
 #look up primer db otherwise default to entry
-primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC'}
-if args.F_primer in primer_db:
-    FwdPrimer = primer_db.get(args.F_primer)
+if args.F_primer in ufitslib.primer_db:
+    FwdPrimer = ufitslib.primer_db.get(args.F_primer)
 else:
     FwdPrimer = args.F_primer
-if args.R_primer in primer_db:
-    RevPrimer = primer_db.get(args.R_primer)
+if args.R_primer in ufitslib.primer_db:
+    RevPrimer = ufitslib.primer_db.get(args.R_primer)
 else:
     RevPrimer = args.R_primer
 
