@@ -1,17 +1,15 @@
 #!/usr/bin/env python
 
-import sys, os, inspect, argparse, shutil, logging, subprocess
+import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools
 from Bio import SeqIO
 from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
 import lib.fasta as fasta
-import lib.fastq as fastq
 import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
-import lib.progress as progress
-import lib.die as die
+import lib.ufitslib as ufitslib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -42,83 +40,145 @@ parser.add_argument('--illumina', action='store_true', help='Input data is singl
 parser.add_argument('--ion', action='store_true', help='Input data is Ion Torrent')
 parser.add_argument('--454', action='store_true', help='Input data is 454')
 parser.add_argument('--reverse', help='Illumina reverse reads')
+parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()
 
-def faqual2fastq(fasta, qual, fastq):
-    global skipCount
-    from Bio.SeqIO.QualityIO import PairedFastaQualIterator
-    with open(fastq, 'w') as output:
-        records = PairedFastaQualIterator(open(fasta), open(qual))
-        for rec in records:
-            try:
-                SeqIO.write(rec, output, 'fastq')
-            except ValueError:
-                skipCount +1
-    return skipCount
     
-def convertSize(num, suffix='B'):
-    for unit in ['','K','M','G','T','P','E','Z']:
-        if abs(num) < 1024.0:
-            return "%3.1f %s%s" % (num, unit, suffix)
-        num /= 1024.0
-    return "%.1f%s%s" % (num, 'Y', suffix) 
+def MatchesPrimer(Seq, Primer):
+    return primer.MatchPrefix(Seq, Primer)
 
-def setupLogging(LOGNAME):
-    global log
-    if 'win32' in sys.platform:
-        stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
-    else:
-        stdoutformat = logging.Formatter(col.GRN+'%(asctime)s'+col.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
-    fileformat = logging.Formatter('%(asctime)s: %(message)s')
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.DEBUG)
-    sth = logging.StreamHandler()
-    sth.setLevel(logging.INFO)
-    sth.setFormatter(stdoutformat)
-    log.addHandler(sth)
-    fhnd = logging.FileHandler(LOGNAME)
-    fhnd.setLevel(logging.DEBUG)
-    fhnd.setFormatter(fileformat)
-    log.addHandler(fhnd)
+def FindBarcode(Seq):
+    global Barcodes
+    for BarcodeLabel in Barcodes.keys():
+        Barcode = Barcodes[BarcodeLabel]
+        if Seq.startswith(Barcode):
+            return Barcode, BarcodeLabel
+    return "", ""
+
+
+def ProcessReads(records):
+    global Barcodes
+    OutCount = 0
+    MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
+    LabelPrefix = args.prefix
+    MinLen = int(args.min_len)
+    TrimLen = int(args.trim_len)
+    PL = len(FwdPrimer)
+    revPrimer = revcomp_lib.RevComp(RevPrimer)
+    Barcodes = fasta.ReadSeqsDict(barcode_file)
+    for rec in records:
+        #convert to string for processing
+        Seq = str(rec.seq)
+        #look for barcodes
+        Barcode, BarcodeLabel = FindBarcode(Seq)
+        if Barcode == "": #if not found, move onto next record
+            continue
+        # if found, trim away barcode
+        BarcodeLength = len(Barcode)
+        rec = rec[BarcodeLength:]
+        
+        #now look for primer, if not found, move onto next record
+        Seq = rec.seq
+        Diffs = MatchesPrimer(Seq, FwdPrimer)
+        if Diffs > MAX_PRIMER_MISMATCHES:
+            continue
+        
+        #if found, trim away primer
+        rec = rec[PL:]
+        
+        #relabel header
+        OutCount += 1
+        if args.multi == 'False':
+            rec.id = LabelPrefix + str(OutCount) + ";barcodelabel=" + BarcodeLabel + ";"
+        elif args.multi != 'False':
+            rec.id = LabelPrefix + str(OutCount) + ";barcodelabel=" + args.multi + "_" + BarcodeLabel + ";"
+        
+        #clear rest of header
+        rec.name = ""
+        rec.description = ""
+        
+        #turn seq into str again to find reverse primer
+        Seq = str(rec.seq)
+        #look for reverse primer
+        BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, revPrimer, MAX_PRIMER_MISMATCHES)
+        if BestPosRev > 0:
+            # Strip rev primer from rec.seq
+            rec = rec[:BestPosRev]
+            #check length       
+            L = len(rec.seq)
+            if L < MinLen:
+                continue
+            #now check trim length, pad if necessary
+            if L < TrimLen:
+                pad = TrimLen - L
+                Seq = str(rec.seq)
+                Seq = Seq + pad*'N'
+                Qual = rec.letter_annotations["phred_quality"]
+                pad = TrimLen - L
+                add = [40] * pad
+                Qual.extend(add)
+                del rec.letter_annotations["phred_quality"]
+                rec.seq = Seq
+                rec.letter_annotations["phred_quality"] = Qual
+                yield rec
+            elif L >= TrimLen:   
+                rec = rec[:TrimLen]
+                yield rec
+
+        else:
+            #check length
+            L = len(rec.seq)
+            #truncate down to trim length
+            if L >= TrimLen:
+                rec = rec[:TrimLen]        
+                yield rec
+
+def worker(input):
+    output = input.split(".",-1)[0] + '.demux.fq'
+    with open(output, 'w') as o:
+        with open(input, 'rU') as i:
+            SeqRecords = SeqIO.parse(i, 'fastq')
+            SeqIO.write(ProcessReads(SeqRecords), o, 'fastq')  
+
 
 log_name = args.out + '.demux.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
-setupLogging(log_name)
+ufitslib.setupLogging(log_name)
 cmd_args = " ".join(sys.argv)+'\n'
-log.debug(cmd_args)
+ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 #initialize script, log system info and usearch version
-log.info("Operating system: %s" % sys.platform)
+ufitslib.log.info("Operating system: %s" % sys.platform)
 
 #if SFF file passed, convert to FASTQ with biopython
 if args.fastq.endswith(".sff"):
     if args.barcode_fasta == 'pgm_barcodes.fa':
-        log.error("You did not specify a --barcode_fasta, it is required for 454 data")
+        ufitslib.log.error("You did not specify a --barcode_fasta, it is required for 454 data")
         os._exit(1)
-    log.info("SFF input detected, converting to FASTQ")
+    ufitslib.log.info("SFF input detected, converting to FASTQ")
     SeqIn = args.out + '.sff.extract.fastq'
     SeqIO.convert(args.fastq, "sff-trim", SeqIn, "fastq")
 elif args.fastq.endswith(".fas") or args.fastq.endswith(".fasta") or args.fastq.endswith(".fa"):
     if not args.qual:
-        log.error("FASTA input detected, however no QUAL file was given.  You must have FASTA + QUAL files")
+        ufitslib.log.error("FASTA input detected, however no QUAL file was given.  You must have FASTA + QUAL files")
         os._exit(1)
     else:
         if args.barcode_fasta == 'pgm_barcodes.fa':
-            log.error("You did not specify a --barcode_fasta, it is required for 454 data")
+            ufitslib.log.error("You did not specify a --barcode_fasta, it is required for 454 data")
             os._exit(1)
         SeqIn = args.out + '.fastq'
-        log.info("FASTA + QUAL detected, converting to FASTQ")
-        faqual2fastq(args.fastq, args.qual, SeqIn)
+        ufitslib.log.info("FASTA + QUAL detected, converting to FASTQ")
+        ufitslib.faqual2fastq(args.fastq, args.qual, SeqIn)
 else:
     SeqIn = args.fastq
 
 #check if illumina argument is passed, if so then run merge PE
 if args.illumina:
     if args.barcode_fasta == 'pgm_barcodes.fa':
-        log.error("You did not specify a --barcode_fasta, it is required this type of data")
+        ufitslib.log.error("You did not specify a --barcode_fasta, it is required this type of data")
         os._exit(1)
     if args.reverse:
         FNULL = open(os.devnull, 'w')
@@ -127,17 +187,17 @@ if args.illumina:
         try:
             usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
         except OSError:
-            log.warning("%s not found in your PATH, exiting." % usearch)
+            ufitslib.log.warning("%s not found in your PATH, exiting." % usearch)
             os._exit(1)
-        log.info("USEARCH version: %s" % usearch_test)
+        ufitslib.log.info("USEARCH version: %s" % usearch_test)
         
         #next run USEARCH8 mergepe
         SeqIn = args.out + '.merged.fq'
-        log.info("Merging PE Illumina reads with USEARCH")
-        log.debug("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastq_truncqual 5 -fastq_maxdiffs 8 -minhsp 12" % (usearch, args.fastq, args.reverse, SeqIn))
+        ufitslib.log.info("Merging PE Illumina reads with USEARCH")
+        ufitslib.log.debug("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastq_truncqual 5 -fastq_maxdiffs 8 -minhsp 12" % (usearch, args.fastq, args.reverse, SeqIn))
         subprocess.call([usearch, '-fastq_mergepairs', args.fastq, '-reverse', args.reverse, '-fastqout', SeqIn, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8'], stdout = FNULL, stderr = FNULL)
     else:
-        log.info("Running UFITS on forward Illumina reads")
+        ufitslib.log.info("Running UFITS on forward Illumina reads")
         SeqIn = args.fastq 
 
 #look up primer db otherwise default to entry
@@ -154,18 +214,10 @@ else:
 if args.ion:
     FwdPrimer = 'A' + FwdPrimer
 
-MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
-FileName = SeqIn
-LabelPrefix = args.prefix
-SampleLabel = args.multi
-MinLen = int(args.min_len)
-TrimLen = int(args.trim_len)
+RevPrimer = revcomp_lib.RevComp(RevPrimer)
+ufitslib.log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
 
-#get base name of input file
-base = args.fastq.split(".")
-base = base[0]
-
-#dealing with Barcodes
+#dealing with Barcodes, get ion barcodes or parse the barcode_fasta argument
 barcode_file = args.out + ".barcodes_used.fa"
 if os.path.isfile(barcode_file):
     os.remove(barcode_file)
@@ -189,157 +241,88 @@ if args.barcode_fasta == 'pgm_barcodes.fa':
 else:
     shutil.copyfile(args.barcode_fasta, barcode_file)
 
-RevPrimer = revcomp_lib.RevComp(RevPrimer)
-log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
+#get number of CPUs to use
+if not args.cpus:
+    cpus = multiprocessing.cpu_count()
+else:
+    cpus = args.cpus
 
-SeqCount = 0
-OutCount = 0
-BarcodeMismatchCount = 0
-FwdPrimerMismatchCount = 0
-RevPrimerStrippedCount = 0
-TooShortCount = 0
-PadCount = 0
-demuxname = args.out + '.demux.fq'
-out_file = open(demuxname, 'w')
+#split the input FASTQ file into chunks to process
+with open(SeqIn, 'rU') as input:
+    SeqCount = ufitslib.countfastq(SeqIn)
+    ufitslib.log.info('{0:,}'.format(SeqCount) + ' records loaded')
+    SeqRecords = SeqIO.parse(SeqIn, 'fastq')
+    chunks = SeqCount / cpus + 1
+    ufitslib.log.info("splitting job over %i cpus, this may still take awhile" % cpus)
+    #divide into chunks, store in tmp file
+    pid = os.getpid()
+    folder = 'ufits_tmp_' + str(pid)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    for i, batch in enumerate(ufitslib.batch_iterator(SeqRecords, chunks)) :
+        filename = "chunk_%i.fq" % (i+1)
+        tmpout = os.path.join(folder, filename)
+        handle = open(tmpout, "w")
+        count = SeqIO.write(batch, handle, "fastq")
+        handle.close()
 
-PL = len(FwdPrimer)
+#now get file list from tmp folder
+file_list = []
+for file in os.listdir(folder):
+    if file.endswith(".fq"):
+        file = os.path.join(folder, file)
+        file_list.append(file)
 
-Barcodes = fasta.ReadSeqsDict(barcode_file)
+p = multiprocessing.Pool(cpus)
+for f in file_list:
+    #worker(f)
+    p.apply_async(worker, [f])
+p.close()
+p.join()
+
+print "-------------------------------------------------------"
+#Now concatenate all of the demuxed files together
+ufitslib.log.info("Concatenating Demuxed Files")
+
+catDemux = args.out + '.demux.fq'
+with open(catDemux, 'wb') as outfile:
+    for filename in glob.glob(os.path.join(folder,'*.demux.fq')):
+        if filename == catDemux:
+            continue
+        with open(filename, 'rU') as readfile:
+            shutil.copyfileobj(readfile, outfile)
+            
+ufitslib.log.info("Counting FASTQ Records")
+total = ufitslib.countfastq(catDemux)
+ufitslib.log.info('{0:,}'.format(total) + ' reads processed')
+
+#clean up tmp folder
+shutil.rmtree(folder)
+
+#now loop through data and find barcoded samples, counting each.....
 BarcodeCount = {}
-def MatchesPrimer(Seq, Primer):
-    return primer.MatchPrefix(Seq, Primer)
-
-def FindBarcode(Seq):
-    global Barcodes
-    for BarcodeLabel in Barcodes.keys():
-        Barcode = Barcodes[BarcodeLabel]
-        if Seq.startswith(Barcode):
-            return Barcode, BarcodeLabel
-    return "", ""
-
-def OnRec(Label, Seq, Qual):
-    global PL, LabelPrefix, Barcode, SeqCount, OutCount, TooShortCount, PadCount
-    global BarcodeMismatchCount, FwdPrimerMismatchCount, RevPrimerStrippedCount
-    global FwdPrimer, RevPrimer
-    global BarcodeCount
-
-    if SeqCount == 0:
-        progress.InitFile(fastq.File)
-
-    progress.File("%u reads, %u outupt, %u bad barcode, %u bad fwd primer, %u rev primer stripped, %u too short. %u padded" % \
-      (SeqCount, OutCount, BarcodeMismatchCount, FwdPrimerMismatchCount, RevPrimerStrippedCount, TooShortCount, PadCount))
-
-    SeqCount += 1
-    Barcode, BarcodeLabel = FindBarcode(Seq)
-    if Barcode == "":
-        BarcodeMismatchCount += 1
-        return
-          
-    BarcodeLength = len(Barcode)
-    Seq = Seq[BarcodeLength:]
-    Qual = Qual[BarcodeLength:]
-
-    Diffs = MatchesPrimer(Seq, FwdPrimer)
-    if Diffs > MAX_PRIMER_MISMATCHES:
-        FwdPrimerMismatchCount += 1
-        return
-
-    # Strip fwd primer
-    Seq = Seq[PL:]
-    Qual = Qual[PL:]
-
-    BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, MAX_PRIMER_MISMATCHES)
-    if BestPosRev > 0:
-        # Strip rev primer
-        RevPrimerStrippedCount += 1
-        StrippedSeq = Seq[:BestPosRev]
-        StrippedQual = Qual[:BestPosRev]
-
-        # correctness checks
-        if 1:
-            Tail = Seq[BestPosRev:]
-            Diffs2 = primer.MatchPrefix(Tail, RevPrimer)
-            if Diffs2 != BestDiffsRev:
-                print >> sys.stderr
-                print >> sys.stderr, " Seq=" + Seq
-                print >> sys.stderr, "Tail=" + Tail
-                print >> sys.stderr, "RevP=" + RevPrimer
-                die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
-            assert StrippedSeq + Tail == Seq
-
-        Seq = StrippedSeq
-        Qual = StrippedQual
-
-        L = len(Seq)
-        assert len(Qual) == L
-
-        if L < MinLen:
-            return
-
-        if L < TrimLen:
-            PadCount += 1
-            Seq = Seq + (TrimLen - L)*'N'
-            Qual = Qual + (TrimLen - L)*'I'
-            L = len(Seq)
-            assert L == TrimLen
-            assert len(Qual) == TrimLen
-
-    L = len(Seq)
-    if L < TrimLen:
-        TooShortCount += 1
-        return
-
-    if L > TrimLen:
-        Seq = Seq[:TrimLen]
-        Qual = Qual[:TrimLen]
-        L = len(Seq)
-        
-    OutCount += 1
-    
-    if BarcodeLabel not in BarcodeCount:
-        BarcodeCount[BarcodeLabel] = 1
-    else:
-        BarcodeCount[BarcodeLabel] += 1
-    
-    if SampleLabel == "False":
-        Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + BarcodeLabel + ";"
-    else:
-        Label = LabelPrefix + str(OutCount) + ";barcodelabel=" + SampleLabel + "_" + BarcodeLabel + ";"
-    
-    assert L == TrimLen
-    assert len(Qual) == TrimLen
-
-    fastq.WriteRec(out_file, Label, Seq, Qual)
-
-fastq.ReadRecs(FileName, OnRec)
-progress.FileDone("%u reads, %u outupt, %u bad barcode, %u bad fwd primer, %u rev primer stripped, %u too short" % \
-      (SeqCount, OutCount, BarcodeMismatchCount, FwdPrimerMismatchCount, RevPrimerStrippedCount, TooShortCount))
-
-log.info("Stats for demuxing: \
-\n%10u seqs \
-\n%10u barcode mismatches \
-\n%10u fwd primer mismatches (%.1f%% discarded) \
-\n%10u rev primer stripped (%.2f%% kept) \
-\n%10u padded (%.2f%%) \
-\n%10u too short (%.2f%%) \
-\n%10u output (%.1f%%)" % \
-(SeqCount, BarcodeMismatchCount, FwdPrimerMismatchCount, FwdPrimerMismatchCount*100.0/SeqCount, RevPrimerStrippedCount, RevPrimerStrippedCount*100.0/SeqCount, PadCount, PadCount*100.0/SeqCount, TooShortCount, TooShortCount*100.0/SeqCount, OutCount, OutCount*100.0/SeqCount))
-out_file.close()
+with open(catDemux, 'rU') as input:
+    header = itertools.islice(input, 0, None, 4)
+    for line in header:
+        ID = line.split("=")[-1].split(";")[0]
+        if ID not in BarcodeCount:
+            BarcodeCount[ID] = 1
+        else:
+            BarcodeCount[ID] += 1
 
 #now let's count the barcodes found and count the number of times they are found.
-barcode_counts = "%10s:  %s" % ('Sample', 'Count')
-for key,value in natsorted(BarcodeCount.iteritems()):
-    barcode_counts += "\n%10s:  %s" % (key, str(value))
-log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
+barcode_counts = "%30s:  %s" % ('Sample', 'Count')
+for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
+    barcode_counts += "\n%30s:  %s" % (k, str(BarcodeCount[k]))
+ufitslib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
 #get file size
-filesize = os.path.getsize(demuxname)
-readablesize = convertSize(filesize)
-log.info("Output file: %s (%s)" % (demuxname, readablesize))
+filesize = os.path.getsize(catDemux)
+readablesize = ufitslib.convertSize(filesize)
+ufitslib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
 
 print "-------------------------------------------------------"
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (demuxname)
+    print "\nExample of next cmd: ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (catDemux)
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (demuxname)
-
+    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (catDemux)

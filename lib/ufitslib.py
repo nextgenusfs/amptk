@@ -45,9 +45,9 @@ def batch_iterator(iterator, batch_size):
 def setupLogging(LOGNAME):
     global log
     if 'win32' in sys.platform:
-        stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
+        stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='[%I:%M:%S %p]')
     else:
-        stdoutformat = logging.Formatter(colr.GRN+'%(asctime)s'+colr.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
+        stdoutformat = logging.Formatter(colr.GRN+'%(asctime)s'+colr.END+': %(message)s', datefmt='[%I:%M:%S %p]')
     fileformat = logging.Formatter('%(asctime)s: %(message)s')
     log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)

@@ -71,7 +71,7 @@ def setupLogging(LOGNAME):
     log.addHandler(fhnd)
 
 #remove logfile if exists
-log_name = args.out + '.log'
+log_name = args.out + '.taxonomy.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 

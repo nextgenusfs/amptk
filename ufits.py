@@ -31,7 +31,7 @@ def fmtcols(mylist, cols):
     return "\n".join(lines)
 
 
-version = '0.2.10'
+version = '0.3.0'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -49,6 +49,7 @@ Command:     ion         pre-process Ion Torrent data (find barcodes, remove pri
              taxonomy    Assign taxonomy to OTUs
              summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)   
              heatmap     Create heatmap from OTU table
+             SRA         De-multiplex data and create meta data for NCBI SRA submission
 
 Setup:       install     Automated DB install (executes download and database commands for UNITE DBs). Only need to run once.
              download    Download Reference Databases
@@ -77,6 +78,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -m, --min_len       Minimum length read to keep. Default: 50
              -l, --trim_len      Length to trim/pad reads. Default: 250
+             --cpus              Number of CPUs to use. Default: all
              --mult_samples      Combine multiple chip runs, name prefix for chip
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com
@@ -112,6 +114,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -m, --min_len       Minimum length read to keep. Default: 50
              -l, --trim_len      Length to trim/pad reads. Default: 250
+             --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch8
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com
@@ -182,6 +185,7 @@ Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -m, --min_len       Minimum length read to keep. Default: 50
              -l, --trim_len      Length to trim/pad reads. Default: 250
+             --cpus              Number of CPUs to use. Default: all
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % (sys.argv[1], version)
@@ -233,8 +237,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)
-            
+            os._exit(1)            
     elif sys.argv[1] == 'filter':
         help = """
 Usage:       ufits %s <arguments>
@@ -270,8 +273,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)
-    
+            os._exit(1)    
     elif sys.argv[1] == 'heatmap':
         help = """
 Usage:       ufits %s <arguments>
@@ -304,10 +306,8 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)
-    
+            os._exit(1)    
     elif sys.argv[1] == 'taxonomy':
-        #look in DB folder for databses
         db_list = ['DB_name', 'DB_type', 'FASTA originated from', 'Fwd Primer', 'Rev Primer', 'Records']
         okay_list = []
         search_path = os.path.join(script_path, 'DB')
@@ -366,8 +366,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
 
         else:
             print help
-            os._exit(1)
-                    
+            os._exit(1)                    
     elif sys.argv[1] == 'database':
         help = """
 Usage:       ufits %s <arguments>
@@ -407,8 +406,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
         
         else:
             print help
-            os._exit(1)
-    
+            os._exit(1)   
     elif sys.argv[1] == 'download':
         help = """
 Usage:       ufits %s <arguments>
@@ -431,8 +429,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
         
         else:
             print help
-            os._exit(1)
-    
+            os._exit(1)   
     elif sys.argv[1] == 'summarize':
         help = """
 Usage:       ufits %s <arguments>
@@ -462,8 +459,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
             subprocess.call(arguments)        
         else:
             print help
-            os._exit(1)
-    
+            os._exit(1)  
     elif sys.argv[1] == 'install':
         help = """
 Usage:       ufits %s <arguments>
@@ -544,6 +540,41 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
             else:
                 print help
                 os._exit(1)
+    elif sys.argv[1] == 'SRA':
+        help = """
+Usage:       ufits %s <arguments>
+version:     %s
+
+Description: Script aids in submitted your data to NCBI Sequence Read Archive (SRA) by splitting FASTQ file from Ion, 454, 
+             or Illumina by barcode sequence into separate files for submission to SRA.  This ensures your data
+             is minimally processed as only barcodes are removed.  Additionally, you can pass the --biosample argument
+             with an NCBI biosample tab-delimited file and the script will auto-populate an SRA submission file.
+    
+Arguments:   -i, --input         Input FASTQ file or folder (Required)
+             -o, --out           Output base name. Default: sra
+             -b, --barcode_fasta Mulit-fasta file containing barcodes used.
+             -s, --biosample     BioSample worksheet from NCBI (from confirmation email)
+             -p, --platform      Sequencing platform. Defalt: ion (ion, illumina, 454)
+             -f, --fwd_primer    Forward primer sequence. Default: fITS7
+             -r, --rev_primer    Reverse primer sequence Default: ITS4
+             -n, --names         CSV name mapping file, e.g. BC_1,NewName
+             -d, --description   Paragraph description for SRA experimental design. Use quotes to wrap paragraph.
+             --min_len           Minimum length read to keep after trimming barcodes. Default 50
+             ---force            Overwrite directory with same name
+            
+Written by Jon Palmer (2015) nextgenusfs@gmail.com
+        """ % (sys.argv[1], version)
+   
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'bin', 'ufits-fastq2sra.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            os._exit(1)
     elif sys.argv[1] == 'version':
         print "ufits v.%s" % version
     else:

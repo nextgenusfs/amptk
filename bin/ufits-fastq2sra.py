@@ -16,7 +16,7 @@ class col:
     WARN = '\033[93m'
 
 parser=argparse.ArgumentParser(prog='ufits-fastq2sra.py', usage="%(prog)s [options] -i folder",
-    description='''Script to split FASTQ file from Ion, 454, or Illumina2 by barcode sequence into separate files for submission to SRA.  This script can take the BioSample worksheet from NCBI and create an SRA metadata file for submission.''',
+    description='''Script to split FASTQ file from Ion, 454, or Illumina by barcode sequence into separate files for submission to SRA.  This script can take the BioSample worksheet from NCBI and create an SRA metadata file for submission.''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
@@ -25,10 +25,11 @@ parser.add_argument('-o','--out', dest='out', default="sra", help='Basename for 
 parser.add_argument('--min_len', default=50, type=int, help='Minimum length of read to keep')
 parser.add_argument('-b','--barcode_fasta', dest='barcodes', help='Multi-fasta file containing barcodes used')
 parser.add_argument('-s','--biosample', dest='biosample', help='BioSample file from NCBI')
-parser.add_argument('-p','--platform', dest='platform', default='ion', choices=['ion', 'illumina', '454', 'illumina2'], help='Sequencing platform')
+parser.add_argument('-p','--platform', dest='platform', default='ion', choices=['ion', 'illumina', '454'], help='Sequencing platform')
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer (ITS4)')
-parser.add_argument('-n', '--names', action='store_true', help='CSV mapping file BC,NewName')
+parser.add_argument('-n', '--names', help='CSV mapping file BC,NewName')
+parser.add_argument('-d', '--description', help='Paragraph description for SRA metadata')
 parser.add_argument('--force', action='store_true', help='Overwrite existing directory')
 args=parser.parse_args()
 
@@ -57,7 +58,7 @@ def FindBarcode(Seq):
             return Barcode, BarcodeLabel
     return "", ""
 
-log_name = args.out + '.ufits.log'
+log_name = args.out + '.sra.ufits.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
@@ -71,40 +72,10 @@ if args.platform != 'illumina' and not args.barcodes:
     ufitslib.log.error("For ion, 454, or illumina2 datasets you must specificy a multi-fasta file containing barcodes with -b or --barcode_fasta")
     os._exit(1)
 
-#initialize script, log system info and usearch version
+#initialize script, log system info
 ufitslib.log.info("Operating system: %s" % sys.platform)
 
-#count FASTQ records in input
-ufitslib.log.info("Loading FASTQ Records")
-total = ufitslib.countfastq(args.FASTQ)
-size = ufitslib.checkfastqsize(args.FASTQ)
-readablesize = ufitslib.convertSize(size)
-ufitslib.log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
-
-#if --names given, load into dictonary
-if args.names:
-    with open(args.names, 'rU') as input:
-            reader = csv.reader(input)
-            namesDict = {col[0]:col[1] for col in reader}
-else:
-    ufitslib.log.info("No names csv passed, using BC header names")
-
-#load barcode fasta file into dictonary
-Barcodes = {}
-files = []
-with open(args.barcodes, 'rU') as input:
-    for line in input:
-        if line.startswith('>'):
-            if args.names:
-                name = namesDict(line[1:-1])
-                name = name + ".fastq"          
-            else:
-                name = line[1:-1] + ".fastq"
-            files.append(os.path.join(args.out,name))
-            continue
-        Barcodes[name]=line.strip()
-
-#create directory and files for each barcode
+#create output directory
 if not os.path.exists(args.out):
     os.makedirs(args.out)
 else:
@@ -115,50 +86,107 @@ else:
         shutil.rmtree(args.out)
         os.makedirs(args.out)
 
-#ensure file names are unique        
-files = set(files)
+if args.platform == 'illumina':
+    #just need to get the correct .fastq.gz files into a folder by themselves
+    #if illumina is selected, verify that args.fastq is a folder
+    if not os.path.isdir(args.FASTQ):
+        ufitslib.log.error("%s is not a folder, for '--platform illumina', -i must be a folder containing raw reads" % (args.FASTQ))
+        os._exit(1)
+    rawlist = []
+    filelist = []
+    for file in os.listdir(args.FASTQ):
+        if file.endswith(".fastq.gz"):
+            rawlist.append(file)
+    if len(rawlist) > 0:
+        if not '_R2' in sorted(rawlist)[1]:
+            ufitslib.log.info("Found %i single files, copying to %s folder" % (len(rawlist), args.out))
+            filelist = rawlist
+            for file in rawlist:
+                shutil.copyfile(os.path.join(args.FASTQ,file),(os.path.join(args.out,file)))
+        else:
+            ufitslib.log.info("Found %i paired-end files, copying to %s folder" % (len(rawlist) / 2, args.out))
+            for file in rawlist:
+                shutil.copyfile(os.path.join(args.FASTQ,file),(os.path.join(args.out,file)))
+                if '_R1' in file:
+                    filelist.append(file)
 
-#this way will loop through the FASTQ file many times....not really what I want but it will work...
-runningTotal = 0
-for f in files:   
-    with open(f, 'w') as output:
-        ufitslib.log.info("working on %s" % (output.name))
-        with open(args.FASTQ, 'rU') as input:
-            for title, seq, qual in FastqGeneralIterator(input):
-                Barcode, BarcodeLabel = FindBarcode(seq)
-                if Barcode == "": #if not found, move onto next record
-                    continue
-                BarcodeLength = len(Barcode)
-                seq = seq[BarcodeLength:]
-                qual = qual[BarcodeLength:]
-                if len(seq) < args.min_len: #filter out sequences less than 50 bp.
-                    continue
-                if BarcodeLabel in output.name:
-                    output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
-    Count = ufitslib.countfastq(f)
-    ufitslib.log.info('{0:,}'.format(Count) + ' reads contained valid barcodes')
-    runningTotal += Count
+else:
+    #count FASTQ records in input
+    ufitslib.log.info("Loading FASTQ Records")
+    total = ufitslib.countfastq(args.FASTQ)
+    size = ufitslib.checkfastqsize(args.FASTQ)
+    readablesize = ufitslib.convertSize(size)
+    ufitslib.log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
 
-ufitslib.log.info('{0:,}'.format(runningTotal) + ' total reads for sra submission')
+    #if --names given, load into dictonary
+    if args.names:
+        with open(args.names, 'rU') as input:
+            reader = csv.reader(input)
+            namesDict = {col[0]:col[1] for col in reader}
+    else:
+        ufitslib.log.info("No names csv passed, using BC header names")
 
-ufitslib.log.info("Now Gzipping files")
-gzip_list = []
-for file in os.listdir(args.out):
-    if file.endswith(".fastq"):
-        gzip_list.append(file)
+    #load barcode fasta file into dictonary
+    Barcodes = {}
+    files = []
+    with open(args.barcodes, 'rU') as input:
+        for line in input:
+            if line.startswith('>'):
+                if args.names:
+                    name = namesDict.get(line[1:-1])
+                    name = name + ".fastq"          
+                else:
+                    name = line[1:-1] + ".fastq"
+                files.append(os.path.join(args.out,name))
+                continue
+            Barcodes[name]=line.strip()
 
-for file in gzip_list:
-    file_path = os.path.join(args.out, file)
-    new_path = file_path + '.gz'
-    with open(file_path, 'rU') as orig_file:
-        with gzip.open(new_path, 'w') as zipped_file:
-            zipped_file.writelines(orig_file)
-    os.remove(file_path)
+    #ensure file names are unique        
+    files = set(files)
 
-mdlist = []
-for file in os.listdir(args.out):
-    if file.endswith(".fastq.gz"):
-        mdlist.append(file)
+    #this way will loop through the FASTQ file many times....not really what I want but it will work...
+    runningTotal = 0
+    for f in files:   
+        with open(f, 'w') as output:
+            ufitslib.log.info("working on %s" % (output.name))
+            with open(args.FASTQ, 'rU') as input:
+                for title, seq, qual in FastqGeneralIterator(input):
+                    Barcode, BarcodeLabel = FindBarcode(seq)
+                    if Barcode == "": #if not found, move onto next record
+                        continue
+                    BarcodeLength = len(Barcode)
+                    seq = seq[BarcodeLength:]
+                    qual = qual[BarcodeLength:]
+                    if len(seq) < args.min_len: #filter out sequences less than 50 bp.
+                        continue
+                    if BarcodeLabel in output.name:
+                        output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
+        Count = ufitslib.countfastq(f)
+        ufitslib.log.info('{0:,}'.format(Count) + ' reads contained valid barcodes')
+        runningTotal += Count
+
+    ufitslib.log.info('{0:,}'.format(runningTotal) + ' total reads for sra submission')
+
+    ufitslib.log.info("Now Gzipping files")
+    gzip_list = []
+    for file in os.listdir(args.out):
+        if file.endswith(".fastq"):
+            gzip_list.append(file)
+
+    for file in gzip_list:
+        file_path = os.path.join(args.out, file)
+        new_path = file_path + '.gz'
+        with open(file_path, 'rU') as orig_file:
+            with gzip.open(new_path, 'w') as zipped_file:
+                zipped_file.writelines(orig_file)
+        os.remove(file_path)
+    
+    #after all files demuxed into output folder, loop through and create SRA metadata file
+    filelist = []
+    for file in os.listdir(args.out):
+        if file.endswith(".fastq.gz"):
+            filelist.append(file)
+
 
 #check for BioSample meta file
 if args.biosample:
@@ -166,7 +194,15 @@ if args.biosample:
     #load in BioSample file to dictionary
     with open(args.biosample, 'rU') as input:
         reader = csv.reader(input, delimiter='\t')
-        BioDict = {col[1]:(col[0],col[-1],col[2]) for col in reader}
+        header = next(reader)
+        acc = header.index('Accession')
+        sample = header.index('Sample Name')
+        bio = header.index('BioProject id')     
+        try:
+            host = header.index('Host')
+        except ValueError:
+            host = header.index('Organism')
+        BioDict = {col[sample]:(col[acc],col[bio],col[host]) for col in reader}
 
     #set some defaults based on the platform
     if args.platform == 'ion':
@@ -180,7 +216,7 @@ if args.biosample:
         model = '454 GS FLX Titanium'
         lib_layout = 'single'
     elif args.platform == 'illumina':
-        header = 'bioproject_accession\tsample_name\tlibrary_ID\ttitle\tlibrary_strategy\tlibrary_source\tlibrary_selection\tlibrary_layout\tplatform\tinstrument_model\tdesign_description\tfiletype\tfilename\tfilename2\tbarcode\tforward_primer\treverse_primer\n'
+        header = 'bioproject_accession\tsample_name\tlibrary_ID\ttitle\tlibrary_strategy\tlibrary_source\tlibrary_selection\tlibrary_layout\tplatform\tinstrument_model\tdesign_description\tfiletype\tfilename\tfilename2\tforward_barcode\treverse_barcode\tforward_primer\treverse_primer\n'
         sequencer = 'ILLUMINA'
         model = 'Illumina MiSeq'
         lib_layout = 'paired'
@@ -196,19 +232,47 @@ if args.biosample:
     sub_out = args.out + '.submission.txt'
     with open(sub_out, 'w') as output:
         output.write(header)
-        for file in mdlist:
-            name = file.split(".fastq")[0]
-            bioproject = BioDict.get(name)[1]
-            bioproject = 'PRJNA'+bioproject
-            sample_name = BioDict.get(name)[0]
-            title = 'Fungal ITS amplicon sequencing of %s: sample %s' % (BioDict.get(name)[2], name)
-            bc_name = file.split(".gz")[0]
-            barcode_seq = Barcodes.get(bc_name)
-            description = 'Fungal ITS amplicon library was created using a barcoded fusion primer PCR protocol using Pfx50 polymerase (Thermo Fisher Scientific), size selected, and sequenced on the %s platform.  Sequence data was minimally processed, sequences were exported directly from the sequencing platform and only the barcode (index sequence) was trimmed prior to SRA submission.' % (model)
-            if args.platform == 'ion' or args.platform == '454':
+        for file in filelist:
+            
+            if not args.description:
+                description = 'Fungal ITS amplicon library was created using a barcoded fusion primer PCR protocol using Pfx50 polymerase (Thermo Fisher Scientific), size selected, and sequenced on the %s platform.  Sequence data was minimally processed, sequences were exported directly from the sequencing platform and only the barcode (index sequence) was trimmed prior to SRA submission.' % (model)
+            else:
+                description = args.description
+            if args.platform == 'ion' or args.platform == '454': 
+                name = file.split(".fastq")[0]
+                if not name in BioDict:
+                    continue          
+                bioproject = BioDict.get(name)[1]
+                bioproject = 'PRJNA'+bioproject
+                sample_name = BioDict.get(name)[0]
+                title = 'Fungal ITS amplicon sequencing of %s: sample %s' % (BioDict.get(name)[2], name)
+                bc_name = file.split(".gz")[0]
+                barcode_seq = Barcodes.get(bc_name)
                 line = [bioproject,sample_name,name,title,lib_strategy,lib_source,lib_selection,lib_layout,sequencer,model,description,filetype,file,barcode_seq,FwdPrimer,RevPrimer]
             elif args.platform == 'illumina':
-                line = [bioproject,sample_name,name,title,lib_strategy,lib_source,lib_selection,lib_layout,sequencer,model,description,filetype,file,file2,barcode_seq,FwdPrimer,RevPrimer]
+                name = file.split("_")[0]
+                if not name in BioDict:
+                    continue
+                bioproject = BioDict.get(name)[1]
+                bioproject = 'PRJNA'+bioproject
+                sample_name = BioDict.get(name)[0]
+                title = 'Fungal ITS amplicon sequencing of %s: sample %s' % (BioDict.get(name)[2], name)  
+                file2 = file.replace('_R1', '_R2')              
+                #count number of _ in name, determines the dataformat
+                fields = file.count("_")
+                if fields > 3: #this is full illumina name with dual barcodes
+                    dualBC = file.split("_")[1]
+                    barcode_for = dualBC.split('-')[0]
+                    barcode_rev = dualBC.split('-')[1]
+                elif fields == 3: #this is older reverse barcoded name
+                    barcode_for = 'None'
+                    barcode_rev = file.split("_")[1]
+                else:
+                    barcode_for = 'missing'
+                    barcode_rev = 'missing'            
+                line = [bioproject,sample_name,name,title,lib_strategy,lib_source,lib_selection,lib_layout,sequencer,model,description,filetype,file,file2,barcode_for,barcode_rev,FwdPrimer,RevPrimer]
+
             output.write('\t'.join(line)+'\n')
+
 
         

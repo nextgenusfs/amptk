@@ -217,7 +217,7 @@ if len(filenames) % 2 != 0:
     print "Check your input files, they do not seem to be properly paired"
     os._exit(1)
 
-#check list for files, i.e. they need to have _R1 and _R2 in the filenames, otherwise through exception
+#check list for files, i.e. they need to have _R1 and _R2 in the filenames, otherwise throw exception
 if '_R1' not in filenames[0]:
     ufitslib.log.error("Did not find valid FASTQ files.  Your files must have _R1 and _R2 in filename, rename your files and restart script.")
     os._exit(1)
