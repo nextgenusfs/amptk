@@ -190,13 +190,14 @@ for file in os.listdir(args.input):
 if gzip_list:
     ufitslib.log.info("Gzipped files detected, uncompressing")
 
+'''
 print gzip_list
 #check list for valid filenames they need to have _R1 and _R2, otherwise through exception
 if gzip_list:
     if not '_R1' in gzip_list[0]:
         ufitslib.log.error("Did not find valid FASTQ files.  Your files must have _R1 and _R2 in filename, rename your files and restart script.")
         os._exit(1)
-
+'''
 if gzip_list:
     for file in gzip_list:
         ufitslib.log.debug("Uncompressing %s" % file)
