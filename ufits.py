@@ -31,7 +31,7 @@ def fmtcols(mylist, cols):
     return "\n".join(lines)
 
 
-version = '0.3.0'
+version = '0.3.1'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -470,6 +470,7 @@ Description: Script downloads the UNITE and UNITE-INSD databases and formats the
     
 Arguments:   --install_unite     Install the UNITE Databases 
              --primer_mismatch   Max Primer Mismatch. Default: 4
+             --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch8      
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com   
