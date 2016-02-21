@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #This script is a wrapper for -fastq_mergepairs from USEARCH8
-import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect, multiprocessing, itertools
+import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect, multiprocessing, itertools, re
 from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -155,6 +155,8 @@ def worker(file):
         with open(file, 'rU') as input:
             SeqRecords = SeqIO.parse(input, 'fastq')
             SeqIO.write(ProcessReads(SeqRecords), output, 'fastq')
+
+args.out = re.sub(r'\W+', '', args.out)
             
 #create directory and check for existing logfile
 if not os.path.exists(args.out):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools
+import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools, re
 from Bio import SeqIO
 from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -141,6 +141,7 @@ def worker(input):
             SeqRecords = SeqIO.parse(i, 'fastq')
             SeqIO.write(ProcessReads(SeqRecords), o, 'fastq')  
 
+args.out = re.sub(r'\W+', '', args.out)
 
 log_name = args.out + '.demux.log'
 if os.path.isfile(log_name):
