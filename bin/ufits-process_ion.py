@@ -65,7 +65,6 @@ def ProcessReads(records):
     MinLen = int(args.min_len)
     TrimLen = int(args.trim_len)
     PL = len(FwdPrimer)
-    revPrimer = revcomp_lib.RevComp(RevPrimer)
     Barcodes = fasta.ReadSeqsDict(barcode_file)
     for rec in records:
         #convert to string for processing
@@ -83,7 +82,7 @@ def ProcessReads(records):
         Diffs = MatchesPrimer(Seq, FwdPrimer)
         if Diffs > MAX_PRIMER_MISMATCHES:
             continue
-        
+
         #if found, trim away primer
         rec = rec[PL:]
         
@@ -101,7 +100,7 @@ def ProcessReads(records):
         #turn seq into str again to find reverse primer
         Seq = str(rec.seq)
         #look for reverse primer
-        BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, revPrimer, MAX_PRIMER_MISMATCHES)
+        BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, MAX_PRIMER_MISMATCHES)
         if BestPosRev > 0:
             # Strip rev primer from rec.seq
             rec = rec[:BestPosRev]
