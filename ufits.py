@@ -76,9 +76,10 @@ Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
              filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
 
-Utilities:   heatmap     Create heatmap from OTU table
-             summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)
+Utilities:   summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)
+             funguild    Run FUNGuild (annotate OTUs with ecological information) 
              meta        pivot OTU table and append to meta data
+             heatmap     Create heatmap from OTU table
              SRA         De-multiplex data and create meta data for NCBI SRA submission
 
 Setup:       install     Download/install pre-formatted taxonomy DB (UNITE DB formatted for UFITS). Only need to run once.
@@ -109,8 +110,6 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -l, --trim_len      Length to trim/pad reads. Default: 250
              --cpus              Number of CPUs to use. Default: all
              --mult_samples      Combine multiple chip runs, name prefix for chip
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -145,8 +144,6 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -l, --trim_len      Length to trim/pad reads. Default: 250
              --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch8
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -182,8 +179,6 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              -l, --trim_len      Length to trim/pad reads. Default: 250
              --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch8
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -215,8 +210,6 @@ Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
              -m, --min_len       Minimum length read to keep. Default: 50
              -l, --trim_len      Length to trim/pad reads. Default: 250
              --cpus              Number of CPUs to use. Default: all
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -252,8 +245,6 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              --size_annotations  Append size annotations to OTU names. Default: off
              -u, --usearch       USEARCH executable. Default: usearch8
              --cleanup           Remove intermediate files.
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % (sys.argv[1], version)
        
         arguments = sys.argv[2:]
@@ -288,9 +279,7 @@ Filtering    -n, --normalize     Normalize reads to number of reads per sample [
              -d, --delimiter     Delimiter of OTU tables. Default: csv  [csv, tsv] 
              --col_order         Column order (comma separated list). Default: sort naturally
              --keep_mock         Keep Spike-in mock community. Default: False
-             -u, --usearch       USEARCH executable. Default: usearch8
-           
-Written by Jon Palmer (2015) nextgenusfs@gmail.com      
+             -u, --usearch       USEARCH executable. Default: usearch8   
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -313,9 +302,7 @@ Description: Script filters de-multiplexed data (.demux.fq) to select only reads
     
 Required:    -i, --input     Input FASTQ file (.demux.fq)
              -l, --list      List of sample (barcode) names to keep
-             -o, --out       Output FASTQ file name 
-           
-Written by Jon Palmer (2015) nextgenusfs@gmail.com      
+             -o, --out       Output FASTQ file name     
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -338,9 +325,7 @@ Description: Script filters de-multiplexed data (.demux.fq) to remove only reads
     
 Required:    -i, --input     Input FASTQ file (.demux.fq)
              -l, --list      List of sample (barcode) names to remove
-             -o, --out       Output FASTQ file name 
-           
-Written by Jon Palmer (2015) nextgenusfs@gmail.com      
+             -o, --out       Output FASTQ file name      
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -364,9 +349,7 @@ Description: Script sub-samples (rarifies) de-multiplexed data to equal number o
     
 Required:    -i, --input       Input FASTQ file
              -n, --num_reads   Number of reads to sub-sample to
-             -o, --out         Output FASTQ file name 
-           
-Written by Jon Palmer (2015) nextgenusfs@gmail.com      
+             -o, --out         Output FASTQ file name      
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -390,14 +373,35 @@ Description: Script takes meta data file in CSV format (e.g. from excel) and an 
     
 Required:    -i, --input       Input OTU table
              -m, --meta        Meta data table (csv format)
-             -o, --out         Output (meta data + pivotted OTU table)
-           
-Written by Jon Palmer (2015) nextgenusfs@gmail.com      
+             -o, --out         Output (meta data + pivotted OTU table)   
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
             cmd = os.path.join(script_path, 'util', 'ufits-merge_metadata.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            os._exit(1)    
+    elif sys.argv[1] == 'funguild':
+        help = """
+Usage:       ufits %s <arguments>
+version:     %s
+
+Description: Script takes OTU table as input and runs FUNGuild to assing functional annotation to an OTU
+             based on the Guilds database.  Guilds script written by Zewei Song (2015).  
+    
+Options:     -i, --input        Input OTU table
+             -d, --db           Database to use [fungi, nematode]. Default: fungi
+             -o, --out          Output file basename.
+        """ % (sys.argv[1], version)
+        
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'util', 'Guilds_v1.0.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -425,8 +429,6 @@ Arguments:   -i, --otu_table     Input OTU table (Required)
              --border_color      Color for border in-between cells. Default: black [black, white]
              --percent           Convert numbers to Percent of Sample. Default: off
              --min_num           Minimum reads per OTU to graph. Default: 1
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com   
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -484,9 +486,7 @@ Arguments:   -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster)
              -u, --usearch       USEARCH executable. Default: usearch8
 
 Databases Configured: 
-%s
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com   
+%s 
         """ % (sys.argv[1], version, db_print)
 
         arguments = sys.argv[2:]
@@ -519,9 +519,7 @@ Arguments:   -i, --fasta         Input FASTA file (UNITE DB or UNITE+INSDC)
              --primer_mismatch   Max Primer Mismatch. Default: 4
              --keep_all          Keep Sequence if forward primer not found.
              --cpus              Number of CPUs to use. Default: all
-             -u, --usearch       USEARCH executable. Default: usearch8      
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com   
+             -u, --usearch       USEARCH executable. Default: usearch8       
         """ % (sys.argv[1], version)
 
         arguments = sys.argv[2:]
@@ -536,29 +534,6 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
                 outLocation = arguments.index('--out')
             outLocation = outLocation + 1
             arguments[outLocation] = os.path.join(script_path, 'DB', arguments[outLocation])
-            subprocess.call(arguments)
-        
-        else:
-            print help
-            os._exit(1)   
-    elif sys.argv[1] == 'download':
-        help = """
-Usage:       ufits %s <arguments>
-version:     %s
-
-Description: Download reference databases for ufits taxonomy command.
-    
-Arguments:   -i, --input     Database to download. [unite, unite_insd, all]
-     
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com   
-        """ % (sys.argv[1], version)
-        arguments = sys.argv[2:]
-        if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-download_db.py')
-            arguments.insert(0, cmd)
-            exe = sys.executable
-            arguments.insert(0, exe)
             subprocess.call(arguments)
         
         else:
@@ -580,8 +555,6 @@ Arguments:   -i, --table     OTU Table containing Taxonomy information (Required
              --format        Image output format. Default: eps [eps, svg, png, pdf]
              --percent       Convert numbers to Percent for Graphs. Default: off
              --font_size     Adjust font size for X-axis sample lables. Default: 8
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com   
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -604,8 +577,6 @@ Description: Script downloads pre-formated UNITE and UNITE-INSD databases for us
     
 Arguments:   --install_unite     Install the UNITE Databases
              --force             Over-write existing databases
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com   
         """ % (sys.argv[1], version) 
 
         arguments = sys.argv[2:]
@@ -655,8 +626,6 @@ Arguments:   -i, --input         Input FASTQ file or folder (Required)
              -d, --description   Paragraph description for SRA experimental design. Use quotes to wrap paragraph.
              --min_len           Minimum length read to keep after trimming barcodes. Default 50
              ---force            Overwrite directory with same name
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % (sys.argv[1], version)
    
         arguments = sys.argv[2:]
