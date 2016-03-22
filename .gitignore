@@ -1,0 +1,6 @@
+**/*.pyc
+**/.DS_store
+DB/FULL*
+DB/ITS1*
+DB/ITS2*
+DB/USEARCH*
