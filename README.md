@@ -38,9 +38,10 @@ Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
              filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
 
-Utilities:   heatmap     Create heatmap from OTU table
-             summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)
+Utilities:   summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)
+             funguild    Run FUNGuild (annotate OTUs with ecological information) 
              meta        pivot OTU table and append to meta data
+             heatmap     Create heatmap from OTU table
              SRA         De-multiplex data and create meta data for NCBI SRA submission
 
 Setup:       install     Download/install pre-formatted taxonomy DB (UNITE DB formatted for UFITS). Only need to run once.
