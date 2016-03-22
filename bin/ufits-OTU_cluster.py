@@ -36,10 +36,8 @@ parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent
 parser.add_argument('-m','--minsize', default='2', help='Min size to keep for clustering')
 parser.add_argument('-l','--length', default='250', help='Length to trim reads')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
-parser.add_argument('--mock', default="False", help='Spike-in control: <barcode label>')
-parser.add_argument('--mc', default='mock3', help='Multi-Fasta Mock Community')
 parser.add_argument('--uchime_ref', default='False', choices=['ITS1','ITS2','Full','16S'], help='Run UCHIME REF')
-parser.add_argument('--map_unfiltered', action='store_true', help='map original reads back to OTUs')
+parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
 parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOISE)')
 parser.add_argument('--size_annotations', action='store_true', help='Append size annotations')
 parser.add_argument('--skip_quality', action='store_true', help='Skip Quality trimming (data is already Q-trimmed)')
@@ -84,8 +82,7 @@ readablesize = ufitslib.convertSize(size)
 ufitslib.log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
 
 #Expected Errors filtering step
-filter_out = args.out + '.EE' + args.maxee + '.filter.fq'
-filter_out = os.path.join(tmp, filter_out)
+filter_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fq')
 if not args.skip_quality:
     ufitslib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
     with open(filter_out, 'w') as output:
@@ -96,13 +93,13 @@ else:
     filter_out = args.FASTQ
     
 #convert to FASTA to save space for large files
-filter_fasta = args.out + '.EE' + args.maxee + '.filter.fa'
-filter_fasta = os.path.join(tmp, filter_fasta)
+filter_fasta = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fa')
 SeqIO.convert(filter_out, 'fastq', filter_fasta, 'fasta')
+orig_fasta = os.path.join(tmp, args.out+'.orig.fa')
+SeqIO.convert(args.FASTQ, 'fastq', orig_fasta, 'fasta')
 
 #now run full length dereplication (biopython)
-derep_out = args.out + '.EE' + args.maxee + '.derep.fa'
-derep_out = os.path.join(tmp, derep_out)
+derep_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.derep.fa')
 ufitslib.log.info("De-replication (remove duplicate reads)")
 ufitslib.dereplicate(filter_out, derep_out)
 total = ufitslib.countfasta(derep_out)
@@ -110,8 +107,7 @@ ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 
 #optional run UNOISE
 if args.unoise:
-    unoise_out = args.out + '.EE' + args.maxee + '.denoised.fa'
-    unoise_out = os.path.join(tmp, unoise_out)
+    unoise_out = unoise_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.denoised.fa')
     ufitslib.log.info("Denoising Data with UNOISE")
     ufitslib.log.debug("%s -cluster_fast %s -centroids %s -id 0.9 -maxdiffs 5 -abskew 10 -sizein -sizeout -sort size" % (usearch, derep_out, unoise_out))
     subprocess.call([usearch, '-cluster_fast', derep_out, '-centroids', unoise_out, '-id', '0.9', '-maxdiffs', '5', '-abskew', '10', '-sizein', '-sizeout', '-sort', 'size'], stdout = FNULL, stderr = FNULL)
@@ -121,16 +117,14 @@ else:
     unoise_out = derep_out
 
 #now run usearch 8 sort by size
-sort_out = args.out + '.EE' + args.maxee + '.sort.fa'
-sort_out = os.path.join(tmp, sort_out)
+sort_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.sort.fa')
 ufitslib.log.info("Sorting reads by size (USEARCH8)")
 ufitslib.log.debug("%s -sortbysize %s -minsize %s -fastaout %s" % (usearch, unoise_out, args.minsize, sort_out))
 subprocess.call([usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '-fastaout', sort_out], stdout = FNULL, stderr = FNULL)
 
 #now run clustering algorithm
 radius = str(100 - int(args.pct_otu))
-otu_out = args.out + '.EE' + args.maxee + '.otus.fa'
-otu_out = os.path.join(tmp, otu_out)
+otu_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otus.fa')
 ufitslib.log.info("Clustering OTUs (UPARSE)")
 if args.size_annotations:
     ufitslib.log.debug("%s -cluster_otus %s -sizein -sizeout -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
@@ -143,8 +137,7 @@ ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
 
 #clean up padded N's
 ufitslib.log.info("Cleaning up padding from OTUs")
-otu_clean = args.out + '.EE' + args.maxee + '.clean.otus.fa'
-otu_clean = os.path.join(tmp, otu_clean)
+otu_clean = os.path.join(tmp, args.out + '.EE' + args.maxee + '.clean.otus.fa')
 with open(otu_clean, 'w') as output:
     with open(otu_out, 'rU') as input:
         for line in input:
@@ -160,15 +153,22 @@ with open(otu_clean, 'w') as output:
 if args.uchime_ref == "False":
     uchime_out = otu_clean
 else:
-    uchime_out = args.out + '.EE' + args.maxee + '.uchime.otus.fa'
-    uchime_out = os.path.join(tmp, uchime_out)
+    uchime_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.uchime.otus.fa')
     #You might need to update these in the future, but leaving data and version in name so it is obvious where they came from
+    for file in os.listdir(os.path.join(parentdir, 'DB')):
+        if file.startswith('uchime_sh'):
+            if file.endswith('ITS1.fasta'):
+                uchime_ITS1 = os.path.join(parentdir, 'DB', file)
+            if file.endswith('ITS2.fasta'):
+                uchime_ITS2 = os.path.join(parentdir, 'DB', file)
+        if file.startswith('uchime_reference_'):
+            uchime_FULL = os.path.join(parentdir, 'DB', file)
     if args.uchime_ref == "ITS1":
-        uchime_db = os.path.join(parentdir, 'DB', 'uchime_sh_refs_dynamic_develop_985_11.03.2015.ITS1.fasta')
+        uchime_db = uchime_ITS1
     if args.uchime_ref == "ITS2":
-        uchime_db = os.path.join(parentdir, 'DB', 'uchime_sh_refs_dynamic_develop_985_11.03.2015.ITS2.fasta')
+        uchime_db = uchime_ITS2
     if args.uchime_ref == "Full":
-        uchime_db = os.path.join(parentdir, 'DB', 'uchime_sh_refs_dynamic_original_985_11.03.2015.fasta')
+        uchime_db = uchime_FULL
     if args.uchime_ref == "16S":
         uchime_db = os.path.join(parentdir, 'DB', 'rdp_gold.fa')
     ufitslib.log.info("Chimera Filtering (UCHIME)")
@@ -177,142 +177,30 @@ else:
     total = ufitslib.countfasta(uchime_out)
     ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed')
 
-#option if using mock community to map OTUs to mock and add to header
-if args.mock != "False":
-    if args.mc == "mock3":
-        mock = os.path.join(parentdir, 'DB', 'ufits_mock3.fa')
-    elif args.mc == "mock2":
-        mock = os.path.join(parentdir, 'DB', 'ufits_mock2.fa')
-    elif args.mc == "mock1":
-        mock = os.path.join(parentdir, 'DB', 'ufits_mock1.fa')
-    else:
-        mock = args.mc
-    #count seqs in mock community
-    mock_ref_count = ufitslib.countfasta(mock)
-    
-    #map OTUs to mock community
-    mock_out = args.out + '.mockmap.uc'
-    mock_out = os.path.join(tmp, mock_out)
-    ufitslib.log.info("Mapping Mock Community (USEARCH8)")
-    ufitslib.log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, uchime_out, mock, mock_out))
-    subprocess.call([usearch, '-usearch_global', uchime_out, '-strand', 'plus', '-id', '0.97', '-db', mock, '-uc', mock_out], stdout = FNULL, stderr = FNULL)
-    
-    #generate dictionary for name change
-    annotate_dict = {}
-    with open(mock_out, 'rU') as map:
-        map_csv = csv.reader(map, delimiter='\t')
-        for line in map_csv:
-            if line[-1] != "*":
-                annotate_dict[line[-2]]=line[-1] 
-             
-    otu_new = args.out + '.EE' + args.maxee + '.mock.otus.fa'
-    otu_new = os.path.join(tmp, otu_new)
-    otu_update = open(otu_new, "w")
-    with open(uchime_out, "rU") as myfasta:
-        for line in myfasta:
-            if line.startswith (">"):
-                line = line[1:]
-                line = line.split()
-                if line[0] in annotate_dict:
-                    new_line = ">" + "".join(annotate_dict[line[0]]+'\n')
-                    otu_update.write (new_line)
-                else:
-                    otu_update.write (">"+ "".join(line) + "\n")
-            else:
-                otu_update.write(line)
-    otu_update.close()
-    uchime_out = otu_new
     
 #now map reads back to OTUs
-uc_out = args.out + '.EE' + args.maxee + '.mapping.uc'
-uc_out = os.path.join(tmp, uc_out)
-if args.map_unfiltered:
-    reads = args.FASTQ
-else:
+uc_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.mapping.uc')
+if args.map_filtered:
     reads = filter_fasta
+else:
+    reads = orig_fasta
+    
 ufitslib.log.info("Mapping Reads to OTUs (USEARCH8)")
 ufitslib.log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, reads, uchime_out, uc_out))
 subprocess.call([usearch, '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out], stdout = FNULL, stderr = FNULL)
 
 #Build OTU table
-otu_table = args.out + '.EE' + args.maxee + '.otu_table.txt'
-otu_table = os.path.join(tmp, otu_table)
+otu_table = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otu_table.txt')
 uc2tab = os.path.join(parentdir, 'lib', 'uc2otutable.py')
 ufitslib.log.info("Creating OTU Table")
 ufitslib.log.debug("%s %s %s" % (uc2tab, uc_out, otu_table))
 subprocess.call([sys.executable, uc2tab, uc_out, otu_table], stdout = FNULL, stderr = FNULL)
 
-if args.mock != "False":
-    #first check if the name is in mock, if not don't run the stats
-    with open(otu_table, 'rU') as f:
-        first_line = f.readline().strip()
-        check = first_line.split('\t')
-        if args.mock not in check:
-            result = 'fail'
-            ufitslib.log.info("%s not found in OTU table, skipping stats. (use ufits-mock_filter.py for stats)" % args.mock)
-        else:
-            result = 'pass'
-            
-#run some stats on mock community if --mock option passed.
-if args.mock != "False" and result != 'fail':
-    KEEP_COLUMNS = ('OTUId', args.mock)
-    f = csv.reader(open(otu_table), delimiter='\t')
-    headers = None
-    results = []
-    for row in f:
-        if not headers:
-            headers = []
-            for i, col in enumerate(row):
-                if col in KEEP_COLUMNS:
-                    headers.append(i)
-        else:
-            results.append(tuple([row[i] for i in headers]))
-    num_otus = 0
-    mock_found = 0
-    bad_otu = []
-    good_otu = []
-    for row in results:
-        if int(row[1]) > 0:
-            num_otus += 1
-            if not "OTU" in row[0]:
-                mock_found += 1
-                good_otu.append(int(row[1]))
-            if "OTU" in row[0]:
-                bad_otu.append(int(row[1]))
-    spurious = num_otus - mock_found
-    total_good_reads = sum(good_otu)
-    print "-------------------------------------------------------"
-    print "Summarizing data for %s, Length: %s bp, Quality Trimming: EE %s, " % (args.out, args.length, args.maxee)
-    print "-------------------------------------------------------"
-    print "Theoretical OTUs in Mock:  %i" % (mock_ref_count)
-    print "Total OTUs detected in %s:  %i" % (args.mock, num_otus)
-    print "\nReal Mock OTUs found:  %i" % (mock_found)
-    if mock_found != 0:
-        good_otu = sorted(good_otu, key=int)
-        print "Range of counts from Real OTUs:  %i - %i" % (good_otu[-1], good_otu[0])
-        print "Lowest counts from Real OTUs:  %i, %i, %i" % (good_otu[0], good_otu[1], good_otu[2])
-        print "Total number of reads in Real OTUs: %s" % (total_good_reads)
-    print "\nSpurious OTUs found:  %i" % (spurious)
-    if spurious != 0:
-        bad_otu = sorted(bad_otu, key=int, reverse=True)
-        total_bad_reads = sum(bad_otu)
-        print "Range of counts from Spurious OTUs:  %i - %i" % (bad_otu[0], bad_otu[-1])
-        if spurious >= 3:
-            print "Highest counts from Spurious OTUs:  %i, %i, %i" % (bad_otu[0], bad_otu[1], bad_otu[2])
-        if spurious == 2:
-            print "Highest counts from Spurious OTUs:  %i, %i" % (bad_otu[0], bad_otu[1])
-        if spurious == 1:
-            print "Highest count from Spurious OTUs:  %i" % (bad_otu[0])
-        print "Total number of reads in Spurious OTUs: %s" % (total_bad_reads)
-    os.remove(mock_out)
-
 #Move files around, delete tmp if argument passed.
 currentdir = os.getcwd()
-final_otu = args.out + '.final.otus.fa'
-final_otu = os.path.join(currentdir, final_otu)
+final_otu = os.path.join(currentdir, args.out + '.final.otus.fa')
 shutil.copyfile(uchime_out, final_otu)
-final_otu_table = args.out + '.otu_table.txt'
-final_otu_table = os.path.join(currentdir, final_otu_table)
+final_otu_table = os.path.join(currentdir, args.out + '.otu_table.txt')
 shutil.copyfile(otu_table, final_otu_table)
 if args.cleanup:
     shutil.rmtree(tmp)
@@ -328,6 +216,6 @@ print "OTU Table: %s" % final_otu_table
 print "-------------------------------------------------------"
 
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits filter -i %s -b <mock barcode>\n" % (final_otu_table)
+    print "\nExample of next cmd: ufits filter -i %s -f %s -b <mock barcode>\n" % (final_otu_table, final_otu)
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " ufits filter -i %s -b <mock barcode>\n" % (final_otu_table)
+    print colr.WARN + "\nExample of next cmd:" + colr.END + " ufits filter -i %s -f %s -b <mock barcode>\n" % (final_otu_table, final_otu)

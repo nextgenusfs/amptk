@@ -5,6 +5,10 @@ import pandas as pd
 import numpy as np
 import csv, argparse, re, os, sys
 from natsort import natsorted
+try:
+    import seaborn as sns
+except:
+    pass
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -20,7 +24,7 @@ map_colors = ['Accent','BrBG','BuGn','Dark2','PRGn','Pastel1', 'Pastel2','Spectr
 parser.add_argument('-i','--table', dest="table", required=True, help='OTU Table (Required)')
 parser.add_argument('-o','--output', dest="output", required=True, help='Output File (Required)')
 parser.add_argument('--format', dest="format", default='eps', choices=['eps','svg','png','pdf'], help='Image format')
-parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
+parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list [naturally, None, list]')
 parser.add_argument('--font_size', dest="size", default=10, help='Font Size')
 parser.add_argument('--border_color', dest="border_color", default='lightgray', choices=['black', 'white','lightgray'], help='color of border between cells')
 parser.add_argument('--zero_color', dest="zero_color", default='white', choices=['white','lightgray','black','snow'], help='Color for zeros')
@@ -115,7 +119,9 @@ else:
 
 #Now sort the table by row name naturally
 if args.col_order == "naturally":
-    sortHead= natsorted(header)  #now sort the header row
+    sortHead = natsorted(header)  #now sort the header row
+elif args.col_order == "None":
+    sortHead = header
 else:
     sortHead = args.col_order.split(",")
     sortHead.append('OTUId')

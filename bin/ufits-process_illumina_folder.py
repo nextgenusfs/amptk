@@ -340,6 +340,6 @@ readablesize = ufitslib.convertSize(filesize)
 ufitslib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
 print "-------------------------------------------------------"
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: spike)\n" % (catDemux)
+    print "\nExample of next cmd: ufits cluster -i %s -o out --uchime_ref ITS2\n" % (catDemux)
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: spike)\n" % (catDemux)
+    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out --uchime_ref ITS2\n" % (catDemux)

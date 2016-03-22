@@ -2,7 +2,7 @@
 
 #Wrapper script for UFITS package.
 
-import sys, os, subprocess, inspect
+import sys, os, subprocess, inspect, tarfile, shutil, urllib2, urlparse
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
 def flatten(l):
@@ -30,8 +30,32 @@ def fmtcols(mylist, cols):
              for i in range(0,num_lines))
     return "\n".join(lines)
 
+def download(url):
+    file_name = "ufits_db.tar.gz"
+    u = urllib2.urlopen(url)
+    f = open(file_name, 'wb')
+    meta = u.info()
+    file_size = int(meta.getheaders("Content-Length")[0])
+    print("Downloading: {0} Bytes: {1}".format(url, file_size))
 
-version = '0.3.1'
+    file_size_dl = 0
+    block_sz = 8192
+    while True:
+        buffer = u.read(block_sz)
+        if not buffer:
+            break
+
+        file_size_dl += len(buffer)
+        f.write(buffer)
+        p = float(file_size_dl) / file_size
+        status = r"{0}  [{1:.2%}]".format(file_size_dl, p)
+        status = status + chr(8)*(len(status)+1)
+        sys.stdout.write(status)
+
+    f.close()
+
+
+version = '0.3.2'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -40,19 +64,24 @@ version:     %s
 Description: UFITS is a package of scripts to process fungal ITS amplicon data.  It uses the UPARSE algorithm for clustering
              and thus USEARCH8 is a dependency.
     
-Command:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
+Process:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
              illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
              illumina2   pre-process Illumina data from a single file (assumes Ion/454 read structure: <barcode><f_primer>READ)
              454         pre-process Roche 454 (pyrosequencing) data (find barcodes, remove primers, trim/pad)
-             cluster     cluster OTUs (using UPARSE algorithm)
+             select      select reads from de-multiplexed data
+             remove      remove reads from de-multiplexed data
+             sample      sub-sample (rarify) de-multiplexed reads per sample
+             
+Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
              filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
-             summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)   
-             heatmap     Create heatmap from OTU table
+
+Utilities:   heatmap     Create heatmap from OTU table
+             summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)
+             meta        pivot OTU table and append to meta data
              SRA         De-multiplex data and create meta data for NCBI SRA submission
 
-Setup:       install     Automated DB install (executes download and database commands for UNITE DBs). Only need to run once.
-             download    Download Reference Databases
+Setup:       install     Download/install pre-formatted taxonomy DB (UNITE DB formatted for UFITS). Only need to run once.
              database    Format Reference Databases for Taxonomy
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com
@@ -216,10 +245,9 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -m, --minsize       Minimum size to keep (singleton filter). Default: 2
              -l, --length        Length to trim reads. Default 250
-             --mock              Name of spike-in mock community. Default: None
-             --mc                Mock community FASTA file. Default: mock3
              --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full]
-             --map_unfiltered    Map unfiltered reads back to OTUs. Default: off
+             --map_filtered      Map quality filtered reads back to OTUs. Default: off
+             --skip_quality      Skip quality trimming (e.g. reads are already quality trimmed)
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
              --size_annotations  Append size annotations to OTU names. Default: off
              -u, --usearch       USEARCH executable. Default: usearch8
@@ -243,30 +271,56 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
 Usage:       ufits %s <arguments>
 version:     %s
 
-Description: Script filters OTU table generated from the `ufits cluster` command.  There are two filters that
-             are used: 1) index-bleed filter which combats barcode-switching or barcode mis-assignment and is
-             controled by the --index_bleed argument, 2) the other filter is a subtraction filter meant to be
-             used in conjuction with a spike-in mock community, it works asking the user to set a threshold based
-             on the number of observed OTUs in the mock community versus expected number of OTUs.
+Description: Script filters OTU table generated from the `ufits cluster` command and should be run on all datasets to combat
+             barcode-switching or index-bleed (as high as 0.3 pct in MiSeq datasets, ~ 0.2 pct in Ion PGM datasets).  This script 
+             works best when a spike-in control sequence is used, e.g. Synthetic Mock, although a mock is not required.
     
-Arguments:   -i, --otu_table     Input OTU table (Required)
-             -b, --mock_barcode  Name of barcode of mock community (Required)
-             -o, --out           Base name for output files. Default: use input basename
-             -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.1
-             -d, --delimiter     Delimiter of OTU table. Default: tsv  [csv, tsv] 
-             -n, --names         Change names of barcodes (CSV mapping file). Default: off
-             --mc                Mock community FASTA file. Default: ufits_mock3.fa
+Required:    -i, --otu_table     OTU table
+             -f, --fasta         OTU fasta
+             
+Optional:    -o, --out           Base name for output files. Default: use input basename
+             -b, --mock_barcode  Name of barcode of mock community (Recommended)
+             --mc                Mock community FASTA file. Default: ufits_synmock.fa 
+             
+Filtering    -n, --normalize     Normalize reads to number of reads per sample [y,n]. Default: y
+             -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.5
+             -s, --subtract      Threshold to subtract from all OTUs (any number or auto). Default: 0
+             -d, --delimiter     Delimiter of OTU tables. Default: csv  [csv, tsv] 
              --col_order         Column order (comma separated list). Default: sort naturally
-             --convert_binary    Convert OTU table to binary (1's and 0's). Default: off
-             --trim_data         Filter the data. Default: on [on, off]
              --keep_mock         Keep Spike-in mock community. Default: False
-            
+             -u, --usearch       USEARCH executable. Default: usearch8
+           
 Written by Jon Palmer (2015) nextgenusfs@gmail.com      
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-mock_filter.py')
+            cmd = os.path.join(script_path, 'bin', 'ufits-filter.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            os._exit(1)
+    elif sys.argv[1] == 'select':
+        help = """
+Usage:       ufits %s <arguments>
+version:     %s
+
+Description: Script filters de-multiplexed data (.demux.fq) to select only reads from samples provided
+             in a text file, one name per line.
+    
+Required:    -i, --input     Input FASTQ file (.demux.fq)
+             -l, --list      List of sample (barcode) names to keep
+             -o, --out       Output FASTQ file name 
+           
+Written by Jon Palmer (2015) nextgenusfs@gmail.com      
+        """ % (sys.argv[1], version)
+        
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'util', 'ufits-keep_samples.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -274,6 +328,84 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
         else:
             print help
             os._exit(1)    
+    elif sys.argv[1] == 'remove':
+        help = """
+Usage:       ufits %s <arguments>
+version:     %s
+
+Description: Script filters de-multiplexed data (.demux.fq) to remove only reads from samples provided
+             in a text file, one name per line.
+    
+Required:    -i, --input     Input FASTQ file (.demux.fq)
+             -l, --list      List of sample (barcode) names to remove
+             -o, --out       Output FASTQ file name 
+           
+Written by Jon Palmer (2015) nextgenusfs@gmail.com      
+        """ % (sys.argv[1], version)
+        
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'util', 'ufits-remove_samples.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            os._exit(1)    
+    elif sys.argv[1] == 'sample':
+        help = """
+Usage:       ufits %s <arguments>
+version:     %s
+
+Description: Script sub-samples (rarifies) de-multiplexed data to equal number of reads per sample. For community
+             analysis, this might not be appropriate as you are ignoring a portion of your data, however, there 
+             might be some applications where it is useful.
+    
+Required:    -i, --input       Input FASTQ file
+             -n, --num_reads   Number of reads to sub-sample to
+             -o, --out         Output FASTQ file name 
+           
+Written by Jon Palmer (2015) nextgenusfs@gmail.com      
+        """ % (sys.argv[1], version)
+        
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'util', 'ufits-barcode_rarify.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            os._exit(1)
+    elif sys.argv[1] == 'meta':
+        help = """
+Usage:       ufits %s <arguments>
+version:     %s
+
+Description: Script takes meta data file in CSV format (e.g. from excel) and an OTU table as input.  The first column
+             of the meta data file must match the OTU table sample headers exactly.  It then pivots the OTU table and
+             appends it to the meta data file.  
+    
+Required:    -i, --input       Input OTU table
+             -m, --meta        Meta data table (csv format)
+             -o, --out         Output (meta data + pivotted OTU table)
+           
+Written by Jon Palmer (2015) nextgenusfs@gmail.com      
+        """ % (sys.argv[1], version)
+        
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'util', 'ufits-merge_metadata.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            os._exit(1)    
+
     elif sys.argv[1] == 'heatmap':
         help = """
 Usage:       ufits %s <arguments>
@@ -321,7 +453,7 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
                     line.insert(0, file)
                     db_list.append(line)
         if len(db_list) < 7:
-            db_print = "No DB configured, run 'ufits database' command for format database."
+            db_print = "No DB configured, run 'ufits database' or 'ufits install' command."
         else:
             d = flatten(db_list)
             db_print = fmtcols(d, 6)
@@ -348,6 +480,7 @@ Arguments:   -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster)
              --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
              --append_taxonomy   OTU table to append taxonomy. Default: none
+             --only_fungi        Remove non-fungal OTUs from OTU table.
              -u, --usearch       USEARCH executable. Default: usearch8
 
 Databases Configured: 
@@ -381,7 +514,8 @@ Arguments:   -i, --fasta         Input FASTA file (UNITE DB or UNITE+INSDC)
              --format            Reformat FASTA headers to UTAX format. Default: unite2utax [unite2utax, rdp2utax, off]
              --drop_ns           Removal sequences that have > x N's. Default: 8
              --create_db         Create a DB. Default: usearch [utax, usearch]
-             --skip_trimming     Keep full length sequences. Default: off (not recommended)
+             --skip_trimming     Keep full length sequences. Default: off
+             --derep_fulllength  Remove identical sequences.
              --primer_mismatch   Max Primer Mismatch. Default: 4
              --keep_all          Keep Sequence if forward primer not found.
              --cpus              Number of CPUs to use. Default: all
@@ -465,13 +599,11 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
 Usage:       ufits %s <arguments>
 version:     %s
 
-Description: Script downloads the UNITE and UNITE-INSD databases and formats them for use with the 
+Description: Script downloads pre-formated UNITE and UNITE-INSD databases for use with the 
              `ufits taxonomy` command. By default UTAX is trained for ITS1, ITS2, and Full ITS. 
     
-Arguments:   --install_unite     Install the UNITE Databases 
-             --primer_mismatch   Max Primer Mismatch. Default: 4
-             --cpus              Number of CPUs to use. Default: all
-             -u, --usearch       USEARCH executable. Default: usearch8      
+Arguments:   --install_unite     Install the UNITE Databases
+             --force             Over-write existing databases
             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com   
         """ % (sys.argv[1], version) 
@@ -483,61 +615,22 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
         else:
             if '--install_unite' in arguments:
                 arguments.remove('--install_unite')
-                primers = arguments
                 #now check for UTAX and USEARCH in DB folder
                 if os.path.isfile(os.path.join(script_path, 'DB', 'FULL.udb')):
-                    print("A formated database was found, thus this command was already run.  You can add more custom databases by using the `ufits database` command.")
-                    os._exit(1)
-                #get UNITE general release
-                arguments = ['-i', 'unite']
-                cmd = os.path.join(script_path, 'bin', 'ufits-download_db.py')
-                arguments.insert(0, cmd)
-                exe = sys.executable
-                arguments.insert(0, exe)
-                subprocess.call(arguments)
-                #now process DB for Full length and make UTAX db
-                DB_location = os.path.join(script_path, 'DB', 'FULL')
-                arguments1 = primers
-                arguments1.append(['-i', 'sh_dynamic_01.08.2015.fasta', '-f', 'ITS1-F', '-r', 'ITS4', '--keep_all', '--derep_fulllength', '--create_db', 'utax', '-o', DB_location])
-                arguments1 = flatten(arguments1)
-                cmd1 = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
-                arguments1.insert(0, cmd1)
-                arguments1.insert(0, exe)
-                subprocess.call(arguments1)
-                #now process DB for ITS1 and make UTAX db
-                DB_location = os.path.join(script_path, 'DB', 'ITS1')
-                arguments1 = primers
-                arguments1.append(['-i', 'sh_dynamic_01.08.2015.fasta', '-f', 'ITS1-F', '-r', 'ITS2', '--keep_all', '--derep_fulllength', '--create_db', 'utax', '-o', DB_location])
-                arguments1 = flatten(arguments1)
-                cmd1 = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
-                arguments1.insert(0, cmd1)
-                arguments1.insert(0, exe)
-                subprocess.call(arguments1)
-                #now process DB for ITS2 and make UTAX db
-                DB_location = os.path.join(script_path, 'DB', 'ITS2')
-                arguments1 = primers
-                arguments1.append(['-i', 'sh_dynamic_01.08.2015.fasta', '-f', 'fITS7', '-r', 'ITS4','--derep_fulllength', '--create_db', 'utax', '-o', DB_location])
-                arguments1 = flatten(arguments1)
-                cmd1 = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
-                arguments1.insert(0, cmd1)
-                arguments1.insert(0, exe)
-                subprocess.call(arguments1)             
-                #now get UNITE-INSD
-                arguments = ['-i', 'unite_insd']
-                cmd = os.path.join(script_path, 'bin', 'ufits-download_db.py')
-                arguments.insert(0, cmd)
-                exe = sys.executable
-                arguments.insert(0, exe)
-                subprocess.call(arguments)
-                DB_location = os.path.join(script_path, 'DB', 'USEARCH')
-                #now process DB
-                arguments2 = primers
-                arguments2.append(['-i', 'UNITE_public_01.08.2015.fasta', '--skip_trimming', '--derep_fulllength', '--create_db', 'usearch', '-o', DB_location])
-                arguments2 = flatten(arguments2)
-                cmd2 = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
-                arguments2.insert(0, cmd2)
-                arguments2.insert(0, exe)
-                subprocess.call(arguments2)
+                    if not '--force' in arguments:
+                        print("A formated database was found, to overwrite use '--force'. You can add more custom databases by using the `ufits database` command.")
+                        os._exit(1)                   
+                #download database
+                print "Downloading pre-formatted database"
+                download('https://www.dropbox.com/s/mrrnqupzh43xyor/ufits_db.tar.gz?dl=1')
+                tfile = tarfile.open("ufits_db.tar.gz", 'r:gz')
+                tfile.extractall('ufits_db')
+                for file in os.listdir('ufits_db'):
+                    os.rename(os.path.join('ufits_db', file), os.path.join(script_path, 'DB', file))
+                shutil.rmtree('ufits_db')
+                os.remove('ufits_db.tar.gz')
+                print "UFITS taxonomy database successfully installed"            
+
             else:
                 print help
                 os._exit(1)

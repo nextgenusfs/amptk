@@ -21,26 +21,30 @@ UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ ufits
 Usage:       ufits <command> <arguments>
-version:     0.2.8
+version:     0.3.2
 
 Description: UFITS is a package of scripts to process fungal ITS amplicon data.  It uses the UPARSE algorithm for clustering
              and thus USEARCH8 is a dependency.
     
-Command:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
+Process:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
              illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
              illumina2   pre-process Illumina data from a single file (assumes Ion/454 read structure: <barcode><f_primer>READ)
              454         pre-process Roche 454 (pyrosequencing) data (find barcodes, remove primers, trim/pad)
-             cluster     cluster OTUs (using UPARSE algorithm)
+             select      select reads from de-multiplexed data
+             remove      remove reads from de-multiplexed data
+             sample      sub-sample (rarify) de-multiplexed reads per sample
+             
+Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
              filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
-             summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)   
-             heatmap     Create heatmap from OTU table
 
-Setup:       install     Automated DB install (executes download and database commands for UNITE DBs). Only need to run once.
-             download    Download Reference Databases
+Utilities:   heatmap     Create heatmap from OTU table
+             summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)
+             meta        pivot OTU table and append to meta data
+             SRA         De-multiplex data and create meta data for NCBI SRA submission
+
+Setup:       install     Download/install pre-formatted taxonomy DB (UNITE DB formatted for UFITS). Only need to run once.
              database    Format Reference Databases for Taxonomy
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com
 ```
 
 And then by calling one of the commands, you get a help menu for each:
@@ -48,7 +52,7 @@ And then by calling one of the commands, you get a help menu for each:
 ```
 $ ufits cluster
 Usage:       ufits cluster <arguments>
-version:     0.2.8
+version:     0.3.2
 
 Description: Script is a "wrapper" for the UPARSE algorithm.  Modifications include support for a mock spike-in
              community.  FASTQ quality trimming via expected errors and Dereplication are run in Python which allows
@@ -60,16 +64,13 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -m, --minsize       Minimum size to keep (singleton filter). Default: 2
              -l, --length        Length to trim reads. Default 250
-             --mock              Name of spike-in mock community. Default: None
-             --mc                Mock community FASTA file. Default: mock3
              --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full]
-             --map_unfiltered    Map unfiltered reads back to OTUs. Default: off
+             --map_filtered      Map quality filtered reads back to OTUs. Default: off
+             --skip_quality      Skip quality trimming (e.g. reads are already quality trimmed)
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
              --size_annotations  Append size annotations to OTU names. Default: off
              -u, --usearch       USEARCH executable. Default: usearch8
              --cleanup           Remove intermediate files.
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com
 ```
 
 ####Processing Ion Torrent Data:####
@@ -78,9 +79,10 @@ From the Torrent Server, analyze the data using the `--disable-all-filters` Base
 
 ```
 ufits ion --barcodes 1,5,24 -i data.fastq -o data
+ufits ion --barcode_fasta my_barcodes.fa -i data.fastq -o data
 ```
 
-This will find Ion barcodes (1, 5, and 24) and relabel header with that information (barcodelabel=BC_5;). By default, it will look for all 96 Ion Xpress barcodes, specifiy the barcodes you used by a comma separated list. Next the script will find and trim both the forward and reverse primers (default is ITS2 region: fITS7 & ITS4), and then finally will trim or pad with N's to a set length (default: 250 bp).  Trimming to the same length is critcally important for USEARCH to cluster correctly, padding with N's after finding the reverse primer keeps short ITS sequences from being discarded.  These options can be customized using: `--fwd_primer`, `--rev_primer`, `--trim_len`, etc.
+This will find Ion barcodes (1, 5, and 24) and relabel header with that information (barcodelabel=BC_5;). By default, it will look for all 96 Ion Xpress barcodes, specifiy the barcodes you used by a comma separated list. You can also pass in a fasta file containing your barcode sequences with properly labeled headers. Next the script will find and trim both the forward and reverse primers (default is ITS2 region: fITS7 & ITS4), and then finally will trim or pad with N's to a set length (default: 250 bp).  Trimming to the same length is critcally important for USEARCH to cluster correctly, padding with N's after finding the reverse primer keeps short ITS sequences from being discarded.  These options can be customized using: `--fwd_primer`, `--rev_primer`, `--trim_len`, etc.
 
 ####Processing Roche 454 Data:####
 Data from 454 instruments has the same read structure as Ion Torrent: <barcode><primer>Read<primer> and thus can be processed very similarly.  You just need to provide either an SFF file, FASTA + QUAL, or FASTQ files and then you need to specify a multi-fasta file containing the barcodes used in the project.  The data will be processed in the same fashion (see above) as the Ion Torrent Data. For example:
@@ -115,10 +117,10 @@ This will find all files ending with '.fastq.gz' in the input folder, gunzip the
 Now the data from either platform (Ion, 454, or Illumina) can be clustered by running the following:
 
 ```
-ufits cluster -i ufits.demux.fq -o ion --mock BC_5
+ufits cluster -i ufits.demux.fq -o ion --uchime_ref ITS2
 ```
 
-This quality filter the data based on expected errors, then remove duplicated sequences, sort the output by frequency, and finally `usearch -cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Another option is to process a spike-in control or mock community, you can specify a barcode name for the mock community by passing in `--mock BC_5` which will run some additional steps and report stats of the run to STDOUT.  Type `-h` for all the available options.
+This quality filter the data based on expected errors, then remove duplicated sequences, sort the output by frequency, and finally `usearch -cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Type `-h` for all the available options.
 
 
 ####OTU Table Filtering####
@@ -126,15 +128,15 @@ This quality filter the data based on expected errors, then remove duplicated se
 The data may need some additional filtering if you included a spike-in control mock community.  The advantage is that you know what should be in the spike-in control barcode sample, thus you can modify USEARCH8 clustering parameters that give you reasonable results.  If you need to trim your OTU table by some threshold, i.e. several OTUs at low abundance are showing up in your spike-in control sample that represent contamination or sequence error - you can set a threshold and filter the OTU table. This is done with the following script:
 
 ```
-ufits filter -i test.otu_table.txt -b BC_27
+ufits filter -i test.otu_table.txt -f test.final.otus.fa -b mock3 --mc my_mock_seqs.fa
 ```
 
-This  will read the OTU table `-i`, count the number of OTUs in the barcode specified by the `-b` parameter and give you some basic stats to STDOUT.  It will then ask for a value to threshold trim the data, if you would type in a value of 2, then 2 will be subtracted from every column and a new OTU table will be saved to file ending in `.filteredX.out_table.txt` as well as a new OTU fasta file `filtered.otus.fa`.  To combat 'barcode switching' or 'index bleed', an additional filter can be run that removes OTU counts that are less than 0.1% of the total for each OTU.  If you used dual indexing on MiSeq and have a lot of indexes that were re-used, you will need to increase this filter to at least 0.5, by passing the argument `-p 0.5` to the script.  Finally, this script will remove the mock spike in control sample from your dataset - as it should not be included in downstream processing, you can keep mock sequences if desired by passing the `--keep_mock` argument.
+This will read the OTU table `-i` and the OTUs `-f` from the `ufits cluster` command.  This script will apply an index-bleed filter to clean-up barcode-switching between samples which happens at a rate of ~ 0.2% in Ion Torrent and as much 0.3% in MiSeq data.  The script first normalizes the OTU table to the number of reads in each sample, then (optionally) using the `-b` sample, it will calculate the amount of index-bleed in the OTU table, finally it will loop through each OTU and change values to 0 that are below the `-index_bleed` filter.  Finally, this script will remove the mock spike in control sample from your dataset - as it should not be included in downstream processing, you can keep mock sequences if desired by passing the `--keep_mock` argument.  The output is a filtered OTU table to be used for downstream processing.
 
-If you do not have a mock community spike in, you can still run the index bleed filter by just running the command without a `-b` argument, such as:
+If you do not have a mock community spike in, you can still run the index bleed filter by just running the command without a `-b` argument, such as, which will apply a 0.5% filter on the data:
 
 ```
-ufits filter -i test.otu_table.txt --index_bleed 0.5
+ufits filter -i test.otu_table.txt -f test.final.otus.fa -p 0.005
 ```
 
 
@@ -153,7 +155,7 @@ Issuing the `ufits taxonomy` command will inform you which databases have been p
 ```
 $ ufits taxonomy
 Usage:       ufits taxonomy <arguments>
-version:     0.2.8
+version:     0.3.2
 
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
              uses a hybrid approach, e.g. gets taxonomy information from UTAX as well as global alignment hits from the larger
@@ -164,7 +166,7 @@ Description: Script maps OTUs to taxonomy information and can append to an OTU t
 Arguments:   -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
              -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
              -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid, rdp, blast]
-             --utax_db           UTAX formatted database. Default: ITS2.udb
+             --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --usearch_db        USEARCH formatted database. Default: USEARCH.udb
              --usearch_cutoff    USEARCH threshold percent identity. Default 0.7
@@ -173,23 +175,21 @@ Arguments:   -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster)
              --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
              --append_taxonomy   OTU table to append taxonomy. Default: none
+             --only_fungi        Remove non-fungal OTUs from OTU table.
              -u, --usearch       USEARCH executable. Default: usearch8
 
 Databases Configured: 
-DB_name       DB_type   FASTA originated from           Fwd Primer   Rev Primer   Records  
-FULL.udb      utax      sh_dynamic_01.08.2015.fasta     ITS1-F       ITS4         40948    
-ITS1.udb      utax      sh_dynamic_01.08.2015.fasta     ITS1-F       ITS2         40976    
-ITS2.udb      utax      sh_dynamic_01.08.2015.fasta     fITS7        ITS4         42756    
-LSU.udb       usearch   current_Fungi_unaligned.fa      None         None         108901   
-USEARCH.udb   usearch   UNITE_public_01.08.2015.fasta   None         None         475641   
-            
-Written by Jon Palmer (2015) nextgenusfs@gmail.com   
+DB_name       DB_type   FASTA originated from   Fwd Primer   Rev Primer   Records  
+FULL.udb      utax      UNITE.utax.fasta        ITS1-F       ITS4         41414    
+ITS1.udb      utax      UNITE.utax.fasta        ITS1-F       ITS2         41306    
+ITS2.udb      utax      UNITE.utax.fasta        fITS7        ITS4         42176    
+USEARCH.udb   usearch   UNITE.usearch.fasta     None         None         534993 
 ```
 
 And then you can use the `ufits taxonomy` command to assign taxonomy to your OTUs as well as append them to your OTU table as follows:
 
 ```
-ufits taxonomy -i data.filtered.otus.fa -o output --append_taxonomy
+ufits taxonomy -i data.filtered.otus.fa -o output --append_taxonomy data.final.csv
 ```
 
 ####Summarizing the Taxonomy:####
@@ -207,7 +207,10 @@ The optional `--graphs` argument will create the stacked bar graphs.  You can sa
 * Python 2
 * Biopython
 * USEARCH8 (to use UTAX you will need at least version 8.1.1756)
-* natsort python module
+* natsort
+* pandas
+* numpy
+* matplotlib
 
 Python and USEARCH need to accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8.  
 

@@ -7,6 +7,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
+import lib.ufitslib as ufitslib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -41,7 +42,7 @@ parser.add_argument('--rdp_cutoff', default=0.8, type=restricted_float, help='RD
 parser.add_argument('--local_blast', help='Path to local Blast DB')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 parser.add_argument('--append_taxonomy', dest="otu_table", nargs='?', help='Append Taxonomy to OTU table')
-
+parser.add_argument('--only_fungi', action='store_true', help='Retain only fungi in OTU table')
 args=parser.parse_args()
 
 def countfasta(input):
@@ -52,82 +53,64 @@ def countfasta(input):
                 count += 1
     return count
 
-def setupLogging(LOGNAME):
-    global log
-    if 'win32' in sys.platform:
-        stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
-    else:
-        stdoutformat = logging.Formatter(col.GRN+'%(asctime)s'+col.END+': %(message)s', datefmt='%b-%d-%Y %I:%M:%S %p')
-    fileformat = logging.Formatter('%(asctime)s: %(message)s')
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.DEBUG)
-    sth = logging.StreamHandler()
-    sth.setLevel(logging.INFO)
-    sth.setFormatter(stdoutformat)
-    log.addHandler(sth)
-    fhnd = logging.FileHandler(LOGNAME)
-    fhnd.setLevel(logging.DEBUG)
-    fhnd.setFormatter(fileformat)
-    log.addHandler(fhnd)
-
 #remove logfile if exists
 log_name = args.out + '.taxonomy.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
-setupLogging(log_name)
+ufitslib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
-log.debug(cmd_args)
+ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-log.info("Operating system: %s" % sys.platform)
+ufitslib.log.info("Operating system: %s" % sys.platform)
 
 
 if args.method == 'utax':
     if not args.utax_db:
-        log.error("No DB specified, exiting")
+        ufitslib.log.error("No DB specified, exiting")
         os._exit(1)
     usearch = args.usearch
     try:
         usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
     except OSError:
-        log.error("%s not found in your PATH, exiting." % usearch)
+        ufitslib.log.error("%s not found in your PATH, exiting." % usearch)
         os._exit(1)
     version = usearch_test.split(" v")[1]
     majorV = version.split(".")[0]
     minorV = version.split(".")[1]
     if int(majorV) < 8 or (int(majorV) >= 8 and int(minorV) < 1):
-        log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % usearch_test)
+        ufitslib.log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % usearch_test)
         os._exit(1)
     else:
-        log.info("USEARCH version: %s" % usearch_test)
+        ufitslib.log.info("USEARCH version: %s" % usearch_test)
     
     #check for correct DB version
     if not args.utax_db:
-        log.error("You must specifiy a UTAX database via --utax_db")
+        ufitslib.log.error("You must specifiy a UTAX database via --utax_db")
         os._exit(1)
     else: #check if exists
         search_db = os.path.join(parentdir, 'DB', args.utax_db)
         if not os.path.isfile(search_db):
-            log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
+            ufitslib.log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
         else:
             utax_db = os.path.join(parentdir, 'DB', args.utax_db)
     #Count records
-    log.info("Loading FASTA Records")
+    ufitslib.log.info("Loading FASTA Records")
     total = countfasta(args.fasta)
-    log.info('{0:,}'.format(total) + ' OTUs')
+    ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
     
     #now run through UTAX
     utax_out = args.out + '.utax.txt'
-    log.info("Classifying OTUs with UTAX (USEARCH8)")
+    ufitslib.log.info("Classifying OTUs with UTAX (USEARCH8)")
     cutoff = str(args.utax_cutoff)
-    log.debug("%s -utax %s -db %s -utaxout %s -utax_cutoff %s -strand both" % (usearch, args.fasta, utax_db, utax_out, cutoff))
+    ufitslib.log.debug("%s -utax %s -db %s -utaxout %s -utax_cutoff %s -strand both" % (usearch, args.fasta, utax_db, utax_out, cutoff))
     subprocess.call([usearch, '-utax', args.fasta, '-db', utax_db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus'], stdout = FNULL, stderr = FNULL)
     
     #load results into dictionary for appending to OTU table
-    log.debug("Loading results into dictionary")
+    ufitslib.log.debug("Loading results into dictionary")
     with open(utax_out, 'rU') as infile:
         reader = csv.reader(infile, delimiter="\t")
         otuDict = {rows[0]:rows[2] for rows in reader}
@@ -135,38 +118,38 @@ if args.method == 'utax':
     
 elif args.method == 'usearch':
     if not args.usearch_db:
-        log.error("No DB specified, exiting")
+        ufitslib.log.error("No DB specified, exiting")
         os._exit(1)
     usearch = args.usearch
     try:
         usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
     except OSError:
-        log.error("%s not found in your PATH, exiting." % usearch)
+        ufitslib.log.error("%s not found in your PATH, exiting." % usearch)
         os._exit(1)
-    log.info("USEARCH version: %s" % usearch_test)
+    ufitslib.log.info("USEARCH version: %s" % usearch_test)
     #Count records
-    log.info("Loading FASTA Records")
+    ufitslib.log.info("Loading FASTA Records")
     total = countfasta(args.fasta)
-    log.info('{0:,}'.format(total) + ' OTUs')
+    ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
     
     #check for correct DB version
     if not args.usearch_db:
-        log.error("You must specifiy a USEARCH database via --usearch_db")
+        ufitslib.log.error("You must specifiy a USEARCH database via --usearch_db")
         os._exit(1)
     else: #check if exists
         search_db = os.path.join(parentdir, 'DB', args.usearch_db)
         if not os.path.isfile(search_db):
-            log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
+            ufitslib.log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
         else:
             usearch_db = os.path.join(parentdir, 'DB', args.usearch_db)
     #now run through usearch global
     utax_out = args.out + '.usearch.txt'
-    log.info("Global alignment OTUs with usearch_global")
-    log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, str(args.usearch_cutoff), utax_out))
+    ufitslib.log.info("Global alignment OTUs with usearch_global")
+    ufitslib.log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, str(args.usearch_cutoff), utax_out))
     subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', utax_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
     
     #load results into dictionary for appending to OTU table
-    log.debug("Loading results into dictionary")
+    ufitslib.log.debug("Loading results into dictionary")
     newTable = []
     with open(utax_out, 'rU') as infile:
         reader = csv.reader(infile, delimiter="\t")
@@ -178,70 +161,70 @@ elif args.method == 'usearch':
             
     otuDict = {rows[0]:rows[1] for rows in newTable}
     
-    log.info("Done classifying OTUs: %s" % utax_out)
+    ufitslib.log.info("Done classifying OTUs: %s" % utax_out)
 
 elif args.method == 'hybrid':
     usearch = args.usearch
     try:
         usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
     except OSError:
-        log.error("%s not found in your PATH, exiting." % usearch)
+        ufitslib.log.error("%s not found in your PATH, exiting." % usearch)
         os._exit(1)
     version = usearch_test.split(" v")[1]
     majorV = version.split(".")[0]
     minorV = version.split(".")[1]
     if int(majorV) < 8 or (int(majorV) >= 8 and int(minorV) < 1):
-        log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % usearch_test)
+        ufitslib.log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % usearch_test)
         os._exit(1)
     else:
-        log.info("USEARCH version: %s" % usearch_test)
+        ufitslib.log.info("USEARCH version: %s" % usearch_test)
     
     #check for correct DB version
     if not args.utax_db:
-        log.error("You must specifiy a UTAX database via --utax_db")
+        ufitslib.log.error("You must specifiy a UTAX database via --utax_db")
         os._exit(1)
     else: #check if exists
         search_db = os.path.join(parentdir, 'DB', args.utax_db)
         if not os.path.isfile(search_db):
-            log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
+            ufitslib.log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
         else:
             utax_db = os.path.join(parentdir, 'DB', args.utax_db)
     if not args.usearch_db:
-        log.error("You must specifiy a USEARCH database via --usearch_db")
+        ufitslib.log.error("You must specifiy a USEARCH database via --usearch_db")
         os._exit(1)
     else: #check if exists
         search_db = os.path.join(parentdir, 'DB', args.usearch_db)
         if not os.path.isfile(search_db):
-            log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
+            ufitslib.log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
         else:
             usearch_db = os.path.join(parentdir, 'DB', args.usearch_db)
               
     #Count records
-    log.info("Loading FASTA Records")
+    ufitslib.log.info("Loading FASTA Records")
     total = countfasta(args.fasta)
-    log.info('{0:,}'.format(total) + ' OTUs')
+    ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
     
     #now run through UTAX
     utax_out = args.out + '.utax.txt'
     usearch_out = args.out + '.usearch.txt'
-    log.info("Classifying OTUs with UTAX (USEARCH8)")
+    ufitslib.log.info("Classifying OTUs with UTAX (USEARCH8)")
     cutoff = str(args.utax_cutoff)
-    log.debug("%s -utax %s -db %s -utaxout %s -utax_cutoff %s -strand both" % (usearch, args.fasta, utax_db, utax_out, cutoff))
+    ufitslib.log.debug("%s -utax %s -db %s -utaxout %s -utax_cutoff %s -strand both" % (usearch, args.fasta, utax_db, utax_out, cutoff))
     subprocess.call([usearch, '-utax', args.fasta, '-db', utax_db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus'], stdout = FNULL, stderr = FNULL)
     
     #load results into dictionary for appending to OTU table
-    log.debug("Loading results into dictionary")
+    ufitslib.log.debug("Loading results into dictionary")
     with open(utax_out, 'rU') as infile:
         reader = csv.reader(infile, delimiter="\t")
         utaxDict = {rows[0]:rows[2] for rows in reader}
     
     #run through USEARCH
-    log.info("Global alignment OTUs with usearch_global")
-    log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, str(args.usearch_cutoff), utax_out))
+    ufitslib.log.info("Global alignment OTUs with usearch_global")
+    ufitslib.log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, str(args.usearch_cutoff), utax_out))
     subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
     
     #load results into dictionary for appending to OTU table
-    log.debug("Loading usearch_global results into dictionary")
+    ufitslib.log.debug("Loading usearch_global results into dictionary")
     newTable = []
     with open(usearch_out, 'rU') as infile:
         reader = csv.reader(infile, delimiter="\t")
@@ -275,16 +258,16 @@ elif args.method == 'rdp':
     try:
         rdp_test = subprocess.Popen(['java', '-Xmx2000m', '-jar', args.rdp, 'classify'], stdout=subprocess.PIPE).communicate()[0].rstrip()
     except OSError:
-        log.error("%s not found in your PATH, exiting." % args.rdp)
+        ufitslib.log.error("%s not found in your PATH, exiting." % args.rdp)
         os._exit(1)
     
     #Count records
-    log.info("Loading FASTA Records")
+    ufitslib.log.info("Loading FASTA Records")
     total = countfasta(args.fasta)
-    log.info('{0:,}'.format(total) + ' OTUs')
+    ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
     
     #RDP database
-    log.info("Using RDP classifier %s training set" % args.rdp_tax)
+    ufitslib.log.info("Using RDP classifier %s training set" % args.rdp_tax)
     
     #run RDP
     rdp_out = args.out + '.rdp.txt'
@@ -322,22 +305,22 @@ elif args.method == 'blast':
     try:
         blast_test = subprocess.Popen(['blastn', '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
     except OSError:
-        log.error("BLASTN not found in your PATH, exiting.")
+        ufitslib.log.error("BLASTN not found in your PATH, exiting.")
         os._exit(1)
    
     #Count records
-    log.info("Loading FASTA Records")
+    ufitslib.log.info("Loading FASTA Records")
     total = countfasta(args.fasta)
-    log.info('{0:,}'.format(total) + ' OTUs')
+    ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
     
     #now run blast remotely using NCBI nt database
     blast_out = args.out + '.blast.txt'
     outformat = "6 qseqid sseqid pident stitle"
     if args.local_blast:
-        log.info("Running local BLAST using db: %s" % args.local)
+        ufitslib.log.info("Running local BLAST using db: %s" % args.local)
         subprocess.call(['blastn', '-query', args.fasta, '-db', local, '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out], stderr = FNULL)
     else:
-        log.info("Running BLASTN using NCBI remote nt database, this may take awhile")
+        ufitslib.log.info("Running BLASTN using NCBI remote nt database, this may take awhile")
         subprocess.call(['blastn', '-query', args.fasta, '-db', 'nt', '-remote', '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out], stderr = FNULL)
     
     #load results and reformat
@@ -361,16 +344,16 @@ if not args.otu_table:
         if not os.path.isfile(otu_table):
             otu_table = ""
         else:
-            log.info("Found OTU table: %s" % otu_table)
+            ufitslib.log.info("Found OTU table: %s" % otu_table)
     else:
-        log.info("Found OTU table: %s" % otu_table)
+        ufitslib.log.info("Found OTU table: %s" % otu_table)
 
 else:
     otu_table = args.otu_table
 
 #check if otu_table variable is empty, then load in otu table
 if otu_table:
-    log.info("Appending taxonomy to OTU table and OTUs")
+    ufitslib.log.info("Appending taxonomy to OTU table and OTUs")
     end = otu_table.rsplit(".", 1)[1]
     if end == 'txt':
         d = '\t'
@@ -385,6 +368,7 @@ if otu_table:
         otuTax = args.out + '.otus.taxonomy.fa'
     
     #append to OTU table
+    counts = 0
     with open(taxTable, 'w') as outTable:
         with open(otu_table, 'rU') as inTable:
             reader = csv.reader(inTable, delimiter=d)
@@ -394,8 +378,22 @@ if otu_table:
                 else:
                     tax = otuDict.get(line[0]) or "No Hit"
                     line.append(tax)
-                join_line = ('\t'.join(str(x) for x in line))
+                if args.only_fungi:
+                    if 'OTUId' in line[0]:
+                        join_line = ('\t'.join(str(x) for x in line))
+                    else:
+                        if 'Fungi' in line[-1]:
+                            join_line = ('\t'.join(str(x) for x in line))
+                            counts += 1
+                        else:
+                            continue
+                else:
+                    join_line = ('\t'.join(str(x) for x in line))
+                    counts += 1
                 outTable.write("%s\n" % join_line)
+    if args.only_fungi:
+        nonfungal = total - counts
+        ufitslib.log.info("Found %i non-fungal OTUs, writing %i fungal hits to taxonomy OTU table" % (nonfungal, counts))
     #append to OTUs         
     with open(otuTax, 'w') as output:
         with open(args.fasta, 'rU') as input:
@@ -405,8 +403,8 @@ if otu_table:
                 rec.description = tax
                 SeqIO.write(rec, output, 'fasta')
             
-    log.info("Taxonomy finished: %s" % taxTable)
+    ufitslib.log.info("Taxonomy finished: %s" % taxTable)
 else:
-    log.info("Unable to automatically detect OTU table, skipping append taxonomy.  Try to specifiy path to OTU table.")
+    ufitslib.log.info("Unable to automatically detect OTU table, skipping append taxonomy.  Try to specifiy path to OTU table.")
 
 print "-------------------------------------------------------"

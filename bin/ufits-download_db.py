@@ -61,6 +61,7 @@ def download(url, fileName=None):
         filesaved = fileName
         r.close()
 
+
 def getUNITE(url):
     log.info("Downloading UNITE DB")
     download(url)
@@ -72,6 +73,7 @@ def getUNITE(url):
     shutil.rmtree('developer')
     os.remove(filesaved)
     os.remove(unite_delete)
+ 
     
 def getINSD(url):
     log.info("Downloading UNITE/INSDC DB")
@@ -101,8 +103,8 @@ unite_url = 'https://unite.ut.ee/sh_files/sh_general_release_s_01.08.2015.zip'
 unite_keep = 'sh_general_release_dynamic_s_01.08.2015_dev.fasta'
 unite_short = 'sh_dynamic_01.08.2015.fasta'
 unite_delete = 'sh_general_release_dynamic_s_01.08.2015.fasta'
-insd_url = 'https://unite.ut.ee/sh_files/UNITE_public_01.08.2015.fasta.zip'
-insd_keep = 'UNITE_public_01.08.2015.fasta'
+insd_url = 'https://unite.ut.ee/sh_files/UNITE_public_31.01.2016.fasta.zip'
+insd_keep = 'UNITE_public_31.01.2016.fasta'
 rtl_url = 'ftp://ftp.ncbi.nlm.nih.gov/genomes/TARGET/ITS_rRNA/Fungi/Fungi.fna'
 rtl_keep = 'Fungi.fna'
 

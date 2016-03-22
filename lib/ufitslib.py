@@ -129,6 +129,18 @@ def checkfastqsize(input):
     filesize = os.path.getsize(input)
     return filesize
     
+def fastqreindex(input, output):
+    from Bio.SeqIO.QualityIO import FastqGeneralIterator
+    count = 1
+    with open(output, 'w') as out:
+        with open(input, 'rU') as fastq:
+            for title, sequence, qual in FastqGeneralIterator(fastq):
+                cols = title.split(';')
+                header = 'R_'+str(count)+';'+cols[1]+';'
+                count += 1
+                out.write("@%s\n%s\n+\n%s\n" % (header, sequence, qual))
+
+
 primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC', 'ITS3_KYO2': 'GATGAAGAACGYAGYRAA'}
 
 

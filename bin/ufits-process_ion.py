@@ -284,20 +284,25 @@ print "-------------------------------------------------------"
 #Now concatenate all of the demuxed files together
 ufitslib.log.info("Concatenating Demuxed Files")
 
-catDemux = args.out + '.demux.fq'
-with open(catDemux, 'wb') as outfile:
+tmpDemux = args.out + '.tmp.demux.fq'
+with open(tmpDemux, 'wb') as outfile:
     for filename in glob.glob(os.path.join(folder,'*.demux.fq')):
-        if filename == catDemux:
+        if filename == tmpDemux:
             continue
         with open(filename, 'rU') as readfile:
             shutil.copyfileobj(readfile, outfile)
-            
-ufitslib.log.info("Counting FASTQ Records")
-total = ufitslib.countfastq(catDemux)
-ufitslib.log.info('{0:,}'.format(total) + ' reads processed')
 
 #clean up tmp folder
 shutil.rmtree(folder)
+
+#last thing is to re-number of reads as it is possible they could have same name from multitprocessor split
+catDemux = args.out + '.demux.fq'
+ufitslib.fastqreindex(tmpDemux, catDemux)
+os.remove(tmpDemux)
+        
+ufitslib.log.info("Counting FASTQ Records")
+total = ufitslib.countfastq(catDemux)
+ufitslib.log.info('{0:,}'.format(total) + ' reads processed')
 
 #now loop through data and find barcoded samples, counting each.....
 BarcodeCount = {}
@@ -323,6 +328,6 @@ ufitslib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
 
 print "-------------------------------------------------------"
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (catDemux)
+    print "\nExample of next cmd: ufits cluster -i %s -o out --uchime_ref ITS2\n" % (catDemux)
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (catDemux)
+    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out --uchime_ref ITS2 \n" % (catDemux)

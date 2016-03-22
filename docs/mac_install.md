@@ -21,8 +21,8 @@ Then setup homebrew: type `brew doctor`, then type: `brew tap homebrew/science`
 #install python via homebrew
 brew install python
 
-#use pip to install biopython and natsort, might require sudo
-pip install biopython natsort  
+#use pip to install biopython, etc might require sudo
+pip install biopython natsort pandas numpy matplotlib
 ```
 
 #####4) Now download this repository:
