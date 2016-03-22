@@ -9,6 +9,10 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
 from lib.stackedBarGraph import StackedBarGrapher as StackedBarGrapher
+try:
+    import seaborn as sns
+except:
+    pass
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
