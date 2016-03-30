@@ -18,31 +18,20 @@ Then setup homebrew: type `brew doctor`, then type: `brew tap homebrew/science`
 #####3) Install some tools
 
 ```
-#install python via homebrew
+#install python via homebrew, if not already installed
 brew install python
 
 #use pip to install biopython, etc might require sudo
 pip install biopython natsort pandas numpy matplotlib
 ```
 
-#####4) Now download this repository:
-
-You can download the newest release here:
-https://github.com/nextgenusfs/ufits/releases
-
-* unzip and move the folder to a known directory, i.e. $HOME\ufits
-
-
-Or to stay up to date with the most recent changes, you can use Git:
-
+#####4) Now install UFITS via homebrew:
 ```
-git clone https://github.com/nextgenusfs/ufits
-```
+#tap my homebrew repository
+brew tap nextgenusfs/tap
 
-And then you will need to add the following to your `~/.bash_profile` or always include the entire path to the scripts at runtime. If you do not have a `~/.bash_profile` file, you can create one by typing: `sudo vim ~/.bash_profile`.  Then you can type in the appropriate path below and save by typing `:x`.
-
-```
-export PATH="/location/of/packages/ufits:$PATH"
+#install ufits
+brew install ufits
 ```
 
 #####5) You will also need to install USEARCH8 - get it [here](http://www.drive5.com/usearch/download.html).  One way to make the program executable and move into your path:
@@ -63,14 +52,16 @@ Open terminal, navigate to the `test_data` folder of ufits.
 ```
 #test scripts on Ion PGM data
 ufits ion -i ion.test.fastq -o ion
+
 #run clustering
-ufits cluster -i ion.demux.fq -o ion --uchime_ref ITS2 --mock BC_5
+ufits cluster -i ion.demux.fq -o ion --uchime_ref ITS2
 ```
 ```
 #test scripts on MiSeq data
 ufits illumina -i illumina_test_data/
+
 #run clustering
-ufits cluster -i ufits.demux.fq -o miseq --uchime_ref ITS2 --mock spike
+ufits cluster -i ufits.demux.fq -o miseq --uchime_ref ITS2
 ```
 
 
