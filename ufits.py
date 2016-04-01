@@ -108,6 +108,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -m, --min_len       Minimum length read to keep. Default: 50
              -l, --trim_len      Length to trim/pad reads. Default: 250
+             --primer_mismatch   Number of mismatches in primers to allow. Default: 2
              --cpus              Number of CPUs to use. Default: all
              --mult_samples      Combine multiple chip runs, name prefix for chip
         """ % (sys.argv[1], version)

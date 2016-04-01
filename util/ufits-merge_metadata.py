@@ -54,7 +54,7 @@ with open(args.meta, 'rU') as input:
             header = list(header)
             line.append(header)
         else:
-            otus = otuDict.get(line[0]) or "Sample not found"
+            otus = otuDict.get(line[0].rstrip()) or "Sample not found"
             if otus != "Sample not found":
                 otus = list(otus)
             else:
