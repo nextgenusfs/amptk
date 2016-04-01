@@ -318,7 +318,7 @@ elif args.method == 'blast':
     outformat = "6 qseqid sseqid pident stitle"
     if args.local_blast:
         ufitslib.log.info("Running local BLAST using db: %s" % args.local_blast)
-        subprocess.call(['blastn', '-query', args.fasta, '-db', local, '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out], stderr = FNULL)
+        subprocess.call(['blastn', '-query', args.fasta, '-db', args.local_blast, '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out], stderr = FNULL)
     else:
         ufitslib.log.info("Running BLASTN using NCBI remote nt database, this may take awhile")
         subprocess.call(['blastn', '-query', args.fasta, '-db', 'nt', '-remote', '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out], stderr = FNULL)
