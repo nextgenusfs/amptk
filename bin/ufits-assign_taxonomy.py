@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, re, argparse, logging, subprocess, csv, inspect
+import sys, os, re, argparse, logging, subprocess, csv, inspect, multiprocessing
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -317,8 +317,10 @@ elif args.method == 'blast':
     blast_out = args.out + '.blast.txt'
     outformat = "6 qseqid sseqid pident stitle"
     if args.local_blast:
+        #get number of cpus
+        cpus = multiprocessing.cpu_count() - 2
         ufitslib.log.info("Running local BLAST using db: %s" % args.local_blast)
-        subprocess.call(['blastn', '-query', args.fasta, '-db', args.local_blast, '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out], stderr = FNULL)
+        subprocess.call(['blastn', '-num_threads', str(cpus), '-query', args.fasta, '-db', args.local_blast, '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out], stderr = FNULL)
     else:
         ufitslib.log.info("Running BLASTN using NCBI remote nt database, this may take awhile")
         subprocess.call(['blastn', '-query', args.fasta, '-db', 'nt', '-remote', '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out], stderr = FNULL)
