@@ -186,7 +186,7 @@ if args.mock_barcode:
     mock = []
     sample = []
     for i in norm_round.index:
-        if 'mock' in i:
+        if not i.startswith('OTU'):
             mock.append(i)
         else:
             sample.append(i)
