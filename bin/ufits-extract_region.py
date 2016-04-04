@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
 
 import sys, os, re, argparse, logging, subprocess, inspect, codecs, unicodedata, shutil, glob, multiprocessing
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
-sys.path.insert(0,parentdir) 
+sys.path.insert(0,parentdir)
 import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
 import lib.progress as progress
@@ -50,7 +50,7 @@ if args.R_primer in primer_db:
     RevPrimer = primer_db.get(args.R_primer)
 else:
     RevPrimer = args.R_primer
-    
+
 latin_dict = {
 u"¡": u"!", u"¢": u"c", u"£": u"L", u"¤": u"o", u"¥": u"Y",
 u"¦": u"|", u"§": u"S", u"¨": u"`", u"©": u"c", u"ª": u"a",
@@ -70,7 +70,7 @@ u"ç": u"c", u"è": u"e", u"é": u"e", u"ê": u"e", u"ë": u"e",
 u"ì": u"i", u"í": u"i", u"î": u"i", u"ï": u"i", u"ð": u"d",
 u"ñ": u"n", u"ò": u"o", u"ó": u"o", u"ô": u"o", u"õ": u"o",
 u"ö": u"o", u"÷": u"/", u"ø": u"o", u"ù": u"u", u"ú": u"u",
-u"û": u"u", u"ü": u"u", u"ý": u"y", u"þ": u"p", u"ÿ": u"y", 
+u"û": u"u", u"ü": u"u", u"ý": u"y", u"þ": u"p", u"ÿ": u"y",
 u"’":u"'", u"×":u"x"}
 
 def latin2ascii(error):
@@ -98,7 +98,7 @@ def dereplicate(input, output):
     with open(output, 'w') as out:
         for key,value in seqs_inv.iteritems():
             out.write('>'+key+'\n'+value+'\n')
-            
+
 def countfasta(input):
     count = 0
     with open(input, 'rU') as f:
@@ -111,7 +111,7 @@ def stripPrimer(records):
     for rec in records:
         if args.utax == 'unite2utax':
             latin = unicode(rec.description, 'utf-8')
-            test = latin.encode('ascii', 'latin2ascii')          
+            test = latin.encode('ascii', 'latin2ascii')
             fields = test.split("|")
             for i in fields:
                 if i.startswith("k__"):
@@ -122,7 +122,7 @@ def stripPrimer(records):
                     reps = i
                 else:
                     gbID = i
-            taxonomy = re.sub(";", ",", tax)                  
+            taxonomy = re.sub(";", ",", tax)
             taxonomy = re.sub("__", ":", taxonomy)
             tf = taxonomy.split(",")
             k = tf[0]
@@ -170,7 +170,7 @@ def stripPrimer(records):
             rec.description = ""
         elif args.utax == 'rdp2utax':
             latin = unicode(rec.description, 'utf-8')
-            test = latin.encode('ascii', 'latin2ascii')  
+            test = latin.encode('ascii', 'latin2ascii')
             temp = test.split("\t")
             taxLevels = temp[-1]
             split_temp = temp[0].split(";")
@@ -257,7 +257,7 @@ def stripPrimer(records):
                 if BestPosFor > 0:
                     stripfwdlen = fwdLen + BestPosFor
                     StripSeq = Seq[stripfwdlen:]
-                
+
                     #now look for reverse
                     BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, revPrimer, MAX_PRIMER_MISMATCHES)
                     if BestDiffsRev < MAX_PRIMER_MISMATCHES:
@@ -277,7 +277,7 @@ def stripPrimer(records):
                     if BestPosFor > 0:
                         stripfwdlen = fwdLen + BestPosFor
                         StripSeq = Seq[stripfwdlen:]
-                
+
                         #now look for reverse
                         BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, revPrimer, MAX_PRIMER_MISMATCHES)
                         if BestDiffsRev < MAX_PRIMER_MISMATCHES:
@@ -329,7 +329,7 @@ def makeDB(input):
         os._exit(1)
     else:
         ufitslib.log.info("USEARCH version: %s" % usearch_test)
-    
+
     db_details = args.out + '.udb.txt'
     usearch_db = args.out + '.udb'
     if args.trimming:
@@ -339,14 +339,14 @@ def makeDB(input):
     with open(db_details, 'w') as details:
         details.write(db_string)
     report = args.out + '.report.txt'
-    
-    
+
+
     if args.create_db == 'utax':
         #create log file for this to troubleshoot
         utax_log = args.out + '.utax.log'
         if os.path.isfile(utax_log):
-            os.remove(utax_log)    
-        utaxLog = open(utax_log, 'w')  
+            os.remove(utax_log)
+        utaxLog = open(utax_log, 'w')
         ufitslib.log.info("Creating UTAX Database, this may take awhile")
         ufitslib.log.debug("%s -makeudb_utax %s -output %s -report %s -utax_trainlevels kpcofgs -utax_splitlevels NVkpcofgs -notrunclabels" % (usearch, input, usearch_db, report))
         subprocess.call([usearch, '-makeudb_utax', input, '-output', usearch_db, '-report', report, '-utax_trainlevels', 'kpcofgs', '-utax_splitlevels', 'NVkpcofgs', '-notrunclabels'], stdout = utaxLog, stderr = utaxLog)
@@ -356,7 +356,7 @@ def makeDB(input):
             ufitslib.log.info("Database %s created successfully" % usearch_db)
         else:
             ufitslib.log.error("There was a problem creating the DB, check the UTAX log file %s" % utax_log)
-        
+
     if args.create_db == 'usearch':
         ufitslib.log.info("Creating USEARCH Database")
         ufitslib.log.debug("%s -makeudb_usearch %s -output %s -notrunclabels" % (usearch, input, usearch_db))
@@ -387,7 +387,7 @@ def worker(input):
     with open(output, 'w') as o:
         with open(input, 'rU') as i:
             SeqRecords = SeqIO.parse(i, 'fasta')
-            SeqIO.write(stripPrimer(SeqRecords), o, 'fasta')  
+            SeqIO.write(stripPrimer(SeqRecords), o, 'fasta')
 
 
 #remove logfile if exists
@@ -398,16 +398,16 @@ if os.path.isfile(log_name):
 ufitslib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
-ufitslib.ufitslib.log.debug(cmd_args)
+ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 FileName = args.fasta
 fwdLen = len(FwdPrimer)
 
 if not args.trimming:
-    ufitslib.ufitslib.log.info("Searching for primers, this may take awhile: Fwd: %s  Rev: %s" % (args.F_primer, args.R_primer))
+    ufitslib.log.info("Searching for primers, this may take awhile: Fwd: %s  Rev: %s" % (args.F_primer, args.R_primer))
 else:
-    ufitslib.ufitslib.log.info("Working on file: %s" % FileName)
+    ufitslib.log.info("Working on file: %s" % FileName)
 
 if not args.cpus:
     cpus = multiprocessing.cpu_count()
@@ -416,10 +416,10 @@ else:
 
 with open(FileName, 'rU') as input:
     SeqCount = countfasta(FileName)
-    ufitslib.ufitslib.log.info('{0:,}'.format(SeqCount) + ' records loaded')
+    ufitslib.log.info('{0:,}'.format(SeqCount) + ' records loaded')
     SeqRecords = SeqIO.parse(FileName, 'fasta')
     chunks = SeqCount / cpus + 1
-    ufitslib.ufitslib.log.info("Using %i cpus to process data" % cpus)
+    ufitslib.log.info("Using %i cpus to process data" % cpus)
     #divide into chunks, store in tmp file
     pid = os.getpid()
     folder = 'ufits_tmp_' + str(pid)
@@ -457,16 +457,16 @@ shutil.rmtree(folder)
 
 if args.derep_fulllength:
     Passed = countfasta(OutName)
-    ufitslib.ufitslib.log.info('{0:,}'.format(Passed) + ' records passed (%.2f%%)' % (Passed*100.0/SeqCount))
-    ufitslib.ufitslib.log.info("Now dereplicating sequences (remove if sequence and header identical)")
+    ufitslib.log.info('{0:,}'.format(Passed) + ' records passed (%.2f%%)' % (Passed*100.0/SeqCount))
+    ufitslib.log.info("Now dereplicating sequences (remove if sequence and header identical)")
     Derep = args.out + '.derep.extracted.fa'
     dereplicate(OutName, Derep)
     Total = countfasta(Derep)
-    ufitslib.ufitslib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/Passed))
+    ufitslib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/Passed))
     os.remove(OutName)
 else:
     Total = countfasta(OutName)
-    ufitslib.ufitslib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
+    ufitslib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
     Derep = OutName
 
 if args.create_db:
