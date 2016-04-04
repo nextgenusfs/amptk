@@ -21,10 +21,10 @@ class col:
 
 parser=argparse.ArgumentParser(prog='ufits-process_ion.py', usage="%(prog)s [options] -i file.fastq\n%(prog)s -h for help menu",
     description='''Script finds barcodes, strips forward and reverse primers, relabels, and then trim/pads reads to a set length''',
-    epilog="""Written by Robert Edgar, modified by Jon Palmer (2015) nextgenusfs@gmail.com""",
+    epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('-i','--fastq','--sff', '--fasta', required=True, help='FASTQ/SFF/FASTA file')
+parser.add_argument('-i','--fastq','--sff', '--fasta', '--bam', dest='fastq', required=True, help='BAM/FASTQ/SFF/FASTA file')
 parser.add_argument('-q','--qual', help='QUAL file (if -i is FASTA)')
 parser.add_argument('-o','--out', dest="out", default='ion', help='Base name for output')
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer')
@@ -55,7 +55,6 @@ def FindBarcode(Seq):
         if Seq.startswith(Barcode):
             return Barcode, BarcodeLabel
     return "", ""
-
 
 def ProcessReads(records):
     global Barcodes
@@ -172,7 +171,11 @@ elif args.fastq.endswith(".fas") or args.fastq.endswith(".fasta") or args.fastq.
         SeqIn = args.out + '.fastq'
         ufitslib.log.info("FASTA + QUAL detected, converting to FASTQ")
         ufitslib.faqual2fastq(args.fastq, args.qual, SeqIn)
-else:
+elif args.fastq.endswith('.bam'):
+    SeqIn = args.out+'.fastq'
+    ufitslib.log.info("Converting Ion Torrent BAM file to FASTQ using BedTools")
+    subprocess.call(['bedtools', 'bamtofastq', '-i', args.fastq, '-fq', SeqIn], stdout=FNULL, stderr=FNULL)
+else:        
     SeqIn = args.fastq
 
 #check if illumina argument is passed, if so then run merge PE
