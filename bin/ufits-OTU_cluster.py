@@ -7,7 +7,7 @@ import sys, os, argparse, subprocess, inspect, csv, re, logging, shutil, multipr
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
-sys.path.insert(0,parentdir) 
+sys.path.insert(0,parentdir)
 import lib.ufitslib as ufitslib
 
 #get script path for directory
@@ -24,7 +24,7 @@ class colr:
     WARN = '\033[93m'
 
 parser=argparse.ArgumentParser(prog='ufits-OTU_cluster.py', usage="%(prog)s [options] -i file.demux.fq\n%(prog)s -h for help menu",
-    description='''Script runs UPARSE OTU clustering. 
+    description='''Script runs UPARSE OTU clustering.
     Requires USEARCH by Robert C. Edgar: http://drive5.com/usearch''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
@@ -36,7 +36,7 @@ parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent
 parser.add_argument('-m','--minsize', default='2', help='Min size to keep for clustering')
 parser.add_argument('-l','--length', default='250', help='Length to trim reads')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
-parser.add_argument('--uchime_ref', default='False', choices=['ITS1','ITS2','Full','16S'], help='Run UCHIME REF')
+parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS1,ITS2,Full,16S]')
 parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
 parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOISE)')
 parser.add_argument('--size_annotations', action='store_true', help='Append size annotations')
@@ -73,7 +73,7 @@ ufitslib.log.info("USEARCH version: %s" % usearch_test)
 tmp = args.out + '_tmp'
 if not os.path.exists(tmp):
     os.makedirs(tmp)
-    
+
 #Count FASTQ records
 ufitslib.log.info("Loading FASTQ Records")
 total = ufitslib.countfastq(args.FASTQ)
@@ -91,7 +91,7 @@ if not args.skip_quality:
     ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 else:
     filter_out = args.FASTQ
-    
+
 #convert to FASTA to save space for large files
 filter_fasta = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fa')
 SeqIO.convert(filter_out, 'fastq', filter_fasta, 'fasta')
@@ -149,8 +149,8 @@ with open(otu_clean, 'w') as output:
                 if line != '\n':
                     output.write(line)
 
-#optional UCHIME Ref 
-if args.uchime_ref == "False":
+#optional UCHIME Ref
+if not args.uchime_ref:
     uchime_out = otu_clean
 else:
     uchime_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.uchime.otus.fa')
@@ -165,26 +165,29 @@ else:
             uchime_FULL = os.path.join(parentdir, 'DB', file)
     if args.uchime_ref == "ITS1":
         uchime_db = uchime_ITS1
-    if args.uchime_ref == "ITS2":
+    elif args.uchime_ref == "ITS2":
         uchime_db = uchime_ITS2
-    if args.uchime_ref == "Full":
+    elif args.uchime_ref == "Full":
         uchime_db = uchime_FULL
-    if args.uchime_ref == "16S":
+    elif args.uchime_ref == "16S":
         uchime_db = os.path.join(parentdir, 'DB', 'rdp_gold.fa')
+    else:
+        uchime_db = os.path.abspath(args.uchime_ref)
+
     ufitslib.log.info("Chimera Filtering (UCHIME)")
     ufitslib.log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s -minh 1.0" % (usearch, otu_clean, uchime_db, uchime_out))
     subprocess.call([usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out, '-minh', '1.0'], stdout = FNULL, stderr = FNULL)
     total = ufitslib.countfasta(uchime_out)
     ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed')
 
-    
+
 #now map reads back to OTUs
 uc_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.mapping.uc')
 if args.map_filtered:
     reads = filter_fasta
 else:
     reads = orig_fasta
-    
+
 ufitslib.log.info("Mapping Reads to OTUs (USEARCH8)")
 ufitslib.log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, reads, uchime_out, uc_out))
 subprocess.call([usearch, '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out], stdout = FNULL, stderr = FNULL)

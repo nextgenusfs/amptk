@@ -8,7 +8,6 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
-import lib.progress as progress
 import lib.ufitslib as ufitslib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -346,11 +345,11 @@ def makeDB(input):
         utax_log = args.out + '.utax.log'
         if os.path.isfile(utax_log):
             os.remove(utax_log)
-        utaxLog = open(utax_log, 'w')
         ufitslib.log.info("Creating UTAX Database, this may take awhile")
         ufitslib.log.debug("%s -makeudb_utax %s -output %s -report %s -utax_trainlevels kpcofgs -utax_splitlevels NVkpcofgs -notrunclabels" % (usearch, input, usearch_db, report))
-        subprocess.call([usearch, '-makeudb_utax', input, '-output', usearch_db, '-report', report, '-utax_trainlevels', 'kpcofgs', '-utax_splitlevels', 'NVkpcofgs', '-notrunclabels'], stdout = utaxLog, stderr = utaxLog)
-        utaxufitslib.log.close()
+        with open(utax_log, 'w') as utaxLog:
+            subprocess.call([usearch, '-makeudb_utax', input, '-output', usearch_db, '-report', report, '-utax_trainlevels', 'kpcofgs', '-utax_splitlevels', 'NVkpcofgs', '-notrunclabels'], stdout = utaxLog, stderr = utaxLog)
+
         #check if file is actually there
         if os.path.isfile(usearch_db):
             ufitslib.log.info("Database %s created successfully" % usearch_db)
@@ -358,9 +357,14 @@ def makeDB(input):
             ufitslib.log.error("There was a problem creating the DB, check the UTAX log file %s" % utax_log)
 
     if args.create_db == 'usearch':
+        #create log file for this to troubleshoot
+        usearch_log = args.out + '.usearch.log'
+        if os.path.isfile(usearch_log):
+            os.remove(usearch_log)
         ufitslib.log.info("Creating USEARCH Database")
         ufitslib.log.debug("%s -makeudb_usearch %s -output %s -notrunclabels" % (usearch, input, usearch_db))
-        subprocess.call([usearch, '-makeudb_usearch', input, '-output', usearch_db, '-notrunclabels'], stdout = FNULL, stderr = FNULL)
+        with open(usearch_log, 'w') as logfile:
+            subprocess.call([usearch, '-makeudb_usearch', input, '-output', usearch_db, '-notrunclabels'], stdout = logfile, stderr = logfile)
         if os.path.isfile(usearch_db):
             ufitslib.log.info("Database %s created successfully" % usearch_db)
         else:
