@@ -172,7 +172,7 @@ elif args.fastq.endswith(".fas") or args.fastq.endswith(".fasta") or args.fastq.
         ufitslib.log.info("FASTA + QUAL detected, converting to FASTQ")
         ufitslib.faqual2fastq(args.fastq, args.qual, SeqIn)
 elif args.fastq.endswith('.bam'):
-    ufitslib.CheckDependencies('bedtools')
+    ufitslib.CheckDependencies(['bedtools'])
     SeqIn = args.out+'.fastq'
     ufitslib.log.info("Converting Ion Torrent BAM file to FASTQ using BedTools")
     subprocess.call(['bedtools', 'bamtofastq', '-i', args.fastq, '-fq', SeqIn], stdout=FNULL, stderr=FNULL)
