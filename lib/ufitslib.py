@@ -1,4 +1,4 @@
-import sys, logging, csv, os
+import sys, logging, csv, os, subprocess
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
@@ -142,5 +142,28 @@ def fastqreindex(input, output):
 
 
 primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC', 'ITS3_KYO2': 'GATGAAGAACGYAGYRAA'}
+
+def which(name):
+    try:
+        with open(os.devnull) as devnull:
+            diff = ['tbl2asn', 'dustmasker', 'mafft']
+            if not any(name in x for x in diff):
+                subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
+            else:
+                subprocess.Popen([name, '--version'], stdout=devnull, stderr=devnull).communicate()
+    except OSError as e:
+        if e.errno == os.errno.ENOENT:
+            return False
+    return True
+
+def CheckDependencies(input):
+    missing = []
+    for p in input:
+        if which(p) == False:
+            missing.append(p)
+    if missing != []:
+        error = ", ".join(missing)
+        log.error("Missing Dependencies: %s.  Please install missing dependencies and re-run script" % (error))
+        sys.exit(1)
 
 
