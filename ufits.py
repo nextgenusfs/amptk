@@ -55,7 +55,7 @@ def download(url):
     f.close()
 
 
-version = '0.3.2'
+version = '0.3.3'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -99,7 +99,7 @@ Description: Script processes Ion Torrent PGM data for UFITS clustering.  The in
              BaseCaller.  This script does the following: 1) finds Ion barcode sequences, 2) relabels headers with
              appropriate barcode name, 3) removes primer sequences, 4) trim/pad reads to a set length.
     
-Arguments:   -i, --fastq         Input FASTQ file (Required)
+Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
              -o, --out           Output base name. Default: out
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4
