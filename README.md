@@ -21,7 +21,7 @@ UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ ufits
 Usage:       ufits <command> <arguments>
-version:     0.3.2
+version:     0.3.3
 
 Description: UFITS is a package of scripts to process fungal ITS amplicon data.  It uses the UPARSE algorithm for clustering
              and thus USEARCH8 is a dependency.
@@ -53,7 +53,7 @@ And then by calling one of the commands, you get a help menu for each:
 ```
 $ ufits cluster
 Usage:       ufits cluster <arguments>
-version:     0.3.2
+version:     0.3.3
 
 Description: Script is a "wrapper" for the UPARSE algorithm.  Modifications include support for a mock spike-in
              community.  FASTQ quality trimming via expected errors and Dereplication are run in Python which allows
@@ -76,9 +76,10 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
 
 ####Processing Ion Torrent Data:####
 
-From the Torrent Server, analyze the data using the `--disable-all-filters` BaseCaller argument.  This will leave the adapters/key/barcode sequence intact.  The data need to be exported as a FASTQ file, or alternatively use a 3rd party tool to convert the BAM output file to FASTQ (i.e. `bedtools bamtofastq -i <BAM> -fq <FASTQ>`).  You can then de-multiplex the data as follows:
+From the Torrent Server, analyze the data using the `--disable-all-filters` BaseCaller argument.  This will leave the adapters/key/barcode sequence intact.  You can download either the unaligned BAM file from the server or a FASTQ file. You can then de-multiplex the data as follows:
 
 ```
+ufits ion -i data.bam -o data
 ufits ion --barcodes 1,5,24 -i data.fastq -o data
 ufits ion --barcode_fasta my_barcodes.fa -i data.fastq -o data
 ```
@@ -156,7 +157,7 @@ Issuing the `ufits taxonomy` command will inform you which databases have been p
 ```
 $ ufits taxonomy
 Usage:       ufits taxonomy <arguments>
-version:     0.3.2
+version:     0.3.3
 
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
              uses a hybrid approach, e.g. gets taxonomy information from UTAX as well as global alignment hits from the larger
@@ -212,6 +213,7 @@ The optional `--graphs` argument will create the stacked bar graphs.  You can sa
 * pandas
 * numpy
 * matplotlib
+* bedtools (only needed if using Ion Torrent BAM file as input)
 
 Python and USEARCH need to accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8.  
 
