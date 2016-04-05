@@ -144,7 +144,7 @@ args.out = re.sub(r'\W+', '', args.out)
 log_name = args.out + '.demux.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
-
+FNULL = open(os.devnull, 'w')
 ufitslib.setupLogging(log_name)
 cmd_args = " ".join(sys.argv)+'\n'
 ufitslib.log.debug(cmd_args)
