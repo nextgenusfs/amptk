@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #This script runs USEARCH OTU clustering
-#written by Jon Palmer palmer.jona at gmail dot com
+#written by Jon Palmer nextgenusfs@gmail.com
 
 import sys, os, argparse, subprocess, inspect, csv, re, logging, shutil, multiprocessing
 from Bio import SeqIO
@@ -40,7 +40,6 @@ parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS1,ITS2,Full,16S]')
 parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
 parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOISE)')
 parser.add_argument('--size_annotations', action='store_true', help='Append size annotations')
-parser.add_argument('--skip_quality', action='store_true', help='Skip Quality trimming (data is already Q-trimmed)')
 parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
@@ -60,7 +59,7 @@ ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.log.info("Operating system: %s" % sys.platform)
+ufitslib.log.info("Operating system: %s, %s" % (sys.platform, ufitslib.get_version()))
 usearch = args.usearch
 try:
     usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
@@ -69,6 +68,13 @@ except OSError:
     os._exit(1)
 ufitslib.log.info("USEARCH version: %s" % usearch_test)
 
+#check if vsearch is installed
+vsearch = ufitslib.which('vsearch')
+if vsearch:
+    ufitslib.log.info("vsearch detected, will use for filtering")
+else:
+    ufitslib.log.info("vsearch not found, using Python for filtering")
+
 #make tmp folder
 tmp = args.out + '_tmp'
 if not os.path.exists(tmp):
@@ -76,32 +82,34 @@ if not os.path.exists(tmp):
 
 #Count FASTQ records
 ufitslib.log.info("Loading FASTQ Records")
-total = ufitslib.countfastq(args.FASTQ)
+orig_total = ufitslib.countfastq(args.FASTQ)
 size = checkfastqsize(args.FASTQ)
 readablesize = ufitslib.convertSize(size)
-ufitslib.log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
+ufitslib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 
-#Expected Errors filtering step
+#Expected Errors filtering step and convert to fasta
 filter_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fq')
-if not args.skip_quality:
-    ufitslib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
+filter_fasta = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fa')
+orig_fasta = os.path.join(tmp, args.out+'.orig.fa')
+ufitslib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
+if vsearch:
+    subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastq_trunclen', str(args.length), '--fastqout', filter_out, '--fastaout', filter_fasta], stdout = FNULL, stderr = FNULL)
+    subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta], stdout = FNULL, stderr = FNULL)
+else:
     with open(filter_out, 'w') as output:
         SeqIO.write(ufitslib.MaxEEFilter(args.FASTQ, args.length, args.maxee), output, 'fastq')
-    total = ufitslib.countfastq(filter_out)
-    ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
-else:
-    filter_out = args.FASTQ
+    SeqIO.convert(args.FASTQ, 'fastq', orig_fasta, 'fasta')
+    SeqIO.convert(filter_out, 'fastq', filter_fasta, 'fasta')
+total = ufitslib.countfastq(filter_out)
+ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 
-#convert to FASTA to save space for large files
-filter_fasta = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fa')
-SeqIO.convert(filter_out, 'fastq', filter_fasta, 'fasta')
-orig_fasta = os.path.join(tmp, args.out+'.orig.fa')
-SeqIO.convert(args.FASTQ, 'fastq', orig_fasta, 'fasta')
-
-#now run full length dereplication (biopython)
+#now run full length dereplication
 derep_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.derep.fa')
 ufitslib.log.info("De-replication (remove duplicate reads)")
-ufitslib.dereplicate(filter_out, derep_out)
+if vsearch:
+    subprocess.call(['vsearch', '--derep_fulllength', filter_fasta, '--sizeout', '--output', derep_out], stdout = FNULL, stderr = FNULL)
+else:
+    ufitslib.dereplicate(filter_out, derep_out)
 total = ufitslib.countfasta(derep_out)
 ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 
@@ -118,9 +126,10 @@ else:
 
 #now run usearch 8 sort by size
 sort_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.sort.fa')
-ufitslib.log.info("Sorting reads by size (USEARCH8)")
+ufitslib.log.info("Sorting reads by size")
 ufitslib.log.debug("%s -sortbysize %s -minsize %s -fastaout %s" % (usearch, unoise_out, args.minsize, sort_out))
 subprocess.call([usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '-fastaout', sort_out], stdout = FNULL, stderr = FNULL)
+
 
 #now run clustering algorithm
 radius = str(100 - int(args.pct_otu))
@@ -188,9 +197,19 @@ if args.map_filtered:
 else:
     reads = orig_fasta
 
-ufitslib.log.info("Mapping Reads to OTUs (USEARCH8)")
-ufitslib.log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, reads, uchime_out, uc_out))
-subprocess.call([usearch, '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out], stdout = FNULL, stderr = FNULL)
+ufitslib.log.info("Mapping Reads to OTUs")
+if vsearch:
+    subprocess.call(['vsearch', '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out], stdout = FNULL, stderr = FNULL)
+else:
+    ufitslib.log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, reads, uchime_out, uc_out))
+    subprocess.call([usearch, '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out], stdout = FNULL, stderr = FNULL)
+
+#count reads mapped
+if vsearch:
+    total = ufitslib.line_count(uc_out)
+else:
+    total = ufitslib.line_count2(uc_out)
+ufitslib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs')
 
 #Build OTU table
 otu_table = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otu_table.txt')
@@ -218,7 +237,9 @@ print "Clustered OTUs: %s" % final_otu
 print "OTU Table: %s" % final_otu_table
 print "-------------------------------------------------------"
 
+otu_print = final_otu.split('/')[-1]
+tab_print = final_otu_table.split('/')[-1]
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits filter -i %s -f %s -b <mock barcode>\n" % (final_otu_table, final_otu)
+    print "\nExample of next cmd: ufits filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " ufits filter -i %s -f %s -b <mock barcode>\n" % (final_otu_table, final_otu)
+    print colr.WARN + "\nExample of next cmd:" + colr.END + " ufits filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)

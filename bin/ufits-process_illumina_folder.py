@@ -173,7 +173,7 @@ ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.log.info("Operating system: %s" % sys.platform)
+ufitslib.log.info("Operating system: %s, %s" % (sys.platform, ufitslib.get_version()))
 usearch = args.usearch
 try:
     usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()

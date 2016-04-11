@@ -63,7 +63,7 @@ ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.log.info("Operating system: %s" % sys.platform)
+ufitslib.log.info("Operating system: %s, %s" % (sys.platform, ufitslib.get_version()))
 
 #get usearch location/name
 usearch = args.usearch
@@ -167,6 +167,7 @@ otus_per_sample_original = df[df > 0].count(axis=0, numeric_only=True)
 filtered = pd.DataFrame(df, columns=fs.index)
 filt2 = filtered.loc[(filtered != 0).any(1)]
 os = filt2.sum(axis=1)
+ufitslib.log.info("Removing singleton OTUs (OTUs with only 1 read from all samples)")
 fotus = os[os > 2] #valid allele must be found more than 2 times, i.e. no singletons
 filt3 = pd.DataFrame(filt2, index=fotus.index)
 
@@ -221,7 +222,11 @@ if args.index_bleed:
     ufitslib.log.info("Overwriting auto detect index-bleed, setting to %f%%" % (args.index_bleed*100))
     bleedfilter = args.index_bleed
 else:
-    ufitslib.log.info("Will use value of %f%% for index-bleed OTU filtering." % (bleedfilter*100))
+    if bleedfilter:
+        ufitslib.log.info("Will use value of %f%% for index-bleed OTU filtering." % (bleedfilter*100))
+    else:
+        bleedfilter = 0 #no filtering if you don't pass -p or -b 
+        ufitslib.log.info("No spike-in mock (-b) or index-bleed (-p) specified, thus not running index-bleed filtering") 
 
 #to combat barcode switching, loop through each OTU filtering out if less than bleedfilter threshold
 cleaned = []

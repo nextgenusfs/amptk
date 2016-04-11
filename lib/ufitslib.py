@@ -26,6 +26,25 @@ def countfastq(input):
     count = int(lines) / 4
     return count
 
+def line_count(fname):
+    with open(fname) as f:
+        i = -1
+        for i, l in enumerate(f):
+            pass
+    return i + 1
+
+def line_count2(fname):
+    count = 0
+    with open(fname, 'rU') as f:
+        for line in f:
+            if not '*' in line:
+                count += 1
+    return count
+
+def get_version():
+    version = subprocess.Popen(['ufits', 'version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
+    return version
+
 def batch_iterator(iterator, batch_size):
     entry = True #Make sure we loop once
     while entry :

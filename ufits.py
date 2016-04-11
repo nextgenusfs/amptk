@@ -55,7 +55,7 @@ def download(url):
     f.close()
 
 
-version = '0.3.3'
+version = '0.3.4'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -241,7 +241,6 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -l, --length        Length to trim reads. Default 250
              --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
-             --skip_quality      Skip quality trimming (e.g. reads are already quality trimmed)
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
              --size_annotations  Append size annotations to OTU names. Default: off
              -u, --usearch       USEARCH executable. Default: usearch8

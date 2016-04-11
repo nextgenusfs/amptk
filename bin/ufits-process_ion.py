@@ -150,7 +150,7 @@ cmd_args = " ".join(sys.argv)+'\n'
 ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 #initialize script, log system info and usearch version
-ufitslib.log.info("Operating system: %s" % sys.platform)
+ufitslib.log.info("Operating system: %s, %s" % (sys.platform, ufitslib.get_version()))
 
 #if SFF file passed, convert to FASTQ with biopython
 if args.fastq.endswith(".sff"):
