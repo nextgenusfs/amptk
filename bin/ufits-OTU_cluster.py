@@ -93,8 +93,8 @@ filter_fasta = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fa')
 orig_fasta = os.path.join(tmp, args.out+'.orig.fa')
 ufitslib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
 if vsearch:
-    subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastq_trunclen', str(args.length), '--fastqout', filter_out, '--fastaout', filter_fasta], stdout = FNULL, stderr = FNULL)
-    subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta], stdout = FNULL, stderr = FNULL)
+    subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastq_trunclen', str(args.length), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '45'], stdout = FNULL, stderr = FNULL)
+    subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '45'], stdout = FNULL, stderr = FNULL)
 else:
     with open(filter_out, 'w') as output:
         SeqIO.write(ufitslib.MaxEEFilter(args.FASTQ, args.length, args.maxee), output, 'fastq')

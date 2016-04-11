@@ -55,7 +55,7 @@ def download(url):
     f.close()
 
 
-version = '0.3.4'
+version = '0.3.5'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -229,9 +229,10 @@ Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
 Usage:       ufits %s <arguments>
 version:     %s
 
-Description: Script is a "wrapper" for the UPARSE algorithm.  Modifications include support for a mock spike-in
-             community.  FASTQ quality trimming via expected errors and Dereplication are run in Python which allows
-             for the use of datasets larger than 4GB.  Chimera filtering and UNOISE are also options.
+Description: Script is a "wrapper" for the UPARSE algorithm. FASTQ quality trimming via expected 
+             errors and Dereplication are run in vsearch if installed otherwise defaults to Python 
+             which allows for the use of datasets larger than 4GB.  
+             Chimera filtering and UNOISE are also options.
     
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              -o, --out           Output base name. Default: out

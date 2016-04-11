@@ -90,6 +90,8 @@ def ProcessReads(records):
         if args.multi == 'False':
             rec.id = LabelPrefix + str(OutCount) + ";barcodelabel=" + BarcodeLabel + ";"
         elif args.multi != 'False':
+            if args.multi.endswith('_'):
+                args.multi = args.multi.replace('_', '')
             rec.id = LabelPrefix + str(OutCount) + ";barcodelabel=" + args.multi + "_" + BarcodeLabel + ";"
         
         #clear rest of header
