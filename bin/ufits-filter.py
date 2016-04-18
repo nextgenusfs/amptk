@@ -260,7 +260,7 @@ if args.subtract != 0:
 otus_per_sample = final[final > 0].count(axis=0, numeric_only=True)
 stats = pd.concat([fs, otus_per_sample_original, otus_per_sample], axis=1)
 stats.columns = ['reads per sample', 'original OTUs', 'final OTUs']
-print stats
+print stats.to_string()
 stats.to_csv(stats_table, sep=delim)
 if not args.keep_mock:
     try:
@@ -282,7 +282,20 @@ with open(otu_new, 'w') as otu_update:
         for rec in SeqIO.parse(myfasta, 'fasta'):
             if rec.id in final.index:
                 SeqIO.write(rec, otu_update, 'fasta')
-
+                
+#tell user what output files are
+print "-------------------------------------------------------"
+print "OTU Table filtering finished"
+print "-------------------------------------------------------"
+print "OTU Table Stats:   %s" % stats_table
+print "Sorted OTU table:  %s" % sorted_table
+print "Normalized (pct):  %s" % normal_table_pct
+print "Normalized (10k):  %s" % normal_table_nums
+if args.subtract != 0:
+    print "Subtracted table: %s" % subtract_table
+print "Final filtered:    %s" % final_table
+print "Final binary:      %s" % final_binary_table
+print "-------------------------------------------------------"
 
 if 'win32' in sys.platform:
     print "\nExample of next cmd: ufits taxonomy -i %s --append_taxonomy %s \n" % (otu_new, final_binary_table)

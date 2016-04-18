@@ -40,6 +40,15 @@ def line_count2(fname):
             if not '*' in line:
                 count += 1
     return count
+    
+def getreadlength(input):
+    with open(input) as fp:
+        for i, line in enumerate(fp):
+            if i == 1:
+                read_length = len(line) - 1 #offset to switch to 1 based counts
+            elif i > 2:
+                break
+    return read_length
 
 def get_version():
     version = subprocess.Popen(['ufits', 'version'], stdout=subprocess.PIPE).communicate()[0].rstrip()

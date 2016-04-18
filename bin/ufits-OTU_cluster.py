@@ -87,17 +87,24 @@ size = checkfastqsize(args.FASTQ)
 readablesize = ufitslib.convertSize(size)
 ufitslib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 
+#get read length
+calc_read_len = ufitslib.getreadlength(args.FASTQ)
+if args.length > calc_read_len:
+    read_length = calc_read_len
+else:
+    read_length = args.length
+
 #Expected Errors filtering step and convert to fasta
 filter_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fq')
 filter_fasta = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fa')
 orig_fasta = os.path.join(tmp, args.out+'.orig.fa')
 ufitslib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
 if vsearch:
-    subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastq_trunclen', str(args.length), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '45'], stdout = FNULL, stderr = FNULL)
+    subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastq_trunclen', str(read_length), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '45'], stdout = FNULL, stderr = FNULL)
     subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '45'], stdout = FNULL, stderr = FNULL)
 else:
     with open(filter_out, 'w') as output:
-        SeqIO.write(ufitslib.MaxEEFilter(args.FASTQ, args.length, args.maxee), output, 'fastq')
+        SeqIO.write(ufitslib.MaxEEFilter(args.FASTQ, read_length, args.maxee), output, 'fastq')
     SeqIO.convert(args.FASTQ, 'fastq', orig_fasta, 'fasta')
     SeqIO.convert(filter_out, 'fastq', filter_fasta, 'fasta')
 total = ufitslib.countfastq(filter_out)
