@@ -65,7 +65,7 @@ So you can now see that processing data from different instruments requires a sl
 ######Ion Torrent Pre-processing
 De-multiplexing, primer removal, and trimming/padding is done using the `ufits ion` command.  By typing `ufits ion` into the terminal you will see a help menu with options for the script.
 ```
-ufits ion -i ion.fastq --barcode_fasta barcodes.fa -f fITS7 -r ITS4 -o ion
+ufits ion -i ion.fastq --barcode_fasta barcodes.fa -f GTGARTCATCGAATCTTTG -r TCCTCCGCTTATTGATATGC -o ion
 ```
 Ok, so what is happening?  You see that we give UFITS two inputs, 1) a FASTQ file from the machine and 2) a barcode fasta file containing the barcodes that we put on our primers. We also tell this script which primers we used. 
 So the FASTQ files look something like this:
@@ -105,7 +105,27 @@ AACGCACATTTGCGCCCCCCGCTATTACCTCTAGCGGGCATCCTGTTCGAGCGCATTTCAACCCCCCTCAAAGCCCCCCA
 ;7;;;;;<CC;?1H@>>><(-----)--)---66666,66660---)------6---)--)-----%---6)--7776/----)-)---3555%---%----)-------)--)-)-)-00/.-%666666,6566,505509<CC6---.)--------)-----)------3---)--)---%-)---)-----)--5)-4222*22.2.4.44*-)-----)-)-------%--)-)---%-5)-)-------)-)-55%--)--)-)----)---)-)-----)--60-)-----%------)--)--)444444--)---)---)-5)-)--)--)----4)---%222.222--)-3----2-225@73434--------%--2
 ```
 
-Now the script will look for the reverse primer sequence.  Here we used the ITS4 reverse primer `TCCTCCGCTTATTGATATGC`, so we are looking for the reverse complement of that primer `GCATATCAATAAGCGGAGGA`
+Now the script will look for the reverse primer sequence.  Here we used the ITS4 reverse primer `TCCTCCGCTTATTGATATGC`, so we are looking for the reverse complement of that primer `GCATATCAATAAGCGGAGGA`.  The script will then trim the primer as well as any trailing bases.  The resulting sequence looks like this:
+```
+@R_1;barcodelabel=BC_33;
+AACGCACATTTGCGCCCCCCGCTATTACCTCTAGCGGGCATCCTGTTCGAGCGCATTTCAACCCCCCTCAAAGCCCCCCAGCTTGGTGTTGGGGCCCCTACGGCTCTGCCCGTTAAGGCCCCCCCTGAAAAACGAAAGGTGGCGGGGCGCTTCGACTACGGCGTCCCGATCGCCAGTTCAAGGGGCCACTTATACTTCGCCTAGGGGAGGCCTTCCCGGCGATCCAACCCCCCCCGCCTTAAAACAACCACATCTTTAACCCCAAAGGGTTGACCCTCGGAAGTCAGGTAGGAATACCCCGCTGAAACTTAAA
++
+;7;;;;;<CC;?1H@>>><(-----)--)---66666,66660---)------6---)--)-----%---6)--7776/----)-)---3555%---%----)-------)--)-)-)-00/.-%666666,6566,505509<CC6---.)--------)-----)------3---)--)---%-)---)-----)--5)-4222*22.2.4.44*-)-----)-)-------%--)-)---%-5)-)-------)-)-55%--)--)-)----)---)-)-----)--60-)-----%------)--)--)
+```
+The last part of the pre-processing script is to trim/pad the sequence to a set length, this ensures that all sequences are the exact same length which is a requirement for UPARSE clustering as terminal mismatches count (unlike BLAST for example).  Alternatively, one could only use full length amplicon sequences where both forward and reverse primers are found.  The default setting for UFITS is to trim/pad to 250 bp, sequences that are now shorter than 250 bp get padded with `N's` while those that are longer are trimmed to 250 bp.  You can set this to whatever length you like, however, there are trade offs with quality filtering, length of sequence, and being able to taxonomically classify an OTU.  So an example of what the final output of `ufits ion` will look like is here:
+```
+```
+@R_1;barcodelabel=BC_33;
+AACGCACATTTGCGCCCCCCGCTATTACCTCTAGCGGGCATCCTGTTCGAGCGCATTTCAACCCCCCTCAAAGCCCCCCAGCTTGGTGTTGGGGCCCCTACGGCTCTGCCCGTTAAGGCCCCCCCTGAAAAACGAAAGGTGGCGGGGCGCTTCGACTACGGCGTCCCGATCGCCAGTTCAAGGGGCCACTTATACTTCGCCTAGGGGAGGCCTTCCCGGCGATCCAACCCCCCCCGCCTTAAAACAACCA
++
+;7;;;;;<CC;?1H@>>><(-----)--)---66666,66660---)------6---)--)-----%---6)--7776/----)-)---3555%---%----)-------)--)-)-)-00/.-%666666,6566,505509<CC6---.)--------)-----)------3---)--)---%-)---)-----)--5)-4222*22.2.4.44*-)-----)-)-------%--)-)---%-5)-)-
+@R_1;barcodelabel=BC_27;
+AACGCACATTTGCGCCCCCCGCTATTACCTCTAGCGGGCATCCTGTTCGAGCGCATTTCAACCCCCCTCAAAGCCCCCCAGCTTGGTGTTGGGGCCCCTACGGCTCTGCCCGTTAAGGCCCCCCCTGAAAAACGAAAGGTGGCGGGGCGCTTCGACTACGGCGTCCCGATCGCCGATCCAACCCCCCCATCCCCCGCTGAAACTTAAANNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN
++
+;7;;;;;<CC;?1H@>>><(-----)--)---66666,66660---)------6---)--)-----%---6)--7776/----)-)---3555%---%----)-------)--)-)-)-00/.-%666666,6566,505509<CC6---.)--------)-----)------3---)--)---%-)---)-----)--5)-4222*2IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+```
+
+
 
  in the case of Illumina data the samples are already split into two files (forward and reverse reads) for each sample, while for Ion/454 the data are combined into a single file that has a unique barcode at the start of the read.  
 
