@@ -152,7 +152,20 @@ So a command for `ufits cluster` looks like this:
 ```
 ufits cluster -i ion.demux.fq -o ion --uchime_ref ITS2
 ```
-As mentioned above the first step is to quality filter the reads, this is controlled with the `-e, --maxee` option and is set by default to `1.0`.  You likely don't need to change this.  The next step of UPARSE is to dereplicate the sequences, in other words, finding identical sequences and counting the number of times each sequence is found.  Following dereplication, the script sorts the resulting sequences in order of most abundant to least abundant and removes sequences that are singletons (not found at least twice in the data).  This is again another quality filtering method to remove sequences that are likely to contain errors.  The data is then fed into the `-cluster_otus` command of USEARCH, which starts with the most abundant sequence and does global alignment with every other sequence forming 'clusters' at 97% identity (controlled by the `-p, --pct_otu` option). This program also runs de novo chimera detection while clustering.  After sequences have been clustered into OTUs, we run reference based chimera detection which is based on a curated UNITE database of ITS sequences (using the `--uchime_ref` option).  Finally, the input FASTQ data is mapped to the final OTUs and an OTU table is generated.  The `barcodelabel=sample1` in the FASTQ header is used to determine which sample the sequence was derived from.  So the output from `ufits cluster` is a FASTA file containing OTUs and an OTU table containing the frequencies at which reads from each sample were found in the dataset.  An OTU table looks like this:
+As mentioned above the first step is to quality filter the reads, this is controlled with the `-e, --maxee` option and is set by default to `1.0`.  You likely don't need to change this.  The next step of UPARSE is to dereplicate the sequences, in other words, finding identical sequences and counting the number of times each sequence is found.  Following dereplication, the script sorts the resulting sequences in order of most abundant to least abundant and removes sequences that are singletons (not found at least twice in the data).  This is again another quality filtering method to remove sequences that are likely to contain errors.  The data is then fed into the `-cluster_otus` command of USEARCH, which starts with the most abundant sequence and does global alignment with every other sequence forming 'clusters' at 97% identity (controlled by the `-p, --pct_otu` option). This program also runs de novo chimera detection while clustering.  After sequences have been clustered into OTUs, we run reference based chimera detection which is based on a curated UNITE database of ITS sequences (using the `--uchime_ref` option).  Finally, the input FASTQ data is mapped to the final OTUs and an OTU table is generated.  The `barcodelabel=sample1` in the FASTQ header is used to determine which sample the sequence was derived from.  So the output from `ufits cluster` is a FASTA file containing OTUs and an OTU table containing the frequencies at which reads from each sample were found in the dataset.  Your final OTUs will look something like this:
+```
+>OTU_1
+AACGCACCTTGCGCTCCTTGGTATTCCGAGGAGCATGCCTGTTTGAGTGTCATTAAATTCTCAACTCCCTTTGATTTCTT
+CAAAGGTGAGCTTGGATGTTGGAGGCTTGCCGGCTGCAAAGTCGGCTCCTCTGAAATGCATTGACGAAGGGAGTGTGCAT
+GATACGGCCTTCGGTGTGATAATGATCGCCGTGGCTGGCTTGCTGTAGCACCTTTGTTTAATCTTTTTCCATTGGGTTGG
+AAAAAGCTTG
+>OTU_2
+AACGCACATTGCACCTACCAGTATTCTGGTAGGTATGCCTGTTCGAGCGTCATTTCAACCCTCAAGCTCTGCTTGGTGTT
+GGGGCCCTACGCCTCGCGCGTAGGCCCTTAAGACTAGTGGCGGACCTTCTGTGATCCCGAGCGTAGTAATTTTTACCGCT
+TTGGAGACCTGGAGGCACCGGCCGTTAAACCCCTATTTCTCAAGGTTGACCTCGGATCAGGTAGGAATACCCGCTGAACT
+TAA
+```
+And an OTU table is tab-delimited and looks like this:
 ```
 OTUId	BC_28	BC_94	BC_93	BC_27	BC_10	BC_22	BC_48	BC_9	BC_63	BC_38
 OTU_1	1834	0	1196	2826	1877	405	0	1903	0	189
@@ -165,6 +178,15 @@ OTU_2	28	1	21	64	94	7	1916	90	115	1
 OTU_6	0	98	0	0	0	0	0	0	0	0
 OTU_45	1	0	1	1	0	0	28	0	0	0
 ```
+One of the many things that we learned from sequencing mock communities, is that the counts in an OTU table are somewhat meaningless and do not represent the abundances of DNA sequences that were initially in your sample.  The bias is largely driven by the initial PCR reaction on a mixed community.  Either way, we feel the the most conservative approach is to treat the data as presence/absence data as opposed to inferring abundance from the counts in the OTU tables.
 
+#####Filtering OTU table
+Despite all of the quality filtering employed to get to this point, there are still some errors that persist in the dataset.  One of these errors is index-bleed or barcode switching, a phenomenon where a barcode switches or bleeds over into another sample where it doesn't belong.  This likely occurs during the templating reaction in Ion Torrent data and seems to occur in Illumina data during the index de-multiplexing step - we have seen as much as 0.3% index bleed in Illumina data and ~ 0.2% index bleed in Ion data.  In order to combat this phenomenon, I engineered a synthetic mock community composed of ITS-like sequences that can be used as a spike-in control for every sequencing run.  These synthetic mock sequences can then be used to measure the amount of index-bleed that is present in your dataset and allows you to set meaningful filtering thresholds to filter out counts that are likely to be derived from experimental error (barcode switching). You use the `ufits filter` command as follows:
+```
+ufits filter -i ion.otu_table.txt -f ion.final.otus.fa -b mock
+```
+Ok, now what is it doing?  The script first maps the FASTA sequences to identify which OTUs correspond to the synthetic mock (or actually any mock that you added).  It then removes OTUs that are represented by only a single read (singleton OTUs) which are likely to be spurious.  The script next normalizes the OTU counts against the number of reads in each sample and then calculates the index-bleed from the synthetic mock into other samples as well as the index-bleed from the samples into the mock.  It takes the larger of these two values, rounds up, and then filters the data to remove counts that are less than the calculated index-bleed for each OTU.  Finally, the script removes the mock-spike in sample from the dataset and converts the final filtered OTU table to binary to represent presence/absence.  The script then reports several OTU tables that were created during filtering.
 
+#####Assigning Taxonomy to your OTUs
+ 
 
