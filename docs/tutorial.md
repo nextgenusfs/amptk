@@ -49,7 +49,16 @@ The second barcoding reaction then adds a unique barcode [i5] to the 5' adapter 
 ```
 5' - Adapter1-[i5]-Adapter2-For_Primer:amplicon:Rev_Primer-Adapter3-[i7]-Adapter4 - 3'
 ```
-The machine then does 4 different sequencing reactions: 1) Read 1 (sequence from Adapter2 for 300 bp), 2) Index Read 1 (sequences the i5 barcode), 3) Read 2 (sequence in reverse direction from Adapter3, 4) Index Read 2 (sequences the i7 barcode).  Illumina software then de-multiplexes the reads based on the index sequences and splits each sample into two files that are named as such:
+The machine then does 4 different sequencing reactions: 1) Read 1 (sequence from Adapter2 for 300 bp), 2) Index Read 1 (sequences the i5 barcode), 3) Read 2 (sequence in reverse direction from Adapter3, 4) Index Read 2 (sequences the i7 barcode).  The software then strips the adapter sequences, and the reads will then look like this:
 ```
-<sample name>_<barcode sequence>_L<lane (0-padded to 3 digits)>_R<read number>_<set number (0-padded to 3 digits>.fastq.gz
+5' -  For_Primer:amplicon:Rev_Primer - 3'
+
+Illumina software then de-multiplexes the reads based on the index sequences and splits each sample into two files that are named as such, `<sample name>_<barcode>_L<lane number>_R<read number>_<set number>.fastq.gz`
+```
+Sample1_ATCCTTG_L001_R1_001.fastq.gz
+Sample1_TCTGGTA_L001_R2_001.fastq.gz
 ``` 
+
+####Pre-processing data using UFITS
+So you can now see that processing data from different instruments requires a slightly differen strategy, in the case of Illumina data the samples are already split into two files (forward and reverse reads) for each sample, while for Ion/454 the data are combined into a single file that has a unique barcode at the start of the read.  
+
