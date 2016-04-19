@@ -192,9 +192,22 @@ It's okay, you won't be subject to public humiliation (yet).  You can still use 
 ```
 ufits filter -i illumina.otu_table.txt -f illumina.final.otus.fa -p 0.005
 ```
-This will apply an index-bleed filter of 0.5% across your OTU table.
-
+This will apply an index-bleed filter of 0.5% across your OTU table, which should be enough to remove barcode switching from your dataset.
 
 #####Assigning Taxonomy to your OTUs
-
+Ok, almost finished.  Now we have a filtered OTU table and we have the corresponding sequences in FASTA format, now wtf are these damn things!  Traditionally BLAST has been the tool of choice for assigning taxonomy to OTUs, while this can work, BLAST is really not the right tool for the job.  BLAST uses `local alignment` where sequences are chopped up into smaller `words` and then alignments of those smaller words are done - this is useful as it is much faster than `global alignment`, however we want to compare the entire OTU sequence not just a portion of it.  Recently, there have been tools developed that can classify sequences according to a trained dataset, essentially yielding a `p-value` of how likely your OTU sequence matches up agains a reference dataset.  This was first implemented in the RDP Classifier and more recently in USEARCH via the UTAX commands.  Assigning taxonomy in UFITS can be done using any of these techniques and is done with the `ufits taxonomy` command.  However, the default method is a hybrid approach between `global alignment` and the `utax` classifier.  First, here is the command, then I'll explain whats happening:
+```
+ufits taxonomy -i ion.mock.otus.fa --append_taxonomy ion.final.binary.csv --only_fungi
+```
+The script takes your OTU sequences and runs UTAX versus a pre-trained UNITE dataset it then also runs `global alignment` using USEARCH against a larger UNITE dataset.  The results are then processed in this fashion for each OTU: 1) if there is not a global alignment result > 97% it will default to the UTAX result, 2) if global alignment is > 97% the script compares the levels of taxonomy between both results and keeps the one with more information.  The taxonomy information can then be appended to an OTU table using the `--append_taxonomy` option.  Additionally, non-fungal OTUs can be filtered out of the dataset using the `--only_fungi` option.  So now we have an OTU table that looks like this:
+```
+OTUId	BC_9	BC_10	BC_22	BC_27	BC_28	BC_38	BC_48	BC_63	BC_93	Taxonomy
+OTU_1	1	1	1	1	1	1	0	0	1	UTAX;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Boletales,f:Coniophoraceae,g:Coniophora
+OTU_2	1	1	1	1	1	1	1	1	1	UTAX;k:Fungi,p:Ascomycota,c:Sordariomycetes,o:Sordariales
+OTU_4	0	0	1	0	0	1	0	0	0	UTAX;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Cantharellales,f:Hydnaceae,g:Sistotrema,s:Sistotrema brinkmannii
+OTU_10	1	1	0	0	1	0	1	1	1	EU552160;k:Fungi,p:Ascomycota,c:Sordariomycetes,o:Diaporthales,f:Togniniaceae
+OTU_12	0	0	1	0	0	1	0	0	0	AY590788;k:Fungi,p:Ascomycota
+OTU_13	0	0	0	0	0	1	1	0	0	KJ827975;k:Fungi,p:Ascomycota,c:Dothideomycetes
+OTU_14	1	0	1	0	0	0	0	0	0	UTAX;k:Fungi,p:Ascomycota,c:Dothideomycetes,o:Hysteriales,f:Gloniaceae,g:Ceno
+```
 
