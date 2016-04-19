@@ -123,8 +123,9 @@ AACGCACATTTGCGCCCCCCGCTATTACCTCTAGCGGGCATCCTGTTCGAGCGCATTTCAACCCCCCTCAAAGCCCCCCA
 +
 ;7;;;;;<CC;?1H@>>><(-----)--)---66666,66660---)------6---)--)-----%---6)--7776/----)-)---3555%---%----)-------)--)-)-)-00/.-%666666,6566,505509<CC6---.)--------)-----)------3---)--)---%-)---)-----)--5)-4222*2IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
 ```
-
-
-
- in the case of Illumina data the samples are already split into two files (forward and reverse reads) for each sample, while for Ion/454 the data are combined into a single file that has a unique barcode at the start of the read.  
-
+######Illumina (MiSeq) Pre-processing
+In the case of Illumina data the samples are already split into two files (forward and reverse reads) for each sample, thus we don't need to de-multiplex the data.  However, the paired-end reads need to be merged into a single read - there are a number of ways to do this, UFITS uses the `-fastq_mergepairs` command of USEARCH8, you can read more [here](http://www.drive5.com/usearch/manual/cmd_fastq_mergepairs.html).  The command in UFITS to process Illumina data looks like this:
+```
+ufits illumina -i miseq -o illumina -f CTTGGTCATTTAGAGGAAGTAA -r GCTGCGTTCTTTATCGATGC --read_length 250 --rescue_forward
+```
+So, what is this script doing?  The first step is to merge the forward and reverse reads for each sample - the `-fastq-mergepairs` of USEARCH does this by aligning the reads, determining where they overlap, and merging reads that overlap.  Some reads cannot be merged, this could be for a variety of reasons: 1) the amplicon is longer than what could be sequenced and thus tails don't overlap, 2) the reverse read is of poor quality, or 3) both the reads are of poor quality.  UFITS can try to rescue reads that do not overlap by using just the forward reads which tend to be of higher quality, this is done with the `--rescue_forward` option.  After reads are merged/rescued, the script then looks for forward and reverse primers, trims them off, and then trims/pads to a set length in the same fashion as Ion data above.
