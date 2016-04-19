@@ -103,11 +103,9 @@ def FastMaxEEFilter(input, trunclen, maxee, output):
                 if ee <= float(maxee):
                     out.write("@%s\n%s\n+\n%s\n" % (title, Seq, Qual))
 
-def MaxEEFilter(input, trunclen, maxee):
+def MaxEEFilter(input, maxee):
     with open(input, 'rU') as f:
         for rec in SeqIO.parse(f, "fastq"):
-            trunclen = int(trunclen)
-            rec = rec[:trunclen]
             ee = 0
             for bp, Q in enumerate(rec.letter_annotations["phred_quality"]):
                 P = 10**(float(-Q)/10)

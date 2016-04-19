@@ -35,6 +35,7 @@ parser.add_argument('-b','--list_barcodes', dest="barcodes", default='all', help
 parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
 parser.add_argument('-m','--min_len', default='50', help='Minimum read length to keep')
 parser.add_argument('-l','--trim_len', default='250', help='Trim length for reads')
+parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
 parser.add_argument('--mult_samples', dest="multi", default='False', help='Combine multiple samples (i.e. FACE1)')
 parser.add_argument('--illumina', action='store_true', help='Input data is single file Illumina')
 parser.add_argument('--ion', action='store_true', help='Input data is Ion Torrent')
@@ -109,30 +110,34 @@ def ProcessReads(records):
             L = len(rec.seq)
             if L < MinLen:
                 continue
-            #now check trim length, pad if necessary
-            if L < TrimLen:
-                pad = TrimLen - L
-                Seq = str(rec.seq)
-                Seq = Seq + pad*'N'
-                Qual = rec.letter_annotations["phred_quality"]
-                pad = TrimLen - L
-                add = [40] * pad
-                Qual.extend(add)
-                del rec.letter_annotations["phred_quality"]
-                rec.seq = Seq
-                rec.letter_annotations["phred_quality"] = Qual
-                yield rec
-            elif L >= TrimLen:   
-                rec = rec[:TrimLen]
+            if not args.full_length:
+                #now check trim length, pad if necessary
+                if L < TrimLen:
+                    pad = TrimLen - L
+                    Seq = str(rec.seq)
+                    Seq = Seq + pad*'N'
+                    Qual = rec.letter_annotations["phred_quality"]
+                    pad = TrimLen - L
+                    add = [40] * pad
+                    Qual.extend(add)
+                    del rec.letter_annotations["phred_quality"]
+                    rec.seq = Seq
+                    rec.letter_annotations["phred_quality"] = Qual
+                    yield rec
+                elif L >= TrimLen:   
+                    rec = rec[:TrimLen]
+                    yield rec
+            else:
                 yield rec
 
         else:
-            #check length
-            L = len(rec.seq)
-            #truncate down to trim length
-            if L >= TrimLen:
-                rec = rec[:TrimLen]        
-                yield rec
+            if not args.full_length:
+                #check length
+                L = len(rec.seq)
+                #truncate down to trim length
+                if L >= TrimLen:
+                    rec = rec[:TrimLen]        
+                    yield rec
 
 def worker(input):
     output = input.split(".",-1)[0] + '.demux.fq'

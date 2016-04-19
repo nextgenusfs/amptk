@@ -37,6 +37,7 @@ parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Pre
 parser.add_argument('-m','--min_len', default='50', help='Minimum read length to keep')
 parser.add_argument('-l','--trim_len', default='250', help='Trim length for reads')
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
+parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()      
 
@@ -120,30 +121,34 @@ def ProcessReads(records):
             L = len(rec.seq)
             if L < MinLen:
                 continue
-            #now check trim length, pad if necessary
-            if L < TrimLen:
-                pad = TrimLen - L
-                Seq = str(rec.seq)
-                Seq = Seq + pad*'N'
-                Qual = rec.letter_annotations["phred_quality"]
-                pad = TrimLen - L
-                add = [40] * pad
-                Qual.extend(add)
-                del rec.letter_annotations["phred_quality"]
-                rec.seq = Seq
-                rec.letter_annotations["phred_quality"] = Qual
-                yield rec
-            elif L >= TrimLen:   
-                rec = rec[:TrimLen]
+            if not args.full_length:
+                #now check trim length, pad if necessary
+                if L < TrimLen:
+                    pad = TrimLen - L
+                    Seq = str(rec.seq)
+                    Seq = Seq + pad*'N'
+                    Qual = rec.letter_annotations["phred_quality"]
+                    pad = TrimLen - L
+                    add = [40] * pad
+                    Qual.extend(add)
+                    del rec.letter_annotations["phred_quality"]
+                    rec.seq = Seq
+                    rec.letter_annotations["phred_quality"] = Qual
+                    yield rec
+                elif L >= TrimLen:   
+                    rec = rec[:TrimLen]
+                    yield rec
+            else:
                 yield rec
 
         else:
-            #check length
-            L = len(rec.seq)
-            #truncate down to trim length
-            if L >= TrimLen:
-                rec = rec[:TrimLen]        
-                yield rec
+            if not args.full_length:
+                #check length
+                L = len(rec.seq)
+                #truncate down to trim length
+                if L >= TrimLen:
+                    rec = rec[:TrimLen]        
+                    yield rec
 
 def worker(file):
     global name
@@ -291,7 +296,10 @@ for file in os.listdir(args.out):
     if file.endswith(".fq"):
         file = os.path.join(args.out, file)
         file_list.append(file)
-ufitslib.log.info("Stripping primers and trim/pad to %s bp" % (args.trim_len))
+if not args.full_length:
+    ufitslib.log.info("Stripping primers and trim/pad to %s bp" % (args.trim_len))
+else:
+    ufitslib.log.info("Stripping primers and keeping only full length sequences")
 ufitslib.log.info("splitting the job over %i cpus, but this may still take awhile" % (cpus))
 
 #parallize over number of cpus

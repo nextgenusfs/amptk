@@ -34,7 +34,6 @@ parser.add_argument('-o','--out', default='out', help='Base output name')
 parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
 parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent")
 parser.add_argument('-m','--minsize', default='2', help='Min size to keep for clustering')
-parser.add_argument('-l','--length', default='250', help='Length to trim reads')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS1,ITS2,Full,16S]')
 parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
@@ -87,24 +86,17 @@ size = checkfastqsize(args.FASTQ)
 readablesize = ufitslib.convertSize(size)
 ufitslib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 
-#get read length
-calc_read_len = ufitslib.getreadlength(args.FASTQ)
-if args.length > calc_read_len:
-    read_length = calc_read_len
-else:
-    read_length = args.length
-
 #Expected Errors filtering step and convert to fasta
 filter_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fq')
 filter_fasta = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fa')
 orig_fasta = os.path.join(tmp, args.out+'.orig.fa')
 ufitslib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
 if vsearch:
-    subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastq_trunclen', str(read_length), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '45'], stdout = FNULL, stderr = FNULL)
+    subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '45'], stdout = FNULL, stderr = FNULL)
     subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '45'], stdout = FNULL, stderr = FNULL)
 else:
     with open(filter_out, 'w') as output:
-        SeqIO.write(ufitslib.MaxEEFilter(args.FASTQ, read_length, args.maxee), output, 'fastq')
+        SeqIO.write(ufitslib.MaxEEFilter(args.FASTQ, args.maxee), output, 'fastq')
     SeqIO.convert(args.FASTQ, 'fastq', orig_fasta, 'fasta')
     SeqIO.convert(filter_out, 'fastq', filter_fasta, 'fasta')
 total = ufitslib.countfastq(filter_out)

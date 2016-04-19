@@ -55,7 +55,7 @@ def download(url):
     f.close()
 
 
-version = '0.3.6'
+version = '0.3.7'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -108,6 +108,7 @@ Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -m, --min_len       Minimum length read to keep. Default: 50
              -l, --trim_len      Length to trim/pad reads. Default: 250
+             --full_length       Keep only full length sequences.
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
              --cpus              Number of CPUs to use. Default: all
              --mult_samples      Combine multiple chip runs, name prefix for chip
@@ -143,6 +144,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -m, --min_len       Minimum length read to keep. Default: 50
              -l, --trim_len      Length to trim/pad reads. Default: 250
+             --full_length       Keep only full length sequences.
              --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch8
         """ % (sys.argv[1], version)
@@ -178,6 +180,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -m, --min_len       Minimum length read to keep. Default: 50
              -l, --trim_len      Length to trim/pad reads. Default: 250
+             --full_length       Keep only full length sequences.
              --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch8
         """ % (sys.argv[1], version)
@@ -239,7 +242,6 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -m, --minsize       Minimum size to keep (singleton filter). Default: 2
-             -l, --length        Length to trim reads. Default 250
              --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
