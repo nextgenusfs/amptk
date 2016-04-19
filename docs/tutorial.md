@@ -52,7 +52,7 @@ The second barcoding reaction then adds a unique barcode [i5] to the 5' adapter 
 The machine then does 4 different sequencing reactions: 1) Read 1 (sequence from Adapter2 for 300 bp), 2) Index Read 1 (sequences the i5 barcode), 3) Read 2 (sequence in reverse direction from Adapter3, 4) Index Read 2 (sequences the i7 barcode).  The software then strips the adapter sequences, and the reads will then look like this:
 ```
 5' -  For_Primer:amplicon:Rev_Primer - 3'
-
+```
 Illumina software then de-multiplexes the reads based on the index sequences and splits each sample into two files that are named as such, `<sample name>_<barcode>_L<lane number>_R<read number>_<set number>.fastq.gz`
 ```
 Sample1_ATCCTTG_L001_R1_001.fastq.gz
