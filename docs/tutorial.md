@@ -199,7 +199,7 @@ Ok, almost finished.  Now we have a filtered OTU table and we have the correspon
 ```
 ufits taxonomy -i ion.mock.otus.fa --append_taxonomy ion.final.binary.csv --only_fungi
 ```
-The script takes your OTU sequences and runs UTAX versus a pre-trained UNITE dataset it then also runs `global alignment` using USEARCH against a larger UNITE dataset.  The results are then processed in this fashion for each OTU: 1) if there is not a global alignment result > 97% it will default to the UTAX result, 2) if global alignment is > 97% the script compares the levels of taxonomy between both results and keeps the one with more information.  The taxonomy information can then be appended to an OTU table using the `--append_taxonomy` option.  Additionally, non-fungal OTUs can be filtered out of the dataset using the `--only_fungi` option.  So now we have an OTU table that looks like this:
+The script takes your OTU sequences and runs UTAX versus a pre-trained UNITE dataset it then also runs `global alignment` using USEARCH against a larger UNITE dataset.  The results are then processed in this fashion for each OTU: 1) if there is not a global alignment result > 97% it will default to the UTAX result, 2) if global alignment is > 97% the script compares the levels of taxonomy between both results and keeps the one with more information.  So in the `hybrid` method, the script does it's best to find the most taxonomy information it can at trustable levels.  The taxonomy information can then be appended to an OTU table using the `--append_taxonomy` option.  Additionally, non-fungal OTUs can be filtered out of the dataset using the `--only_fungi` option.  So now we have an OTU table that looks like this:
 ```
 OTUId	BC_9	BC_10	BC_22	BC_27	BC_28	BC_38	BC_48	BC_63	BC_93	Taxonomy
 OTU_1	1	1	1	1	1	1	0	0	1	UTAX;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Boletales,f:Coniophoraceae,g:Coniophora
@@ -209,5 +209,29 @@ OTU_10	1	1	0	0	1	0	1	1	1	EU552160;k:Fungi,p:Ascomycota,c:Sordariomycetes,o:Diapo
 OTU_12	0	0	1	0	0	1	0	0	0	AY590788;k:Fungi,p:Ascomycota
 OTU_13	0	0	0	0	0	1	1	0	0	KJ827975;k:Fungi,p:Ascomycota,c:Dothideomycetes
 OTU_14	1	0	1	0	0	0	0	0	0	UTAX;k:Fungi,p:Ascomycota,c:Dothideomycetes,o:Hysteriales,f:Gloniaceae,g:Ceno
+```
+
+#####Great, now what else can I do with UFITS?
+You can use a few other tools that are built into UFITS to help you analyze your data.  One of them is to assign functional information using the FUNGuilds database.  This is done with an OTU table that you have appended taxonomy information as follows:
+```
+ufits funguild -i ufits-taxonomy.otu_table.taxonomy.txt -o funguilds.txt
+```
+This script will use the Guilds method that is described [here](https://cbs.umn.edu/sites/cbs.umn.edu/files/public/downloads/Nguyenetal2015b.pdf).
+
+You can also summarize the taxonomy in your OTUs by using the `ufits summarize` command, like so:
+```
+ufits summarize -i ufits-taxonomy.otu_table.taxonomy.txt -o summary --graphs --format pdf
+```
+This script will traverse the levels of taxonomy in your OTU table and count up the number of times each term is found.  It creates `csv` files of these data and then can optionally make stacked bar graphs from these data with the `--graphs` option.
+
+Downstream community ecology can be done with the OTU table, to analyze the data using the `vegan` package in `Rstats`, it can be beneficial to pivot the OTU table and append it to meta data about your samples.  This can be done with the `ufits meta` command and requires a `csv` meta data file that has sample names in the first column followed by additional columns containing other information, such as treatments.  It can be run like so:
+```
+ufits meta -i ufits-taxonomy.otu_table.taxonomy.txt -m meta_data.csv -o meta_otu_table.csv
+```
+
+Submitting data to SRA is now a lot easier using UFITS.  I've build an accessory script that can help you get your data into the correct format for deposition into the small read archive (SRA) of NCBI.  The script takes your original data, minimally processes it, and writes an SRA submission file.  Before using the script, you should start a BioProject on NCBI and submit your BioSamples corresponding to the samples in your dataset.  The BioSample worksheet which gets emailed to you as confirmation from NCBI can be fed to the `ufits SRA` script and will autopopulate an SRA submission form for you.  Usage:
+```
+ufits SRA -i ion.fastq -o sra --barcode_fasta barcodes.fa --biosample BioSample.txt \
+    --platform ion --fwd_primer fITS7 --rev_primer ITS4
 ```
 
