@@ -114,7 +114,6 @@ AACGCACATTTGCGCCCCCCGCTATTACCTCTAGCGGGCATCCTGTTCGAGCGCATTTCAACCCCCCTCAAAGCCCCCCA
 ```
 The last part of the pre-processing script is to trim/pad the sequence to a set length, this ensures that all sequences are the exact same length which is a requirement for UPARSE clustering as terminal mismatches count (unlike BLAST for example).  Alternatively, one could only use full length amplicon sequences where both forward and reverse primers are found.  The default setting for UFITS is to trim/pad to 250 bp, sequences that are now shorter than 250 bp get padded with `N's` while those that are longer are trimmed to 250 bp.  You can set this to whatever length you like, however, there are trade offs with quality filtering, length of sequence, and being able to taxonomically classify an OTU.  So an example of what the final output of `ufits ion` will look like is here:
 ```
-```
 @R_1;barcodelabel=BC_33;
 AACGCACATTTGCGCCCCCCGCTATTACCTCTAGCGGGCATCCTGTTCGAGCGCATTTCAACCCCCCTCAAAGCCCCCCAGCTTGGTGTTGGGGCCCCTACGGCTCTGCCCGTTAAGGCCCCCCCTGAAAAACGAAAGGTGGCGGGGCGCTTCGACTACGGCGTCCCGATCGCCAGTTCAAGGGGCCACTTATACTTCGCCTAGGGGAGGCCTTCCCGGCGATCCAACCCCCCCCGCCTTAAAACAACCA
 +
