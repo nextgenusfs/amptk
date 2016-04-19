@@ -152,6 +152,19 @@ So a command for `ufits cluster` looks like this:
 ```
 ufits cluster -i ion.demux.fq -o ion --uchime_ref ITS2
 ```
-As mentioned above the first step is to quality filter the reads, this is controlled with the `-e, --maxee` option and is set by default to `1.0`.  You likely don't need to change this.  The next step of UPARSE is to dereplicate the sequences, in other words, finding identical sequences and counting the number of times each sequence is found.  Following dereplication, the script sorts the resulting sequences in order of most abundant to least abundant and removes sequences that are singletons (not found at least twice in the data).  This is again another quality filtering method to remove sequences that are likely to contain errors.  The data is then fed into the `-cluster_otus` command of USEARCH, which starts with the most abundant sequence and does global alignment with every other sequence forming 'clusters' at 97% identity. This program also runs de novo chimera detection while clustering.  After sequences have been clustered into OTUs, we run reference based chimera detection which is based on a curated UNITE database of ITS sequences.  Finally, the input FASTQ data is mapped to the final OTUs and an OTU table is generated.  The `barcodelabel=sample1` in the FASTQ header is used to determine which sample the sequence was derived from.  So the output from `ufits cluster` is a FASTA file containing OTUs and an OTU table containing the frequencies at which reads from each sample were found in the dataset.
+As mentioned above the first step is to quality filter the reads, this is controlled with the `-e, --maxee` option and is set by default to `1.0`.  You likely don't need to change this.  The next step of UPARSE is to dereplicate the sequences, in other words, finding identical sequences and counting the number of times each sequence is found.  Following dereplication, the script sorts the resulting sequences in order of most abundant to least abundant and removes sequences that are singletons (not found at least twice in the data).  This is again another quality filtering method to remove sequences that are likely to contain errors.  The data is then fed into the `-cluster_otus` command of USEARCH, which starts with the most abundant sequence and does global alignment with every other sequence forming 'clusters' at 97% identity (controlled by the `-p, --pct_otu` option). This program also runs de novo chimera detection while clustering.  After sequences have been clustered into OTUs, we run reference based chimera detection which is based on a curated UNITE database of ITS sequences (using the `--uchime_ref` option).  Finally, the input FASTQ data is mapped to the final OTUs and an OTU table is generated.  The `barcodelabel=sample1` in the FASTQ header is used to determine which sample the sequence was derived from.  So the output from `ufits cluster` is a FASTA file containing OTUs and an OTU table containing the frequencies at which reads from each sample were found in the dataset.  An OTU table looks like this:
+```
+OTUId	BC_28	BC_94	BC_93	BC_27	BC_10	BC_22	BC_48	BC_9	BC_63	BC_38
+OTU_1	1834	0	1196	2826	1877	405	0	1903	0	189
+OTU_11	0	131	0	0	0	0	0	0	0	0
+OTU_26	6	0	2	4	55	2	2	37	0	0
+OTU_14	0	0	0	0	0	639	0	1	0	0
+OTU_38	2	0	0	1	0	10	0	0	0	0
+OTU_25	29	0	74	29	577	55	0	544	0	5
+OTU_2	28	1	21	64	94	7	1916	90	115	1
+OTU_6	0	98	0	0	0	0	0	0	0	0
+OTU_45	1	0	1	1	0	0	28	0	0	0
+```
+
 
 
