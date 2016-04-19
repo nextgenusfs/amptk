@@ -65,7 +65,7 @@ So you can now see that processing data from different instruments requires a sl
 ######Ion Torrent Pre-processing
 De-multiplexing, primer removal, and trimming/padding is done using the `ufits ion` command.  By typing `ufits ion` into the terminal you will see a help menu with options for the script.
 ```
-ufits ion -i ion.fastq --barcode_fasta barcodes.fa -f ITS7 -r ITS4 -o ion
+ufits ion -i ion.fastq --barcode_fasta barcodes.fa -f fITS7 -r ITS4 -o ion
 ```
 Ok, so what is happening?  You see that we give UFITS two inputs, 1) a FASTQ file from the machine and 2) a barcode fasta file containing the barcodes that we put on our primers. We also tell this script which primers we used. 
 So the FASTQ files look something like this:
@@ -92,13 +92,19 @@ TTCTCATTGAAC
 ```
 Each sequence in the FASTQ file is processed and we first look for a valid barcode sequence at the start of each read.  So in this example, we have 6 samples or barcode sequences, the script will search each of these barcodes against the start of the sequence in the FASTQ file and look for a match (the sequences must match exactly).  So you can see that `BC_33` is a match against this first sequence.  So the script will first rename the FASTQ header to reflect that it found a valid barcode and then it will remove the barocde sequence, the resulting sequence looks like this:
 ```
-@ZEXM5:00008:00047
+@R_1;barcodelabel=BC_33;
 AGTGATCATCGAATCTTTGAACGCACATTTGCGCCCCCCGCTATTACCTCTAGCGGGCATCCTGTTCGAGCGCATTTCAACCCCCCTCAAAGCCCCCCAGCTTGGTGTTGGGGCCCCTACGGCTCTGCCCGTTAAGGCCCCCCCTGAAAAACGAAAGGTGGCGGGGCGCTTCGACTACGGCGTCCCGATCGCCAGTTCAAGGGGCCACTTATACTTCGCCTAGGGGAGGCCTTCCCGGCGATCCAACCCCCCCCGCCTTAAAACAACCACATCTTTAACCCCAAAGGGTTGACCCTCGGAAGTCAGGTAGGAATACCCCGCTGAAACTTAAAGCATATCAACTAAGCGGAGGAATCCACCGACTGGCCCCATAAGAGAGGCCTGAGACTGCCAAGGCACACAGGGGATG
 +
 --/<;66;;;;;7;;;;1;;7;;;;;<CC;?1H@>>><(-----)--)---66666,66660---)------6---)--)-----%---6)--7776/----)-)---3555%---%----)-------)--)-)-)-00/.-%666666,6566,505509<CC6---.)--------)-----)------3---)--)---%-)---)-----)--5)-4222*22.2.4.44*-)-----)-)-------%--)-)---%-5)-)-------)-)-55%--)--)-)----)---)-)-----)--60-)-----%------)--)--)444444--)---)---)-5)-)--)--)----4)---%222.222--)-3----2-225@73434--------%--2
 ```
-
-
+The next step of the script is to find the forward primer sequence and remove the sequence.  Here the script allows 2 mismatches, since our primer design contained a single `A` linker and then we used fITS7 as our forward primer `GTGARTCATCGAATCTTTG`, it is easy to find this sequence and trim it.  The resulting sequence would look like this:
+```
+@R_1;barcodelabel=BC_33;
+AACGCACATTTGCGCCCCCCGCTATTACCTCTAGCGGGCATCCTGTTCGAGCGCATTTCAACCCCCCTCAAAGCCCCCCAGCTTGGTGTTGGGGCCCCTACGGCTCTGCCCGTTAAGGCCCCCCCTGAAAAACGAAAGGTGGCGGGGCGCTTCGACTACGGCGTCCCGATCGCCAGTTCAAGGGGCCACTTATACTTCGCCTAGGGGAGGCCTTCCCGGCGATCCAACCCCCCCCGCCTTAAAACAACCACATCTTTAACCCCAAAGGGTTGACCCTCGGAAGTCAGGTAGGAATACCCCGCTGAAACTTAAA<b>GCATATCAACTAAGCGGAGGA</b>ATCCACCGACTGGCCCCATAAGAGAGGCCTGAGACTGCCAAGGCACACAGGGGATG
++
+;7;;;;;<CC;?1H@>>><(-----)--)---66666,66660---)------6---)--)-----%---6)--7776/----)-)---3555%---%----)-------)--)-)-)-00/.-%666666,6566,505509<CC6---.)--------)-----)------3---)--)---%-)---)-----)--5)-4222*22.2.4.44*-)-----)-)-------%--)-)---%-5)-)-------)-)-55%--)--)-)----)---)-)-----)--60-)-----%------)--)--)444444--)---)---)-5)-)--)--)----4)---%222.222--)-3----2-225@73434--------%--2
+```
+Now the script will look for the reverse primer sequence.  Here we used the ITS4 reverse primer `TCCTCCGCTTATTGATATGC`, so we are looking for the reverse complement of that primer `GCATATCAATAAGCGGAGGA`
 
  in the case of Illumina data the samples are already split into two files (forward and reverse reads) for each sample, while for Ion/454 the data are combined into a single file that has a unique barcode at the start of the read.  
 
