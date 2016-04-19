@@ -185,8 +185,16 @@ Despite all of the quality filtering employed to get to this point, there are st
 ```
 ufits filter -i ion.otu_table.txt -f ion.final.otus.fa -b mock
 ```
-Ok, now what is it doing?  The script first maps the FASTA sequences to identify which OTUs correspond to the synthetic mock (or actually any mock that you added).  It then removes OTUs that are represented by only a single read (singleton OTUs) which are likely to be spurious.  The script next normalizes the OTU counts against the number of reads in each sample and then calculates the index-bleed from the synthetic mock into other samples as well as the index-bleed from the samples into the mock.  It takes the larger of these two values, rounds up, and then filters the data to remove counts that are less than the calculated index-bleed for each OTU.  Finally, the script removes the mock-spike in sample from the dataset and converts the final filtered OTU table to binary to represent presence/absence.  The script then reports several OTU tables that were created during filtering.
+Ok, now what is it doing?  The script first maps the FASTA sequences to identify which OTUs correspond to the synthetic mock (or actually any mock that you added).  It then removes OTUs that are represented by only a single read (singleton OTUs) which are likely to be spurious.  The script next normalizes the OTU counts against the number of reads in each sample and then calculates the index-bleed from the synthetic mock into other samples as well as the index-bleed from the samples into the mock.  It takes the larger of these two values, rounds up, and then filters the data to remove counts that are less than the calculated index-bleed for each OTU.  Finally, the script removes the mock-spike in sample from the dataset and converts the final filtered OTU table to binary to represent presence/absence.  The script then reports several OTU tables that were created during filtering as well as an updated FASTA file containing the filtered OTUs.
+
+######What if I didn't use a spike-in control?
+It's okay, you won't be subject to public humiliation (yet).  You can still use the `ufits filter` command and I would recommend that you do as barcode switching likely happened in your dataset, you just don't have the necessary data to prove it.  You can pass in index-bleed percent to filter like so:
+```
+ufits filter -i illumina.otu_table.txt -f illumina.final.otus.fa -p 0.005
+```
+This will apply an index-bleed filter of 0.5% across your OTU table.
+
 
 #####Assigning Taxonomy to your OTUs
- 
+
 
