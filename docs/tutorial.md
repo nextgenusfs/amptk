@@ -27,14 +27,29 @@ The layout of your amplicons will depend on how you designed your experiment.  I
 The read structures of flowgram sequencers (Roche 454 and Ion Torrent) are typically similar, as sequencing is done in one direction.  In this experimental setup, you use fusion primers containing your normal priming site fused to instrument specific adapters, I will use Ion Torrent data as an example.  In order for your amplicon to be sequenced on the Ion platform, the "forward" read must contain the `A-Adapter`, a key signal (TCAG), and optionally a barocde sequence (10-12 bp).  The reverse primer contains a `P1-Adapter`, which is responsible for binding to the ISP (Ion Sphere Particle) during the templating reaction.  
 ```
 Forward primer (Primer A-key):
-    5’-CCATCTCATCCCTGCGTGTCTCCGACTCAG-[Barcode]-template-specific-sequence-3’
+    5’-CCATCTCATCCCTGCGTGTCTCCGACTCAG-[Barcode]--template-specific-primer-3’
     
 Reverse primer (Primer P1-key):
-    5’-CCTCTCTATGGGCAGTCGGTGAT-template-specific-sequence-3’
+    5’-CCTCTCTATGGGCAGTCGGTGAT--template-specific-primer-3’
 ```
-During sequencing with Ion data, the sequencing primer binds to the `A-Adapter` and the sequence then starts with the key signal (TCAG), followed by a barcode tag, your template specific primer, and then finally the amplicon of interest.  Currently Ion can sequence reads ~ 400-500 bp in length, so for some targets you will sequence all the way to the P1 adapter and others you may not get sequence all the way to the end of the read.  But your final reads off of the machine will schematically look something like this:
+During sequencing with Ion data, the sequencing primer binds to the `A-Adapter` and the sequence then starts with the key signal (TCAG), followed by a barcode tag, your template specific primer, and then finally the amplicon of interest.  Currently Ion can sequence reads ~ 400-500 bp in length, so for some targets you will sequence all the way to the P1 adapter and others you may not get sequence all the way to the end of the read.  But your data that comes off of the machine, will schematically look something like this:
 ```
 5' - Barcode:For_Primer:amplicon:Rev_primer:adapter - 3'
 ```
-######Illumina paired-end
+######Illumina MiSeq paired-end
+The basic structure of MiSeq reads are similar to Ion/454 in the sense that the amplicon needs to have adapters at each end of the molecule.  The key difference (advantage) is that Illumina can sequence the amplicon from both directions and thus generates two reads for each amplicon, a forward and a reverse read.  Currently, the MiSeq platform can sequence 2 x 300 bp reads allowing good coverage and length of most amplicons.  One way to generate illumina compatible amplicons is through a two-step PCR reaction, where you use your primer of interest fused to a general Illumina adapter, a second barcoding reaction then attaches an barcode sequence and an additional adapter.
+```
+Forward Nested Primer Sequence
+5’ACACTCTTTCCCTACACGACGCTCTTCCGATCT-template-specific-primer 3’
 
+Reverse Nested Primer Sequence  
+5’ GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT-template-specific-primer 3’
+```
+The second barcoding reaction then adds a unique barcode [i5] to the 5' adapter and a barcode [i7] to the 3' adapter sequence.  Thus the final construct schematically looks like this:
+```
+5' - Adapter1-[i5]-Adapter2-For_Primer:amplicon:Rev_Primer-Adapter3-[i7]-Adapter4 - 3'
+```
+The machine then does 4 different sequencing reactions: 1) Read 1 (sequence from Adapter2 for 300 bp), 2) Index Read 1 (sequences the i5 barcode), 3) Read 2 (sequence in reverse direction from Adapter3, 4) Index Read 2 (sequences the i7 barcode).  Illumina software then de-multiplexes the reads based on the index sequences and splits each sample into two files that are named as such:
+```
+<sample name>_<barcode sequence>_L<lane (0-padded to 3 digits)>_R<read number>_<set number (0-padded to 3 digits>.fastq.gz
+``` 
