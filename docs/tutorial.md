@@ -60,5 +60,37 @@ Sample1_TCTGGTA_L001_R2_001.fastq.gz
 ``` 
 
 ####Pre-processing data using UFITS
-So you can now see that processing data from different instruments requires a slightly differen strategy, in the case of Illumina data the samples are already split into two files (forward and reverse reads) for each sample, while for Ion/454 the data are combined into a single file that has a unique barcode at the start of the read.  
+So you can now see that processing data from different instruments requires a slightly different strategy.  But generally, what we want to accomplish in the pre-processing step is to label the read as to which sample it was derived from, remove forward and reverse primers, and then trim/pad the read to a set length.  First we will go through how UFITS processes Ion Torrent data.
+
+######Ion Torrent Pre-processing
+De-multiplexing, primer removal, and trimming/padding is done using the `ufits ion` command.  By typing `ufits ion` into the terminal you will see a help menu with options for the script.
+```
+ufits ion -i ion.fastq --barcode_fasta barcodes.fa -f ITS7 -r ITS4 -o ion
+```
+Ok, so what is happening?  You see that we give UFITS two inputs, 1) a FASTQ file from the machine and 2) a barcode fasta file containing the barcodes that we put on our primers. We also tell this script which primers we used. 
+So the FASTQ files look something like this:
+```
+@ZEXM5:00008:00047
+TTCTCATTGGAACAGTGATCATCGAATCTTTGAACGCACATTTGCGCCCCCCGCTATTACCTCTAGCGGGCATCCTGTTCGAGCGCATTTCAACCCCCCTCAAAGCCCCCCAGCTTGGTGTTGGGGCCCCTACGGCTCTGCCCGTTAAGGCCCCCCCTGAAAAACGAAAGGTGGCGGGGCGCTTCGACTACGGCGTCCCGATCGCCAGTTCAAGGGGCCACTTATACTTCGCCTAGGGGAGGCCTTCCCGGCGATCCAACCCCCCCCGCCTTAAAACAACCACATCTTTAACCCCAAAGGGTTGACCCTCGGAAGTCAGGTAGGAATACCCCGCTGAAACTTAAAGCATATCAACTAAGCGGAGGAATCCACCGACTGGCCCCATAAGAGAGGCCTGAGACTGCCAAGGCACACAGGGGATG
++
+;65----)-)-)---/<;66;;;;;7;;;;1;;7;;;;;<CC;?1H@>>><(-----)--)---66666,66660---)------6---)--)-----%---6)--7776/----)-)---3555%---%----)-------)--)-)-)-00/.-%666666,6566,505509<CC6---.)--------)-----)------3---)--)---%-)---)-----)--5)-4222*22.2.4.44*-)-----)-)-------%--)-)---%-5)-)-------)-)-55%--)--)-)----)---)-)-----)--60-)-----%------)--)--)444444--)---)---)-5)-)--)--)----4)---%222.222--)-3----2-225@73434--------%--2
+```
+The Barcode FASTA file looks like this:
+```
+>BC_9
+TGAGCGGAAC
+>BC_10
+CTGACCGAAC
+>BC_22
+TTCGAGACGC
+>BC_27
+AACCATCCGC
+>BC_28
+ATCCGGAATC
+```
+
+
+
+
+ in the case of Illumina data the samples are already split into two files (forward and reverse reads) for each sample, while for Ion/454 the data are combined into a single file that has a unique barcode at the start of the read.  
 
