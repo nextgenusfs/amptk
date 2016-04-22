@@ -19,14 +19,14 @@ args=parser.parse_args()
 
 def filter_sample(file, output):
     global keep_count, total_count
-    with open(output, 'w') as output:
+    with open(output, 'w') as out:
         for title, seq, qual in FastqGeneralIterator(open(file)):
             total_count += 1
             sample = title.split('barcodelabel=')[1]
             sample = sample[:-1]
             if sample in keep_list:
                 keep_count += 1
-                output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
+                out.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
 
 #load in list of sample names to keep
 with open(args.list, 'rU') as input:

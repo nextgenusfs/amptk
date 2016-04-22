@@ -67,12 +67,18 @@ except OSError:
     os._exit(1)
 ufitslib.log.info("USEARCH version: %s" % usearch_test)
 
-#check if vsearch is installed
-vsearch = ufitslib.which('vsearch')
-if vsearch:
-    ufitslib.log.info("vsearch detected, will use for filtering")
+#check if vsearch version > 1.9.1 is installed
+vsearch_check = ufitslib.which('vsearch')
+if vsearch_check:
+    vsearch = ufitslib.checkvsearch()
+    vsearch_version = ufitslib.get_vsearch_version()
+    if vsearch:
+        ufitslib.log.info("vsearch v%s detected, will use for filtering" % vsearch_version)
+    else:
+        ufitslib.log.info("vsearch v%s detected, need version at least v1.9.1, using Python for filtering")
 else:
-    ufitslib.log.info("vsearch not found, using Python for filtering")
+    vsearch = False
+    ufitslib.log.info("vsearch not installed, using Python for filtering")
 
 #make tmp folder
 tmp = args.out + '_tmp'

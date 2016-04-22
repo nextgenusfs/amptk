@@ -55,7 +55,7 @@ def download(url):
     f.close()
 
 
-version = '0.3.7'
+version = '0.3.8'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -242,7 +242,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -m, --minsize       Minimum size to keep (singleton filter). Default: 2
-             --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full]
+             --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full, 16S]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
              --size_annotations  Append size annotations to OTU names. Default: off

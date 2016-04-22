@@ -49,6 +49,26 @@ def getreadlength(input):
             elif i > 2:
                 break
     return read_length
+    
+def get_vsearch_version():
+    version = subprocess.Popen(['vsearch', '--version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
+    version = version.split('\n')[0]
+    version = version.split(' ')[1]
+    version = version.split('_')[0].replace('v', '')
+    return version
+
+def checkvsearch():
+    vers = get_vsearch_version().split('.')
+    if int(vers[0]) > 1:
+        return True
+    else:
+        if int(vers[1]) > 9:
+            return True
+        else:
+            if int(vers[2]) > 0:
+                return True
+            else:
+                return False
 
 def get_version():
     version = subprocess.Popen(['ufits', 'version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
