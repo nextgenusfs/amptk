@@ -225,7 +225,7 @@ subprocess.call([sys.executable, uc2tab, uc_out, otu_table], stdout = FNULL, std
 
 #Move files around, delete tmp if argument passed.
 currentdir = os.getcwd()
-final_otu = os.path.join(currentdir, args.out + '.final.otus.fa')
+final_otu = os.path.join(currentdir, args.out + '.cluster.otus.fa')
 shutil.copyfile(uchime_out, final_otu)
 final_otu_table = os.path.join(currentdir, args.out + '.otu_table.txt')
 shutil.copyfile(otu_table, final_otu_table)

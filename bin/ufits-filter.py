@@ -276,10 +276,16 @@ ufitslib.log.info("Filtering OTU table down to %i OTUs" % (len(final.index)))
 
 #generate final OTU list for taxonomy
 ufitslib.log.info("Filtering valid OTUs")
-otu_new = base + '.mock.otus.fa'
+otu_new = base + '.filtered.otus.fa'
 with open(otu_new, 'w') as otu_update:
     with open(args.fasta, "rU") as myfasta:
         for rec in SeqIO.parse(myfasta, 'fasta'):
+            #map new names of mock
+            if rec.id in annotate_dict:
+                newname = annotate_dict.get(rec.id)
+                print newname
+                rec.id = newname
+                rec.description = ''
             if rec.id in final.index:
                 SeqIO.write(rec, otu_update, 'fasta')
                 
