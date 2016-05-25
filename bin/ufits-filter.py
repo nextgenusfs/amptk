@@ -283,7 +283,6 @@ with open(otu_new, 'w') as otu_update:
             #map new names of mock
             if rec.id in annotate_dict:
                 newname = annotate_dict.get(rec.id)
-                print newname
                 rec.id = newname
                 rec.description = ''
             if rec.id in final.index:
