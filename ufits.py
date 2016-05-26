@@ -55,7 +55,7 @@ def download(url):
     f.close()
 
 
-version = '0.3.10'
+version = '0.3.11'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -277,7 +277,7 @@ Optional:    -o, --out           Base name for output files. Default: use input 
              --mc                Mock community FASTA file. Default: ufits_synmock.fa 
              
 Filtering    -n, --normalize     Normalize reads to number of reads per sample [y,n]. Default: y
-             -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.5
+             -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.005
              -s, --subtract      Threshold to subtract from all OTUs (any number or auto). Default: 0
              -d, --delimiter     Delimiter of OTU tables. Default: csv  [csv, tsv] 
              --col_order         Column order (comma separated list). Default: sort naturally

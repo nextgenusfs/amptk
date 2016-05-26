@@ -138,8 +138,14 @@ if args.mock_barcode: #if user passes a column name for mock
                 if float(line[3]) < 97.0:
                     ID = line[-1]+'_spurious_' + line[-2]
                     annotate_dict[line[-2]] = ID
+                elif float(line[3]) < 99.0:
+                    ID = line[-1]+'_noisy_' + line[-2]
+                    annotate_dict[line[-2]] = ID
+                elif float(line[3]) < 100.0:
+                    ID = line[-1]+'_good_' + line[-2]
+                    annotate_dict[line[-2]] = ID                               
                 else:
-                    ID = line[-1]+'_'+line[-2]
+                    ID = line[-1]+'_perfect_'+line[-2]
                     annotate_dict[line[-2]] = ID
 else:
     otu_new = args.fasta
@@ -280,11 +286,12 @@ otu_new = base + '.filtered.otus.fa'
 with open(otu_new, 'w') as otu_update:
     with open(args.fasta, "rU") as myfasta:
         for rec in SeqIO.parse(myfasta, 'fasta'):
-            #map new names of mock
-            if rec.id in annotate_dict:
-                newname = annotate_dict.get(rec.id)
-                rec.id = newname
-                rec.description = ''
+            if args.mock_barcode:
+                #map new names of mock
+                if rec.id in annotate_dict:
+                    newname = annotate_dict.get(rec.id)
+                    rec.id = newname
+                    rec.description = ''
             if rec.id in final.index:
                 SeqIO.write(rec, otu_update, 'fasta')
                 
