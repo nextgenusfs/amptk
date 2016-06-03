@@ -162,6 +162,10 @@ if args.col_order == 'naturally':
 else:
     ufitslib.log.info("Sorting OTU table by user defined order (--col_order)")
     col_headers = args.col_order.split(',')
+    #check if all names in headers or not
+    for i in col_headers:
+        if not i in df2.columns.values:
+            col_headers.remove(i)
     df = df2.reindex(columns=col_headers)
 
 df.to_csv(sorted_table, sep=delim)
@@ -257,12 +261,16 @@ if args.subtract != 0:
     ufitslib.log.info("Subtracting %i from OTU table" % subtract_num)
     sub = final.subtract(subtract_num)
     sub[sub < 0] = 0 #if negative, change to zero
-    sub.drop(args.mock_barcode, axis=1, inplace=True)
+    if not args.keep_mock:
+        try:
+            sub.drop(args.mock_barcode, axis=1, inplace=True)
+        except:
+            pass
     sub = sub.loc[~(sub==0).all(axis=1)]
     sub = sub.astype(int)
     sub.to_csv(subtract_table, sep=delim)
     otus_if_sub = sub[sub > 0].count(axis=0, numeric_only=True)
-    final = sub
+    final = sub.astype(int)
 otus_per_sample = final[final > 0].count(axis=0, numeric_only=True)
 stats = pd.concat([fs, otus_per_sample_original, otus_per_sample], axis=1)
 stats.columns = ['reads per sample', 'original OTUs', 'final OTUs']
@@ -304,7 +312,7 @@ print "Sorted OTU table:  %s" % sorted_table
 print "Normalized (pct):  %s" % normal_table_pct
 print "Normalized (10k):  %s" % normal_table_nums
 if args.subtract != 0:
-    print "Subtracted table: %s" % subtract_table
+    print "Subtracted table:  %s" % subtract_table
 print "Final filtered:    %s" % final_table
 print "Final binary:      %s" % final_binary_table
 print "-------------------------------------------------------"
