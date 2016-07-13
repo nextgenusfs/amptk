@@ -148,7 +148,7 @@ def worker(input):
 
 args.out = re.sub(r'\W+', '', args.out)
 
-log_name = args.out + '.demux.log'
+log_name = args.out + '.ufits-demux.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 FNULL = open(os.devnull, 'w')

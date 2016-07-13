@@ -47,7 +47,7 @@ def checkfastqsize(input):
     return filesize
 
 #remove logfile if exists
-log_name = args.out + '.log'
+log_name = args.out + '.ufits-cluster.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 

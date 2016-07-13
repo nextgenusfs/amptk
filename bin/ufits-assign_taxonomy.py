@@ -54,7 +54,7 @@ def countfasta(input):
     return count
 
 #remove logfile if exists
-log_name = args.out + '.taxonomy.log'
+log_name = args.out + '.ufits-taxonomy.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 

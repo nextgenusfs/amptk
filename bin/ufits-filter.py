@@ -52,7 +52,7 @@ else:
     base = args.out
 
 #remove logfile if exists
-log_name = base + '.log'
+log_name = base + '.ufits-filter.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 

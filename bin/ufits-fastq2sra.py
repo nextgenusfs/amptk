@@ -58,7 +58,7 @@ def FindBarcode(Seq):
             return Barcode, BarcodeLabel
     return "", ""
 
-log_name = args.out + '.sra.ufits.log'
+log_name = args.out + '.ufits-sra.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 

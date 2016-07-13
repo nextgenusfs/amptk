@@ -167,7 +167,7 @@ args.out = re.sub(r'\W+', '', args.out)
 if not os.path.exists(args.out):
     os.makedirs(args.out)
     
-log_name = os.path.join(args.out, 'ufits.log')
+log_name = os.path.join(args.out, args.out+'.ufits-process.log')
 if os.path.isfile(log_name):
     os.remove(log_name)
 
