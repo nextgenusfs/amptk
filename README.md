@@ -1,7 +1,7 @@
 # UFITS
 ###USEARCH Fungal ITS Clustering:###
 
-UFITS is a series of scripts to process fungal ITS amplicon data using USEARCH8.  It can handle Ion Torrent, MiSeq, and 454 data and is cross-platform compatible (works on Windows, Mac, Linux).
+UFITS is a series of scripts to process fungal ITS amplicon data using USEARCH8, although it can also be used to process any NGS amplicon data.  It can handle Ion Torrent, MiSeq, and 454 data and is cross-platform compatible (works on Mac, Linux - and could work on Windows).
 ___
 
 <img src="https://github.com/nextgenusfs/ufits/blob/master/docs/ufits.png" width="400">
@@ -11,7 +11,7 @@ ___
 
 * [Mac install instructions](docs/mac_install.md)
 * [Ubuntu install instructions](docs/ubuntu_install.md)
-* [Windows install instuructions](docs/windows_install.md)
+* [Windows install instuructions](docs/windows_install.md) - Note use on Windows is not recommended.
 
 
 ####UFITS Wrapper script####
@@ -21,7 +21,7 @@ UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ ufits
 Usage:       ufits <command> <arguments>
-version:     0.3.3
+version:     0.3.13
 
 Description: UFITS is a package of scripts to process fungal ITS amplicon data.  It uses the UPARSE algorithm for clustering
              and thus USEARCH8 is a dependency.
@@ -53,7 +53,7 @@ And then by calling one of the commands, you get a help menu for each:
 ```
 $ ufits cluster
 Usage:       ufits cluster <arguments>
-version:     0.3.3
+version:     0.3.13
 
 Description: Script is a "wrapper" for the UPARSE algorithm.  Modifications include support for a mock spike-in
              community.  FASTQ quality trimming via expected errors and Dereplication are run in Python which allows
@@ -157,7 +157,7 @@ Issuing the `ufits taxonomy` command will inform you which databases have been p
 ```
 $ ufits taxonomy
 Usage:       ufits taxonomy <arguments>
-version:     0.3.3
+version:     0.3.13
 
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
              uses a hybrid approach, e.g. gets taxonomy information from UTAX as well as global alignment hits from the larger
@@ -214,6 +214,7 @@ The optional `--graphs` argument will create the stacked bar graphs.  You can sa
 * numpy
 * matplotlib
 * bedtools (only needed if using Ion Torrent BAM file as input)
+* vsearch (version > 1.9.0, this is optional but will increase speed of UFITS and is required for very large datasets) installed via homebrew installation by default
 
 Python and USEARCH need to accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8.  
 
