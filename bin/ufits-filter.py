@@ -40,6 +40,7 @@ parser.add_argument('--mc',default='synmock', help='Multi-FASTA mock community')
 parser.add_argument('-d','--delimiter', default='csv', choices=['csv','tsv'], help='Delimiter')
 parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
 parser.add_argument('--keep_mock', action='store_true', help='Keep mock sample in OTU table (Default: False)')
+parser.add_argument('--show_stats', action='store_true', help='Show stats datatable STDOUT')
 parser.add_argument('-o','--out', help='Base output name')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()
@@ -255,9 +256,16 @@ for i in norm_round.columns:
     header.append(i)
 final = pd.DataFrame(cleaned, columns=header)
 final.set_index('OTUId', inplace=True)
-if args.subtract != 0:
-    if args.subtract != 'auto':
-        subtract_num = int(args.subtract)  
+if args.subtract != 'auto':
+    subtract_num = int(args.subtract)
+else:
+    try:
+        subtract_num = int(subtract_num)
+        ufitslib.log.info("Auto subtract filter set to %i" % subtract_num)
+    except NameError:
+        subtract_num = 0
+        ufitslib.log.info("Error: to use 'auto' subtract feature, provide a sample name to -b,--mock_barcode.")
+if subtract_num != 0:
     ufitslib.log.info("Subtracting %i from OTU table" % subtract_num)
     sub = final.subtract(subtract_num)
     sub[sub < 0] = 0 #if negative, change to zero
@@ -274,7 +282,10 @@ if args.subtract != 0:
 otus_per_sample = final[final > 0].count(axis=0, numeric_only=True)
 stats = pd.concat([fs, otus_per_sample_original, otus_per_sample], axis=1)
 stats.columns = ['reads per sample', 'original OTUs', 'final OTUs']
-print stats.to_string()
+stats.fillna(0, inplace=True)
+stats = stats.astype(int)
+if args.show_stats:
+    print stats.to_string()
 stats.to_csv(stats_table, sep=delim)
 if not args.keep_mock:
     try:

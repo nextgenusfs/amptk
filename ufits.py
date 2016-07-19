@@ -55,7 +55,7 @@ def download(url):
     f.close()
 
 
-version = '0.3.13'
+version = '0.3.14'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -68,6 +68,7 @@ Process:     ion         pre-process Ion Torrent data (find barcodes, remove pri
              illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
              illumina2   pre-process Illumina data from a single file (assumes Ion/454 read structure: <barcode><f_primer>READ)
              454         pre-process Roche 454 (pyrosequencing) data (find barcodes, remove primers, trim/pad)
+             show        show number or reads per barcode from de-multiplexed data
              select      select reads from de-multiplexed data
              remove      remove reads from de-multiplexed data
              sample      sub-sample (rarify) de-multiplexed reads per sample
@@ -282,7 +283,8 @@ Filtering    -n, --normalize     Normalize reads to number of reads per sample [
              -d, --delimiter     Delimiter of OTU tables. Default: csv  [csv, tsv] 
              --col_order         Column order (comma separated list). Default: sort naturally
              --keep_mock         Keep Spike-in mock community. Default: False
-             -u, --usearch       USEARCH executable. Default: usearch8   
+             -u, --usearch       USEARCH executable. Default: usearch8
+             --show_stats        Show OTU stats on STDOUT   
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -388,7 +390,32 @@ Required:    -i, --input       Input OTU table
             subprocess.call(arguments)
         else:
             print help
+            os._exit(1)
+    elif sys.argv[1] == 'show':
+        help = """
+Usage:       ufits %s <arguments>
+version:     %s
+
+Description: Script takes de-multiplexed data (.demux.fq) as input and counts reads per barcode.
+    
+Required:    -i, --input     Input FASTQ file (.demux.fq)
+             --quality_trim  Quality trim reads
+             -e, --maxee     maxEE threshold for quality. Default: 1.0
+             -l, --length    truncation length for trimming: Default: 250
+             -o, --out       Output FASTQ file name (--quality_trim only)     
+        """ % (sys.argv[1], version)
+        
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'util', 'ufits-get_barcode_counts.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
             os._exit(1)    
+    
     elif sys.argv[1] == 'funguild':
         help = """
 Usage:       ufits %s <arguments>

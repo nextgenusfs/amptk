@@ -55,19 +55,18 @@ $ ufits cluster
 Usage:       ufits cluster <arguments>
 version:     0.3.13
 
-Description: Script is a "wrapper" for the UPARSE algorithm.  Modifications include support for a mock spike-in
-             community.  FASTQ quality trimming via expected errors and Dereplication are run in Python which allows
-             for the use of datasets larger than 4GB.  Chimera filtering and UNOISE are also options.
+Description: Script is a "wrapper" for the UPARSE algorithm. FASTQ quality trimming via expected 
+             errors and Dereplication are run in vsearch if installed otherwise defaults to Python 
+             which allows for the use of datasets larger than 4GB.  
+             Chimera filtering and UNOISE are also options.
     
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              -o, --out           Output base name. Default: out
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -m, --minsize       Minimum size to keep (singleton filter). Default: 2
-             -l, --length        Length to trim reads. Default 250
-             --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full]
+             --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full, 16S]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
-             --skip_quality      Skip quality trimming (e.g. reads are already quality trimmed)
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
              --size_annotations  Append size annotations to OTU names. Default: off
              -u, --usearch       USEARCH executable. Default: usearch8

@@ -1,8 +1,26 @@
 #!/usr/bin/env python
 
-import sys, os, itertools, multiprocessing, glob, shutil
+import sys, os, itertools, multiprocessing, glob, shutil, argparse
 from natsort import natsorted
 from Bio import SeqIO
+
+
+class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
+    def __init__(self,prog):
+        super(MyFormatter,self).__init__(prog,max_help_position=50)      
+
+parser=argparse.ArgumentParser(prog='ufits-get_barcode_counts.py',
+    description='''Script loops through demuxed fastq file counting occurances of barcodes, can optionally quality trim and recount.''',
+    epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
+    formatter_class=MyFormatter)
+
+parser.add_argument('-i','--input', required=True, help='Input demuxed FASTQ')
+parser.add_argument('--quality_trim', action='store_true', help='Quality trim data')
+parser.add_argument('-e','--maxee', default=1.0, type=float, help='MaxEE Q-trim threshold')
+parser.add_argument('-l','--trunclen', default=250, type=int, help='Read truncation length')
+parser.add_argument('-o','--out', help='Output for quality trimmed data')
+args=parser.parse_args()
+
 
 def countfastq(input):
     lines = sum(1 for line in open(input))
@@ -27,8 +45,8 @@ def batch_iterator(iterator, batch_size):
 
 def MaxEEFilter(records):
     for rec in records:
-        trunclen = int(sys.argv[3])
-        maxee = float(sys.argv[4])
+        trunclen = args.trunclen
+        maxee = args.maxee
         rec = rec[:trunclen]
         ee = 0
         for bp, Q in enumerate(rec.letter_annotations["phred_quality"]):
@@ -74,68 +92,61 @@ def filterSeqs(file, lst):
             if bc in lst:
                 yield rec
 
-countBarcodes(sys.argv[1])
+if args.quality_trim and not args.output:
+    print "Error, to run quality trimming you must provide -o, --output"
+    os._exit(1)
+
+#main start here
 cpus = multiprocessing.cpu_count()
 print "----------------------------------"
-#split the input FASTQ file into chunks to process
-with open(sys.argv[1], 'rU') as input:
-    SeqCount = countfastq(sys.argv[1])
-    print('{0:,}'.format(SeqCount) + ' records loaded')
-    SeqRecords = SeqIO.parse(sys.argv[1], 'fastq')
-    chunks = SeqCount / cpus + 1
-    print("Using %i cpus to process data" % cpus)
-    #divide into chunks, store in tmp file
-    pid = os.getpid()
-    folder = 'ufits_tmp_' + str(pid)
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    for i, batch in enumerate(batch_iterator(SeqRecords, chunks)) :
-        filename = "chunk_%i.fq" % (i+1)
-        tmpout = os.path.join(folder, filename)
-        handle = open(tmpout, "w")
-        count = SeqIO.write(batch, handle, "fastq")
-        handle.close()
-
-#now get file list from tmp folder
-file_list = []
-for file in os.listdir(folder):
-    if file.endswith(".fq"):
-        file = os.path.join(folder, file)
-        file_list.append(file)
-
-p = multiprocessing.Pool(cpus)
-for f in file_list:
-    #worker(f)
-    p.apply_async(worker, [f])
-p.close()
-p.join()
-
-#get filtered results
-catDemux = 'concat.filter.fq'
-with open(catDemux, 'w') as outfile:
-    for filename in glob.glob(os.path.join(folder,'*.filter.fq')):
-        if filename == catDemux:
-            continue
-        with open(filename, 'rU') as readfile:
-            shutil.copyfileobj(readfile, outfile)
-shutil.rmtree(folder)
+countBarcodes(args.input)
 print "----------------------------------"
-countBarcodes('concat.filter.fq')
-print "----------------------------------"
-#make list of those values larger than threshold
-threshold = raw_input("Set threshold to remove samples:  ")
-keep = []
-for k,v in BarcodeCount.items():
-    if v >= int(threshold):
-        keep.append(k)
+if args.quality_trim:
+    #split the input FASTQ file into chunks to process
+    with open(args.input, 'rU') as input:
+        SeqCount = countfastq(args.input)
+        print('{0:,}'.format(SeqCount) + ' records loaded')
+        SeqRecords = SeqIO.parse(input, 'fastq')
+        chunks = SeqCount / cpus + 1
+        print("Using %i cpus to process data" % cpus)
+        #divide into chunks, store in tmp file
+        pid = os.getpid()
+        folder = 'ufits_tmp_' + str(pid)
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        for i, batch in enumerate(batch_iterator(SeqRecords, chunks)) :
+            filename = "chunk_%i.fq" % (i+1)
+            tmpout = os.path.join(folder, filename)
+            handle = open(tmpout, "w")
+            count = SeqIO.write(batch, handle, "fastq")
+            handle.close()
 
-#now loop through filtered records and save those to sys.argv[2]
-with open(sys.argv[2], 'w') as output:
-    SeqIO.write(filterSeqs(catDemux, keep), output, 'fastq')
+    #now get file list from tmp folder
+    file_list = []
+    for file in os.listdir(folder):
+        if file.endswith(".fq"):
+            file = os.path.join(folder, file)
+            file_list.append(file)
 
-countBarcodes(sys.argv[2])
-print "----------------------------------"
-print "Script finished, output in %s" % sys.argv[2]
-#finally remove temp file
-os.remove(catDemux)
+    p = multiprocessing.Pool(cpus)
+    for f in file_list:
+        #worker(f)
+        p.apply_async(worker, [f])
+    p.close()
+    p.join()
+
+    #get filtered results
+    catDemux = args.output
+    with open(catDemux, 'w') as outfile:
+        for filename in glob.glob(os.path.join(folder,'*.filter.fq')):
+            if filename == catDemux:
+                continue
+            with open(filename, 'rU') as readfile:
+                shutil.copyfileobj(readfile, outfile)
+    shutil.rmtree(folder)
+    print "----------------------------------"
+    countBarcodes(args.output)
+    print "----------------------------------"
+    print "Script finished, output in %s" % args.output
+
 
