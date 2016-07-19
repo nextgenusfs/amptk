@@ -21,7 +21,7 @@ UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ ufits
 Usage:       ufits <command> <arguments>
-version:     0.3.13
+version:     0.3.14
 
 Description: UFITS is a package of scripts to process fungal ITS amplicon data.  It uses the UPARSE algorithm for clustering
              and thus USEARCH8 is a dependency.
@@ -30,6 +30,7 @@ Process:     ion         pre-process Ion Torrent data (find barcodes, remove pri
              illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
              illumina2   pre-process Illumina data from a single file (assumes Ion/454 read structure: <barcode><f_primer>READ)
              454         pre-process Roche 454 (pyrosequencing) data (find barcodes, remove primers, trim/pad)
+             show        show number or reads per barcode from de-multiplexed data
              select      select reads from de-multiplexed data
              remove      remove reads from de-multiplexed data
              sample      sub-sample (rarify) de-multiplexed reads per sample
