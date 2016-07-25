@@ -243,7 +243,7 @@ else:
 cleaned = []
 for row in norm_round.itertuples():
     result = [row[0]]
-    total = sum(row[1:])
+    total = max(row[1:]) #get max OTU count from table to calculate index bleed from.
     sub = total * bleedfilter
     for i in row[1:]:
         if i < sub:
