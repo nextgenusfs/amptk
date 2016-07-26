@@ -95,6 +95,7 @@ if args.method == 'utax':
         search_db = os.path.join(parentdir, 'DB', args.utax_db)
         if not os.path.isfile(search_db):
             ufitslib.log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
+            os._exit(1)
         else:
             utax_db = os.path.join(parentdir, 'DB', args.utax_db)
     #Count records
@@ -140,6 +141,7 @@ elif args.method == 'usearch':
         search_db = os.path.join(parentdir, 'DB', args.usearch_db)
         if not os.path.isfile(search_db):
             ufitslib.log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
+            os._exit(1)
         else:
             usearch_db = os.path.join(parentdir, 'DB', args.usearch_db)
     #now run through usearch global
@@ -187,6 +189,7 @@ elif args.method == 'hybrid':
         search_db = os.path.join(parentdir, 'DB', args.utax_db)
         if not os.path.isfile(search_db):
             ufitslib.log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
+            os._exit(1)
         else:
             utax_db = os.path.join(parentdir, 'DB', args.utax_db)
     if not args.usearch_db:

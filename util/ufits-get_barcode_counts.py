@@ -77,12 +77,36 @@ def countBarcodes(file):
                 BarcodeCount[ID] = 1
             else:
                 BarcodeCount[ID] += 1
+            
 
     #now let's count the barcodes found and count the number of times they are found.
     barcode_counts = "%20s:  %s" % ('Sample', 'Count')
     for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
         barcode_counts += "\n%20s:  %s" % (k, str(BarcodeCount[k]))
     print("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
+
+def getSeqLength(file):
+    seqlength = {}
+    with open(file, 'rU') as input:
+        header = itertools.islice(input, 1, None, 4)
+        for line in header:
+            length = len(line) - 1
+            if not length in seqlength:
+                seqlength[length] = 1
+            else:
+                seqlength[length] += 1
+    lengthlist = []
+    countlist = []
+    for k,v in natsorted(seqlength.items()):
+        lengthlist.append(k)
+        countlist.append(v)
+    print "Read count: %i" % sum(countlist)
+    if len(lengthlist) < 2:
+        print "Read Length: %i bp" % lengthlist[0]
+    else:
+        print "Read length average: %i" % (sum(lengthlist) / len(lengthlist))
+        print "Read length range: %i - %i bp" % (lengthlist[0], lengthlist[-1])
+        
     
 def filterSeqs(file, lst):
     with open(file, 'rU') as input:
@@ -100,6 +124,8 @@ if args.quality_trim and not args.output:
 cpus = multiprocessing.cpu_count()
 print "----------------------------------"
 countBarcodes(args.input)
+print "----------------------------------"
+getSeqLength(args.input)
 print "----------------------------------"
 if args.quality_trim:
     #split the input FASTQ file into chunks to process
