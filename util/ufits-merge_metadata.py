@@ -9,16 +9,26 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)      
 
-parser=argparse.ArgumentParser(prog='ufits-remove_samples.py',
-    description='''Script to sub-sample reads down to the same number for each sample (barcode)''',
-    epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
+parser=argparse.ArgumentParser(prog='ufits-merge_metadata.py',
+    description='''Takes a meta data csv file and OTU table and makes transposed output files.''',
+    epilog="""Written by Jon Palmer (2016) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
 parser.add_argument('-m','--meta', required=True, help='Meta data (csv format, e.g. from excel)')
+parser.add_argument('--split_taxonomy', choices=['k','p','c','o','f','g'], help='Split output files based on taxonomy levels')
 parser.add_argument('-i','--input', required=True, help='OTU table')
 parser.add_argument('-o','--out', required=True, help='Output name')
 args=parser.parse_args()
 
+def countOTUs(file):
+    count = 0
+    with open(file, 'rU') as input:
+        for line in input:
+            if line.startswith('OTUId'):
+                continue
+            else:
+                count += 1
+    return count
 
 def flatten(l):
     flatList = []
@@ -32,6 +42,64 @@ def flatten(l):
             flatList.append(elem)
     return flatList
 
+def all_indices(value, qlist):
+    indices = []
+    idx = -1
+    while True:
+        try:
+            idx = qlist.index(value, idx+1)
+            indices.append(idx)
+        except ValueError:
+            break
+    return indices
+    
+def transposeTable(metadata, otu_Dict, outfile, filter):
+    #now load meta table and append tuple from dictionary
+    global errors
+    finalTable = []
+    errors = []
+    with open(metadata, 'rU') as input:
+        reader = csv.reader(input)
+        count = 0
+        for line in reader:
+            count += 1
+            if count == 1:
+                header = otu_Dict.get('OTUId')
+                header = list(header)
+                if filter:
+                    result = []
+                    for i in filter:
+                        result.append(header[i])
+                else:
+                    result = header
+                line.append(result)
+            else:
+                otus = otu_Dict.get(line[0].rstrip()) or "Sample not found"
+                if otus != "Sample not found":
+                    otus = list(otus)
+                    if filter:
+                        result2 = []
+                        for i in filter:
+                            result2.append(otus[i])
+                    else:
+                        result2 = otus
+                    line.append(result2)
+                else:
+                    line.append(otus)
+                    errors.append(line[0])
+            line = flatten(line)
+            finalTable.append(line)
+    #save to file
+    with open(outfile, 'w') as output:
+        for line in finalTable:
+            if line[-1] != "Sample not found":
+                join_line = (','.join(str(x) for x in line))
+                output.write("%s\n" % join_line)
+
+if not args.out.endswith('.csv'):
+    print "Error: output file must end with .csv"
+    os._exit(1)
+
 #first import OTU table, pivot and convert to dictionary
 with open(args.input,'rU') as infile:
     if args.input.endswith('.csv'):
@@ -41,31 +109,40 @@ with open(args.input,'rU') as infile:
     reader = itertools.izip(*csv.reader(infile, delimiter=d))
     otuDict = {rows[0]:rows[1:] for rows in reader}
 
-#print otuDict
-#now load meta table and append tuple from dictionary
-finalTable = []
-with open(args.meta, 'rU') as input:
-    reader = csv.reader(input)
-    count = 0
-    for line in reader:
-        count += 1
-        if count == 1:
-            header = otuDict.get('OTUId')
-            header = list(header)
-            line.append(header)
-        else:
-            otus = otuDict.get(line[0].rstrip()) or "Sample not found"
-            if otus != "Sample not found":
-                otus = list(otus)
-            else:
-                print "%s not found in OTU table, they must match exactly!" % line[0]
-            line.append(otus)
-        line = flatten(line)
-        finalTable.append(line)
+taxonomy = []
+if args.split_taxonomy:
+    #get taxonomy options into list
+    try:
+        for x in otuDict['Taxonomy']:
+            try:
+                taxlv = x.split(args.split_taxonomy+':')[1]
+                taxlv = taxlv.split(',')[0]
+            except IndexError:
+                continue
+            if not taxlv in taxonomy:
+                taxonomy.append(taxlv)
+    except KeyError:
+        print "Error: OTU table does not contain taxonomy information"
+        os._exit(1)
+    #now have list of search terms to use in the taxonomy list to filter the table
+    #print taxonomy
 
-#save to file
-with open(args.out, 'w') as output:
-    for line in finalTable:
-        if line[-1] != "Sample not found":
-            join_line = (','.join(str(x) for x in line))
-            output.write("%s\n" % join_line)
+#run entire dataset first, then if taxonomy given, loop through each filtering via index lookup
+num_otus = countOTUs(args.input)
+print "Working on complete OTU table: found %i OTUs" % num_otus
+transposeTable(args.meta, otuDict, args.out, False)
+if taxonomy:
+    for y in taxonomy:
+        index_match = [i for i, j in enumerate(otuDict['Taxonomy']) if args.split_taxonomy+':'+y in j]
+        tmpout = args.out.split('.csv')[0]+'.'+y+'.csv'
+        print "Working on table for %s: found %i OTUs" % (y, len(index_match))
+        transposeTable(args.meta, otuDict, tmpout, index_match)
+        
+if len(errors) > 0:
+    print "ERROR %s: not found in OTU table. Names must max exactly." % ', '.join(errors)
+
+os._exit(1)
+print len(otuDict['Taxonomy'])
+for i in range(0,len(otuDict['Taxonomy'])):
+    if 'Basidiomycota' in otuDict['Taxonomy'][i]:
+        print i, otuDict['OTUId'][i], otuDict['Taxonomy'][i]
