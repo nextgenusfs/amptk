@@ -55,7 +55,7 @@ def download(url):
     f.close()
 
 
-version = '0.3.15'
+version = '0.3.16'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -378,7 +378,8 @@ Description: Script takes meta data file in CSV format (e.g. from excel) and an 
     
 Required:    -i, --input       Input OTU table
              -m, --meta        Meta data table (csv format)
-             -o, --out         Output (meta data + pivotted OTU table)   
+             -o, --out         Output (meta data + pivotted OTU table)
+             --split_taxonomy  Make separate tables for groups of taxonomy [k,p,c,o,f,g]  
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
