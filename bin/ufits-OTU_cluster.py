@@ -187,10 +187,14 @@ else:
         uchime_db = os.path.join(parentdir, 'DB', 'rdp_gold.fa')
     else:
         uchime_db = os.path.abspath(args.uchime_ref)
-
-    ufitslib.log.info("Chimera Filtering (UCHIME)")
-    ufitslib.log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s -minh 1.0" % (usearch, otu_clean, uchime_db, uchime_out))
-    subprocess.call([usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out, '-minh', '1.0'], stdout = FNULL, stderr = FNULL)
+    if vsearch:
+        ufitslib.log.info("Chimera Filtering (VSEARCH)")
+        ufitslib.log.debug("%s --uchime_ref %s --db %s --nonchimeras %s --mindiv 1" % (vsearch, otu_clean, uchime_db, uchime_out))
+        subprocess.call([vsearch, '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out, '--mindiv 1'], stdout = FNULL, stderr = FNULL)
+    else:
+        ufitslib.log.info("Chimera Filtering (UCHIME)")
+        ufitslib.log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s -mindiv 1" % (usearch, otu_clean, uchime_db, uchime_out))
+        subprocess.call([usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out, '-mindiv 1'], stdout = FNULL, stderr = FNULL)
     total = ufitslib.countfasta(uchime_out)
     ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed')
 
