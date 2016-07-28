@@ -168,7 +168,7 @@ if not args.uchime_ref:
     uchime_out = otu_clean
 else:
     uchime_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.uchime.otus.fa')
-    #You might need to update these in the future, but leaving data and version in name so it is obvious where they came from
+    #You might need to update these in the future
     for file in os.listdir(os.path.join(parentdir, 'DB')):
         if file.startswith('uchime_sh'):
             if file.endswith('ITS1.fasta'):
@@ -192,7 +192,7 @@ else:
         ufitslib.log.debug("vsearch --uchime_ref %s --db %s --nonchimeras %s --mindiv 1" % (otu_clean, uchime_db, uchime_out))
         subprocess.call(['vsearch', '--mindiv', '1.0', '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
     else:
-        ufitslib.log.info("Chimera Filtering (UCHIME): make sure DB has rev_comp'd sequences")
+        ufitslib.log.info("Chimera Filtering (UCHIME)")
         ufitslib.log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s -mindiv 1" % (usearch, otu_clean, uchime_db, uchime_out))
         subprocess.call([usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out, '-mindiv', '1.0'], stdout = FNULL, stderr = FNULL)
     total = ufitslib.countfasta(uchime_out)

@@ -53,8 +53,8 @@ def getreadlength(input):
 def get_vsearch_version():
     version = subprocess.Popen(['vsearch', '--version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
     version = version.split('\n')[0]
-    version = version.split(' ')[1]
-    version = version.split('_')[0].replace('v', '')
+    version = version.replace('vsearch v', '')
+    version = version.split('_')[0]
     return version
 
 def checkvsearch():
