@@ -29,8 +29,8 @@ parser=argparse.ArgumentParser(prog='ufits-assign_taxonomy.py', usage="%(prog)s 
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('-i','--fasta', dest='fasta', required=True, help='FASTA input')
-parser.add_argument('-o','--out', dest='out', default='ufits-taxonomy', help='Output file (FASTA)')
+parser.add_argument('-f','--fasta', dest='fasta', required=True, help='FASTA input')
+parser.add_argument('-o','--out', dest='out', help='Output file (FASTA)')
 parser.add_argument('-m','--method', dest='method', default='hybrid',choices=['utax', 'usearch', 'hybrid', 'rdp', 'blast'], help='Taxonomy method')
 parser.add_argument('--fasta_db', help='Alternative database of fasta sequences')
 parser.add_argument('--utax_db', dest='utax_db', default='ITS2.udb', help='UTAX Reference Database')
@@ -42,7 +42,7 @@ parser.add_argument('--rdp_db', dest='rdp_tax', default='fungalits_unite', choic
 parser.add_argument('--rdp_cutoff', default=0.8, type=restricted_float, help='RDP confidence value threshold')
 parser.add_argument('--local_blast', help='Path to local Blast DB')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
-parser.add_argument('--append_taxonomy', dest="otu_table", nargs='?', help='Append Taxonomy to OTU table')
+parser.add_argument('-i', '--input', dest="otu_table", nargs='?', help='Append Taxonomy to OTU table')
 parser.add_argument('--tax_filter', help='Retain only OTUs with match in OTU table')
 args=parser.parse_args()
 
@@ -54,8 +54,18 @@ def countfasta(input):
                 count += 1
     return count
 
+if not args.out:
+    #get base name of files
+    if 'filtered' in args.fasta:
+        base = args.fasta.split(".filtered.otus.fa")[0]
+    else:
+        base = args.fasta.split('.fa')[0]
+else:
+    base = args.out
+
+
 #remove logfile if exists
-log_name = args.out + '.ufits-taxonomy.log'
+log_name = base + '.ufits-taxonomy.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
@@ -82,7 +92,6 @@ else:
     if args.fasta_db:
         ufitslib.log.info("vsearch not installed and is required to use --fasta_db")
         os._exit(1)
-
 
 if args.method == 'utax':
     if not args.utax_db:
@@ -120,7 +129,7 @@ if args.method == 'utax':
     ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
     
     #now run through UTAX
-    utax_out = args.out + '.utax.txt'
+    utax_out = base + '.utax.txt'
     ufitslib.log.info("Classifying OTUs with UTAX (USEARCH8)")
     cutoff = str(args.utax_cutoff)
     ufitslib.log.debug("%s -utax %s -db %s -utaxout %s -utax_cutoff %s -strand both" % (usearch, args.fasta, utax_db, utax_out, cutoff))
@@ -162,7 +171,7 @@ elif args.method == 'usearch':
             else:
                 usearch_db = os.path.join(parentdir, 'DB', args.usearch_db)
 
-    utax_out = args.out + '.usearch.txt'
+    utax_out = base + '.usearch.txt'
     if args.fasta_db:
         #now run through usearch global
         ufitslib.log.info("Global alignment OTUs with usearch_global (VSEARCH)")
@@ -233,8 +242,8 @@ elif args.method == 'hybrid':
     ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
     
     #now run through UTAX
-    utax_out = args.out + '.utax.txt'
-    usearch_out = args.out + '.usearch.txt'
+    utax_out = base + '.utax.txt'
+    usearch_out = base + '.usearch.txt'
     ufitslib.log.info("Classifying OTUs with UTAX (USEARCH8)")
     cutoff = str(args.utax_cutoff)
     ufitslib.log.debug("%s -utax %s -db %s -utaxout %s -utax_cutoff %s -strand both" % (usearch, args.fasta, utax_db, utax_out, cutoff))
@@ -246,7 +255,7 @@ elif args.method == 'hybrid':
         reader = csv.reader(infile, delimiter="\t")
         utaxDict = {rows[0]:rows[2] for rows in reader}
     
-    utax_out = args.out + '.usearch.txt'
+    utax_out = base + '.usearch.txt'
     if args.fasta_db:
         #now run through usearch global
         ufitslib.log.info("Global alignment OTUs with usearch_global (VSEARCH)")
@@ -304,7 +313,7 @@ elif args.method == 'rdp':
     ufitslib.log.info("Using RDP classifier %s training set" % args.rdp_tax)
     
     #run RDP
-    rdp_out = args.out + '.rdp.txt'
+    rdp_out = base + '.rdp.txt'
     subprocess.call(['java', '-Xmx2000m', '-jar', args.rdp, 'classify', '-g', args.rdp_tax, '-o', rdp_out, '-f', 'fixrank', args.fasta])
     
     #load in results and put into dictionary
@@ -348,7 +357,7 @@ elif args.method == 'blast':
     ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
     
     #now run blast remotely using NCBI nt database
-    blast_out = args.out + '.blast.txt'
+    blast_out = base + '.blast.txt'
     outformat = "6 qseqid sseqid pident stitle"
     if args.local_blast:
         #get number of cpus
@@ -395,13 +404,8 @@ if otu_table:
         d = '\t'
     if end == 'csv':
         d = ','
-    if not args.out:
-        basename = otu_table.rsplit(".", 1)[0]
-        taxTable = basename + '.taxonomy.txt'
-        otuTax = base + '.otus.taxonomy.fa'
-    else:
-        taxTable = args.out + '.otu_table.taxonomy.txt'
-        otuTax = args.out + '.otus.taxonomy.fa'
+    taxTable = base + '.otu_table.taxonomy.txt'
+    otuTax = base + '.otus.taxonomy.fa'
     
     #append to OTU table
     counts = 0

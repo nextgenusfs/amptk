@@ -55,7 +55,7 @@ def download(url):
     f.close()
 
 
-version = '0.4.0'
+version = '0.4.1'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -547,9 +547,11 @@ Description: Script maps OTUs to taxonomy information and can append to an OTU t
              'trustable' levels. UTAX results are used if BLAST-like search pct identity is less than 97 pct.  If pct identity
              is greater than 97 pct, the result with most taxonomy levels is retained.
     
-Arguments:   -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
+Arguments:   -i, --otu_table     Input OTU table file (i.e. otu_table from ufits cluster) (Required)
+             -f, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
              -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
              -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid, rdp, blast]
+             --fasta_db          Alternative database of fasta sequenes to use for global alignment.
              --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --usearch_db        USEARCH formatted database. Default: USEARCH.udb
@@ -558,8 +560,7 @@ Arguments:   -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster)
              --rdp_db            RDP Classifer DB set. [fungalits_unite, fungalits_warcup. fungallsu, 16srrna]  
              --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
-             --append_taxonomy   OTU table to append taxonomy. Default: none
-             --only_fungi        Remove non-fungal OTUs from OTU table.
+             --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi to keep only fungi.
              -u, --usearch       USEARCH executable. Default: usearch8
 
 Databases Configured: 
