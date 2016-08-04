@@ -55,7 +55,7 @@ def download(url):
     f.close()
 
 
-version = '0.3.17'
+version = '0.4.0'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -74,6 +74,7 @@ Process:     ion         pre-process Ion Torrent data (find barcodes, remove pri
              sample      sub-sample (rarify) de-multiplexed reads per sample
              
 Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
+             cluster_ref closed/open reference based clustering
              filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
 
@@ -261,6 +262,45 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
         else:
             print help
             os._exit(1)            
+    elif sys.argv[1] == 'cluster_ref':
+        help = """
+Usage:       ufits %s <arguments>
+version:     %s
+
+Description: Script first quality filters reads, dereplicates, and then runs chimera
+             filtering.  OTUs are then picked via reference based clustering (closed)
+             those that are > --id.  The rest of the data can then be clustered via
+             de novo UPARSE and then reference clustered using UTAX.
+    
+Arguments:   -i, --fastq         Input FASTQ file (Required)
+             -d, --db            Database Default: USEARCH
+             --id                Percent ID for closed reference clustering. Default: 97
+             --utax_db           UTAX formatted DB. Default: ITS2
+             --utax_level        UTAX Taxonomy level to keep. Default: k [k,p,c,o,f,g,s]
+             --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
+             --mock              Mock community fasta file
+             --closed_ref_only   Run only closed reference clustering.
+             -o, --out           Output base name. Default: out
+             -e, --maxee         Expected error quality trimming. Default: 1.0
+             -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
+             -m, --minsize       Minimum size to keep (singleton filter). Default: 2
+             --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full, 16S]
+             --map_filtered      Map quality filtered reads back to OTUs. Default: off
+             -u, --usearch       USEARCH executable. Default: usearch8
+             --cleanup           Remove intermediate files.
+        """ % (sys.argv[1], version)
+       
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'bin', 'ufits-OTU_cluster_ref.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            os._exit(1)            
+    
     elif sys.argv[1] == 'filter':
         help = """
 Usage:       ufits %s <arguments>
@@ -280,11 +320,13 @@ Optional:    -o, --out           Base name for output files. Default: use input 
 Filtering    -n, --normalize     Normalize reads to number of reads per sample [y,n]. Default: y
              -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.005
              -s, --subtract      Threshold to subtract from all OTUs (any number or auto). Default: 0
-             -d, --delimiter     Delimiter of OTU tables. Default: csv  [csv, tsv] 
+             -d, --delimiter     Delimiter of OTU tables. Default: csv  [csv, tsv]
+             --min_reads_otu     Minimum number of reads for valid OTU from whole experiment. Default: 2
              --col_order         Column order (comma separated list). Default: sort naturally
              --keep_mock         Keep Spike-in mock community. Default: False
              -u, --usearch       USEARCH executable. Default: usearch8
              --show_stats        Show OTU stats on STDOUT   
+             --cleanup           Remove intermediate files.
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -306,8 +348,10 @@ Description: Script filters de-multiplexed data (.demux.fq) to select only reads
              in a text file, one name per line.
     
 Required:    -i, --input     Input FASTQ file (.demux.fq)
-             -l, --list      List of sample (barcode) names to keep
-             -o, --out       Output FASTQ file name     
+             -l, --list      List of sample (barcode) names to keep, separate by space
+             -f, --file      List of sample (barcode) names to keep in a file, one per line
+             -o, --out       Output file name
+             --format        File format for output file. Default: fastq [fastq, fasta]  
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -329,8 +373,10 @@ Description: Script filters de-multiplexed data (.demux.fq) to remove only reads
              in a text file, one name per line.
     
 Required:    -i, --input     Input FASTQ file (.demux.fq)
-             -l, --list      List of sample (barcode) names to remove
-             -o, --out       Output FASTQ file name      
+             -l, --list      List of sample (barcode) names to remove, separate by space
+             -f, --file      List of sample (barcode) names to remove in a file, one per line
+             -o, --out       Output file name
+             --format        File format for output file. Default: fastq [fastq, fasta]
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]

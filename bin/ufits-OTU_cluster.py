@@ -218,7 +218,7 @@ if vsearch:
     total = ufitslib.line_count(uc_out)
 else:
     total = ufitslib.line_count2(uc_out)
-ufitslib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs')
+ufitslib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
 
 #Build OTU table
 otu_table = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otu_table.txt')

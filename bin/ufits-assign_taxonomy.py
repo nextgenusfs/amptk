@@ -32,6 +32,7 @@ parser=argparse.ArgumentParser(prog='ufits-assign_taxonomy.py', usage="%(prog)s 
 parser.add_argument('-i','--fasta', dest='fasta', required=True, help='FASTA input')
 parser.add_argument('-o','--out', dest='out', default='ufits-taxonomy', help='Output file (FASTA)')
 parser.add_argument('-m','--method', dest='method', default='hybrid',choices=['utax', 'usearch', 'hybrid', 'rdp', 'blast'], help='Taxonomy method')
+parser.add_argument('--fasta_db', help='Alternative database of fasta sequences')
 parser.add_argument('--utax_db', dest='utax_db', default='ITS2.udb', help='UTAX Reference Database')
 parser.add_argument('--utax_cutoff', default=0.8, type=restricted_float, help='UTAX confidence value threshold.')
 parser.add_argument('--usearch_db', dest='usearch_db', default='USEARCH.udb', help='USEARCH Reference Database')
@@ -42,7 +43,7 @@ parser.add_argument('--rdp_cutoff', default=0.8, type=restricted_float, help='RD
 parser.add_argument('--local_blast', help='Path to local Blast DB')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 parser.add_argument('--append_taxonomy', dest="otu_table", nargs='?', help='Append Taxonomy to OTU table')
-parser.add_argument('--only_fungi', action='store_true', help='Retain only fungi in OTU table')
+parser.add_argument('--tax_filter', help='Retain only OTUs with match in OTU table')
 args=parser.parse_args()
 
 def countfasta(input):
@@ -66,6 +67,21 @@ print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
 ufitslib.log.info("Operating system: %s" % sys.platform)
+
+#check if vsearch version > 1.9.1 is installed
+vsearch_check = ufitslib.which('vsearch')
+if vsearch_check:
+    vsearch = ufitslib.checkvsearch()
+    vsearch_version = ufitslib.get_vsearch_version()
+    if vsearch:
+        ufitslib.log.info("vsearch v%s detected" % vsearch_version)
+    else:
+        ufitslib.log.info("vsearch v%s detected, need version at least v1.9.1, using Python for filtering")
+else:
+    vsearch = False
+    if args.fasta_db:
+        ufitslib.log.info("vsearch not installed and is required to use --fasta_db")
+        os._exit(1)
 
 
 if args.method == 'utax':
@@ -134,21 +150,28 @@ elif args.method == 'usearch':
     ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
     
     #check for correct DB version
-    if not args.usearch_db:
-        ufitslib.log.error("You must specifiy a USEARCH database via --usearch_db")
+    if not args.usearch_db and not args.fasta_db:
+        ufitslib.log.error("You must specifiy a USEARCH database via --usearch_db or a --fasta_db")
         os._exit(1)
     else: #check if exists
-        search_db = os.path.join(parentdir, 'DB', args.usearch_db)
-        if not os.path.isfile(search_db):
-            ufitslib.log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
-            os._exit(1)
-        else:
-            usearch_db = os.path.join(parentdir, 'DB', args.usearch_db)
-    #now run through usearch global
+        if not args.fasta_db:
+            search_db = os.path.join(parentdir, 'DB', args.usearch_db)
+            if not os.path.isfile(search_db):
+                ufitslib.log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
+                os._exit(1)
+            else:
+                usearch_db = os.path.join(parentdir, 'DB', args.usearch_db)
+
     utax_out = args.out + '.usearch.txt'
-    ufitslib.log.info("Global alignment OTUs with usearch_global")
-    ufitslib.log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, str(args.usearch_cutoff), utax_out))
-    subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', utax_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
+    if args.fasta_db:
+        #now run through usearch global
+        ufitslib.log.info("Global alignment OTUs with usearch_global (VSEARCH)")
+        subprocess.call(['vsearch', '--usearch_global', args.fasta, '--db', args.fasta_db, '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels'], stdout = FNULL, stderr = FNULL)
+    else: 
+        #run through USEARCH
+        ufitslib.log.info("Global alignment OTUs with usearch_global (USEARCH)")
+        ufitslib.log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, str(args.usearch_cutoff), utax_out))
+        subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
     
     #load results into dictionary for appending to OTU table
     ufitslib.log.debug("Loading results into dictionary")
@@ -192,16 +215,18 @@ elif args.method == 'hybrid':
             os._exit(1)
         else:
             utax_db = os.path.join(parentdir, 'DB', args.utax_db)
-    if not args.usearch_db:
-        ufitslib.log.error("You must specifiy a USEARCH database via --usearch_db")
+    if not args.usearch_db and not args.fasta_db:
+        ufitslib.log.error("You must specifiy a USEARCH database via --usearch_db or a --fasta_db")
         os._exit(1)
     else: #check if exists
-        search_db = os.path.join(parentdir, 'DB', args.usearch_db)
-        if not os.path.isfile(search_db):
-            ufitslib.log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
-        else:
-            usearch_db = os.path.join(parentdir, 'DB', args.usearch_db)
-              
+        if not args.fasta_db:
+            search_db = os.path.join(parentdir, 'DB', args.usearch_db)
+            if not os.path.isfile(search_db):
+                ufitslib.log.error("%s DB was not found, please run `ufits database` command to create formatted DB" % search_db)
+                os._exit(1)
+            else:
+                usearch_db = os.path.join(parentdir, 'DB', args.usearch_db)
+                  
     #Count records
     ufitslib.log.info("Loading FASTA Records")
     total = countfasta(args.fasta)
@@ -221,10 +246,16 @@ elif args.method == 'hybrid':
         reader = csv.reader(infile, delimiter="\t")
         utaxDict = {rows[0]:rows[2] for rows in reader}
     
-    #run through USEARCH
-    ufitslib.log.info("Global alignment OTUs with usearch_global")
-    ufitslib.log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, str(args.usearch_cutoff), utax_out))
-    subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
+    utax_out = args.out + '.usearch.txt'
+    if args.fasta_db:
+        #now run through usearch global
+        ufitslib.log.info("Global alignment OTUs with usearch_global (VSEARCH)")
+        subprocess.call(['vsearch', '--usearch_global', args.fasta, '--db', args.fasta_db, '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels'], stdout = FNULL, stderr = FNULL)
+    else: 
+        #run through USEARCH
+        ufitslib.log.info("Global alignment OTUs with usearch_global (USEARCH)")
+        ufitslib.log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, str(args.usearch_cutoff), utax_out))
+        subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
     
     #load results into dictionary for appending to OTU table
     ufitslib.log.debug("Loading usearch_global results into dictionary")
@@ -383,11 +414,11 @@ if otu_table:
                 else:
                     tax = otuDict.get(line[0]) or "No Hit"
                     line.append(tax)
-                if args.only_fungi:
+                if args.tax_filter:
                     if 'OTUId' in line[0]:
                         join_line = ('\t'.join(str(x) for x in line))
                     else:
-                        if 'Fungi' in line[-1]:
+                        if args.tax_filter in line[-1]:
                             join_line = ('\t'.join(str(x) for x in line))
                             counts += 1
                         else:
@@ -396,9 +427,9 @@ if otu_table:
                     join_line = ('\t'.join(str(x) for x in line))
                     counts += 1
                 outTable.write("%s\n" % join_line)
-    if args.only_fungi:
+    if args.tax_filter:
         nonfungal = total - counts
-        ufitslib.log.info("Found %i non-fungal OTUs, writing %i fungal hits to taxonomy OTU table" % (nonfungal, counts))
+        ufitslib.log.info("Found %i OTUs not matching %s, writing %i %s hits to taxonomy OTU table" % (nonfungal, args.tax_filter, counts, args.tax_filter))
     #append to OTUs         
     with open(otuTax, 'w') as output:
         with open(args.fasta, 'rU') as input:

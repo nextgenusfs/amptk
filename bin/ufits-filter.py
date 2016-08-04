@@ -13,7 +13,6 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
 import lib.ufitslib as ufitslib
 
-
 class colr:
     GRN = '\033[92m'
     END = '\033[0m'
@@ -33,7 +32,7 @@ parser=argparse.ArgumentParser(prog='ufits-filter.py',
 parser.add_argument('-i','--otu_table', required=True, help='Input OTU table')
 parser.add_argument('-f','--fasta', required=True, help='Input OTUs (multi-fasta)')
 parser.add_argument('-b','--mock_barcode', help='Barocde of Mock community')
-parser.add_argument('-p','--index_bleed',  type=float, help='Index Bleed filter. Defaul: auto')
+parser.add_argument('-p','--index_bleed',  help='Index Bleed filter. Default: auto')
 parser.add_argument('-s','--subtract', default=0, help='Threshold to subtract')
 parser.add_argument('-n','--normalize', default='y', choices=['y','n'], help='Normalize OTU table prior to filtering')
 parser.add_argument('--mc',default='synmock', help='Multi-FASTA mock community')
@@ -42,7 +41,9 @@ parser.add_argument('--col_order', dest="col_order", default="naturally", help='
 parser.add_argument('--keep_mock', action='store_true', help='Keep mock sample in OTU table (Default: False)')
 parser.add_argument('--show_stats', action='store_true', help='Show stats datatable STDOUT')
 parser.add_argument('-o','--out', help='Base output name')
+parser.add_argument('--min_reads_otu', default=2, type=int, help='Minimum number of reads per OTU for experiment')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
+parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
 if not args.out:
@@ -123,31 +124,48 @@ if args.mock_barcode: #if user passes a column name for mock
     #map OTUs to mock community
     mock_out = base + '.mockmap.uc'
     ufitslib.log.info("Mapping OTUs to Mock Community (USEARCH8)")
-    if args.mc == 'synmock':
-        ufitslib.log.debug("%s -usearch_global %s -strand plus -id 0.80 -db %s -uc %s" % (usearch, args.fasta, mock, mock_out))
-        subprocess.call([usearch, '-usearch_global', args.fasta, '-strand', 'plus', '-id', '0.80', '-db', mock, '-uc', mock_out], stdout = FNULL, stderr = FNULL)
-    else:
-        ufitslib.log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, args.fasta, mock, mock_out))
-        subprocess.call([usearch, '-usearch_global', args.fasta, '-strand', 'plus', '-id', '0.97', '-db', mock, '-uc', mock_out], stdout = FNULL, stderr = FNULL)
-    
+    ufitslib.log.debug("%s -usearch_global %s -strand plus -id 0.95 -db %s -uc %s" % (usearch, mock, args.fasta, mock_out))
+    subprocess.call([usearch, '-usearch_global', mock, '-strand', 'plus', '-id', '0.95', '-db', args.fasta, '-uc', mock_out, '-maxaccepts', '3'], stdout = FNULL, stderr = FNULL)
+    #sort the output to avoid problems
+    mock_sort = base + '.mockmap.sort.uc'
+    with open(mock_sort, 'w') as output:
+        subprocess.call(['sort', '-k4,4nr', mock_out], stdout = output)
+
     #generate dictionary for name change
-    annotate_dict = {}
-    with open(mock_out, 'rU') as map:
+    found_dict = {}
+    missing = []
+    chimeras = []
+    seen = []
+    with open(mock_sort, 'rU') as map:
         map_csv = csv.reader(map, delimiter='\t')
         for line in map_csv:
             if line[-1] != "*":
-                if float(line[3]) < 97.0:
-                    ID = line[-1]+'_spurious_' + line[-2]
-                    annotate_dict[line[-2]] = ID
-                elif float(line[3]) < 99.0:
-                    ID = line[-1]+'_noisy_' + line[-2]
-                    annotate_dict[line[-2]] = ID
-                elif float(line[3]) < 100.0:
-                    ID = line[-1]+'_good_' + line[-2]
-                    annotate_dict[line[-2]] = ID                               
+                if not line[-2] in found_dict:
+                    found_dict[line[-2]] = (line[-1], float(line[3]))
+                    seen.append(line[-1])
                 else:
-                    ID = line[-1]+'_perfect_'+line[-2]
-                    annotate_dict[line[-2]] = ID
+                    oldpident = found_dict.get(line[-2])[1]
+                    oldid = found_dict.get(line[-2])[0]
+                    if float(line[3]) > oldpident:
+                        found_dict[line[-2]] = (line[-1], float(line[3]))
+                        if not oldid in seen:
+                            chimeras.append(oldid)
+                    else:
+                        if not line[-1] in seen:
+                            chimeras.append(line[-1])        
+            else:
+                missing.append(line[-2])
+
+    if missing:
+        ufitslib.log.info("Mock members not found: %s" % ', '.join(missing))
+    #make name change dict
+    annotate_dict = {}
+    for k,v in found_dict.items():
+        ID = v[0].replace('_chimera', '')
+        newID = k+'_pident='+str(v[1])+'_'+v[0]
+        annotate_dict[ID] = newID
+    for i in chimeras:
+        annotate_dict[i] = i+'_suspect_mock_chimera'
 else:
     otu_new = args.fasta
 
@@ -178,8 +196,8 @@ otus_per_sample_original = df[df > 0].count(axis=0, numeric_only=True)
 filtered = pd.DataFrame(df, columns=fs.index)
 filt2 = filtered.loc[(filtered != 0).any(1)]
 os = filt2.sum(axis=1)
-ufitslib.log.info("Removing singleton OTUs (OTUs with only 1 read from all samples)")
-fotus = os[os > 2] #valid allele must be found more than 2 times, i.e. no singletons
+ufitslib.log.info("Removing OTUs according to --min_reads_otu: (OTUs with less than %i reads from all samples)" % args.min_reads_otu)
+fotus = os[os >= args.min_reads_otu] #valid allele must be found atleast from than 2 times, i.e. no singletons
 filt3 = pd.DataFrame(filt2, index=fotus.index)
 
 if args.normalize == 'y':
@@ -197,10 +215,12 @@ if args.mock_barcode:
     #now calculate the index-bleed in both directions (into the mock and mock into the other samples)
     mock = []
     sample = []
+    #get names from mapping
+    for k,v in annotate_dict.items():
+        if not '_suspect_mock_chimera' in v:
+            mock.append(v)
     for i in norm_round.index:
-        if not i.startswith('OTU'):
-            mock.append(i)
-        else:
+        if not i in mock:
             sample.append(i)
     mock_df = pd.DataFrame(norm_round, index=mock)
     total = np.sum(np.sum(mock_df,axis=None))
@@ -211,7 +231,6 @@ if args.mock_barcode:
     bleed2 = np.sum(np.sum(sample_df,axis=None))
     mock_sample = pd.DataFrame(norm_round, columns=[args.mock_barcode])
     bleed2max = bleed2 / float(np.sum(mock_sample.sum(axis=1)))
-    
     subtract_num = max(sample_df.max())
 
     #get max values for bleed
@@ -230,6 +249,7 @@ else:
     bleedfilter = args.index_bleed #this is value needed to filter MiSeq, Ion is likely less, but shouldn't effect the data very much either way.
 
 if args.index_bleed:
+    args.index_bleed = float(args.index_bleed)
     ufitslib.log.info("Overwriting auto detect index-bleed, setting to %f%%" % (args.index_bleed*100))
     bleedfilter = args.index_bleed
 else:
@@ -319,13 +339,22 @@ print "-------------------------------------------------------"
 print "OTU Table filtering finished"
 print "-------------------------------------------------------"
 print "OTU Table Stats:   %s" % stats_table
-print "Sorted OTU table:  %s" % sorted_table
-print "Normalized (pct):  %s" % normal_table_pct
-print "Normalized (10k):  %s" % normal_table_nums
-if args.subtract != 0:
-    print "Subtracted table:  %s" % subtract_table
-print "Final filtered:    %s" % final_table
+if args.cleanup:
+    os.remove(sorted_table)
+    os.remove(normal_table_pct)
+    os.remove(normal_table_nums)
+    os.remove(final_table)
+    if args.subtract != 0:
+        os.remove(subract_table)
+else:
+    print "Sorted OTU table:  %s" % sorted_table
+    print "Normalized (pct):  %s" % normal_table_pct
+    print "Normalized (10k):  %s" % normal_table_nums
+    if args.subtract != 0:
+        print "Subtracted table:  %s" % subtract_table
+    print "Final filtered:    %s" % final_table
 print "Final binary:      %s" % final_binary_table
+print "Filtered OTUs:     %s" % otu_new
 print "-------------------------------------------------------"
 
 if 'win32' in sys.platform:
