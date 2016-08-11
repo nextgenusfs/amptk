@@ -10,7 +10,7 @@ ___
 ####Installation:####
 
 * [Mac install instructions](docs/mac_install.md)
-* [Ubuntu install instructions](docs/ubuntu_install.md)
+* [Linux install instructions](docs/ubuntu_install.md)
 * [Windows install instuructions](docs/windows_install.md) - Note use on Windows is not recommended.
 
 
@@ -21,7 +21,7 @@ UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ ufits
 Usage:       ufits <command> <arguments>
-version:     0.3.14
+version:     0.4.2
 
 Description: UFITS is a package of scripts to process fungal ITS amplicon data.  It uses the UPARSE algorithm for clustering
              and thus USEARCH8 is a dependency.
@@ -36,6 +36,7 @@ Process:     ion         pre-process Ion Torrent data (find barcodes, remove pri
              sample      sub-sample (rarify) de-multiplexed reads per sample
              
 Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
+             cluster_ref closed/open reference based clustering
              filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
 
@@ -54,7 +55,7 @@ And then by calling one of the commands, you get a help menu for each:
 ```
 $ ufits cluster
 Usage:       ufits cluster <arguments>
-version:     0.3.13
+version:     0.4.2
 
 Description: Script is a "wrapper" for the UPARSE algorithm. FASTQ quality trimming via expected 
              errors and Dereplication are run in vsearch if installed otherwise defaults to Python 
@@ -107,7 +108,6 @@ Paired-end MiSeq data is typically delivered already de-multiplexed into separat
 ```
 
 You can processes a folder of Illumina data like this:
-
 ```
 ufits illumina -i folder_name -o miseqData
 ```
@@ -119,7 +119,7 @@ This will find all files ending with '.fastq.gz' in the input folder, gunzip the
 Now the data from either platform (Ion, 454, or Illumina) can be clustered by running the following:
 
 ```
-ufits cluster -i ufits.demux.fq -o ion --uchime_ref ITS2
+ufits cluster -i ufits.demux.fq -o ion_output
 ```
 
 This quality filter the data based on expected errors, then remove duplicated sequences, sort the output by frequency, and finally `usearch -cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Type `-h` for all the available options.
@@ -157,7 +157,7 @@ Issuing the `ufits taxonomy` command will inform you which databases have been p
 ```
 $ ufits taxonomy
 Usage:       ufits taxonomy <arguments>
-version:     0.3.13
+version:     0.4.2
 
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
              uses a hybrid approach, e.g. gets taxonomy information from UTAX as well as global alignment hits from the larger
@@ -165,9 +165,11 @@ Description: Script maps OTUs to taxonomy information and can append to an OTU t
              'trustable' levels. UTAX results are used if BLAST-like search pct identity is less than 97 pct.  If pct identity
              is greater than 97 pct, the result with most taxonomy levels is retained.
     
-Arguments:   -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
+Arguments:   -i, --otu_table     Input OTU table file (i.e. otu_table from ufits cluster) (Required)
+             -f, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
              -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
              -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid, rdp, blast]
+             --fasta_db          Alternative database of fasta sequenes to use for global alignment.
              --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --usearch_db        USEARCH formatted database. Default: USEARCH.udb
@@ -176,22 +178,27 @@ Arguments:   -i, --fasta         Input FASTA file (i.e. OTUs from ufits cluster)
              --rdp_db            RDP Classifer DB set. [fungalits_unite, fungalits_warcup. fungallsu, 16srrna]  
              --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
-             --append_taxonomy   OTU table to append taxonomy. Default: none
-             --only_fungi        Remove non-fungal OTUs from OTU table.
+             --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi to keep only fungi.
              -u, --usearch       USEARCH executable. Default: usearch8
 
 Databases Configured: 
-DB_name       DB_type   FASTA originated from   Fwd Primer   Rev Primer   Records  
-FULL.udb      utax      UNITE.utax.fasta        ITS1-F       ITS4         41414    
-ITS1.udb      utax      UNITE.utax.fasta        ITS1-F       ITS2         41306    
-ITS2.udb      utax      UNITE.utax.fasta        fITS7        ITS4         42176    
-USEARCH.udb   usearch   UNITE.usearch.fasta     None         None         534993 
+DB_name         DB_type   FASTA originated from       Fwd Primer   Rev Primer   Records  
+FULL.udb        utax      UNITE.utax.fasta            ITS1-F       ITS4         41414    
+ITS1.udb        utax      UNITE.utax.fasta            ITS1-F       ITS2         41306    
+ITS2.udb        utax      UNITE.utax.fasta            fITS7        ITS4         42176    
+USEARCH.udb     usearch   UNITE.usearch.fasta         None         None         534993   
 ```
 
 And then you can use the `ufits taxonomy` command to assign taxonomy to your OTUs as well as append them to your OTU table as follows:
 
 ```
-ufits taxonomy -i data.filtered.otus.fa -o output --append_taxonomy data.final.csv
+#use of hybrid taxonomy approach
+ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv
+
+#filter data to only include OTUs identified to Fungi
+ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv
+
+
 ```
 
 ####Summarizing the Taxonomy:####
