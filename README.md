@@ -196,9 +196,10 @@ And then you can use the `ufits taxonomy` command to assign taxonomy to your OTU
 ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv
 
 #filter data to only include OTUs identified to Fungi
-ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv
+ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv --tax_filter Fungi
 
-
+#use RDP classifier
+ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv -m rdp --rdp_db fungalits_unite -rdp /path/to/classifier.jar
 ```
 
 ####Summarizing the Taxonomy:####
