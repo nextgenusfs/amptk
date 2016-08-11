@@ -2,6 +2,10 @@
 
 import sys, argparse, os
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir)
+import lib.ufitslib as ufitslib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -33,20 +37,27 @@ def filter_sample(file, output):
                 if args.format == 'fasta':
                     out.write(">%s\n%s\n" % (title, seq))
 
-if not args.list and not args.file:
-    print "Error, you must specifiy a list of barcodes or a file containing barcodes"
-    os._exit(1)
+if not args.list:
+    if not args.file:
+        print "Error, you must specifiy a list of barcodes or a file containing barcodes"
+        os._exit(1)
+if not args.file:
+    if not args.list:
+        print "Error, you must specifiy a list of barcodes or a file containing barcodes"
+        os._exit(1)
 
 if args.list and args.file:
     print "Error, you must specifiy either list of barcodes or a file containing barcodes, not both"
     os._exit(1)
 
-if args.file:    
+if args.file:   
+    count = ufitslib.line_count(args.file)
     #load in list of sample names to keep
     with open(args.file, 'rU') as input:
         lines = [line.rstrip('\n') for line in input]
 
 if args.list:
+    count = len(args.list)
     lines = args.list
 
 #make sure it is a set, faster lookup

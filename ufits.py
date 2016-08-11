@@ -55,7 +55,7 @@ def download(url):
     f.close()
 
 
-version = '0.4.1'
+version = '0.4.2'
 
 default_help = """
 Usage:       ufits <command> <arguments>

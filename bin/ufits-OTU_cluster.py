@@ -131,7 +131,7 @@ else:
 
 #now run usearch 8 sort by size
 sort_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.sort.fa')
-ufitslib.log.info("Sorting reads by size")
+ufitslib.log.info("Sorting reads by size: removing reads seen less than %s times" % args.minsize)
 ufitslib.log.debug("%s -sortbysize %s -minsize %s -fastaout %s" % (usearch, unoise_out, args.minsize, sort_out))
 subprocess.call([usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '-fastaout', sort_out], stdout = FNULL, stderr = FNULL)
 
