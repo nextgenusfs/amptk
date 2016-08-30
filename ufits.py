@@ -61,7 +61,7 @@ default_help = """
 Usage:       ufits <command> <arguments>
 version:     %s
 
-Description: UFITS is a package of scripts to process fungal ITS amplicon data.  It uses the UPARSE algorithm for clustering
+Description: UFITS is a package of scripts to process NGS amplicon data.  It uses the UPARSE algorithm for clustering
              and thus USEARCH8 is a dependency.
     
 Process:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
@@ -69,12 +69,12 @@ Process:     ion         pre-process Ion Torrent data (find barcodes, remove pri
              illumina2   pre-process Illumina data from a single file (assumes Ion/454 read structure: <barcode><f_primer>READ)
              454         pre-process Roche 454 (pyrosequencing) data (find barcodes, remove primers, trim/pad)
              show        show number or reads per barcode from de-multiplexed data
-             select      select reads from de-multiplexed data
-             remove      remove reads from de-multiplexed data
+             select      select reads (samples) from de-multiplexed data
+             remove      remove reads (samples) from de-multiplexed data
              sample      sub-sample (rarify) de-multiplexed reads per sample
              
 Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
-             cluster_ref closed/open reference based clustering
+             cluster_ref closed/open reference based clustering (EXPERIMENTAL)
              filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
 
@@ -244,7 +244,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -m, --minsize       Minimum size to keep (singleton filter). Default: 2
-             --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full, 16S]
+             --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full, 16S, custom path]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
              --size_annotations  Append size annotations to OTU names. Default: off
@@ -270,7 +270,7 @@ version:     %s
 Description: Script first quality filters reads, dereplicates, and then runs chimera
              filtering.  OTUs are then picked via reference based clustering (closed)
              those that are > --id.  The rest of the data can then be clustered via
-             de novo UPARSE and then reference clustered using UTAX.
+             de novo UPARSE and then reference clustered using UTAX.  EXPERIMENTAL
     
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              -d, --db            Database Default: USEARCH

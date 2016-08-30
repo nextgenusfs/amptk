@@ -76,7 +76,7 @@ ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.log.info("Operating system: %s" % sys.platform)
+ufitslib.log.info("Operating system: %s, %s" % (sys.platform, ufitslib.get_version()))
 
 #check if vsearch version > 1.9.1 is installed
 vsearch_check = ufitslib.which('vsearch')
@@ -172,10 +172,11 @@ elif args.method == 'usearch':
                 usearch_db = os.path.join(parentdir, 'DB', args.usearch_db)
 
     utax_out = base + '.usearch.txt'
+    usearch_out = base + '.usearch.txt'
     if args.fasta_db:
         #now run through usearch global
         ufitslib.log.info("Global alignment OTUs with usearch_global (VSEARCH)")
-        subprocess.call(['vsearch', '--usearch_global', args.fasta, '--db', args.fasta_db, '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels'], stdout = FNULL, stderr = FNULL)
+        subprocess.call(['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(args.fasta_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels'], stdout = FNULL, stderr = FNULL)
     else: 
         #run through USEARCH
         ufitslib.log.info("Global alignment OTUs with usearch_global (USEARCH)")
@@ -259,7 +260,7 @@ elif args.method == 'hybrid':
     if args.fasta_db:
         #now run through usearch global
         ufitslib.log.info("Global alignment OTUs with usearch_global (VSEARCH)")
-        subprocess.call(['vsearch', '--usearch_global', args.fasta, '--db', args.fasta_db, '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels'], stdout = FNULL, stderr = FNULL)
+        subprocess.call(['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(args.fasta_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels'], stdout = FNULL, stderr = FNULL)
     else: 
         #run through USEARCH
         ufitslib.log.info("Global alignment OTUs with usearch_global (USEARCH)")
