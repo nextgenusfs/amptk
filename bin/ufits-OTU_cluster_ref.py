@@ -44,8 +44,8 @@ parser.add_argument('--id', default='97', help="Threshold for alignment")
 parser.add_argument('-m','--minsize', default='2', help='Min identical seqs to process')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
-parser.add_argument('-d','--db', choices=['ITS','ITS1','ITS2','16S','LSU','COI'], help='Reference Database')
-parser.add_argument('--utax_db', default='ITS2', help='UTAX Reference Database')
+parser.add_argument('-d','--db', required=True, help='Reference Database [ITS,ITS1,ITS2,16S,LSU,COI,custom]')
+parser.add_argument('--utax_db', help='UTAX Reference Database')
 parser.add_argument('--utax_cutoff', default=0.8, type=restricted_float, help='UTAX confidence value threshold.')
 parser.add_argument('--utax_level', default='k', choices=['k','p','c','o','f','g','s'], help='UTAX classification level to retain')
 parser.add_argument('--mock', default='synmock', help='Spike-in mock community (fasta)')
@@ -104,7 +104,10 @@ DataBase = { 'ITS1': (os.path.join(DBdir,'ITS.extracted.fa'), os.path.join(DBdir
 
 #setup refDB
 ufitslib.log.info("Checking Reference Database")
-DB = DataBase.get(args.db)[0]
+if args.db in DataBase:
+    DB = DataBase.get(args.db)[0]
+else:
+    DB = os.path.abspath(args.db)
 refDB = os.path.join(tmp, 'reference_DB.fa')
 if args.mock:
     if args.mock == 'synmock':
@@ -130,7 +133,15 @@ with open(refDB, 'w') as output:
                 sys.exit(1)
 
 #get utax_database
-utaxDB = DataBase.get(args.db)[1]
+if args.db in DataBase:
+    utaxDB = DataBase.get(args.db)[1]
+else:
+    if not args.closed_ref_only:
+        if args.utax_db:
+            utaxDB = os.path.abspath(args.utax_db)
+        else:
+            ufitslib.log.error("%s not pre-installed DB, must then also specify valid UTAX database via --utax_db" % args.db)
+            sys.exit(1)
 
 #Count FASTQ records
 ufitslib.log.info("Loading FASTQ Records")
