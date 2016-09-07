@@ -30,8 +30,8 @@ def fmtcols(mylist, cols):
              for i in range(0,num_lines))
     return "\n".join(lines)
 
-def download(url):
-    file_name = "ufits_db.tar.gz"
+def download(url, name):
+    file_name = name
     u = urllib2.urlopen(url)
     f = open(file_name, 'wb')
     meta = u.info()
@@ -55,7 +55,7 @@ def download(url):
     f.close()
 
 
-version = '0.4.2'
+version = '0.4.3'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -126,7 +126,7 @@ Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)
+            sys.exit(1)
     elif sys.argv[1] == 'illumina2':
         help = """
 Usage:       ufits %s <arguments>
@@ -161,7 +161,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)
+            sys.exit(1)
     elif sys.argv[1] == 'illumina':
         help = """
 Usage:       ufits %s <arguments>
@@ -196,7 +196,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)
+            sys.exit(1)
     elif sys.argv[1] == '454':
         help = """
 Usage:       ufits %s <arguments>
@@ -228,7 +228,7 @@ Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)
+            sys.exit(1)
     elif sys.argv[1] == 'cluster':
         help = """
 Usage:       ufits %s <arguments>
@@ -244,7 +244,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -m, --minsize       Minimum size to keep (singleton filter). Default: 2
-             --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full, 16S, custom path]
+             --uchime_ref        Run Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
              --size_annotations  Append size annotations to OTU names. Default: off
@@ -261,7 +261,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)            
+            sys.exit(1)            
     elif sys.argv[1] == 'cluster_ref':
         help = """
 Usage:       ufits %s <arguments>
@@ -284,7 +284,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -m, --minsize       Minimum size to keep (singleton filter). Default: 2
-             --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full, 16S]
+             --uchime_ref        Run Chimera filtering. Default: off [ITS, 16S, LSU, COI, custom path]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              -u, --usearch       USEARCH executable. Default: usearch8
              --cleanup           Remove intermediate files.
@@ -299,7 +299,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)            
+            sys.exit(1)            
     
     elif sys.argv[1] == 'filter':
         help = """
@@ -338,7 +338,7 @@ Filtering    -n, --normalize     Normalize reads to number of reads per sample [
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)
+            sys.exit(1)
     elif sys.argv[1] == 'select':
         help = """
 Usage:       ufits %s <arguments>
@@ -363,7 +363,7 @@ Required:    -i, --input     Input FASTQ file (.demux.fq)
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)    
+            sys.exit(1)    
     elif sys.argv[1] == 'remove':
         help = """
 Usage:       ufits %s <arguments>
@@ -388,7 +388,7 @@ Required:    -i, --input     Input FASTQ file (.demux.fq)
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)    
+            sys.exit(1)    
     elif sys.argv[1] == 'sample':
         help = """
 Usage:       ufits %s <arguments>
@@ -412,7 +412,7 @@ Required:    -i, --input       Input FASTQ file
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)
+            sys.exit(1)
     elif sys.argv[1] == 'meta':
         help = """
 Usage:       ufits %s <arguments>
@@ -437,7 +437,7 @@ Required:    -i, --input       Input OTU table
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)
+            sys.exit(1)
     elif sys.argv[1] == 'show':
         help = """
 Usage:       ufits %s <arguments>
@@ -461,7 +461,7 @@ Required:    -i, --input     Input FASTQ file (.demux.fq)
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)    
+            sys.exit(1)    
     
     elif sys.argv[1] == 'funguild':
         help = """
@@ -485,7 +485,7 @@ Options:     -i, --input        Input OTU table
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)    
+            sys.exit(1)    
 
     elif sys.argv[1] == 'heatmap':
         help = """
@@ -517,7 +517,7 @@ Arguments:   -i, --otu_table     Input OTU table (Required)
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)    
+            sys.exit(1)    
     elif sys.argv[1] == 'taxonomy':
         db_list = ['DB_name', 'DB_type', 'FASTA originated from', 'Fwd Primer', 'Rev Primer', 'Records']
         okay_list = []
@@ -551,6 +551,7 @@ Arguments:   -i, --otu_table     Input OTU table file (i.e. otu_table from ufits
              -f, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
              -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
              -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid, rdp, blast]
+             -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: None
              --fasta_db          Alternative database of fasta sequenes to use for global alignment.
              --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
@@ -577,7 +578,7 @@ Databases Configured:
 
         else:
             print help
-            os._exit(1)                    
+            sys.exit(1)                    
     elif sys.argv[1] == 'database':
         help = """
 Usage:       ufits %s <arguments>
@@ -616,7 +617,7 @@ Arguments:   -i, --fasta         Input FASTA file (UNITE DB or UNITE+INSDC)
         
         else:
             print help
-            os._exit(1)   
+            sys.exit(1)   
     elif sys.argv[1] == 'summarize':
         help = """
 Usage:       ufits %s <arguments>
@@ -644,31 +645,58 @@ Arguments:   -i, --table     OTU Table containing Taxonomy information (Required
             subprocess.call(arguments)        
         else:
             print help
-            os._exit(1)  
+            sys.exit(1)  
     elif sys.argv[1] == 'install':
         help = """
 Usage:       ufits %s <arguments>
 version:     %s
 
-Description: Script downloads pre-formated UNITE and UNITE-INSD databases for use with the 
-             `ufits taxonomy` command. By default UTAX is trained for ITS1, ITS2, and Full ITS. 
+Description: Script downloads pre-formated databases for use with the `ufits taxonomy` 
+             command. You can download databases for fungal ITS, bacterial 16S, fungal
+             LSU, or arthropod/chordate COI amplicons. 
     
-Arguments:   --install_unite     Install the UNITE Databases
-             --force             Over-write existing databases
+Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI
+             --force       Over-write existing databases
         """ % (sys.argv[1], version) 
 
         arguments = sys.argv[2:]
         if len(arguments) < 1:
             print help
-            os._exit(1)
+            sys.exit(1)
         else:
-            if '--install_unite' in arguments:
-                arguments.remove('--install_unite')
+            if '-i' in arguments:
+                arguments.remove('-i')
+                URL = {'ITS': 'https://www.dropbox.com/s/hi1ddpq3wmiysie/ITS.ufits.tar.gz?dl=1', '16S': 'https://www.dropbox.com/s/dqbrr9wsqnki2di/16S.ufits.tar.gz?dl=1', 'LSU': 'https://www.dropbox.com/s/xqrted7sts48hfl/LSU.ufits.tar.gz?dl=1', 'COI': 'https://www.dropbox.com/s/yx31ryn3jugajgs/COI.ufits.tar.gz?dl=1'}
+                if len(arguments) < 1:
+                    print help
+                    sys.exit(1)
+                for x in arguments:
+                    if os.path.isfile(os.path.join(script_path, 'DB', x+'.udb')):
+                        if not '--force' in arguments:
+                            print("A formated database was found, to overwrite use '--force'. You can add more custom databases by using the `ufits database` command.")
+                            sys.exit(1)
+                    #download
+                    if not x in URL:
+                        if x == '--force':
+                            continue
+                        print "%s not valid, choices are ITS, 16S, LSU, COI" % x
+                        sys.exit(1)
+                    print "Downloading %s pre-formatted database" % x
+                    address = URL.get(x)
+                    download(address, x+'.ufits.tar.gz')
+                    tfile = tarfile.open(x+'.ufits.tar.gz', 'r:gz')
+                    tfile.extractall(x)
+                    for file in os.listdir(x):
+                        os.rename(os.path.join(x,file), os.path.join(script_path, 'DB', file))
+                    shutil.rmtree(x)
+                    os.remove(x+'.ufits.tar.gz')
+                    print "%s taxonomy database installed" % x
+                '''    
                 #now check for UTAX and USEARCH in DB folder
                 if os.path.isfile(os.path.join(script_path, 'DB', 'FULL.udb')):
                     if not '--force' in arguments:
                         print("A formated database was found, to overwrite use '--force'. You can add more custom databases by using the `ufits database` command.")
-                        os._exit(1)                   
+                        sys.exit(1)                   
                 #download database
                 print "Downloading pre-formatted database"
                 download('https://www.dropbox.com/s/mrrnqupzh43xyor/ufits_db.tar.gz?dl=1')
@@ -679,10 +707,10 @@ Arguments:   --install_unite     Install the UNITE Databases
                 shutil.rmtree('ufits_db')
                 os.remove('ufits_db.tar.gz')
                 print "UFITS taxonomy database successfully installed"            
-
+                '''
             else:
                 print help
-                os._exit(1)
+                sys.exit(1)
     elif sys.argv[1] == 'SRA':
         help = """
 Usage:       ufits %s <arguments>
@@ -715,13 +743,13 @@ Arguments:   -i, --input         Input FASTQ file or folder (Required)
             subprocess.call(arguments)
         else:
             print help
-            os._exit(1)
+            sys.exit(1)
     elif sys.argv[1] == 'version':
         print "ufits v.%s" % version
     else:
         print "%s option not recognized" % sys.argv[1]
         print default_help
-        os._exit(1)
+        sys.exit(1)
     
     
 else:

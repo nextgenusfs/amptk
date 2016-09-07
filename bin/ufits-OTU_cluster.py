@@ -35,7 +35,7 @@ parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
 parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent")
 parser.add_argument('-m','--minsize', default='2', help='Min size to keep for clustering')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
-parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS1,ITS2,Full,16S]')
+parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom]')
 parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
 parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOISE)')
 parser.add_argument('--size_annotations', action='store_true', help='Append size annotations')
@@ -135,7 +135,6 @@ ufitslib.log.info("Sorting reads by size: removing reads seen less than %s times
 ufitslib.log.debug("%s -sortbysize %s -minsize %s -fastaout %s" % (usearch, unoise_out, args.minsize, sort_out))
 subprocess.call([usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '-fastaout', sort_out], stdout = FNULL, stderr = FNULL)
 
-
 #now run clustering algorithm
 radius = str(100 - int(args.pct_otu))
 otu_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otus.fa')
@@ -168,36 +167,26 @@ if not args.uchime_ref:
     uchime_out = otu_clean
 else:
     uchime_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.uchime.otus.fa')
-    #You might need to update these in the future
-    for file in os.listdir(os.path.join(parentdir, 'DB')):
-        if file.startswith('uchime_sh'):
-            if file.endswith('ITS1.fasta'):
-                uchime_ITS1 = os.path.join(parentdir, 'DB', file)
-            if file.endswith('ITS2.fasta'):
-                uchime_ITS2 = os.path.join(parentdir, 'DB', file)
-        if file.startswith('uchime_reference_'):
-            uchime_FULL = os.path.join(parentdir, 'DB', file)
-    if args.uchime_ref == "ITS1":
-        uchime_db = uchime_ITS1
-    elif args.uchime_ref == "ITS2":
-        uchime_db = uchime_ITS2
-    elif args.uchime_ref == "Full":
-        uchime_db = uchime_FULL
-    elif args.uchime_ref == "16S":
-        uchime_db = os.path.join(parentdir, 'DB', 'rdp_gold.fa')
+    #R. Edgar now says using largest DB is better for UCHIME, so use the one distributed with taxonomy
+    if args.uchime_ref in ['ITS', '16S', 'LSU', 'COI']: #test if it is one that is setup, otherwise default to full path
+        uchime_db = os.path.join(parentdir, 'DB', args.uchime_ref+'.extracted.fa')
+        if not os.path.isfile(uchime_db):
+            ufitslib.log.error("Database not properly configured, run `ufits install` to setup DB, skipping chimera filtering")
+            uchime_out = otu_clean
     else:
         uchime_db = os.path.abspath(args.uchime_ref)
-    if vsearch:
-        ufitslib.log.info("Chimera Filtering (VSEARCH)")
-        ufitslib.log.debug("vsearch --uchime_ref %s --db %s --nonchimeras %s --mindiv 1" % (otu_clean, uchime_db, uchime_out))
-        subprocess.call(['vsearch', '--mindiv', '1.0', '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
-    else:
-        ufitslib.log.info("Chimera Filtering (UCHIME)")
-        ufitslib.log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s -mindiv 1" % (usearch, otu_clean, uchime_db, uchime_out))
-        subprocess.call([usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out, '-mindiv', '1.0'], stdout = FNULL, stderr = FNULL)
-    total = ufitslib.countfasta(uchime_out)
-    ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed')
-
+    #now run chimera filtering if all checks out
+    if not os.path.isfile(uchime_out):
+        if vsearch:
+            ufitslib.log.info("Chimera Filtering (VSEARCH)")
+            ufitslib.log.debug("vsearch --uchime_ref %s --db %s --nonchimeras %s --mindiv 1" % (otu_clean, uchime_db, uchime_out))
+            subprocess.call(['vsearch', '--mindiv', '1.0', '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
+        else:
+            ufitslib.log.info("Chimera Filtering (UCHIME)")
+            ufitslib.log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s -mindiv 1" % (usearch, otu_clean, uchime_db, uchime_out))
+            subprocess.call([usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out, '-mindiv', '1.0'], stdout = FNULL, stderr = FNULL)
+        total = ufitslib.countfasta(uchime_out)
+        ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed')
 
 #now map reads back to OTUs
 uc_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.mapping.uc')
