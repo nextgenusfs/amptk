@@ -75,7 +75,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              --cleanup           Remove intermediate files.
 ```
 ####Installing Databases:####
-UFITS is pre-configured to deal with amplicons from fungal ITS, fungal LSU, bacterial 16S, and insect COI.  After installation of UFITS, you can download and install these databases using the `ufits install` command.  To install all of the databases, you would type:
+UFITS is pre-configured to deal with amplicons from fungal ITS, fungal LSU, bacterial 16S, and insect COI.  After installation of UFITS, you can download and install these databases using the `ufits install` command (to overwrite existing databases, use the `--force` option.  To install all of the databases, you would type:
 
 ```
 #install all databases
@@ -125,11 +125,11 @@ You can processes a folder of Illumina data like this:
 ufits illumina -i folder_name -o miseqData
 ```
 
-This will find all files ending with '.fastq.gz' in the input folder, gunzip the files, and then sequentially process the paired read files.  First it will run USEARCH8 `-fastq_mergepairs`, however, since some ITS sequences are too long to overlap you can rescue longer sequences by recovering the the non-merged forward reads by passing the `--rescue_forward` argument.  Alternatively, you can only utilize the forward reads (R1), by passing the `--reads forward` argument.  Next the forward and reverse primers are removed and the reads are trimmed/padded to a set length of clustering. Finally, the resulting FASTQ files for each of the processed samples are concatenated together into a file called `"output".demux.fq` that will be used for the next clustering step.  The script will also output a text file called `"output"-filenames.txt` that contains a tab-delimited output of the sample name as well as [i5] and [i7] index sequences that were used.  The script will produce a folder containing the individual de-multiplexed files named from the `-o, --out` argment.
+This will find all files ending with '.fastq.gz' in the input folder, gunzip the files, and then sequentially process the paired read files.  First it will run USEARCH8 `-fastq_mergepairs`, however, since some ITS sequences are too long to overlap you can rescue longer sequences by recovering the the non-merged forward reads by passing the `--rescue_forward` argument.  Alternatively, you can only utilize the forward reads (R1), by passing the `--reads forward` argument.  Next the forward and reverse primers are removed and the reads are trimmed/padded to a set length of clustering. Finally, the resulting FASTQ files for each of the processed samples are concatenated together into a file called `miseqData.demux.fq` that will be used for the next clustering step.  The script will also output a text file called `miseqData-filenames.txt` that contains a tab-delimited output of the sample name as well as [i5] and [i7] index sequences that were used.  The script will produce a folder containing the individual de-multiplexed files named from the `-o, --out` argment.
 
 ####OTU Clustering:####
 
-The next step is to run `ufits cluster`, which expects de-multiplexed FASTQ data as a single file with `;barcodelabel=Sample_name` in the FASTQ header. Now the data from either platform (Ion, 454, or Illumina) can be clustered by running the following:
+The next step is to run `ufits cluster`, which expects de-multiplexed FASTQ data as a single file with `;barcodelabel=Sample_name` in the FASTQ header. If your data is in some other format, you can use other UNIX/Perl/Python scripts to add the `barcodelabel=` to each read and then cluster your data using UFITS.  Note that reads should be [globally trimmed](http://www.drive5.com/usearch/manual/global_trimming.html) and the pre-processing steps in UFITS take steps to ensure high quality data makes it into the clustering algorithm with minimal sequence loss. Now the data from either platform (Ion, 454, or Illumina) can be clustered by running the following:
 
 ```
 ufits cluster -i ufits.demux.fq -o ion_output
