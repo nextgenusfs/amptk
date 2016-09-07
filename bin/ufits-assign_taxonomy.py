@@ -33,7 +33,7 @@ parser.add_argument('-i', '--input', dest="otu_table", nargs='?', help='Append T
 parser.add_argument('-f','--fasta', required=True, help='FASTA input')
 parser.add_argument('-o','--out', help='Output file (FASTA)')
 parser.add_argument('-m','--method', default='hybrid',choices=['utax', 'usearch', 'hybrid', 'rdp', 'blast'], help='Taxonomy method')
-parser.add_argument('-d','--db', default='ITS2', help='Pre-installed Databases: [ITS,ITS1,ITS2,16S,LSU,COI]')
+parser.add_argument('-d','--db', help='Pre-installed Databases: [ITS,ITS1,ITS2,16S,LSU,COI]')
 parser.add_argument('--fasta_db', help='Alternative database of fasta sequences')
 parser.add_argument('--utax_db', help='UTAX Reference Database')
 parser.add_argument('--utax_cutoff', default=0.8, type=restricted_float, help='UTAX confidence value threshold.')
@@ -91,20 +91,20 @@ else:
     vsearch = False
     if args.fasta_db:
         ufitslib.log.info("vsearch not installed and is required to use --fasta_db")
-        os._exit(1)
+        sys.exit(1)
 #check usearch version
 usearch = args.usearch
 try:
     usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
 except OSError:
     ufitslib.log.error("%s not found in your PATH, exiting." % usearch)
-    os._exit(1)
+    sys.exit(1)
 version = usearch_test.split(" v")[1]
 majorV = version.split(".")[0]
 minorV = version.split(".")[1]
 if int(majorV) < 8 or (int(majorV) >= 8 and int(minorV) < 1):
     ufitslib.log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % usearch_test)
-    os._exit(1)
+    sys.exit(1)
 else:
     ufitslib.log.info("USEARCH version: %s" % usearch_test)
 
@@ -115,9 +115,18 @@ DataBase = { 'ITS1': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS1_U
 if args.db in ['ITS', 'ITS1', 'ITS2', '16S', 'LSU', 'COI']:
     utax_db = DataBase.get(args.db)[1]
     usearch_db = DataBase.get(args.db)[0]
+    if not utax_db:
+        utax_db = args.utax_db
+    if not usearch_db:
+        usearch_db = args.usearch_db
 else:
     utax_db = args.utax_db
     usearch_db = args.usearch_db
+
+#Count records
+ufitslib.log.info("Loading FASTA Records")
+total = countfasta(args.fasta)
+ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
 
 #start with less common uses, i.e. Blast, rdp
 if args.method == 'blast':
@@ -126,12 +135,7 @@ if args.method == 'blast':
         blast_test = subprocess.Popen(['blastn', '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
     except OSError:
         ufitslib.log.error("BLASTN not found in your PATH, exiting.")
-        os._exit(1)
-   
-    #Count records
-    ufitslib.log.info("Loading FASTA Records")
-    total = countfasta(args.fasta)
-    ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
+        sys.exit(1)
     
     #now run blast remotely using NCBI nt database
     blast_out = base + '.blast.txt'
@@ -140,7 +144,7 @@ if args.method == 'blast':
         #get number of cpus
         cpus = multiprocessing.cpu_count() - 2
         ufitslib.log.info("Running local BLAST using db: %s" % args.local_blast)
-        subprocess.call(['blastn', '-num_threads', str(cpus), '-query', args.fasta, '-db', args.local_blast, '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out], stderr = FNULL)
+        subprocess.call(['blastn', '-num_threads', str(cpus), '-query', args.fasta, '-db', os.path.abspath(args.local_blast), '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out], stderr = FNULL)
     else:
         ufitslib.log.info("Running BLASTN using NCBI remote nt database, this may take awhile")
         subprocess.call(['blastn', '-query', args.fasta, '-db', 'nt', '-remote', '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out], stderr = FNULL)
@@ -163,12 +167,7 @@ elif args.method == 'rdp':
         rdp_test = subprocess.Popen(['java', '-Xmx2000m', '-jar', args.rdp, 'classify'], stdout=subprocess.PIPE).communicate()[0].rstrip()
     except OSError:
         ufitslib.log.error("%s not found in your PATH, exiting." % args.rdp)
-        os._exit(1)
-    
-    #Count records
-    ufitslib.log.info("Loading FASTA Records")
-    total = countfasta(args.fasta)
-    ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
+        sys.exit(1)
     
     #RDP database
     ufitslib.log.info("Using RDP classifier %s training set" % args.rdp_tax)
@@ -203,14 +202,11 @@ elif args.method == 'rdp':
         line = [col[0],tax]
         new.append(line)
     otuDict = dict(new)
-else: #args.method == 'utax':
+else:
+    #setup output taxonomy files
     utax_out = base + '.usearch.txt'
     usearch_out = base + '.usearch.txt'
-    #Count records
-    ufitslib.log.info("Loading FASTA Records")
-    total = countfasta(args.fasta)
-    ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
-    
+
     #check status of USEARCH DB and run
     if args.method in ['hybrid', 'usearch']:
         if args.fasta_db:
@@ -221,7 +217,7 @@ else: #args.method == 'utax':
             if usearch_db:
                 #run through USEARCH
                 ufitslib.log.info("Global alignment OTUs with usearch_global (USEARCH)")
-                ufitslib.log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, usearch_db, str(args.usearch_cutoff), utax_out))
+                ufitslib.log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, os.path.abspath(usearch_db), str(args.usearch_cutoff), utax_out))
                 subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
             else:
                 ufitslib.log.error("USEARCH DB %s not found, skipping" % usearch_db)

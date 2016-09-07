@@ -43,9 +43,8 @@ parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent
 parser.add_argument('--id', default='97', help="Threshold for alignment")
 parser.add_argument('-m','--minsize', default='2', help='Min identical seqs to process')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
-parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom]')
 parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
-parser.add_argument('-d','--db', default='USEARCH', help='Reference Database (fasta format)')
+parser.add_argument('-d','--db', choices=['ITS','ITS1','ITS2','16S','LSU','COI'], help='Reference Database')
 parser.add_argument('--utax_db', default='ITS2', help='UTAX Reference Database')
 parser.add_argument('--utax_cutoff', default=0.8, type=restricted_float, help='UTAX confidence value threshold.')
 parser.add_argument('--utax_level', default='k', choices=['k','p','c','o','f','g','s'], help='UTAX classification level to retain')
@@ -78,7 +77,7 @@ try:
     usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
 except OSError:
     ufitslib.log.warning("%s not found in your PATH, exiting." % usearch)
-    os._exit(1)
+    sys.exit(1)
 ufitslib.log.info("USEARCH version: %s" % usearch_test)
 
 #check if vsearch version > 1.9.1 is installed
@@ -99,35 +98,13 @@ tmp = args.out + '_tmp'
 if not os.path.exists(tmp):
     os.makedirs(tmp)
 
-#get utax_database
-installed_utax = []
-installed_db = []
-for file in os.listdir(os.path.join(parentdir, 'DB')):
-    if file.endswith('.udb.txt'):
-        filename = os.path.join(parentdir, 'DB', file)
-        with open(filename) as input:
-            for line in input:
-                if line.startswith('utax'):
-                    installed_utax.append(file.replace('.udb.txt',''))  
-    elif file.endswith('.extracted.fa'):
-        installed_db.append(file)             
-if args.utax_db in installed_utax:
-    ufitslib.log.info("Using %s UTAX database" % args.utax_db)
-    utaxDB = os.path.join(parentdir, 'DB', args.utax_db+'.udb')
-else:
-    ufitslib.log.info("Custom UTAX database entered, you can install one with `ufits database` command.")
-    utaxDB = os.abspath(args.utax_db)
+#Setup DB locations and names, etc
+DBdir = os.path.join(parentdir, 'DB')   
+DataBase = { 'ITS1': (os.path.join(DBdir,'ITS.extracted.fa'), os.path.join(DBdir, 'ITS1_UTAX.udb')), 'ITS2': (os.path.join(DBdir,'ITS.extracted.fa'), os.path.join(DBdir, 'ITS2_UTAX.udb')), 'ITS': (os.path.join(DBdir,'ITS.extracted.fa'), os.path.join(DBdir, 'ITS_UTAX.udb')), '16S': (os.path.join(DBdir,'16S.extracted.fa'), os.path.join(DBdir, '16S.udb')), 'LSU': (os.path.join(DBdir, 'LSU.extracted.fa'), os.path.join(DBdir, 'LSU_UTAX.udb')), 'COI': (os.path.join(DBdir,'COI.extracted.fa'), os.path.join(DBdir, 'COI_UTAX.udb'))}
 
-#format reference database and look for duplicate annotation, error if found
+#setup refDB
 ufitslib.log.info("Checking Reference Database")
-installed_prefix = []
-for i in installed_db:
-    installed_prefix.append(i.split('.')[0])
-if args.db in installed_prefix:
-    match = installed_prefix.index(args.db)
-    DB = os.path.join(parentdir, 'DB', installed_db[match])
-else:
-    DB = os.path.abspath(args.db)
+DB = DataBase.get(args.db)[0]
 refDB = os.path.join(tmp, 'reference_DB.fa')
 if args.mock:
     if args.mock == 'synmock':
@@ -143,14 +120,17 @@ with open(refDB, 'w') as output:
                     SeqIO.write(rec, output, 'fasta')
                 else:
                     ufitslib.log.error("Duplicate ID's in Ref DB: %s, exiting" % rec.id)
-                    os._exit(1)
+                    sys.exit(1)
     with open(DB) as input2:
         for rec in SeqIO.parse(input2, 'fasta'):
             if not rec.id in seen:
                 SeqIO.write(rec, output, 'fasta')
             else:
                 ufitslib.log.error("Duplicate ID's in Ref DB: %s, exiting" % rec.id)
-                os._exit(1)
+                sys.exit(1)
+
+#get utax_database
+utaxDB = DataBase.get(args.db)[1]
 
 #Count FASTQ records
 ufitslib.log.info("Loading FASTQ Records")
@@ -206,32 +186,20 @@ subprocess.call([usearch, '-cluster_otus', sort_out, '-sizein', '-sizeout', '-re
 total = ufitslib.countfasta(chimera_out)
 ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
   
-#optional UCHIME Ref
-if not args.uchime_ref:
-    uchime_out = chimera_out
-else:
-    uchime_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.uchime.otus.fa')
-    #R. Edgar now says using largest DB is better for UCHIME, so use the one distributed with taxonomy
-    if args.uchime_ref in ['ITS', '16S', 'LSU', 'COI']: #test if it is one that is setup, otherwise default to full path
-        uchime_db = os.path.join(parentdir, 'DB', args.uchime_ref+'.extracted.fa')
-        if not os.path.isfile(uchime_db):
-            ufitslib.error("Database not properly configured, run `ufits install` to setup DB, skipping chimera filtering")
-            uchime_out = chimera_out
+#now run uchime_ref
+uchime_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.uchime.otus.fa')
+#now run chimera filtering if all checks out
+if not os.path.isfile(uchime_out):
+    if vsearch:
+        ufitslib.log.info("Chimera Filtering (VSEARCH)")
+        ufitslib.log.debug("vsearch --uchime_ref %s --db %s --nonchimeras %s --mindiv 1" % (chimera_out, refDB, uchime_out))
+        subprocess.call(['vsearch', '--mindiv', '1.0', '--uchime_ref', chimera_out, '--db', refDB, '--nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
     else:
-        uchime_db = os.path.abspath(args.uchime_ref)
-    #now run chimera filtering if all checks out
-    if not os.path.isfile(uchime_out):
-        if vsearch:
-            ufitslib.log.info("Chimera Filtering (VSEARCH)")
-            ufitslib.log.debug("vsearch --uchime_ref %s --db %s --nonchimeras %s --mindiv 1" % (chimera_out, uchime_db, uchime_out))
-            subprocess.call(['vsearch', '--mindiv', '1.0', '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
-        else:
-            ufitslib.log.info("Chimera Filtering (UCHIME)")
-            ufitslib.log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s -mindiv 1" % (usearch, chimera_out, uchime_db, uchime_out))
-            subprocess.call([usearch, '-uchime_ref', chimera_out, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out, '-mindiv', '1.0'], stdout = FNULL, stderr = FNULL)
-        total = ufitslib.countfasta(uchime_out)
-        ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed')
-    
+        ufitslib.log.info("Chimera Filtering (UCHIME)")
+        ufitslib.log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s -mindiv 1" % (usearch, chimera_out, refDB, uchime_out))
+        subprocess.call([usearch, '-uchime_ref', chimera_out, '-strand', 'plus', '-db', refDB, '-nonchimeras', uchime_out, '-mindiv', '1.0'], stdout = FNULL, stderr = FNULL)
+    total = ufitslib.countfasta(uchime_out)
+    ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed')
     
 #now run usearch_global versus reference database
 align_out = os.path.join(tmp, args.out + '.align.uc')
