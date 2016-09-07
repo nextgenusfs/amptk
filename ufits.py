@@ -273,9 +273,9 @@ Description: Script first quality filters reads, dereplicates, and then runs chi
              de novo UPARSE and then reference clustered using UTAX.  EXPERIMENTAL
     
 Arguments:   -i, --fastq         Input FASTQ file (Required)
-             -d, --db            Database Default: USEARCH
+             -d, --db            Database [ITS,ITS1,ITS2,16S,LSU,COI,custom]. (Required)
              --id                Percent ID for closed reference clustering. Default: 97
-             --utax_db           UTAX formatted DB. Default: ITS2
+             --utax_db           UTAX formatted DB.
              --utax_level        UTAX Taxonomy level to keep. Default: k [k,p,c,o,f,g,s]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --mock              Mock community fasta file
