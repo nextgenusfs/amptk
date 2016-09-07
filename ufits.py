@@ -55,7 +55,7 @@ def download(url, name):
     f.close()
 
 
-version = '0.4.3'
+version = '0.4.4'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -687,7 +687,7 @@ Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI
                     tfile = tarfile.open(x+'.ufits.tar.gz', 'r:gz')
                     tfile.extractall(x)
                     for file in os.listdir(x):
-                        os.rename(os.path.join(x,file), os.path.join(script_path, 'DB', file))
+                        shutil.move(os.path.join(x,file), os.path.join(script_path, 'DB', file))
                     shutil.rmtree(x)
                     os.remove(x+'.ufits.tar.gz')
                     print "%s taxonomy database installed" % x
