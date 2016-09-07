@@ -122,7 +122,7 @@ Now the data from either platform (Ion, 454, or Illumina) can be clustered by ru
 ufits cluster -i ufits.demux.fq -o ion_output
 ```
 
-This quality filter the data based on expected errors, then remove duplicated sequences, sort the output by frequency, and finally `usearch -cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS2` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Type `-h` for all the available options.
+This quality filter the data based on expected errors, then remove duplicated sequences, sort the output by frequency, and finally `usearch -cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Type `-h` for all the available options.
 
 
 ####OTU Table Filtering####
@@ -144,10 +144,10 @@ ufits filter -i test.otu_table.txt -f test.final.otus.fa -p 0.005
 
 ####Assign Taxonomy:####
 
-You can assign taxonomy to your OTUs using UFITS, either using UTAX from USEARCH8.1 or using usearch_global.  The databases require some initial setup before you can use the `ufits taxonomy` command.  The following will get you setup with the UNITE database:
+You can assign taxonomy to your OTUs using UFITS, either using UTAX from USEARCH8.1 or using usearch_global.  The databases require some initial setup before you can use the `ufits taxonomy` command.  The following will get you setup with the ITS UNITE database and the RDP LSU database:
 
 ```
-ufits install --install_unite
+ufits install -i ITS LSU
 ```
 
 This commands will download the newest UNITE curated ITS databases.  It will first download the UNITE curated general release, reformat the UNITE headers to be compatible with UTAX classifier training, trim the data for Full length, ITS1, and ITS2 regions, and then finally will train the UTAX classifier with these data.  The script will then download the UNTIE+INSD database, reformat taxonomy in headers and then create a USEARCH database.  The resulting databases are stored in the `DB` folder of the `ufits` directory and are given the names UTAX.udb and USEARCH.udb respectively.
@@ -157,7 +157,7 @@ Issuing the `ufits taxonomy` command will inform you which databases have been p
 ```
 $ ufits taxonomy
 Usage:       ufits taxonomy <arguments>
-version:     0.4.2
+version:     0.4.3
 
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
              uses a hybrid approach, e.g. gets taxonomy information from UTAX as well as global alignment hits from the larger
@@ -169,6 +169,7 @@ Arguments:   -i, --otu_table     Input OTU table file (i.e. otu_table from ufits
              -f, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
              -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
              -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid, rdp, blast]
+             -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: None
              --fasta_db          Alternative database of fasta sequenes to use for global alignment.
              --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
@@ -179,14 +180,7 @@ Arguments:   -i, --otu_table     Input OTU table file (i.e. otu_table from ufits
              --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
              --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi to keep only fungi.
-             -u, --usearch       USEARCH executable. Default: usearch8
-
-Databases Configured: 
-DB_name         DB_type   FASTA originated from       Fwd Primer   Rev Primer   Records  
-FULL.udb        utax      UNITE.utax.fasta            ITS1-F       ITS4         41414    
-ITS1.udb        utax      UNITE.utax.fasta            ITS1-F       ITS2         41306    
-ITS2.udb        utax      UNITE.utax.fasta            fITS7        ITS4         42176    
-USEARCH.udb     usearch   UNITE.usearch.fasta         None         None         534993   
+             -u, --usearch       USEARCH executable. Default: usearch8  
 ```
 
 And then you can use the `ufits taxonomy` command to assign taxonomy to your OTUs as well as append them to your OTU table as follows:
