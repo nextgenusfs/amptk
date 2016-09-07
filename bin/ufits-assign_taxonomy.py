@@ -311,12 +311,10 @@ ufitslib.log.info("Appending taxonomy to OTU table and OTUs")
 end = otu_table.rsplit(".", 1)[1]
 if end == 'txt':
     d = '\t'
-    taxTable = base + '.otu_table.taxonomy.txt'
 if end == 'csv':
     d = ','
-    taxTable = base + '.otu_table.taxonomy.csv'
 otuTax = base + '.otus.taxonomy.fa'
-
+taxTable = base + '.otu_table.taxonomy.txt'
 #append to OTU table
 counts = 0
 with open(taxTable, 'w') as outTable:
@@ -330,15 +328,15 @@ with open(taxTable, 'w') as outTable:
                 line.append(tax)
             if args.tax_filter:
                 if 'OTUId' in line[0]:
-                    join_line = (d.join(str(x) for x in line))
+                    join_line = ('\t'.join(str(x) for x in line))
                 else:
                     if args.tax_filter in line[-1]:
-                        join_line = (d.join(str(x) for x in line))
+                        join_line = ('\t'.join(str(x) for x in line))
                         counts += 1
                     else:
                         continue
             else:
-                join_line = (d.join(str(x) for x in line))
+                join_line = ('\t'.join(str(x) for x in line))
                 counts += 1
             outTable.write("%s\n" % join_line)
 if args.tax_filter:

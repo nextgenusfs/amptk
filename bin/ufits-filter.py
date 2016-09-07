@@ -358,6 +358,6 @@ print "Filtered OTUs:     %s" % otu_new
 print "-------------------------------------------------------"
 
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits taxonomy -f %s -i %s \n" % (otu_new, final_binary_table)
+    print "\nExample of next cmd: ufits taxonomy -f %s -i %s -d ITS2\n" % (otu_new, final_binary_table)
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " ufits taxonomy -f %s -i %s \n" % (otu_new, final_binary_table)
+    print colr.WARN + "\nExample of next cmd:" + colr.END + " ufits taxonomy -f %s -i %s -d ITS2\n" % (otu_new, final_binary_table)
