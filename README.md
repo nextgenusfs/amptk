@@ -74,6 +74,19 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -u, --usearch       USEARCH executable. Default: usearch8
              --cleanup           Remove intermediate files.
 ```
+####Installing Databases:####
+UFITS is pre-configured to deal with amplicons from fungal ITS, fungal LSU, bacterial 16S, and insect COI.  After installation of UFITS, you can download and install these databases using the `ufits install` command.  To install all of the databases, you would type:
+
+```
+#install all databases
+ufits install -i ITS LSU 16S COI
+
+#install only ITS databases
+ufits install -i ITS
+```
+
+The resulting databases are stored in the `DB` folder of the `ufits` directory.  These data are used for both Chimera reference filtering and for assigning taxonomy.
+
 
 ####Processing Ion Torrent Data:####
 
@@ -144,13 +157,7 @@ ufits filter -i test.otu_table.txt -f test.final.otus.fa -p 0.005
 
 ####Assign Taxonomy:####
 
-You can assign taxonomy to your OTUs using UFITS, either using UTAX from USEARCH8.1 or using usearch_global.  The databases require some initial setup before you can use the `ufits taxonomy` command.  The following will get you setup with the ITS UNITE database and the RDP LSU database:
-
-```
-ufits install -i ITS LSU
-```
-
-The resulting databases are stored in the `DB` folder of the `ufits` directory.
+You can assign taxonomy to your OTUs using UFITS, either using UTAX from USEARCH8.1 or using usearch_global.  The databases require some initial setup before you can use the `ufits taxonomy` command.  
 
 Issuing the `ufits taxonomy` command will inform you which databases have been properly configured as well as usage instructions:
 
