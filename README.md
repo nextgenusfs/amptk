@@ -1,7 +1,7 @@
 # UFITS
 ###USEARCH Fungal ITS Clustering:###
 
-UFITS is a series of scripts to process fungal ITS amplicon data using USEARCH8, although it can also be used to process any NGS amplicon data.  It can handle Ion Torrent, MiSeq, and 454 data and is cross-platform compatible (works on Mac, Linux - and could work on Windows).
+UFITS is a series of scripts to process fungal ITS amplicon data using USEARCH8, although it can also be used to process any NGS amplicon data and includes databases setup for analysis of fungal ITS, fungal LSU, bacterial 16S, and insect COI amplicons.  It can handle Ion Torrent, MiSeq, and 454 data and is cross-platform compatible (works on Mac, Linux - and could work on Windows).
 ___
 
 <img src="https://github.com/nextgenusfs/ufits/blob/master/docs/ufits.png" width="400">
@@ -116,13 +116,13 @@ This will find all files ending with '.fastq.gz' in the input folder, gunzip the
 
 ####OTU Clustering:####
 
-Now the data from either platform (Ion, 454, or Illumina) can be clustered by running the following:
+The next step is to run `ufits cluster`, which expects de-multiplexed FASTQ data as a single file with `;barcodelabel=Sample_name` in the FASTQ header. Now the data from either platform (Ion, 454, or Illumina) can be clustered by running the following:
 
 ```
 ufits cluster -i ufits.demux.fq -o ion_output
 ```
 
-This quality filter the data based on expected errors, then remove duplicated sequences, sort the output by frequency, and finally `usearch -cluster_otus`.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Type `-h` for all the available options.
+This script wil quality filter the data based on expected errors, then remove duplicated sequences (dereplication), sort the output by abundance, and finally cluster using `usearch -cluster_otus` command.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Type `-h` for all the available options.
 
 
 ####OTU Table Filtering####
@@ -135,7 +135,7 @@ ufits filter -i test.otu_table.txt -f test.final.otus.fa -b mock3 --mc my_mock_s
 
 This will read the OTU table `-i` and the OTUs `-f` from the `ufits cluster` command.  This script will apply an index-bleed filter to clean-up barcode-switching between samples which happens at a rate of ~ 0.2% in Ion Torrent and as much 0.3% in MiSeq data.  The script first normalizes the OTU table to the number of reads in each sample, then (optionally) using the `-b` sample, it will calculate the amount of index-bleed in the OTU table, finally it will loop through each OTU and change values to 0 that are below the `-index_bleed` filter.  Finally, this script will remove the mock spike in control sample from your dataset - as it should not be included in downstream processing, you can keep mock sequences if desired by passing the `--keep_mock` argument.  The output is a filtered OTU table to be used for downstream processing.
 
-If you do not have a mock community spike in, you can still run the index bleed filter by just running the command without a `-b` argument, such as, which will apply a 0.5% filter on the data:
+If you do not have a mock community spike in, you can still run the index bleed filter (and you probably should as nearly all NGS data has some degree of barcode switching or index-bleed) by just running the command without a `-b` argument, such as, which will apply a 0.5% filter on the data.  Passing the `-p 0.005` argument will over-ride the calculated index-bleed.
 
 ```
 ufits filter -i test.otu_table.txt -f test.final.otus.fa -p 0.005
@@ -150,7 +150,7 @@ You can assign taxonomy to your OTUs using UFITS, either using UTAX from USEARCH
 ufits install -i ITS LSU
 ```
 
-This commands will download the newest UNITE curated ITS databases.  It will first download the UNITE curated general release, reformat the UNITE headers to be compatible with UTAX classifier training, trim the data for Full length, ITS1, and ITS2 regions, and then finally will train the UTAX classifier with these data.  The script will then download the UNTIE+INSD database, reformat taxonomy in headers and then create a USEARCH database.  The resulting databases are stored in the `DB` folder of the `ufits` directory and are given the names UTAX.udb and USEARCH.udb respectively.
+The resulting databases are stored in the `DB` folder of the `ufits` directory.
 
 Issuing the `ufits taxonomy` command will inform you which databases have been properly configured as well as usage instructions:
 
@@ -187,10 +187,10 @@ And then you can use the `ufits taxonomy` command to assign taxonomy to your OTU
 
 ```
 #use of hybrid taxonomy approach
-ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv
+ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv -d ITS2
 
 #filter data to only include OTUs identified to Fungi
-ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv --tax_filter Fungi
+ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv -d ITS2 --tax_filter Fungi
 
 #use RDP classifier
 ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv -m rdp --rdp_db fungalits_unite -rdp /path/to/classifier.jar
