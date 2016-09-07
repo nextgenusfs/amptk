@@ -112,7 +112,7 @@ else:
 DBdir = os.path.join(parentdir, 'DB')
 DataBase = { 'ITS1': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS1_UTAX.udb')), 'ITS2': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS2_UTAX.udb')), 'ITS': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS_UTAX.udb')), '16S': (None, os.path.join(DBdir, '16S.udb')), 'LSU': (os.path.join(DBdir, 'LSU.udb'), os.path.join(DBdir, 'LSU_UTAX.udb')), 'COI': (os.path.join(DBdir,'COI.udb'), os.path.join(DBdir, 'COI_UTAX.udb'))}
 #get DB names up front
-if args.db in ['ITS', 'ITS1', 'ITS2', '16S', 'LSU', 'COI']:
+if args.db in DataBase:
     utax_db = DataBase.get(args.db)[1]
     usearch_db = DataBase.get(args.db)[0]
     if not utax_db:
@@ -122,6 +122,11 @@ if args.db in ['ITS', 'ITS1', 'ITS2', '16S', 'LSU', 'COI']:
 else:
     utax_db = args.utax_db
     usearch_db = args.usearch_db
+
+if args.method in ['hybrid', 'usearch', 'utax']:
+    if not utax_db and not usearch_db and not args.fasta_db:
+        ufitslib.log.error("You have not selected a database, need either --db, --utax_db, --usearch_db, or --fasta_db")
+        sys.exit(1)
 
 #Count records
 ufitslib.log.info("Loading FASTA Records")
