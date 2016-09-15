@@ -21,7 +21,7 @@ UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ ufits
 Usage:       ufits <command> <arguments>
-version:     0.4.2
+version:     0.4.6
 
 Description: UFITS is a package of scripts to process fungal ITS amplicon data.  It uses the UPARSE algorithm for clustering
              and thus USEARCH8 is a dependency.
@@ -55,7 +55,7 @@ And then by calling one of the commands, you get a help menu for each:
 ```
 $ ufits cluster
 Usage:       ufits cluster <arguments>
-version:     0.4.2
+version:     0.4.6
 
 Description: Script is a "wrapper" for the UPARSE algorithm. FASTQ quality trimming via expected 
              errors and Dereplication are run in vsearch if installed otherwise defaults to Python 
@@ -70,7 +70,6 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              --uchime_ref        Run Chimera filtering. Default: off [ITS1, ITS2, Full, 16S]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
-             --size_annotations  Append size annotations to OTU names. Default: off
              -u, --usearch       USEARCH executable. Default: usearch8
              --cleanup           Remove intermediate files.
 ```
@@ -164,7 +163,7 @@ Issuing the `ufits taxonomy` command will inform you which databases have been p
 ```
 $ ufits taxonomy
 Usage:       ufits taxonomy <arguments>
-version:     0.4.3
+version:     0.4.6
 
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
              uses a hybrid approach, e.g. gets taxonomy information from UTAX as well as global alignment hits from the larger
@@ -176,7 +175,7 @@ Arguments:   -i, --otu_table     Input OTU table file (i.e. otu_table from ufits
              -f, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
              -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
              -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid, rdp, blast]
-             -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: None
+             -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: ITS2
              --fasta_db          Alternative database of fasta sequenes to use for global alignment.
              --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
@@ -187,7 +186,7 @@ Arguments:   -i, --otu_table     Input OTU table file (i.e. otu_table from ufits
              --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
              --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi to keep only fungi.
-             -u, --usearch       USEARCH executable. Default: usearch8  
+             -u, --usearch       USEARCH executable. Default: usearch8
 ```
 
 And then you can use the `ufits taxonomy` command to assign taxonomy to your OTUs as well as append them to your OTU table as follows:
