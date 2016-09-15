@@ -49,7 +49,7 @@ sudo ln -s /path/to/usearch8.1.1861_i86osx32 /usr/local/bin/usearch8
 ```
 
 #####5) Test Installation
-Open terminal, navigate to the `test_data` folder of ufits.
+Open terminal, navigate to the `test_data` folder of ufits. If you installed with LinuxBrew it should be here: `$HOME/.linuxbrew/opt/ufits/libexec/test_data`.
 
 ```
 #test scripts on Ion PGM data
