@@ -38,12 +38,12 @@ brew install ufits
 
 ```
 #make executable
-sudo chmod +x /path/to/usearch8.0.1623_i86osx32
+sudo chmod +x /path/to/usearch8.1.1861_i86osx32
 ```
 
 ```
 #create softlink to folder in $PATH
-sudo ln -s /path/to/usearch8.0.1623_i86osx32 /usr/local/bin/usearch8
+sudo ln -s /path/to/usearch8.1.1861_i86osx32 /usr/local/bin/usearch8
 ```
 
 #####6) Test Installation
@@ -54,14 +54,14 @@ Open terminal, navigate to the `test_data` folder of ufits.
 ufits ion -i ion.test.fastq -o ion
 
 #run clustering
-ufits cluster -i ion.demux.fq -o ion --uchime_ref ITS2
+ufits cluster -i ion.demux.fq -o ion
 ```
 ```
 #test scripts on MiSeq data
 ufits illumina -i illumina_test_data/
 
 #run clustering
-ufits cluster -i ufits.demux.fq -o miseq --uchime_ref ITS2
+ufits cluster -i ufits.demux.fq -o miseq
 ```
 
 
