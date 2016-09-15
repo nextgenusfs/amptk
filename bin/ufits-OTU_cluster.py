@@ -38,7 +38,6 @@ parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='
 parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom]')
 parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
 parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOISE)')
-parser.add_argument('--size_annotations', action='store_true', help='Append size annotations')
 parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
@@ -58,14 +57,14 @@ ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.log.info("Operating system: %s, %s" % (sys.platform, ufitslib.get_version()))
+ufitslib.SystemInfo()
+#get version of ufits
+version = ufitslib.get_version()
+ufitslib.log.info("%s" % version)
 usearch = args.usearch
-try:
-    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
-except OSError:
-    ufitslib.log.warning("%s not found in your PATH, exiting." % usearch)
-    os._exit(1)
-ufitslib.log.info("USEARCH version: %s" % usearch_test)
+version_check = ufitslib.get_usearch_version(usearch)
+ufitslib.log.info("USEARCH v%s" % version_check)
+
 
 #check if vsearch version > 1.9.1 is installed
 vsearch_check = ufitslib.which('vsearch')
@@ -73,12 +72,12 @@ if vsearch_check:
     vsearch = ufitslib.checkvsearch()
     vsearch_version = ufitslib.get_vsearch_version()
     if vsearch:
-        ufitslib.log.info("vsearch v%s detected, will use for filtering" % vsearch_version)
+        ufitslib.log.info("VSEARCH v%s" % vsearch_version)
     else:
-        ufitslib.log.info("vsearch v%s detected, need version at least v1.9.1, using Python for filtering")
+        ufitslib.log.info("VSEARCH v%s detected, need version at least v1.9.1, using Python for filtering")
 else:
     vsearch = False
-    ufitslib.log.info("vsearch not installed, using Python for filtering")
+    ufitslib.log.info("VSEARCH not installed, using Python for filtering")
 
 #make tmp folder
 tmp = args.out + '_tmp'
@@ -139,12 +138,8 @@ subprocess.call([usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '
 radius = str(100 - int(args.pct_otu))
 otu_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otus.fa')
 ufitslib.log.info("Clustering OTUs (UPARSE)")
-if args.size_annotations:
-    ufitslib.log.debug("%s -cluster_otus %s -sizein -sizeout -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
-    subprocess.call([usearch, '-cluster_otus', sort_out, '-sizein', '-sizeout', '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout = FNULL, stderr = FNULL)
-else:
-    ufitslib.log.debug("%s -cluster_otus %s -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
-    subprocess.call([usearch, '-cluster_otus', sort_out, '-sizein', '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout = FNULL, stderr = FNULL)
+ufitslib.log.debug("%s -cluster_otus %s -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
+subprocess.call([usearch, '-cluster_otus', sort_out, '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout = FNULL, stderr = FNULL)
 total = ufitslib.countfasta(otu_out)
 ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
 

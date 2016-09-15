@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, argparse, os
+import sys, argparse, os, inspect
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)

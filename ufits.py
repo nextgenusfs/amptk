@@ -55,7 +55,7 @@ def download(url, name):
     f.close()
 
 
-version = '0.4.5'
+version = '0.4.6'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -247,7 +247,6 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              --uchime_ref        Run Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
-             --size_annotations  Append size annotations to OTU names. Default: off
              -u, --usearch       USEARCH executable. Default: usearch8
              --cleanup           Remove intermediate files.
         """ % (sys.argv[1], version)

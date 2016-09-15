@@ -156,8 +156,12 @@ ufitslib.setupLogging(log_name)
 cmd_args = " ".join(sys.argv)+'\n'
 ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
+
 #initialize script, log system info and usearch version
-ufitslib.log.info("Operating system: %s, %s" % (sys.platform, ufitslib.get_version()))
+ufitslib.SystemInfo()
+#get version of ufits
+version = ufitslib.get_version()
+ufitslib.log.info("%s" % version)
 
 #if SFF file passed, convert to FASTQ with biopython
 if args.fastq.endswith(".sff"):
@@ -339,6 +343,6 @@ ufitslib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
 
 print "-------------------------------------------------------"
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits cluster -i %s -o out --uchime_ref ITS2\n" % (catDemux)
+    print "\nExample of next cmd: ufits cluster -i %s -o out\n" % (catDemux)
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out --uchime_ref ITS2 \n" % (catDemux)
+    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out\n" % (catDemux)

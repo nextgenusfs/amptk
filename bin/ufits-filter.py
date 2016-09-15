@@ -65,16 +65,13 @@ ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.log.info("Operating system: %s, %s" % (sys.platform, ufitslib.get_version()))
-
-#get usearch location/name
+ufitslib.SystemInfo()
+#get version of ufits
+version = ufitslib.get_version()
+ufitslib.log.info("%s" % version)
 usearch = args.usearch
-try:
-    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
-except OSError:
-    ufitslib.log.warning("%s not found in your PATH, exiting." % usearch)
-    os._exit(1)
-ufitslib.log.info("USEARCH version: %s" % usearch_test)
+version_check = ufitslib.get_usearch_version(usearch)
+ufitslib.log.info("USEARCH v%s" % version_check)
 
 #check if otu_table is empty
 ufitslib.log.info("Loading OTU table: %s" % args.otu_table)

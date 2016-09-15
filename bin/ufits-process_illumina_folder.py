@@ -51,7 +51,7 @@ if args.R_primer in ufitslib.primer_db:
 else:
     RevPrimer = args.R_primer
     
-def MergeReads(R1, R2, outname, read_length):
+def MergeReads(R1, R2, outname, read_length, log_file):
     usearch = args.usearch
     pretrim_R1 = outname + '.pretrim_R1.fq'
     pretrim_R2 = outname + '.pretrim_R2.fq'
@@ -64,7 +64,8 @@ def MergeReads(R1, R2, outname, read_length):
     merge_out = outname + '.merged.fq'
     skip_for = outname + '.notmerged.R1.fq'
     ufitslib.log.debug("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastq_truncqual 5 -fastq_maxdiffs 8 -minhsp 12" % (usearch, pretrim_R1, pretrim_R2, merge_out, skip_for))
-    subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8'], stdout = FNULL, stderr = FNULL)
+    with open(log_file, 'ab') as logfile:
+        subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8'], stdout = logfile, stderr = logfile)
 
     #now concatenate files for downstream pre-process_illumina.py script
     outname = outname + '.fq'
@@ -178,14 +179,13 @@ ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.log.info("Operating system: %s, %s" % (sys.platform, ufitslib.get_version()))
+ufitslib.SystemInfo()
+#get version of ufits
+version = ufitslib.get_version()
+ufitslib.log.info("%s" % version)
 usearch = args.usearch
-try:
-    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
-except OSError:
-    ufitslib.log.warning("%s not found in your PATH, exiting." % usearch)
-    os._exit(1)
-ufitslib.log.info("USEARCH version: %s" % usearch_test)
+version_check = ufitslib.get_usearch_version(usearch)
+ufitslib.log.info("USEARCH v%s" % version_check)
 
 '''get filenames, store in list, Illumina file names look like the following:
 <sample name>_<barcode sequence>_L<lane (0-padded to 3 digits)>_R<read number>_<set number (0-padded to 3 digits>.fastq.gz'''
@@ -253,6 +253,9 @@ map_file.close()
 #loop through each set and merge reads
 if args.reads == 'paired':
     ufitslib.log.info("Merging Overlaping Pairs using USEARCH8")
+    Merge_Log = args.out+'.mergedPE.log'
+    if os.path.isfile(Merge_Log):
+        os.remove(Merge_Log)
 for i in range(len(fastq_for)):
     name = fastq_for[i].split("_")[0]
     outname = name + '.fq'
@@ -280,7 +283,7 @@ for i in range(len(fastq_for)):
             else:
                 read_length = read_length
                 
-        MergeReads(for_reads, rev_reads, name, read_length)
+        MergeReads(for_reads, rev_reads, name, read_length, Merge_Log)
     else:
         shutil.copy(for_reads, os.path.join(args.out, outname))
     
@@ -348,6 +351,6 @@ readablesize = ufitslib.convertSize(filesize)
 ufitslib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
 print "-------------------------------------------------------"
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits cluster -i %s -o out --uchime_ref ITS2\n" % (catDemux)
+    print "\nExample of next cmd: ufits cluster -i %s -o out\n" % (catDemux)
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out --uchime_ref ITS2\n" % (catDemux)
+    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out\n" % (catDemux)

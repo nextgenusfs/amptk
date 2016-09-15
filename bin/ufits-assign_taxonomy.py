@@ -76,7 +76,13 @@ ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.log.info("Operating system: %s, %s" % (sys.platform, ufitslib.get_version()))
+ufitslib.SystemInfo()
+#get version of ufits
+version = ufitslib.get_version()
+ufitslib.log.info("%s" % version)
+usearch = args.usearch
+version_check = ufitslib.get_usearch_version(usearch)
+ufitslib.log.info("USEARCH v%s" % version_check)
 
 #check if vsearch version > 1.9.1 is installed
 vsearch_check = ufitslib.which('vsearch')
@@ -84,7 +90,7 @@ if vsearch_check:
     vsearch = ufitslib.checkvsearch()
     vsearch_version = ufitslib.get_vsearch_version()
     if vsearch:
-        ufitslib.log.info("vsearch v%s detected" % vsearch_version)
+        ufitslib.log.info("vsearch v%s" % vsearch_version)
     else:
         ufitslib.log.info("vsearch v%s detected, need version at least v1.9.1, using Python for filtering")
 else:
@@ -92,21 +98,13 @@ else:
     if args.fasta_db:
         ufitslib.log.info("vsearch not installed and is required to use --fasta_db")
         sys.exit(1)
+
 #check usearch version
 usearch = args.usearch
-try:
-    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
-except OSError:
-    ufitslib.log.error("%s not found in your PATH, exiting." % usearch)
+version_check = ufitslib.get_usearch_version(usearch)
+if not ufitslib.check_utax(usearch):
+    ufitslib.log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % version_check)
     sys.exit(1)
-version = usearch_test.split(" v")[1]
-majorV = version.split(".")[0]
-minorV = version.split(".")[1]
-if int(majorV) < 8 or (int(majorV) >= 8 and int(minorV) < 1):
-    ufitslib.log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % usearch_test)
-    sys.exit(1)
-else:
-    ufitslib.log.info("USEARCH version: %s" % usearch_test)
 
 #Setup DB locations and names, etc
 DBdir = os.path.join(parentdir, 'DB')

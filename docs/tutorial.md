@@ -1,5 +1,7 @@
 ###UFITS walkthrough
 
+####Note this just a simulated walkthrough and is not based on the data in the test_data folder.
+
 ####The basics
 #####What is a FASTA file?
 FASTA format is a widely used format to represent a DNA or protein sequence, the format is very simple in that the header or sequence name is on its own line starting with the `>` character.  The sequence is in the following line and each new sequence starts with another `>` and a unique header name.
@@ -150,7 +152,7 @@ An expected error value of 1.0 is equivalent to "the most probably number of err
 
 So a command for `ufits cluster` looks like this:
 ```
-ufits cluster -i ion.demux.fq -o ion --uchime_ref ITS2
+ufits cluster -i ion.demux.fq -o ion
 ```
 As mentioned above the first step is to quality filter the reads, this is controlled with the `-e, --maxee` option and is set by default to `1.0`.  You likely don't need to change this.  The next step of UPARSE is to dereplicate the sequences, in other words, finding identical sequences and counting the number of times each sequence is found.  Following dereplication, the script sorts the resulting sequences in order of most abundant to least abundant and removes sequences that are singletons (not found at least twice in the data).  This is again another quality filtering method to remove sequences that are likely to contain errors.  The data is then fed into the `-cluster_otus` command of USEARCH, which starts with the most abundant sequence and does global alignment with every other sequence forming 'clusters' at 97% identity (controlled by the `-p, --pct_otu` option). This program also runs de novo chimera detection while clustering.  After sequences have been clustered into OTUs, we run reference based chimera detection which is based on a curated UNITE database of ITS sequences (using the `--uchime_ref` option).  Finally, the input FASTQ data is mapped to the final OTUs and an OTU table is generated.  The `barcodelabel=sample1` in the FASTQ header is used to determine which sample the sequence was derived from.  So the output from `ufits cluster` is a FASTA file containing OTUs and an OTU table containing the frequencies at which reads from each sample were found in the dataset.  Your final OTUs will look something like this:
 ```
@@ -197,7 +199,7 @@ This will apply an index-bleed filter of 0.5% across your OTU table, which shoul
 #####Assigning Taxonomy to your OTUs
 Ok, almost finished.  Now we have a filtered OTU table and we have the corresponding sequences in FASTA format, now wtf are these damn things!  Traditionally BLAST has been the tool of choice for assigning taxonomy to OTUs, while this can work, BLAST is really not the right tool for the job.  BLAST uses `local alignment` where sequences are chopped up into smaller `words` and then alignments of those smaller words are done - this is useful as it is much faster than `global alignment`, however we want to compare the entire OTU sequence not just a portion of it.  Recently, there have been tools developed that can classify sequences according to a trained dataset, essentially yielding a `p-value` of how likely your OTU sequence matches up agains a reference dataset.  This was first implemented in the RDP Classifier and more recently in USEARCH via the UTAX commands.  Assigning taxonomy in UFITS can be done using any of these techniques and is done with the `ufits taxonomy` command.  However, the default method is a hybrid approach between `global alignment` and the `utax` classifier.  First, here is the command, then I'll explain whats happening:
 ```
-ufits taxonomy -i ion.mock.otus.fa --append_taxonomy ion.final.binary.csv --only_fungi
+ufits taxonomy -f ion.mock.otus.fa -i ion.final.binary.csv -d ITS2
 ```
 The script takes your OTU sequences and runs UTAX versus a pre-trained UNITE dataset it then also runs `global alignment` using USEARCH against a larger UNITE dataset.  The results are then processed in this fashion for each OTU: 1) if there is not a global alignment result > 97% it will default to the UTAX result, 2) if global alignment is > 97% the script compares the levels of taxonomy between both results and keeps the one with more information.  So in the `hybrid` method, the script does it's best to find the most taxonomy information it can at trustable levels.  The taxonomy information can then be appended to an OTU table using the `--append_taxonomy` option.  Additionally, non-fungal OTUs can be filtered out of the dataset using the `--only_fungi` option.  So now we have an OTU table that looks like this:
 ```

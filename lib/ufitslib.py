@@ -1,9 +1,9 @@
-import sys, logging, csv, os, subprocess
+import sys, logging, csv, os, subprocess, multiprocessing, platform
 from Bio import SeqIO
-from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 ASCII = {'!':'0','"':'1','#':'2','$':'3','%':'4','&':'5',"'":'6','(':'7',')':'8','*':'9','+':'10',',':'11','-':'12','.':'13','/':'14','0':'15','1':'16','2':'17','3':'18','4':'19','5':'20','6':'21','7':'22','8':'23','9':'24',':':'25',';':'26','<':'27','=':'28','>':'29','?':'30','@':'31','A':'32','B':'33','C':'34','D':'35','E':'36','F':'37','G':'38','H':'39','I':'40','J':'41','K':'42','L':'43','M':'44','N':'45','O':'46','P':'47','Q':'48','R':'49','S':'50'}
 
+primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC', 'ITS3_KYO2': 'GATGAAGAACGYAGYRAA'}
 
 class colr:
     GRN = '\033[92m'
@@ -75,6 +75,51 @@ def get_version():
     version = subprocess.Popen(['ufits', 'version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
     return version
 
+def get_usearch_version(usearch):
+    try:
+        version = subprocess.Popen([usearch, '-version'], stderr=subprocess.PIPE, stdout=subprocess.PIPE).communicate()
+    except OSError:
+        log.error("%s not found in your PATH, exiting." % usearch)
+        sys.exit(1)
+    vers = version[0].replace('usearch v', '')
+    vers2 = vers.split('_')[0]
+    return vers2
+
+def check_utax(usearch):
+    vers = get_usearch_version(usearch).split('.')
+    if int(vers[0]) >= 8:
+        return True
+    else:
+        if int(vers[1]) >= 1:
+            return True
+        else:
+            if int(vers[2]) >= 1756:
+                return True
+            else:
+                return False
+
+def MemoryCheck():
+    import psutil
+    mem = psutil.virtual_memory()
+    RAM = int(mem.total)
+    return round(RAM / 1024000000)
+                   
+def systemOS():
+    if sys.platform == 'darwin':
+        system_os = 'MacOSX '+ platform.mac_ver()[0]
+    elif sys.platform == 'linux':
+        linux_version = platform.linux_distribution()
+        system_os = linux_version[0]+ ' '+linux_version[1]
+    else:
+        system_os = sys.platform
+    return system_os
+
+def SystemInfo():
+    system_os = systemOS()
+    python_vers = str(sys.version_info[0])+'.'+str(sys.version_info[1])+'.'+str(sys.version_info[2])   
+    log.info("OS: %s, %i cores, ~ %i GB RAM. Python: %s" % (system_os, multiprocessing.cpu_count(), MemoryCheck(), python_vers))    
+
+
 def batch_iterator(iterator, batch_size):
     entry = True #Make sure we loop once
     while entry :
@@ -110,6 +155,7 @@ def setupLogging(LOGNAME):
     log.addHandler(fhnd)
     
 def FastMaxEEFilter(input, trunclen, maxee, output):
+    from Bio.SeqIO.QualityIO import FastqGeneralIterator
     with open(output, 'w') as out:
         with open(input, 'rU') as file:
             for title, seq, qual in FastqGeneralIterator(file):
@@ -125,6 +171,7 @@ def FastMaxEEFilter(input, trunclen, maxee, output):
                     out.write("@%s\n%s\n+\n%s\n" % (title, Seq, Qual))
 
 def MaxEEFilter(input, maxee):
+    from Bio import SeqIO
     with open(input, 'rU') as f:
         for rec in SeqIO.parse(f, "fastq"):
             ee = 0
@@ -137,6 +184,7 @@ def MaxEEFilter(input, maxee):
                 yield rec
                 
 def dereplicate(input, output):
+    from Bio.SeqIO.QualityIO import FastqGeneralIterator
     seqs = {}
     with open(input, 'rU') as file:
         for title, sequence, qual in FastqGeneralIterator(file):
@@ -187,9 +235,6 @@ def fastqreindex(input, output):
                 count += 1
                 out.write("@%s\n%s\n+\n%s\n" % (header, sequence, qual))
 
-
-primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC', 'ITS3_KYO2': 'GATGAAGAACGYAGYRAA'}
-
 def which(name):
     try:
         with open(os.devnull) as devnull:
@@ -212,5 +257,19 @@ def CheckDependencies(input):
         error = ", ".join(missing)
         log.error("Missing Dependencies: %s.  Please install missing dependencies and re-run script" % (error))
         sys.exit(1)
+        
+def fasta_strip_padding(file, output):
+    from Bio.SeqIO.FastaIO import FastaIterator
+    with open(output, 'w') as outputfile:
+        for record in FastaIterator(open(file)):
+            Seq = record.seq.rstrip('N')   
+            outputfile.write(">%s\n%s\n" % (record.id, Seq))
 
-
+def fastq_strip_padding(file, output):
+    from Bio.SeqIO.QualityIO import FastqGeneralIterator
+    with open(output, 'w') as outputfile:
+        for title, seq, qual in FastqGeneralIterator(open(file)):
+            Seq = seq.rstrip('N')
+            Qual = qual[:len(Seq)]
+            assert len(Seq) == len(Qual)    
+            outputfile.write("@%s\n%s\n+\n%s\n" % (title, Seq, Qual))

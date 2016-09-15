@@ -71,14 +71,13 @@ ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.log.info("Operating system: %s, %s" % (sys.platform, ufitslib.get_version()))
+ufitslib.SystemInfo()
+#get version of ufits
+version = ufitslib.get_version()
+ufitslib.log.info("%s" % version)
 usearch = args.usearch
-try:
-    usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
-except OSError:
-    ufitslib.log.warning("%s not found in your PATH, exiting." % usearch)
-    sys.exit(1)
-ufitslib.log.info("USEARCH version: %s" % usearch_test)
+version_check = ufitslib.get_usearch_version(usearch)
+ufitslib.log.info("USEARCH v%s" % version_check)
 
 #check if vsearch version > 1.9.1 is installed
 vsearch_check = ufitslib.which('vsearch')
@@ -86,7 +85,7 @@ if vsearch_check:
     vsearch = ufitslib.checkvsearch()
     vsearch_version = ufitslib.get_vsearch_version()
     if vsearch:
-        ufitslib.log.info("vsearch v%s detected, will use for filtering" % vsearch_version)
+        ufitslib.log.info("vsearch v%s" % vsearch_version)
     else:
         ufitslib.log.info("vsearch v%s detected, need version at least v1.9.1, using Python for filtering")
 else:
