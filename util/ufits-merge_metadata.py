@@ -117,6 +117,7 @@ if args.split_taxonomy:
             try:
                 taxlv = x.split(args.split_taxonomy+':')[1]
                 taxlv = taxlv.split(',')[0]
+                taxlv = taxlv.split(' ')[0]
             except IndexError:
                 continue
             if not taxlv in taxonomy:
