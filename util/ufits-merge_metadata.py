@@ -135,6 +135,8 @@ transposeTable(args.meta, otuDict, args.out, False)
 if taxonomy:
     for y in taxonomy:
         index_match = [i for i, j in enumerate(otuDict['Taxonomy']) if args.split_taxonomy+':'+y in j]
+        if '/' in y:
+            y = y.replace('/', '_')
         tmpout = args.out.split('.csv')[0]+'.'+y+'.csv'
         print "Working on table for %s: found %i OTUs" % (y, len(index_match))
         transposeTable(args.meta, otuDict, tmpout, index_match)
