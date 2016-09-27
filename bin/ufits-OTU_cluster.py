@@ -146,16 +146,7 @@ ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
 #clean up padded N's
 ufitslib.log.info("Cleaning up padding from OTUs")
 otu_clean = os.path.join(tmp, args.out + '.EE' + args.maxee + '.clean.otus.fa')
-with open(otu_clean, 'w') as output:
-    with open(otu_out, 'rU') as input:
-        for line in input:
-            if line.startswith (">"):
-                output.write(line)
-            else:
-                line = re.sub('[^GATC]', "", line)
-                line = line + '\n'
-                if line != '\n':
-                    output.write(line)
+ufitslib.fasta_strip_padding(otu_out, otu_clean)
 
 #optional UCHIME Ref
 if not args.uchime_ref:
@@ -192,7 +183,7 @@ else:
 
 ufitslib.log.info("Mapping Reads to OTUs")
 if vsearch:
-    subprocess.call(['vsearch', '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out], stdout = FNULL, stderr = FNULL)
+    subprocess.call(['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', uchime_out, '--uc', uc_out], stdout = FNULL, stderr = FNULL)
 else:
     ufitslib.log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, reads, uchime_out, uc_out))
     subprocess.call([usearch, '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out], stdout = FNULL, stderr = FNULL)

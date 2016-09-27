@@ -109,8 +109,7 @@ def ProcessReads(records):
         elif args.primer == "off":
             if Diffs < MAX_PRIMER_MISMATCHES:
                 # Strip fwd primer from rec
-                rec = rec[PL:]
-                
+                rec = rec[PL:]      
         #turn seq into str again
         Seq = str(rec.seq)
         #look for reverse primer
@@ -141,14 +140,35 @@ def ProcessReads(records):
                     yield rec
             else:
                 yield rec
-
         else:
+            #check length
+            L = len(rec.seq)
             if not args.full_length:
-                #check length
-                L = len(rec.seq)
-                #truncate down to trim length
-                if L >= TrimLen:
-                    rec = rec[:TrimLen]        
+                if args.primer == 'off': #if custom primer used, then need to pad from end not only if rev primer found
+                    if L < MinLen:
+                        continue
+                    if L < TrimLen:
+                        pad = TrimLen - L
+                        Seq = str(rec.seq)
+                        Seq = Seq + pad*'N'
+                        Qual = rec.letter_annotations["phred_quality"]
+                        pad = TrimLen - L
+                        add = [40] * pad
+                        Qual.extend(add)
+                        del rec.letter_annotations["phred_quality"]
+                        rec.seq = Seq
+                        rec.letter_annotations["phred_quality"] = Qual
+                        yield rec
+                    elif L >= TrimLen:   
+                        rec = rec[:TrimLen]
+                        yield rec
+                elif args.primer == 'on':
+                    #truncate down to trim length
+                    if L >= TrimLen:
+                        rec = rec[:TrimLen]        
+                        yield rec
+            else:
+                if L >= MinLen:
                     yield rec
 
 def worker(file):
