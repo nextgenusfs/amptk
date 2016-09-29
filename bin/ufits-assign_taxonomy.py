@@ -8,6 +8,7 @@ sys.path.insert(0,parentdir)
 import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
 import lib.ufitslib as ufitslib
+from natsort import natsorted
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -348,7 +349,21 @@ with open(otuTax, 'w') as output:
             tax = otuDict.get(rec.id) or "No hit"
             rec.description = tax
             SeqIO.write(rec, output, 'fasta')
-        
-ufitslib.log.info("Taxonomy finished: %s" % taxTable)
 
+#output final taxonomy in two-column format
+taxFinal = base + '.taxonomy.txt'
+with open(taxFinal, 'w') as finaltax:
+    for k,v in natsorted(otuDict.items()):
+        finaltax.write('%s\t%s\n' % (k,v))
+        
+ufitslib.log.info("Taxonomy finished: %s" % taxFinal)
+ufitslib.log.info("Classic OTU table with taxonomy: %s" % taxTable)
+#output final OTU table in Biom v2.1 format (if biom installed)
+outBiom = base + '.biom'
+if ufitslib.which('biom'):
+    if os.path.isfile(outBiom):
+        os.remove(outBiom)
+    subprocess.call(['biom', 'convert', '-i', taxTable, '-o', outBiom, '--table-type', "OTU table", '--to-hdf5'])
+    ufitslib.log.info("BIOM OTU table created: %s" % outBiom)
+    
 print "-------------------------------------------------------"

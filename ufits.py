@@ -55,7 +55,7 @@ def download(url, name):
     f.close()
 
 
-version = '0.4.7'
+version = '0.4.8'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -185,6 +185,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              --full_length       Keep only full length sequences.
              --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch8
+             --cleanup           Remove intermediate files.
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]

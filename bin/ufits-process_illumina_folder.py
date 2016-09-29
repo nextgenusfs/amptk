@@ -39,6 +39,7 @@ parser.add_argument('-l','--trim_len', default='250', help='Trim length for read
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
+parser.add_argument('--cleanup', action='store_true', help='Delete all intermediate files')
 args=parser.parse_args()      
 
 #look up primer db otherwise default to entry
@@ -70,11 +71,10 @@ def MergeReads(R1, R2, outname, read_length, log_file):
     #now concatenate files for downstream pre-process_illumina.py script
     outname = outname + '.fq'
     final_out = os.path.join(args.out, outname)
-    cat_file = open(final_out, 'w')
-    shutil.copyfileobj(open(merge_out,'rU'), cat_file)
-    if args.rescue_forward:
-        shutil.copyfileobj(open(skip_for,'rU'), cat_file)
-    cat_file.close()
+    with open(final_out, 'w') as cat_file:
+        shutil.copyfileobj(open(merge_out,'rU'), cat_file)
+        if args.rescue_forward:
+            shutil.copyfileobj(open(skip_for,'rU'), cat_file)
 
     #clean and close up intermediate files
     os.remove(merge_out)
@@ -145,7 +145,7 @@ def ProcessReads(records):
             L = len(rec.seq)
             if not args.full_length:
                 if args.primer == 'off': #if custom primer used, then need to pad from end not only if rev primer found
-                    if L < MinLen:
+                    if L < MinLen: #but for quality control, need to cull reads that are really short as they are likely garbage
                         continue
                     if L < TrimLen:
                         pad = TrimLen - L
@@ -173,7 +173,7 @@ def ProcessReads(records):
 
 def worker(file):
     global name
-    name = file.split(".",-1)[0]
+    name = file.split(".fq",-1)[0]
     name = name.split("/",1)[1]
     demuxname = name + '.demux.fq'
     DemuxOut = os.path.join(args.out, demuxname)
@@ -182,13 +182,14 @@ def worker(file):
             SeqRecords = SeqIO.parse(input, 'fastq')
             SeqIO.write(ProcessReads(SeqRecords), output, 'fastq')
 
+#sometimes people add slashes in the output directory, this is bad, try to fix it
 args.out = re.sub(r'\W+', '', args.out)
             
 #create directory and check for existing logfile
 if not os.path.exists(args.out):
     os.makedirs(args.out)
     
-log_name = os.path.join(args.out, args.out+'.ufits-process.log')
+log_name = args.out+'.ufits-process.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
@@ -208,7 +209,7 @@ version_check = ufitslib.get_usearch_version(usearch)
 ufitslib.log.info("USEARCH v%s" % version_check)
 
 '''get filenames, store in list, Illumina file names look like the following:
-<sample name>_<barcode sequence>_L<lane (0-padded to 3 digits)>_R<read number>_<set number (0-padded to 3 digits>.fastq.gz'''
+<sample name>_<i5>-<i7>_L<lane (0-padded to 3 digits)>_R<read number>_<set number (0-padded to 3 digits>.fastq.gz'''
 #try to gunzip files
 gzip_list = []
 for file in os.listdir(args.input):
@@ -235,40 +236,38 @@ for file in os.listdir(args.input):
 
 if len(filenames) % 2 != 0:
     print "Check your input files, they do not seem to be properly paired"
-    os._exit(1)
+    sys.exit(1)
 
 #check list for files, i.e. they need to have _R1 and _R2 in the filenames, otherwise throw exception
 if not any('_R1' in x for x in filenames):
     ufitslib.log.error("Did not find valid FASTQ files.  Your files must have _R1 and _R2 in filename, rename your files and restart script.")
-    os._exit(1)
+    sys.exit(1)
 
 uniq_names = []
 fastq_for = []
 fastq_rev = []
 map = args.out + '-filenames.txt'
-map_file = open(map, 'w')
-map_file.write("Name\t[i5]\t[i7]\tLane\tSet_num\n")
-for item in sorted(filenames):
-    if '_R1' in item:
-        fastq_for.append(item)
-    if '_R2' in item:
-        fastq_rev.append(item)
-    column = item.split("_")
-    if column[0] not in uniq_names:
-        uniq_names.append(column[0])
-        if "-" in column[1]:
-            barcode = column[1].split("-")
-            try:
-                map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], barcode[0], barcode[1], column[2], column[4].split(".",1)[0]))
-            except IndexError:
-                ufitslib.log.debug("Non-standard names detected, skipping mapping file")
-                
-        else:
-            try:
-                map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], column[1], "None", column[2], column[4].split(".",1)[0]))
-            except IndexError:
-                ufitslib.log.debug("Non-standard names detected, skipping mapping file")
-map_file.close()
+with open(map, 'w') as map_file:
+    map_file.write("Name\t[i5]\t[i7]\tLane\tSet_num\n")
+    for item in sorted(filenames):
+        if '_R1' in item:
+            fastq_for.append(item)
+        if '_R2' in item:
+            fastq_rev.append(item)
+        column = item.split("_")
+        if column[0] not in uniq_names:
+            uniq_names.append(column[0])
+            if "-" in column[1]:
+                barcode = column[1].split("-")#looking here for the linker between i5 and i7 seqs
+                try:
+                    map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], barcode[0], barcode[1], column[2], column[4].split(".",1)[0]))
+                except IndexError:
+                    ufitslib.log.debug("Non-standard names detected, skipping mapping file")              
+            else:
+                try:
+                    map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], column[1], "None", column[2], column[4].split(".",1)[0]))
+                except IndexError:
+                    ufitslib.log.debug("Non-standard names detected, skipping mapping file")
 
 #loop through each set and merge reads
 if args.reads == 'paired':
@@ -317,8 +316,9 @@ else:
 file_list = []
 for file in os.listdir(args.out):
     if file.endswith(".fq"):
-        file = os.path.join(args.out, file)
-        file_list.append(file)
+        if not file.endswith('.demux.fq'): #i don't want to demux the demuxed files.
+            file = os.path.join(args.out, file)
+            file_list.append(file)
 if not args.full_length:
     ufitslib.log.info("Stripping primers and trim/pad to %s bp" % (args.trim_len))
 else:
@@ -369,6 +369,8 @@ ufitslib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_
 filesize = os.path.getsize(catDemux)
 readablesize = ufitslib.convertSize(filesize)
 ufitslib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
+if args.cleanup:
+    shutil.rmtree(args.out)
 print "-------------------------------------------------------"
 if 'win32' in sys.platform:
     print "\nExample of next cmd: ufits cluster -i %s -o out\n" % (catDemux)

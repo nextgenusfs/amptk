@@ -13,6 +13,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
 import lib.ufitslib as ufitslib
 
+
 class colr:
     GRN = '\033[92m'
     END = '\033[0m'
@@ -192,9 +193,9 @@ fs = df.sum(axis=0)
 otus_per_sample_original = df[df > 0].count(axis=0, numeric_only=True)
 filtered = pd.DataFrame(df, columns=fs.index)
 filt2 = filtered.loc[(filtered != 0).any(1)]
-os = filt2.sum(axis=1)
+tos = filt2.sum(axis=1)
 ufitslib.log.info("Removing OTUs according to --min_reads_otu: (OTUs with less than %i reads from all samples)" % args.min_reads_otu)
-fotus = os[os >= args.min_reads_otu] #valid allele must be found atleast from than 2 times, i.e. no singletons
+fotus = tos[tos >= args.min_reads_otu] #valid allele must be found atleast from than 2 times, i.e. no singletons
 filt3 = pd.DataFrame(filt2, index=fotus.index)
 
 if args.normalize == 'y':
@@ -207,7 +208,7 @@ if args.normalize == 'y':
     ufitslib.log.info("Normalizing OTU table to number of reads per sample")
 else:
     norm_round = filt3
-    
+
 if args.mock_barcode:
     #now calculate the index-bleed in both directions (into the mock and mock into the other samples)
     mock = []
@@ -337,12 +338,9 @@ print "OTU Table filtering finished"
 print "-------------------------------------------------------"
 print "OTU Table Stats:   %s" % stats_table
 if args.cleanup:
-    os.remove(sorted_table)
-    os.remove(normal_table_pct)
-    os.remove(normal_table_nums)
-    os.remove(final_table)
-    if args.subtract != 0:
-        os.remove(subract_table)
+    removelist = [sorted_table, normal_table_pct, normal_table_nums, final_table, subtract_table, mock_out, mock_sort]
+    for file in [f for f in removelist if os.path.isfile(f)]:
+        os.remove(file)
 else:
     print "Sorted OTU table:  %s" % sorted_table
     print "Normalized (pct):  %s" % normal_table_pct
