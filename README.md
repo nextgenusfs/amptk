@@ -221,6 +221,7 @@ The optional `--graphs` argument will create the stacked bar graphs.  You can sa
 * pandas
 * numpy
 * matplotlib
+* psutil
 * bedtools (only needed if using Ion Torrent BAM file as input)
 * vsearch (version > 1.9.0, this is optional but will increase speed of UFITS and is required for very large datasets) installed via homebrew installation by default
 
