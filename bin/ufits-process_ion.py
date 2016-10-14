@@ -31,6 +31,7 @@ parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help=
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--barcode_fasta', default='pgm_barcodes.fa', help='FASTA file containing Barcodes (Names & Sequences)')
+parser.add_argument('--reverse_barcode', help='FASTA file containing 3 prime Barocdes')
 parser.add_argument('-b','--list_barcodes', dest="barcodes", default='all', help='Enter Barcodes used separated by commas')
 parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
 parser.add_argument('-m','--min_len', default='50', help='Minimum read length to keep')
@@ -49,34 +50,33 @@ args=parser.parse_args()
 def MatchesPrimer(Seq, Primer):
     return primer.MatchPrefix(Seq, Primer)
 
-def FindBarcode(Seq):
-    global Barcodes
-    for BarcodeLabel in Barcodes.keys():
-        Barcode = Barcodes[BarcodeLabel]
+def FindBarcode(Seq, BarcodeDict):
+    for BarcodeLabel in BarcodeDict.keys():
+        Barcode = BarcodeDict[BarcodeLabel]
         if Seq.startswith(Barcode):
+            return Barcode, BarcodeLabel
+    return "", ""
+    
+def RevFindBarcode(Seq, BarcodeDict):
+    for BarcodeLabel in BarcodeDict.keys():
+        Barcode = BarcodeDict[BarcodeLabel]
+        if Seq.endswith(Barcode):
             return Barcode, BarcodeLabel
     return "", ""
 
 def ProcessReads(records):
-    global Barcodes
-    OutCount = 0
-    MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
-    LabelPrefix = args.prefix
-    MinLen = int(args.min_len)
-    TrimLen = int(args.trim_len)
-    PL = len(FwdPrimer)
-    Barcodes = fasta.ReadSeqsDict(barcode_file)
+    global OutCount
     for rec in records:
         #convert to string for processing
         Seq = str(rec.seq)
         #look for barcodes
-        Barcode, BarcodeLabel = FindBarcode(Seq)
+        Barcode, BarcodeLabel = FindBarcode(Seq, Barcodes)
         if Barcode == "": #if not found, move onto next record
             continue
         # if found, trim away barcode
         BarcodeLength = len(Barcode)
         rec = rec[BarcodeLength:]
-        
+
         #now look for primer, if not found, move onto next record
         Seq = rec.seq
         Diffs = MatchesPrimer(Seq, FwdPrimer)
@@ -98,7 +98,7 @@ def ProcessReads(records):
         #clear rest of header
         rec.name = ""
         rec.description = ""
-        
+
         #turn seq into str again to find reverse primer
         Seq = str(rec.seq)
         #look for reverse primer
@@ -106,6 +106,16 @@ def ProcessReads(records):
         if BestPosRev > 0:
             # Strip rev primer from rec.seq
             rec = rec[:BestPosRev]
+            
+            #determine reverse barcode, must match exactly
+            if args.reverse_barcode:
+                BCcut = BestPosRev + RL
+                CutSeq = Seq[BCcut:]
+                if not CutSeq in RevBarcodes:
+                    continue
+                BCname = RevBarcodes.get(CutSeq)
+                rec.id = LabelPrefix + str(OutCount) + ";barcodelabel=" + BarcodeLabel+'_'+BCname+ ";"
+                
             #check length       
             L = len(rec.seq)
             if L < MinLen:
@@ -208,9 +218,17 @@ if args.illumina:
         
         #next run USEARCH8 mergepe
         SeqIn = args.out + '.merged.fq'
+        mergelog = args.out + '.mergedPE.log'
+        notmerged = args.out + '.notmergedfwd.fq'
         ufitslib.log.info("Merging PE Illumina reads with USEARCH")
         ufitslib.log.debug("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastq_truncqual 5 -fastq_maxdiffs 8 -minhsp 12" % (usearch, args.fastq, args.reverse, SeqIn))
-        subprocess.call([usearch, '-fastq_mergepairs', args.fastq, '-reverse', args.reverse, '-fastqout', SeqIn, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8'], stdout = FNULL, stderr = FNULL)
+        with open(mergelog, 'w') as logfile:
+            subprocess.call([usearch, '-fastq_mergepairs', args.fastq, '-reverse', args.reverse, '-fastqout', SeqIn, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8', '-fastqout_notmerged_fwd', notmerged], stdout = logfile, stderr = logfile)
+        #recover forward reads that were not merged, could be longer sequence and still be ok
+        with open(SeqIn, 'a') as output:
+            with open(notmerged, 'rU') as input:
+                for line in input:
+                    output.write(line)
     else:
         ufitslib.log.info("Running UFITS on forward Illumina reads")
         SeqIn = args.fastq 
@@ -256,12 +274,44 @@ if args.barcode_fasta == 'pgm_barcodes.fa':
 else:
     shutil.copyfile(args.barcode_fasta, barcode_file)
 
+#setup barcode dictionary
+Barcodes = fasta.ReadSeqsDict(barcode_file)
+
+#setup for looking for reverse barcode
+if args.reverse_barcode:
+    RevBarcodes = {}
+    rev_barcode_file = args.out + '.revbarcodes_used.fa'
+    if os.path.isfile(rev_barcode_file):
+        os.remove(rev_barcode_file)
+    if not os.path.isfile(args.reverse_barcode):
+        ufitslib.log.info("Reverse barcode is not a valid file, exiting")
+        sys.exit(1) 
+    shutil.copyfile(args.reverse_barcode, rev_barcode_file)
+    #parse and put into dictionary
+    with open(rev_barcode_file, 'w') as output:
+        with open(args.reverse_barcode, 'rU') as input:
+            for rec in SeqIO.parse(input, 'fasta'):
+                RevSeq = str(rec.seq.reverse_complement())
+                if not RevSeq in RevBarcodes:
+                    RevBarcodes[RevSeq] = rec.id
+                else:
+                    ufitslib.log.error("Duplicate reverse barcodes detected, exiting")
+                    sys.exit(1)
+    
 #get number of CPUs to use
 if not args.cpus:
     cpus = multiprocessing.cpu_count()
 else:
     cpus = args.cpus
 
+#get other values
+MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
+LabelPrefix = args.prefix
+MinLen = int(args.min_len)
+TrimLen = int(args.trim_len)
+PL = len(FwdPrimer)
+RL = len(RevPrimer)
+OutCount = 0
 #split the input FASTQ file into chunks to process
 with open(SeqIn, 'rU') as input:
     SeqCount = ufitslib.countfastq(SeqIn)
@@ -290,7 +340,6 @@ for file in os.listdir(folder):
 
 p = multiprocessing.Pool(cpus)
 for f in file_list:
-    #worker(f)
     p.apply_async(worker, [f])
 p.close()
 p.join()

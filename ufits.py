@@ -55,18 +55,18 @@ def download(url, name):
     f.close()
 
 
-version = '0.4.8'
+version = '0.4.9'
 
 default_help = """
 Usage:       ufits <command> <arguments>
 version:     %s
 
 Description: UFITS is a package of scripts to process NGS amplicon data.  It uses the UPARSE algorithm for clustering
-             and thus USEARCH8 is a dependency.
+             and thus USEARCH is a dependency.
     
 Process:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
              illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
-             illumina2   pre-process Illumina data from a single file (assumes Ion/454 read structure: <barcode><f_primer>READ)
+             illumina2   pre-process Illumina data from a single file (read structure: <barcode><f_primer>READ<r_primer>)
              454         pre-process Roche 454 (pyrosequencing) data (find barcodes, remove primers, trim/pad)
              show        show number or reads per barcode from de-multiplexed data
              select      select reads (samples) from de-multiplexed data
@@ -135,12 +135,14 @@ version:     %s
 Description: Script takes Illumina MiSeq data that is not de-multiplexed and has read structure similar to Ion/454
              such that the reads are <barcode><fwd_primer>Read<rev_primer> for clustering using UFITS.  The default 
              behavior is to: 1) merge the PE reads using USEARCH, 2) find barcodes, 3)find and trim primers, 
-             3) rename reads according to sample name, 4) trim/pad reads to a set length.
+             3) rename reads according to sample name, 4) trim/pad reads to a set length.  This script can also handle
+             dual barcodes (3' barcodes using the --reverse_barcode option). 
     
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              --reverse           Illumina PE reverse reads.
              -o, --out           Output base name. Default: out
              --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
+             --reverse_barcode   FASTA file containing 3' barcodes. Default: none
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
@@ -213,6 +215,7 @@ Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4
              --barcode_fasta     FASTA file containing barcodes. (Required)
+             --reverse_barcode   FASTA file containing 3' barcodes. Default: none
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -m, --min_len       Minimum length read to keep. Default: 50
              -l, --trim_len      Length to trim/pad reads. Default: 250
@@ -547,8 +550,8 @@ Description: Script maps OTUs to taxonomy information and can append to an OTU t
              'trustable' levels. UTAX results are used if BLAST-like search pct identity is less than 97 pct.  If pct identity
              is greater than 97 pct, the result with most taxonomy levels is retained.
     
-Arguments:   -i, --otu_table     Input OTU table file (i.e. otu_table from ufits cluster) (Required)
-             -f, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
+Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
+             -i, --otu_table     Input OTU table file (i.e. otu_table from ufits cluster)
              -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
              -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid, rdp, blast]
              -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: ITS2

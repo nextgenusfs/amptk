@@ -273,3 +273,11 @@ def fastq_strip_padding(file, output):
             Qual = qual[:len(Seq)]
             assert len(Seq) == len(Qual)    
             outputfile.write("@%s\n%s\n+\n%s\n" % (title, Seq, Qual))
+            
+def ReverseComp(input, output):
+    with open(output, 'w') as revcomp:
+        with open(input, 'rU') as fasta:
+            for rec in SeqIO.parse(fasta, 'fasta'):
+                revcomp.write(">%s\n%s\n" % (rec.id, rec.seq.reverse_complement()))
+
+
