@@ -224,8 +224,8 @@ The optional `--graphs` argument will create the stacked bar graphs.  You can sa
 * psutil
 * bedtools (only needed if using Ion Torrent BAM file as input)
 * vsearch (version > 1.9.0, this is optional but will increase speed of UFITS and is required for very large datasets) installed via homebrew installation by default
-*biom-format (to create biom OTU table)
-*h5py (for biom)
+* biom-format (to create biom OTU table)
+* h5py (for biom)
 
 Python and USEARCH need to accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8.  
 
