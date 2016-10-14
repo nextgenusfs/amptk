@@ -30,7 +30,7 @@ parser=argparse.ArgumentParser(prog='ufits-assign_taxonomy.py', usage="%(prog)s 
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('-i', '--input', dest="otu_table", nargs='?', help='Append Taxonomy to OTU table')
+parser.add_argument('-i', '--input', dest="otu_table", help='Append Taxonomy to OTU table')
 parser.add_argument('-f','--fasta', required=True, help='FASTA input')
 parser.add_argument('-o','--out', help='Output file (FASTA)')
 parser.add_argument('-m','--method', default='hybrid',choices=['utax', 'usearch', 'hybrid', 'rdp', 'blast'], help='Taxonomy method')
@@ -290,58 +290,49 @@ else:
                     newTable.append([line[0], re.sub("tax=", "", line[1])+' ('+line[2]+')'])
         otuDict = {rows[0]:rows[1] for rows in newTable} 
 
-#now format results  
-if not args.otu_table:
-    base = args.fasta.split('otus.fa')[0]
-    otu_table = base + 'otu_table.txt'
-    if not os.path.exists(otu_table):
-        otu_table = base + 'otu_table.csv'
-        if not os.path.isfile(otu_table):
-            otu_table = ""
-        else:
-            ufitslib.log.info("Found OTU table: %s" % otu_table)
-    else:
-        ufitslib.log.info("Found OTU table: %s" % otu_table)
-else:
+#now format results
+if args.otu_table:
     otu_table = args.otu_table
 
-#check if otu_table variable is empty, then load in otu table
-ufitslib.log.info("Appending taxonomy to OTU table and OTUs")
-end = otu_table.rsplit(".", 1)[1]
-if end == 'txt':
-    d = '\t'
-if end == 'csv':
-    d = ','
-otuTax = base + '.otus.taxonomy.fa'
-taxTable = base + '.otu_table.taxonomy.txt'
-#append to OTU table
-counts = 0
-with open(taxTable, 'w') as outTable:
-    with open(otu_table, 'rU') as inTable:
-        reader = csv.reader(inTable, delimiter=d)
-        for line in reader:
-            if 'OTUId' in line[0]:
-                line.append('Taxonomy')
-            else:
-                tax = otuDict.get(line[0]) or "No Hit"
-                line.append(tax)
-            if args.tax_filter:
+    #check if otu_table variable is empty, then load in otu table
+    ufitslib.log.info("Appending taxonomy to OTU table and OTUs")
+    end = otu_table.rsplit(".", 1)[1]
+    if end == 'txt':
+        d = '\t'
+    if end == 'csv':
+        d = ','
+    taxTable = base + '.otu_table.taxonomy.txt'
+
+    #append to OTU table
+    counts = 0
+    with open(taxTable, 'w') as outTable:
+        with open(otu_table, 'rU') as inTable:
+            reader = csv.reader(inTable, delimiter=d)
+            for line in reader:
                 if 'OTUId' in line[0]:
-                    join_line = ('\t'.join(str(x) for x in line))
+                    line.append('Taxonomy')
                 else:
-                    if args.tax_filter in line[-1]:
+                    tax = otuDict.get(line[0]) or "No Hit"
+                    line.append(tax)
+                if args.tax_filter:
+                    if 'OTUId' in line[0]:
                         join_line = ('\t'.join(str(x) for x in line))
-                        counts += 1
                     else:
-                        continue
-            else:
-                join_line = ('\t'.join(str(x) for x in line))
-                counts += 1
-            outTable.write("%s\n" % join_line)
-if args.tax_filter:
-    nonfungal = total - counts
-    ufitslib.log.info("Found %i OTUs not matching %s, writing %i %s hits to taxonomy OTU table" % (nonfungal, args.tax_filter, counts, args.tax_filter))
-#append to OTUs         
+                        if args.tax_filter in line[-1]:
+                            join_line = ('\t'.join(str(x) for x in line))
+                            counts += 1
+                        else:
+                            continue
+                else:
+                    join_line = ('\t'.join(str(x) for x in line))
+                    counts += 1
+                outTable.write("%s\n" % join_line)
+    if args.tax_filter:
+        nonfungal = total - counts
+        ufitslib.log.info("Found %i OTUs not matching %s, writing %i %s hits to taxonomy OTU table" % (nonfungal, args.tax_filter, counts, args.tax_filter))
+
+#append to OTUs 
+otuTax = base + '.otus.taxonomy.fa'        
 with open(otuTax, 'w') as output:
     with open(args.fasta, 'rU') as input:
         SeqRecords = SeqIO.parse(input, 'fasta')
@@ -355,15 +346,17 @@ taxFinal = base + '.taxonomy.txt'
 with open(taxFinal, 'w') as finaltax:
     for k,v in natsorted(otuDict.items()):
         finaltax.write('%s\t%s\n' % (k,v))
-        
+
+#print some summary file locations
 ufitslib.log.info("Taxonomy finished: %s" % taxFinal)
-ufitslib.log.info("Classic OTU table with taxonomy: %s" % taxTable)
-#output final OTU table in Biom v2.1 format (if biom installed)
-outBiom = base + '.biom'
-if ufitslib.which('biom'):
-    if os.path.isfile(outBiom):
-        os.remove(outBiom)
-    subprocess.call(['biom', 'convert', '-i', taxTable, '-o', outBiom, '--table-type', "OTU table", '--to-hdf5'])
-    ufitslib.log.info("BIOM OTU table created: %s" % outBiom)
-    
+if args.otu_table:
+    ufitslib.log.info("Classic OTU table with taxonomy: %s" % taxTable)
+    #output final OTU table in Biom v2.1 format (if biom installed)
+    outBiom = base + '.biom'
+    if ufitslib.which('biom'):
+        if os.path.isfile(outBiom):
+            os.remove(outBiom)
+        subprocess.call(['biom', 'convert', '-i', taxTable, '-o', outBiom, '--table-type', "OTU table", '--to-hdf5'])
+        ufitslib.log.info("BIOM OTU table created: %s" % outBiom)
+ufitslib.log.info("OTUs with taxonomy: %s" % otuTax)    
 print "-------------------------------------------------------"
