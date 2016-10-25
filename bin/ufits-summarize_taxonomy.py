@@ -8,6 +8,7 @@ import csv, argparse, re, os, sys, inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
+import lib.ufitslib as ufitslib
 from lib.stackedBarGraph import StackedBarGrapher as StackedBarGrapher
 try:
     import seaborn as sns
@@ -187,11 +188,16 @@ def processTax(uniq, L, name):
         plt.close(fig)
 
 
-
 sub_table = []
-f2 = csv.reader(open(args.table), delimiter='\t')
-for line in f2:
-    sub_table.append([try_int(x) for x in line]) #convert to integers
+with open(args.table, 'rU') as inTable:
+    #guess the delimiter format
+    firstline = inTable.readline()
+    dialect = ufitslib.guess_csv_dialect(firstline)
+    inTable.seek(0)
+    #parse OTU table
+    reader = csv.reader(inTable, dialect)
+    for line in reader:
+        sub_table.append([try_int(x) for x in line]) #convert to integers
     
 header = sub_table[:1] #pull out header row
 header = header[0] #just get first list, double check
