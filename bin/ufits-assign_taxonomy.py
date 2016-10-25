@@ -48,14 +48,6 @@ parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='
 parser.add_argument('--tax_filter', help='Retain only OTUs with match in OTU table')
 args=parser.parse_args()
 
-def countfasta(input):
-    count = 0
-    with open(input, 'rU') as f:
-        for line in f:
-            if line.startswith (">"):
-                count += 1
-    return count
-
 if not args.out:
     #get base name of files
     if 'filtered' in args.fasta:
@@ -129,7 +121,7 @@ if args.method in ['hybrid', 'usearch', 'utax']:
 
 #Count records
 ufitslib.log.info("Loading FASTA Records")
-total = countfasta(args.fasta)
+total = ufitslib.countfasta(args.fasta)
 ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
 
 #start with less common uses, i.e. Blast, rdp
@@ -296,18 +288,18 @@ if args.otu_table:
 
     #check if otu_table variable is empty, then load in otu table
     ufitslib.log.info("Appending taxonomy to OTU table and OTUs")
-    end = otu_table.rsplit(".", 1)[1]
-    if end == 'txt':
-        d = '\t'
-    if end == 'csv':
-        d = ','
     taxTable = base + '.otu_table.taxonomy.txt'
 
     #append to OTU table
     counts = 0
     with open(taxTable, 'w') as outTable:
         with open(otu_table, 'rU') as inTable:
-            reader = csv.reader(inTable, delimiter=d)
+            #guess the delimiter format
+            firstline = inTable.readline()
+            dialect = ufitslib.guess_csv_dialect(firstline)
+            inTable.seek(0)
+            #parse OTU table
+            reader = csv.reader(inTable, dialect)
             for line in reader:
                 if 'OTUId' in line[0]:
                     line.append('Taxonomy')
