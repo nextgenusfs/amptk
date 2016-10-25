@@ -280,4 +280,18 @@ def ReverseComp(input, output):
             for rec in SeqIO.parse(fasta, 'fasta'):
                 revcomp.write(">%s\n%s\n" % (rec.id, rec.seq.reverse_complement()))
 
+def guess_csv_dialect(header):
+    """ completely arbitrary fn to detect the delimiter
+    :type header: str
+    :raise ValueError:
+    :rtype: csv.Dialect
+    """
+    possible_delims = "\t,"
+    lines = header.split("\n")
+    if len(lines) < 2:
+        raise ValueError("CSV header must contain at least 1 line")
+
+    dialect = csv.Sniffer().sniff(header, delimiters=possible_delims)
+    return dialect
+
 
