@@ -139,9 +139,16 @@ radius = str(100 - int(args.pct_otu))
 otu_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otus.fa')
 ufitslib.log.info("Clustering OTUs (UPARSE)")
 ufitslib.log.debug("%s -cluster_otus %s -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
-subprocess.call([usearch, '-cluster_otus', sort_out, '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout = FNULL, stderr = FNULL)
-total = ufitslib.countfasta(otu_out)
-ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
+loggy = subprocess.Popen([usearch, '-cluster_otus', sort_out, '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+#get number of OTUs and denovo chimeras
+for i in loggy:
+    if 'chimeras' in i:
+        OTUlog = i.rstrip()
+        OTUparts = OTUlog.split(' ')
+        numchimeras = int(OTUparts[-3])
+        numOTUs = int(OTUparts[-5])
+
+ufitslib.log.info('{0:,}'.format(numOTUs) + ' OTUs, '+ '{0:,}'.format(numchimeras) + ' de-novo chimeras')
 
 #clean up padded N's
 ufitslib.log.info("Cleaning up padding from OTUs")
@@ -160,19 +167,24 @@ else:
             ufitslib.log.error("Database not properly configured, run `ufits install` to setup DB, skipping chimera filtering")
             uchime_out = otu_clean
     else:
-        uchime_db = os.path.abspath(args.uchime_ref)
+        if os.path.isfile(args.uchime_ref):
+            uchime_db = os.path.abspath(args.uchime_ref)
+        else:
+            ufitslib.log.error("%s is not a valid file, skipping reference chimera filtering" % args.uchime_ref)
+            uchime_out = otu_clean
     #now run chimera filtering if all checks out
     if not os.path.isfile(uchime_out):
         if vsearch:
-            ufitslib.log.info("Chimera Filtering (VSEARCH)")
+            ufitslib.log.info("Chimera Filtering (VSEARCH) using %s DB" % args.uchime_ref)
             ufitslib.log.debug("vsearch --uchime_ref %s --db %s --nonchimeras %s --mindiv 1" % (otu_clean, uchime_db, uchime_out))
             subprocess.call(['vsearch', '--mindiv', '1.0', '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
         else:
-            ufitslib.log.info("Chimera Filtering (UCHIME)")
+            ufitslib.log.info("Chimera Filtering (UCHIME) using %s DB" % args.uchime_ref)
             ufitslib.log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s -mindiv 1" % (usearch, otu_clean, uchime_db, uchime_out))
             subprocess.call([usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out, '-mindiv', '1.0'], stdout = FNULL, stderr = FNULL)
         total = ufitslib.countfasta(uchime_out)
-        ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed')
+        uchime_chimeras = numOTUs - total
+        ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed, ' + '{0:,}'.format(uchime_chimeras) + ' ref chimeras')
 
 #now map reads back to OTUs
 uc_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.mapping.uc')
