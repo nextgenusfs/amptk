@@ -30,6 +30,7 @@ parser.add_argument('-o','--out', dest="out", default='ion', help='Base name for
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
+parser.add_argument('--barcode_mismatch', default=0, type=int, help='Number of mis-matches in barcode')
 parser.add_argument('--barcode_fasta', default='pgm_barcodes.fa', help='FASTA file containing Barcodes (Names & Sequences)')
 parser.add_argument('--reverse_barcode', help='FASTA file containing 3 prime Barocdes')
 parser.add_argument('-b','--list_barcodes', dest="barcodes", default='all', help='Enter Barcodes used separated by commas')
@@ -46,76 +47,111 @@ parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
 args=parser.parse_args()
 
-    
-def MatchesPrimer(Seq, Primer):
-    return primer.MatchPrefix(Seq, Primer)
-
 def FindBarcode(Seq, BarcodeDict):
     for BarcodeLabel in BarcodeDict.keys():
         Barcode = BarcodeDict[BarcodeLabel]
         if Seq.startswith(Barcode):
             return Barcode, BarcodeLabel
     return "", ""
-    
-def RevFindBarcode(Seq, BarcodeDict):
-    for BarcodeLabel in BarcodeDict.keys():
-        Barcode = BarcodeDict[BarcodeLabel]
-        if Seq.endswith(Barcode):
-            return Barcode, BarcodeLabel
-    return "", ""
+
+def fuzzymatch(seq1, seq2, num_errors):
+    from Bio import pairwise2
+    seq1_a, seq2_a, score, start, end = pairwise2.align.localms(seq1, seq2, 5.0, -4.0, -9.0, -0.5, one_alignment_only=True, gap_char='-')[0]
+    if start < 2: #align needs to start in first 2 bp
+        if end < len(seq1)+2:
+            match_region = seq2_a[start:end]
+            seq_region = seq1_a[start:end]
+            matches = sum((1 if s == match_region[i] else 0) for i, s in enumerate(seq_region))
+            # too many errors -- no trimming
+            if (len(seq1) - matches) <= int(num_errors):
+                return (score, start, end)
+
+def TrimRead(record, Ftrim, Rtrim, Name, Count):
+    #function to trim a seqrecord and rename
+    if Rtrim:
+        record = record[Ftrim:Rtrim]
+    else:
+        record = record[Ftrim:]
+    #rename header
+    if args.multi == 'False':
+        record.id = LabelPrefix + str(Count) + ";barcodelabel=" + Name + ";"
+    elif args.multi != 'False':
+        if args.multi.endswith('_'):
+            args.multi = args.multi.replace('_', '')
+        record.id = LabelPrefix + str(Count) + ";barcodelabel=" + args.multi + "_" + Name + ";"
+    record.name = ''
+    record.description = ''
+    return record
 
 def ProcessReads(records):
     global OutCount
     for rec in records:
         #convert to string for processing
         Seq = str(rec.seq)
+        
         #look for barcodes
         Barcode, BarcodeLabel = FindBarcode(Seq, Barcodes)
-        if Barcode == "": #if not found, move onto next record
-            continue
-        # if found, trim away barcode
-        BarcodeLength = len(Barcode)
-        rec = rec[BarcodeLength:]
+        if Barcode == "": #if not found, try to find with mismatches
+            if args.barcode_mismatch > 0:
+                hit = [None, None, 0, None, None]
+                for k,v in Barcodes.items():
+                    alignment = fuzzymatch(v, Seq, args.barcode_mismatch)
+                    if alignment:
+                        if alignment[0] > hit[2]:
+                            hit = [k, v, alignment[0], alignment[1], alignment[2]]
+                if hit[0] != None:
+                    BarcodeLength = hit[4] - hit[3] #might be shorter than actual barcode
+                    BarcodeLabel = hit[0]
+                    Barcode = hit[1]
+                else:
+                    continue
+            else:
+                continue
+        else: #barcode was found from dictionary
+            BarcodeLength = len(Barcode)
 
         #now look for primer, if not found, move onto next record
-        Seq = rec.seq
-        Diffs = MatchesPrimer(Seq, FwdPrimer)
-        if Diffs > MAX_PRIMER_MISMATCHES:
+        BestPosFor, BestDiffsFor = primer.BestMatch2(Seq, FwdPrimer, MAX_PRIMER_MISMATCHES)
+        if BestPosFor > 0 and BestPosFor <= BarcodeLength+2: #if found will be > 0, and should be found after barcode
+            ForTrim = BestPosFor + PL
+        else:
             continue
-
-        #if found, trim away primer
-        rec = rec[PL:]
         
-        #relabel header
+        #counter for numbering reads
         OutCount += 1
-        if args.multi == 'False':
-            rec.id = LabelPrefix + str(OutCount) + ";barcodelabel=" + BarcodeLabel + ";"
-        elif args.multi != 'False':
-            if args.multi.endswith('_'):
-                args.multi = args.multi.replace('_', '')
-            rec.id = LabelPrefix + str(OutCount) + ";barcodelabel=" + args.multi + "_" + BarcodeLabel + ";"
-        
-        #clear rest of header
-        rec.name = ""
-        rec.description = ""
 
-        #turn seq into str again to find reverse primer
-        Seq = str(rec.seq)
         #look for reverse primer
         BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, MAX_PRIMER_MISMATCHES)
-        if BestPosRev > 0:
-            # Strip rev primer from rec.seq
-            rec = rec[:BestPosRev]
+        if BestPosRev > 0:  #reverse primer was found    
+            #location to trim sequences
+            RevTrim = BestPosRev
             
-            #determine reverse barcode, must match exactly
+            #determine reverse barcode
             if args.reverse_barcode:
                 BCcut = BestPosRev + RL
                 CutSeq = Seq[BCcut:]
                 if not CutSeq in RevBarcodes:
-                    continue
-                BCname = RevBarcodes.get(CutSeq)
-                rec.id = LabelPrefix + str(OutCount) + ";barcodelabel=" + BarcodeLabel+'_'+BCname+ ";"
-                
+                    if args.barcode_mismatch > 0:
+                        hit = [None, None, 0, None, None]
+                        for k,v in RevBarcodes.items():
+                            alignment = fuzzymatch(k, CutSeq, args.barcode_mismatch)
+                            if alignment:
+                                if alignment[0] > hit[2]:
+                                    hit = [v, k, alignment[0], alignment[1], alignment[2]]
+                        if hit[0] != None:
+                            BCname = hit[0]
+                        else:
+                            continue
+                    else:
+                        continue
+                else:
+                    BCname = RevBarcodes.get(CutSeq)
+                #update name
+                BarcodeLabel = BarcodeLabel+'_'+BCname
+            
+            #trim record
+            rec = TrimRead(rec, ForTrim, RevTrim, BarcodeLabel, OutCount)
+            
             #check length       
             L = len(rec.seq)
             if L < MinLen:
@@ -140,14 +176,19 @@ def ProcessReads(records):
             else:
                 yield rec
 
-        else:
+        else: #if it is full length, we did not find reverse primer, so drop read
             if not args.full_length:
+                #trim record
+                rec = TrimRead(rec, ForTrim, False, BarcodeLabel, OutCount)
                 #check length
                 L = len(rec.seq)
+                if L < MinLen: #remove if shorter than minimum length
+                    continue
                 #truncate down to trim length
                 if L >= TrimLen:
                     rec = rec[:TrimLen]        
                     yield rec
+
 
 def worker(input):
     output = input.split(".",-1)[0] + '.demux.fq'
@@ -312,6 +353,7 @@ TrimLen = int(args.trim_len)
 PL = len(FwdPrimer)
 RL = len(RevPrimer)
 OutCount = 0
+
 #split the input FASTQ file into chunks to process
 with open(SeqIn, 'rU') as input:
     SeqCount = ufitslib.countfastq(SeqIn)

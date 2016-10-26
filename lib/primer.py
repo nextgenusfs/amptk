@@ -134,6 +134,19 @@ def MatchPrefix2(Seq, Primer, MaxDiffs):
 				return Diffs
 	return Diffs
 
+def MatchPrefix3(Seq, Primer, MaxDiffs):
+ 	L = len(Seq)
+	n = len(Primer)
+	if L < n:
+		n = L
+	Diffs = 0
+	for i in range(0, n):
+		if not MatchLetter(Seq[i], Primer[i]):
+			Diffs += 1
+			if Diffs > MaxDiffs:
+				return Diffs
+	return Diffs   
+
 def MatchPos(Seq, Primer):
 	L = len(Seq)
 	PrimerLength = len(Primer)
@@ -168,6 +181,18 @@ def BestMatch2(Seq, Primer, MaxDiffs):
 	PrimerLength = len(Primer)
 	BestDiffs = PrimerLength
 	BestPos = -1
+	for Pos in range(0, L-PrimerLength+1):
+		d = MatchPrefix2(Seq[Pos:], Primer, MaxDiffs)
+		if d < BestDiffs and d <= MaxDiffs:
+			BestDiffs = d
+			BestPos = Pos
+	return BestPos, BestDiffs
+
+def BestMatch3(Seq, Primer, MaxDiffs):
+	L = len(Seq)
+	PrimerLength = len(Primer)
+	BestDiffs = PrimerLength
+	BestPos = -2
 	for Pos in range(0, L-PrimerLength+1):
 		d = MatchPrefix2(Seq[Pos:], Primer, MaxDiffs)
 		if d < BestDiffs and d <= MaxDiffs:
