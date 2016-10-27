@@ -74,7 +74,7 @@ Process:     ion         pre-process Ion Torrent data (find barcodes, remove pri
              sample      sub-sample (rarify) de-multiplexed reads per sample
              
 Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
-             dada2       run dada2 denoising "clustering" (requires R, dada2, ShortRead, ggplot2)
+             dada2       run dada2 denoising algorithm, produces "inferred sequences" (requires R, dada2, ShortRead)
              cluster_ref closed/open reference based clustering (EXPERIMENTAL)
              filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
@@ -311,7 +311,7 @@ version:     %s
 
 Description: Script is a "wrapper" for the DADA2 pipeline.  It will "pick OTUs" based on denoising
              the data for each read predicting the initial sequence.  This pipeline is sensitive to     
-             1 bp differences between sequences. Requires R & R packages: dada2, ShortRead, ggplot2
+             1 bp differences between sequences. Requires R & R packages: dada2, ShortRead
     
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              -o, --out           Output base name. Default: dada2
