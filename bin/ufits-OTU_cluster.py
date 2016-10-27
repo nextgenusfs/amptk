@@ -41,10 +41,6 @@ parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOIS
 parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
-def checkfastqsize(input):
-    filesize = os.path.getsize(input)
-    return filesize
-
 #remove logfile if exists
 log_name = args.out + '.ufits-cluster.log'
 if os.path.isfile(log_name):
@@ -87,7 +83,7 @@ if not os.path.exists(tmp):
 #Count FASTQ records
 ufitslib.log.info("Loading FASTQ Records")
 orig_total = ufitslib.countfastq(args.FASTQ)
-size = checkfastqsize(args.FASTQ)
+size = ufitslib.checkfastqsize(args.FASTQ)
 readablesize = ufitslib.convertSize(size)
 ufitslib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 
@@ -160,6 +156,9 @@ if not args.uchime_ref:
     uchime_out = otu_clean
 else:
     uchime_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.uchime.otus.fa')
+    #check if file is present, remove from previous run if it is.
+    if os.path.isfile(uchime_out):
+        os.remove(uchime_out)
     #R. Edgar now says using largest DB is better for UCHIME, so use the one distributed with taxonomy
     if args.uchime_ref in ['ITS', '16S', 'LSU', 'COI']: #test if it is one that is setup, otherwise default to full path
         uchime_db = os.path.join(parentdir, 'DB', args.uchime_ref+'.extracted.fa')

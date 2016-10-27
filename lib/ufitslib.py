@@ -294,4 +294,7 @@ def guess_csv_dialect(header):
     dialect = csv.Sniffer().sniff(header, delimiters=possible_delims)
     return dialect
 
+def checkfastqsize(input):
+    filesize = os.path.getsize(input)
+    return filesize
 

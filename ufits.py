@@ -55,7 +55,7 @@ def download(url, name):
     f.close()
 
 
-version = '0.5.0'
+version = '0.5.1'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -74,6 +74,7 @@ Process:     ion         pre-process Ion Torrent data (find barcodes, remove pri
              sample      sub-sample (rarify) de-multiplexed reads per sample
              
 Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
+             dada2       run dada2 denoising "clustering" (requires R, dada2, ShortRead, ggplot2)
              cluster_ref closed/open reference based clustering (EXPERIMENTAL)
              filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
@@ -296,6 +297,33 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
         arguments = sys.argv[2:]
         if len(arguments) > 1:
             cmd = os.path.join(script_path, 'bin', 'ufits-OTU_cluster_ref.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            sys.exit(1)            
+    elif sys.argv[1] == 'dada2':
+        help = """
+Usage:       ufits %s <arguments>
+version:     %s
+
+Description: Script is a "wrapper" for the DADA2 pipeline.  It will "pick OTUs" based on denoising
+             the data for each read predicting the initial sequence.  This pipeline is sensitive to     
+             1 bp differences between sequences. Requires R & R packages: dada2, ShortRead, ggplot2
+    
+Arguments:   -i, --fastq         Input FASTQ file (Required)
+             -o, --out           Output base name. Default: dada2
+             -l, --length        Length to trim reads. (Required)
+             -e, --maxee         Expected error quality trimming. Default: 1.0
+             -p, --platform      Sequencing platform. [ion, illumina, 454]. Default: ion
+             --cleanup           Remove intermediate files.
+        """ % (sys.argv[1], version)
+       
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'bin', 'ufits-dada2.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
