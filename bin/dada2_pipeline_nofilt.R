@@ -32,9 +32,17 @@ install.packages.auto("ShortRead")
 args = commandArgs(trailingOnly=TRUE)
 
 #load packages
-library(dada2); packageVersion("dada2")
-library(ShortRead); packageVersion("ShortRead")
-#library(ggplot2); packageVersion("ggplot2")
+library(dada2)
+library(ShortRead)
+
+#print the packages and versions
+print("-------------")
+print(paste("R", getRversion()))
+for (package_name in sort(loadedNamespaces())) {
+    print(paste(package_name, packageVersion(package_name)))
+}
+print("-------------")
+print("Loading Data from folder")
 
 #load the data from a folder
 path <- args[1]
@@ -47,12 +55,16 @@ sample.names <- sapply(strsplit(fns,".fastq"), `[`,1)
 sample.names
 
 #Dereplication
+print("-------------")
+print("Dereplicating data")
 derepSeqs <- derepFastq(Seqs, verbose=TRUE)
 
 #name the derep class with sample names
 names(derepSeqs) <- sample.names
 
 #Sample inference
+print("-------------")
+print("Sample inference")
 if (args[3] == 'illumina') {
     dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=FALSE, USE_QUALS=FALSE)
 } else {

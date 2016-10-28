@@ -25,7 +25,7 @@ parser=argparse.ArgumentParser(prog='ufits-dada2.py',
 parser.add_argument('-i','--fastq', required=True, help='Input Demuxed containing FASTQ')
 parser.add_argument('-o','--out', default='dada2', help='Output Basename')
 parser.add_argument('-l','--length', type=int, required=True, help='Length to truncate reads')
-parser.add_argument('-m','--maxee', default='1.0', help='MaxEE quality filtering')
+parser.add_argument('-e','--maxee', default='1.0', help='MaxEE quality filtering')
 parser.add_argument('-p','--platform', default='ion', choices=['ion', 'illumina', '454'], help='Sequencing platform')
 parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
@@ -151,7 +151,6 @@ if not os.path.isfile(dada2out):
     sys.exit(1)
     
 #now process the output, pull out fasta, rename, etc
-ufitslib.log.info("Reformating DADA2 output")
 fastaout = args.out+'.otus.fa'
 otutable = args.out+'.otu_table.txt'
 counter = 0
@@ -180,7 +179,12 @@ with open(dada2log, 'rU') as bimeracheck:
             bimeraline = line.split(' ')
             bimeras = int(bimeraline[1])
             totalSeqs = int(bimeraline[5])
+        if line.startswith('[1] "dada2'):
+            dada2version = line.split(' ')[-1].replace('"\n', '').rstrip()
+        if line.startswith('[1] "R '):
+            Rversion = line.split(' ')[-1].replace('"\n', '').rstrip()
 validSeqs = totalSeqs - bimeras
+ufitslib.log.info("R v%s, DADA2 v%s" % (Rversion, dada2version))
 ufitslib.log.info('{0:,}'.format(totalSeqs) + ' total sequences')
 ufitslib.log.info('{0:,}'.format(bimeras) + ' chimeras removed')
 ufitslib.log.info('{0:,}'.format(validSeqs) + ' valid sequences')
