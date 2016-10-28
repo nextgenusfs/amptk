@@ -1,6 +1,10 @@
 #!/usr/bin/env Rscript
 
 #run like Rscript --vanilla data2_pipeline.R input_folder output.csv platform
+country.code <- 'us'  # use yours
+url.pattern <- 'https://'  # use http if you want
+repo.data.frame <- subset(getCRANmirrors(), CountryCode == country.code & grepl(url.pattern, URL))
+options(repos = repo.data.frame$URL)
 
 #check for required packages, install if necessary
 install.packages.auto <- function(x) { 

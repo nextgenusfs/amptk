@@ -6,6 +6,7 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.ufitslib as ufitslib
+import numpy as np
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -63,7 +64,9 @@ def getAvgLength(input):
     Average = sum(AvgLength) / float(len(AvgLength))
     Min = min(AvgLength)
     Max = max(AvgLength)
-    return (Average, Min, Max)
+    a = np.array(AvgLength)
+    nintyfive = np.percentile(a, 5)
+    return (Average, Min, Max, int(nintyfive))
 
 #remove logfile if exists
 log_name = args.out + '.ufits-dada2.log'
@@ -107,7 +110,7 @@ ufitslib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 
 #quality filter
 ufitslib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
-derep = args.out+'.derep.fq'
+derep = args.out+'.qual-filtered.fq'
 if vsearch:
     maxEE(args.fastq, float(args.maxee), derep)
 else:
@@ -119,24 +122,25 @@ ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 
 #Get Average length without any N's
 averageLen = getAvgLength(derep)
-ufitslib.log.info("DADA2 compatible read lengths, average: %i bp, minimum: %i bp, maximum: %i" % (averageLen[0], averageLen[1], averageLen[2]))
+ufitslib.log.info("DADA2 compatible read lengths, avg: %i bp, min: %i bp, max: %i bp, top 95%%: %i bp" % (averageLen[0], averageLen[1], averageLen[2], averageLen[3]))
 if averageLen[0] < int(args.length):
-    TruncLen = int(averageLen[0] - 1)
+    TruncLen = int(averageLen[3])
     ufitslib.log.error('Warning: Average length of reads %i bp, is less than specified truncation length %s bp' % (averageLen[0], args.length))
-    ufitslib.log.error('Resetting truncation length to %i bp' % TruncLen)
+    ufitslib.log.error('Resetting truncation length to %i bp (keep > 95%% of data) ' % TruncLen)
 else:
     TruncLen = int(args.length)
 
 #now split into individual files
 ufitslib.log.info("Splitting FASTQ file by Sample and truncating to %i bp" % TruncLen)
 filtfolder = args.out+'_filtered'
-if not os.path.isdir(filtfolder):
-    os.makedirs(filtfolder)
+if os.path.isdir(filtfolder):
+    shutil.rmtree(filtfolder)
+os.makedirs(filtfolder)
 splitDemux(derep, filtfolder, TruncLen)
 
 #now run DADA2 on filtered folder
 ufitslib.log.info("Running DADA2 pipeline")
-dada2log = args.out+'.dada2.R.log'
+dada2log = args.out+'.dada2.Rscript.log'
 dada2out = args.out+'.dada2.csv'
 with open(dada2log, 'w') as logfile:
     subprocess.call(['Rscript', '--vanilla', dada2script, filtfolder, dada2out, args.platform], stdout = logfile, stderr = logfile)
@@ -184,6 +188,7 @@ ufitslib.log.info('{0:,}'.format(validSeqs) + ' valid sequences')
 if args.cleanup:
     shutil.rmtree(filtfolder)
     os.remove(dada2out)
+    os.remove(derep)
 
 #Print location of files to STDOUT
 print "-------------------------------------------------------"
