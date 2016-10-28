@@ -55,7 +55,7 @@ def download(url, name):
     f.close()
 
 
-version = '0.5.3'
+version = '0.5.4'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -249,7 +249,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -m, --minsize       Minimum size to keep (singleton filter). Default: 2
-             --uchime_ref        Run Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
+             --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
              -u, --usearch       USEARCH executable. Default: usearch8
@@ -288,7 +288,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -m, --minsize       Minimum size to keep (singleton filter). Default: 2
-             --uchime_ref        Run Chimera filtering. Default: off [ITS, 16S, LSU, COI, custom path]
+             --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, 16S, LSU, COI, custom path]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              -u, --usearch       USEARCH executable. Default: usearch8
              --cleanup           Remove intermediate files.
@@ -318,6 +318,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -l, --length        Length to trim reads. (Required)
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --platform      Sequencing platform. [ion, illumina, 454]. Default: ion
+             --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
              --cleanup           Remove intermediate files.
         """ % (sys.argv[1], version)
        

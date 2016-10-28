@@ -2,6 +2,7 @@
 
 import sys, os, argparse, logging, shutil, subprocess, inspect
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
+from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
@@ -27,6 +28,7 @@ parser.add_argument('-o','--out', default='dada2', help='Output Basename')
 parser.add_argument('-l','--length', type=int, required=True, help='Length to truncate reads')
 parser.add_argument('-e','--maxee', default='1.0', help='MaxEE quality filtering')
 parser.add_argument('-p','--platform', default='ion', choices=['ion', 'illumina', '454'], help='Sequencing platform')
+parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom]')
 parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
@@ -151,8 +153,8 @@ if not os.path.isfile(dada2out):
     sys.exit(1)
     
 #now process the output, pull out fasta, rename, etc
-fastaout = args.out+'.otus.fa'
-otutable = args.out+'.otu_table.txt'
+fastaout = args.out+'.otus.tmp'
+otutable = args.out+'.otu_table.tmp'
 counter = 0
 with open(fastaout, 'w') as writefasta:
     with open(otutable, 'w') as writetab:
@@ -189,6 +191,57 @@ ufitslib.log.info('{0:,}'.format(totalSeqs) + ' total sequences')
 ufitslib.log.info('{0:,}'.format(bimeras) + ' chimeras removed')
 ufitslib.log.info('{0:,}'.format(validSeqs) + ' valid sequences')
 
+#optional UCHIME Ref
+chimeraFreeTable = args.out+'.otu_table.txt'
+uchime_out = args.out+'.cluster.otus.fa'
+if not args.uchime_ref:
+    os.rename(fastaout, uchime_out)
+    os.rename(otutable, chimeraFreeTable)
+else:
+    chimeric_seqs = args.out+'.chimeras.fa'
+    #check if file is present, remove from previous run if it is.
+    if os.path.isfile(uchime_out):
+        os.remove(uchime_out)
+    #R. Edgar now says using largest DB is better for UCHIME, so use the one distributed with taxonomy
+    if args.uchime_ref in ['ITS', '16S', 'LSU', 'COI']: #test if it is one that is setup, otherwise default to full path
+        uchime_db = os.path.join(parentdir, 'DB', args.uchime_ref+'.extracted.fa')
+        if not os.path.isfile(uchime_db):
+            ufitslib.log.error("Database not properly configured, run `ufits install` to setup DB, skipping chimera filtering")
+            uchime_out = fastaout
+    else:
+        if os.path.isfile(args.uchime_ref):
+            uchime_db = os.path.abspath(args.uchime_ref)
+        else:
+            ufitslib.log.error("%s is not a valid file, skipping reference chimera filtering" % args.uchime_ref)
+            uchime_out = fastaout
+    #now run chimera filtering if all checks out
+    if not os.path.isfile(uchime_out):
+        ufitslib.log.info("Chimera Filtering (VSEARCH) using %s DB" % args.uchime_ref)
+        ufitslib.log.debug("vsearch --uchime_ref %s --db %s --nonchimeras %s --mindiv 1" % (fastaout, uchime_db, uchime_out))
+        subprocess.call(['vsearch', '--mindiv', '1.0', '--uchime_ref', fastaout, '--db', uchime_db, '--nonchimeras', uchime_out, '--chimeras', chimeric_seqs], stdout = FNULL, stderr = FNULL)
+        total = ufitslib.countfasta(uchime_out)
+        uchime_chimeras = validSeqs - total
+        ufitslib.log.info('{0:,}'.format(total) + ' seqs passed, ' + '{0:,}'.format(uchime_chimeras) + ' ref chimeras')
+    #now reformat OTU table, dropping chimeric OTUs from table
+    chimeras = []
+    with open(chimeric_seqs, 'rU') as chimera_in:
+        for rec in SeqIO.parse(chimera_in, 'fasta'):
+            if not rec.id in chimeras:
+                chimeras.append(rec.id)
+    if len(chimeras) > 0: #if there are chimeras, filter table, otherwise just exit
+        with open(chimeraFreeTable, 'w') as freeTable:
+            with open(otutable, 'rU') as TableIn:
+                for line in TableIn:
+                    firstcolumn = line.split('\t')[0]
+                    if not firstcolumn in chimeras:
+                        freeTable.write(line)
+        os.remove(otutable)
+    else:
+        os.rename(otutable, chimeraFreeTable)
+    #clean up chimeras fasta
+    os.remove(chimeric_seqs)
+    os.remove(fastaout)
+
 if args.cleanup:
     shutil.rmtree(filtfolder)
     os.remove(dada2out)
@@ -200,12 +253,12 @@ print "DADA2 Script has Finished Successfully"
 print "-------------------------------------------------------"
 if not args.cleanup:
     print "Tmp Folder of files: %s" % filtfolder
-print "Clustered OTUs: %s" % fastaout
-print "OTU Table: %s" % otutable
+print "Inferred Seqs: %s" % uchime_out
+print "OTU Table: %s" % chimeraFreeTable
 print "-------------------------------------------------------"
 
-otu_print = fastaout.split('/')[-1]
-tab_print = otutable.split('/')[-1]
+otu_print = uchime_out.split('/')[-1]
+tab_print = chimeraFreeTable.split('/')[-1]
 if 'win32' in sys.platform:
     print "\nExample of next cmd: ufits filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
 else:
