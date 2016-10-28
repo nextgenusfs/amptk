@@ -21,22 +21,23 @@ UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ ufits
 Usage:       ufits <command> <arguments>
-version:     0.4.6
+version:     0.5.2
 
-Description: UFITS is a package of scripts to process fungal ITS amplicon data.  It uses the UPARSE algorithm for clustering
-             and thus USEARCH8 is a dependency.
+Description: UFITS is a package of scripts to process NGS amplicon data.  It uses the UPARSE algorithm for clustering
+             and thus USEARCH is a dependency.
     
 Process:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
              illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
-             illumina2   pre-process Illumina data from a single file (assumes Ion/454 read structure: <barcode><f_primer>READ)
+             illumina2   pre-process Illumina data from a single file (read structure: <barcode><f_primer>READ<r_primer>)
              454         pre-process Roche 454 (pyrosequencing) data (find barcodes, remove primers, trim/pad)
              show        show number or reads per barcode from de-multiplexed data
-             select      select reads from de-multiplexed data
-             remove      remove reads from de-multiplexed data
+             select      select reads (samples) from de-multiplexed data
+             remove      remove reads (samples) from de-multiplexed data
              sample      sub-sample (rarify) de-multiplexed reads per sample
              
 Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
-             cluster_ref closed/open reference based clustering
+             dada2       run dada2 denoising algorithm, produces "inferred sequences" (requires R, dada2, ShortRead)
+             cluster_ref closed/open reference based clustering (EXPERIMENTAL)
              filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
 
@@ -136,6 +137,13 @@ ufits cluster -i ufits.demux.fq -o ion_output
 
 This script wil quality filter the data based on expected errors, then remove duplicated sequences (dereplication), sort the output by abundance, and finally cluster using `usearch -cluster_otus` command.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Type `-h` for all the available options.
 
+####DADA2 "Clustering":####
+Recently there is a new "OTU picking" algorithm for amplicon based datasets called DADA2 that has sensitivity down to single base pairs, see publication [here](http://www.nature.com/nmeth/journal/v13/n7/full/nmeth.3869.html), GitHub [here](https://github.com/benjjneb/dada2).  This algorithm uses a statistical method to infer the original sequence that a read was derived from, foregoing the need to cluster at a set threshold (i.e. 97%).  I've implemented a modified DADA2 pipeline here to work with the current UFITS data structure.  A reminder is that reads for DADA2 must have no N's and have to all length trimmed identically, thus variable length amplicons will be truncated down.  Thus this method is perhaps more suited to something like COI or 16S amplicons.  You can run it as follows:
+
+```
+ufits dada2 -i ufits.demux.fq -o dada2_output -l 200
+```
+The script will quality filter your data, trim for use in DADA2, run DADA2 alogrithm, and then parse the results to output an OTU table and a file containing inferred sequences (OTUs) in fasta format.  These files can be used in all downstream UFITS scripts, i.e. `ufits filter` and `ufits taxonomy`.
 
 ####OTU Table Filtering####
 
@@ -153,7 +161,6 @@ If you do not have a mock community spike in, you can still run the index bleed 
 ufits filter -i test.otu_table.txt -f test.final.otus.fa -p 0.005
 ```
 
-
 ####Assign Taxonomy:####
 
 You can assign taxonomy to your OTUs using UFITS, either using UTAX from USEARCH8.1 or using usearch_global.  The databases require some initial setup before you can use the `ufits taxonomy` command.  
@@ -163,7 +170,7 @@ Issuing the `ufits taxonomy` command will inform you which databases have been p
 ```
 $ ufits taxonomy
 Usage:       ufits taxonomy <arguments>
-version:     0.4.6
+version:     0.5.2
 
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
              uses a hybrid approach, e.g. gets taxonomy information from UTAX as well as global alignment hits from the larger
@@ -226,6 +233,8 @@ The optional `--graphs` argument will create the stacked bar graphs.  You can sa
 * vsearch (version > 1.9.0, this is optional but will increase speed of UFITS and is required for very large datasets) installed via homebrew installation by default
 * biom-format (to create biom OTU table)
 * h5py (for biom)
+* R (dada2)
+* dada2, ShortRead (these will be automatically installed on first usage of `ufits dada2`
 
 Python and USEARCH need to accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8.  
 
