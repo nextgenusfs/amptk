@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-#run like Rscript --vanilla data2_pipeline.R input_folder output.csv platform
+#run like Rscript --vanilla data2_pipeline.R input_folder output.csv platform pool cpus
 country.code <- 'us'  # use yours
 url.pattern <- 'https://'  # use http if you want
 repo.data.frame <- subset(getCRANmirrors(), CountryCode == country.code & grepl(url.pattern, URL))
@@ -44,6 +44,14 @@ for (package_name in sort(loadedNamespaces())) {
 print("-------------")
 print("Loading Data from folder")
 
+#get DADA2 version
+DADAversion <- packageVersion("dada2")
+if (DADAversion >= '1.1.1') {
+    CORES <- as.integer(args[5])
+} else {
+    CORES <- 'FALSE'
+}
+
 #load the data from a folder
 path <- args[1]
 fns <- list.files(path)
@@ -66,9 +74,11 @@ names(derepSeqs) <- sample.names
 print("-------------")
 print("Sample inference")
 if (args[3] == 'illumina') {
-    dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=FALSE, USE_QUALS=FALSE)
+    dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=args[4], USE_QUALS=TRUE, multithread=CORES)
+} else if (args[3] == 'ion') {
+    dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=args[4], HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
 } else {
-    dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=FALSE, HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=FALSE)
+    dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=args[4], HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=FALSE, multithread=CORES)
 }
 
 #make sequence table

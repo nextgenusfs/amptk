@@ -29,6 +29,7 @@ parser.add_argument('-l','--length', type=int, required=True, help='Length to tr
 parser.add_argument('-e','--maxee', default='1.0', help='MaxEE quality filtering')
 parser.add_argument('-p','--platform', default='ion', choices=['ion', 'illumina', '454'], help='Sequencing platform')
 parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom]')
+parser.add_argument('--pool', action='store_true', help='Pool all sequences together for DADA2')
 parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
@@ -144,8 +145,14 @@ splitDemux(derep, filtfolder, TruncLen)
 ufitslib.log.info("Running DADA2 pipeline")
 dada2log = args.out+'.dada2.Rscript.log'
 dada2out = args.out+'.dada2.csv'
+#check pooling vs notpooled, default is not pooled.
+if args.pool:
+    POOL = 'TRUE'
+else:
+    POOL = 'FALSE'
+CORES = str(ufitslib.getCPUS())
 with open(dada2log, 'w') as logfile:
-    subprocess.call(['Rscript', '--vanilla', dada2script, filtfolder, dada2out, args.platform], stdout = logfile, stderr = logfile)
+    subprocess.call(['Rscript', '--vanilla', dada2script, filtfolder, dada2out, args.platform, POOL, CORES], stdout = logfile, stderr = logfile)
 
 #check for results
 if not os.path.isfile(dada2out):

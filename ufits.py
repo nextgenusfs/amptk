@@ -55,7 +55,7 @@ def download(url, name):
     f.close()
 
 
-version = '0.5.4'
+version = '0.5.5'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -318,6 +318,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -l, --length        Length to trim reads. (Required)
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --platform      Sequencing platform. [ion, illumina, 454]. Default: ion
+             --pool              Pool all samples together for DADA2. Default: off
              --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
              --cleanup           Remove intermediate files.
         """ % (sys.argv[1], version)

@@ -93,8 +93,6 @@ else:
         sys.exit(1)
 
 #check usearch version
-usearch = args.usearch
-version_check = ufitslib.get_usearch_version(usearch)
 if not ufitslib.check_utax(usearch):
     ufitslib.log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % version_check)
     sys.exit(1)

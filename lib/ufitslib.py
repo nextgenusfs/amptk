@@ -98,6 +98,19 @@ def check_utax(usearch):
             else:
                 return False
 
+def check_unoise(usearch):
+    vers = get_usearch_version(usearch).split('.')
+    if int(vers[0]) >= 9:
+        return True
+    else:
+        if int(vers[1]) >= 0:
+            return True
+        else:
+            if int(vers[2]) >= 2132:
+                return True
+            else:
+                return False
+
 def MemoryCheck():
     import psutil
     mem = psutil.virtual_memory()
@@ -298,3 +311,6 @@ def checkfastqsize(input):
     filesize = os.path.getsize(input)
     return filesize
 
+def getCPUS():
+    cores = multiprocessing.cpu_count()
+    return cores
