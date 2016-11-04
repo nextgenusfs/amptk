@@ -8,6 +8,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.ufitslib as ufitslib
 import numpy as np
+from natsort import natsorted
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -88,7 +89,7 @@ version = ufitslib.get_version()
 ufitslib.log.info("%s" % version)
 
 #check dependencies
-programs = ['Rscript']
+programs = ['Rscript', 'vsearch']
 ufitslib.CheckDependencies(programs)
 
 #check if vsearch version > 1.9.1 is installed
@@ -175,7 +176,7 @@ with open(fastaout, 'w') as writefasta:
                     writetab.write(header)
                 else:
                     Seq = cols[0]
-                    ID = 'OTU_'+str(counter)
+                    ID = 'iSeq_'+str(counter)
                     newline = ID+'\t'+'\t'.join(cols[1:]) + '\n'
                     writetab.write(newline)
                     writefasta.write(">%s\n%s\n" % (ID, Seq))
@@ -194,18 +195,18 @@ with open(dada2log, 'rU') as bimeracheck:
             Rversion = line.split(' ')[-1].replace('"\n', '').rstrip()
 validSeqs = totalSeqs - bimeras
 ufitslib.log.info("R v%s, DADA2 v%s" % (Rversion, dada2version))
-ufitslib.log.info('{0:,}'.format(totalSeqs) + ' total sequences')
-ufitslib.log.info('{0:,}'.format(bimeras) + ' chimeras removed')
-ufitslib.log.info('{0:,}'.format(validSeqs) + ' valid sequences')
+ufitslib.log.info('{0:,}'.format(totalSeqs) + ' total inferred sequences (iSeqs)')
+ufitslib.log.info('{0:,}'.format(bimeras) + ' denovo chimeras removed')
+ufitslib.log.info('{0:,}'.format(validSeqs) + ' valid iSeqs')
 
 #optional UCHIME Ref
 chimeraFreeTable = args.out+'.otu_table.txt'
-uchime_out = args.out+'.cluster.otus.fa'
+uchime_out = args.out+'.nonchimeras.fa'
+iSeqs = args.out+'.iSeqs.fa'
 if not args.uchime_ref:
-    os.rename(fastaout, uchime_out)
+    os.rename(fastaout, iSeqs)
     os.rename(otutable, chimeraFreeTable)
 else:
-    chimeric_seqs = args.out+'.chimeras.fa'
     #check if file is present, remove from previous run if it is.
     if os.path.isfile(uchime_out):
         os.remove(uchime_out)
@@ -225,34 +226,80 @@ else:
     if not os.path.isfile(uchime_out):
         ufitslib.log.info("Chimera Filtering (VSEARCH) using %s DB" % args.uchime_ref)
         ufitslib.log.debug("vsearch --uchime_ref %s --db %s --nonchimeras %s --mindiv 1" % (fastaout, uchime_db, uchime_out))
-        subprocess.call(['vsearch', '--mindiv', '1.0', '--uchime_ref', fastaout, '--db', uchime_db, '--nonchimeras', uchime_out, '--chimeras', chimeric_seqs], stdout = FNULL, stderr = FNULL)
+        subprocess.call(['vsearch', '--mindiv', '1.0', '--uchime_ref', fastaout, '--db', uchime_db, '--nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
         total = ufitslib.countfasta(uchime_out)
         uchime_chimeras = validSeqs - total
-        ufitslib.log.info('{0:,}'.format(total) + ' seqs passed, ' + '{0:,}'.format(uchime_chimeras) + ' ref chimeras')
-    #now reformat OTU table, dropping chimeric OTUs from table
-    chimeras = []
-    with open(chimeric_seqs, 'rU') as chimera_in:
-        for rec in SeqIO.parse(chimera_in, 'fasta'):
-            if not rec.id in chimeras:
-                chimeras.append(rec.id)
-    if len(chimeras) > 0: #if there are chimeras, filter table, otherwise just exit
-        with open(chimeraFreeTable, 'w') as freeTable:
-            with open(otutable, 'rU') as TableIn:
-                for line in TableIn:
-                    firstcolumn = line.split('\t')[0]
-                    if not firstcolumn in chimeras:
-                        freeTable.write(line)
-        os.remove(otutable)
-    else:
-        os.rename(otutable, chimeraFreeTable)
+        ufitslib.log.info('{0:,}'.format(total) + ' iSeqs passed, ' + '{0:,}'.format(uchime_chimeras) + ' ref chimeras removed')
+    
+    #now reformat OTUs and OTU table, dropping chimeric OTUs from table, sorting the output as well
+    nonchimeras = ufitslib.fasta2list(uchime_out)
+    inferredSeqs = SeqIO.index(uchime_out, 'fasta')
+    with open(iSeqs, 'w') as iSeqout:
+        for x in natsorted(nonchimeras):
+            SeqIO.write(inferredSeqs[x], iSeqout, 'fasta')
+
+    with open(chimeraFreeTable, 'w') as freeTable:
+        with open(otutable, 'rU') as TableIn:
+            for line in TableIn:
+                firstcolumn = line.split('\t')[0]
+                if firstcolumn == 'OTUId':
+                    freeTable.write(line)
+                if firstcolumn in nonchimeras:
+                    freeTable.write(line)
+
     #clean up chimeras fasta
-    os.remove(chimeric_seqs)
+    os.remove(uchime_out)
     os.remove(fastaout)
+    os.remove(otutable)
+
+#cluster to 97% for biological "species"
+bioSeqs = args.out+'.cluster.otus.fa'
+bioTable = args.out+'.cluster.otu_table.txt'
+demuxtmp = args.out+'.original.fa'
+uctmp = args.out+'.map.uc'
+ClusterComp = args.out+'.iSeqs2clusters.txt'
+#cluster
+ufitslib.log.info("Clustering iSeqs at 97% to generate biological OTUs")
+subprocess.call(['vsearch', '--cluster_smallmem', iSeqs, '--centroids', bioSeqs, '--id', '0.97', '--strand', 'plus', '--relabel', 'OTU_', '--qmask', 'none'], stdout = FNULL, stderr = FNULL)
+total = ufitslib.countfasta(bioSeqs)
+ufitslib.log.info('{0:,}'.format(total) + ' OTUs generated')
+#determine where iSeqs clustered
+iSeqmap = args.out+'.iseq_map.uc'
+subprocess.call(['vsearch', '--usearch_global', iSeqs, '--db', bioSeqs, '--id', '0.97', '--uc', iSeqmap, '--strand', 'plus'], stdout = FNULL, stderr = FNULL)
+iSeqMapped = {}
+with open(iSeqmap, 'rU') as mapping:
+    for line in mapping:
+        line = line.replace('\n', '')
+        cols = line.split('\t')
+        OTU = cols[9]
+        Hit = cols[8]
+        if not OTU in iSeqMapped:
+            iSeqMapped[OTU] = [Hit]
+        else:
+            iSeqMapped[OTU].append(Hit)
+with open(ClusterComp, 'w') as clusters:
+    clusters.write('OTU\tiSeqs\n')
+    for k,v in natsorted(iSeqMapped.items()):
+        clusters.write('%s\t%s\n' % (k, ', '.join(v)))
+#create OTU table
+ufitslib.log.info("Mapping reads to OTUs")
+subprocess.call(['vsearch', '--fastq_filter', args.fastq, '--fastaout', demuxtmp], stdout = FNULL, stderr = FNULL)
+subprocess.call(['vsearch', '--usearch_global', demuxtmp, '--db', bioSeqs, '--id', '0.97', '--uc', uctmp, '--strand', 'plus'], stdout = FNULL, stderr = FNULL)
+total = ufitslib.line_count(uctmp)
+ufitslib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
+#Build OTU table
+ufitslib.log.info("Building OTU table")
+uc2tab = os.path.join(parentdir, 'lib', 'uc2otutable.py')
+ufitslib.log.debug("%s %s %s" % (uc2tab, uctmp, bioTable))
+subprocess.call([sys.executable, uc2tab, uctmp, bioTable], stdout = FNULL, stderr = FNULL)
 
 if args.cleanup:
     shutil.rmtree(filtfolder)
     os.remove(dada2out)
     os.remove(derep)
+    os.remove(demuxtmp)
+    os.remove(uctmp)
+    os.remove(iSeqmap)
 
 #Print location of files to STDOUT
 print "-------------------------------------------------------"
@@ -260,12 +307,15 @@ print "DADA2 Script has Finished Successfully"
 print "-------------------------------------------------------"
 if not args.cleanup:
     print "Tmp Folder of files: %s" % filtfolder
-print "Inferred Seqs: %s" % uchime_out
-print "OTU Table: %s" % chimeraFreeTable
+print "Inferred iSeqs: %s" % iSeqs
+print "iSeq OTU Table: %s" % chimeraFreeTable
+print "Clustered OTUs: %s" % bioSeqs
+print "OTU Table: %s" % bioTable
+print "iSeqs 2 OTUs: %s" % ClusterComp
 print "-------------------------------------------------------"
 
-otu_print = uchime_out.split('/')[-1]
-tab_print = chimeraFreeTable.split('/')[-1]
+otu_print = bioSeqs.split('/')[-1]
+tab_print = bioTable.split('/')[-1]
 if 'win32' in sys.platform:
     print "\nExample of next cmd: ufits filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
 else:

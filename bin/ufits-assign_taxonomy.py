@@ -223,7 +223,7 @@ else:
             ufitslib.log.info("Classifying OTUs with UTAX (USEARCH8)")
             cutoff = str(args.utax_cutoff)
             ufitslib.log.debug("%s -utax %s -db %s -utaxout %s -utax_cutoff %s -strand both" % (usearch, args.fasta, utax_db, utax_out, cutoff))
-            subprocess.call([usearch, '-utax', args.fasta, '-db', utax_db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus'], stdout = FNULL, stderr = FNULL)
+            subprocess.call([usearch, '-utax', args.fasta, '-db', utax_db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus', '-notrunclabels'], stdout = FNULL, stderr = FNULL)
         else:
             ufitslib.log.error("UTAX DB %s not found, skipping" % utax_db)
     

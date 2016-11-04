@@ -314,3 +314,12 @@ def checkfastqsize(input):
 def getCPUS():
     cores = multiprocessing.cpu_count()
     return cores
+    
+def fasta2list(input):
+    seqlist = []
+    with open(input, 'rU') as inseq:
+        for rec in SeqIO.parse(inseq, 'fasta'):
+            if not rec.description in seqlist:
+                seqlist.append(rec.description)
+    return seqlist
+            
