@@ -320,7 +320,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -p, --platform      Sequencing platform. [ion, illumina, 454]. Default: ion
              --pool              Pool all samples together for DADA2. Default: off
              --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
-             --cleanup           Remove intermediate files.
+             --debug             Keep intermediate files.
         """ % (sys.argv[1], version)
        
         arguments = sys.argv[2:]

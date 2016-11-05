@@ -31,7 +31,7 @@ parser.add_argument('-e','--maxee', default='1.0', help='MaxEE quality filtering
 parser.add_argument('-p','--platform', default='ion', choices=['ion', 'illumina', '454'], help='Sequencing platform')
 parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom]')
 parser.add_argument('--pool', action='store_true', help='Pool all sequences together for DADA2')
-parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
+parser.add_argument('--debug', action='store_true', help='Keep all intermediate files')
 args=parser.parse_args()
 
 dada2script = os.path.join(parentdir, 'bin', 'dada2_pipeline_nofilt.R')
@@ -162,25 +162,18 @@ if not os.path.isfile(dada2out):
     
 #now process the output, pull out fasta, rename, etc
 fastaout = args.out+'.otus.tmp'
-otutable = args.out+'.otu_table.tmp'
-counter = 0
+counter = 1
 with open(fastaout, 'w') as writefasta:
-    with open(otutable, 'w') as writetab:
-        with open(dada2out, 'rU') as input:
-            for line in input:
-                line = line.replace('\n', '')
-                line = line.replace('"', '')
-                cols = line.split(',')
-                if counter == 0:
-                    header = "OTUId\t"+ '\t'.join(cols[1:]) + '\n'
-                    writetab.write(header)
-                else:
-                    Seq = cols[0]
-                    ID = 'iSeq_'+str(counter)
-                    newline = ID+'\t'+'\t'.join(cols[1:]) + '\n'
-                    writetab.write(newline)
-                    writefasta.write(">%s\n%s\n" % (ID, Seq))
-                counter += 1
+    with open(dada2out, 'rU') as input:
+        next(input)
+        for line in input:
+            line = line.replace('\n', '')
+            line = line.replace('"', '')
+            cols = line.split(',')
+            Seq = cols[0]
+            ID = 'iSeq_'+str(counter)
+            writefasta.write(">%s\n%s\n" % (ID, Seq))
+            counter += 1
 
 #get number of bimeras from logfile
 with open(dada2log, 'rU') as bimeracheck:
@@ -200,8 +193,8 @@ ufitslib.log.info('{0:,}'.format(bimeras) + ' denovo chimeras removed')
 ufitslib.log.info('{0:,}'.format(validSeqs) + ' valid iSeqs')
 
 #optional UCHIME Ref
-chimeraFreeTable = args.out+'.otu_table.txt'
 uchime_out = args.out+'.nonchimeras.fa'
+chimeraFreeTable = args.out+'.otu_table.txt'
 iSeqs = args.out+'.iSeqs.fa'
 if not args.uchime_ref:
     os.rename(fastaout, iSeqs)
@@ -237,32 +230,38 @@ else:
     with open(iSeqs, 'w') as iSeqout:
         for x in natsorted(nonchimeras):
             SeqIO.write(inferredSeqs[x], iSeqout, 'fasta')
+    if not args.debug:
+        #clean up chimeras fasta
+        os.remove(uchime_out)
+        os.remove(fastaout)
 
-    with open(chimeraFreeTable, 'w') as freeTable:
-        with open(otutable, 'rU') as TableIn:
-            for line in TableIn:
-                firstcolumn = line.split('\t')[0]
-                if firstcolumn == 'OTUId':
-                    freeTable.write(line)
-                if firstcolumn in nonchimeras:
-                    freeTable.write(line)
 
-    #clean up chimeras fasta
-    os.remove(uchime_out)
-    os.remove(fastaout)
-    os.remove(otutable)
-
-#cluster to 97% for biological "species"
+#setup output files
+dadademux = args.out+'.dada2.map.uc'
 bioSeqs = args.out+'.cluster.otus.fa'
 bioTable = args.out+'.cluster.otu_table.txt'
 demuxtmp = args.out+'.original.fa'
 uctmp = args.out+'.map.uc'
 ClusterComp = args.out+'.iSeqs2clusters.txt'
+
+#map reads to DADA2 OTUs
+ufitslib.log.info("Mapping reads to DADA2 iSeqs")
+subprocess.call(['vsearch', '--fastq_filter', args.fastq, '--fastaout', demuxtmp], stdout = FNULL, stderr = FNULL)
+subprocess.call(['vsearch', '--usearch_global', demuxtmp, '--db', iSeqs, '--id', '0.97', '--uc', dadademux, '--strand', 'plus'], stdout = FNULL, stderr = FNULL)
+total = ufitslib.line_count(dadademux)
+ufitslib.log.info('{0:,}'.format(total) + ' reads mapped to iSeqs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
+#Build OTU table
+ufitslib.log.info("Building iSeq OTU table")
+uc2tab = os.path.join(parentdir, 'lib', 'uc2otutable.py')
+ufitslib.log.debug("%s %s %s" % (uc2tab, dadademux, chimeraFreeTable))
+subprocess.call([sys.executable, uc2tab, dadademux, chimeraFreeTable], stdout = FNULL, stderr = FNULL)
+
 #cluster
 ufitslib.log.info("Clustering iSeqs at 97% to generate biological OTUs")
 subprocess.call(['vsearch', '--cluster_smallmem', iSeqs, '--centroids', bioSeqs, '--id', '0.97', '--strand', 'plus', '--relabel', 'OTU_', '--qmask', 'none'], stdout = FNULL, stderr = FNULL)
 total = ufitslib.countfasta(bioSeqs)
 ufitslib.log.info('{0:,}'.format(total) + ' OTUs generated')
+
 #determine where iSeqs clustered
 iSeqmap = args.out+'.iseq_map.uc'
 subprocess.call(['vsearch', '--usearch_global', iSeqs, '--db', bioSeqs, '--id', '0.97', '--uc', iSeqmap, '--strand', 'plus'], stdout = FNULL, stderr = FNULL)
@@ -283,29 +282,28 @@ with open(ClusterComp, 'w') as clusters:
         clusters.write('%s\t%s\n' % (k, ', '.join(v)))
 #create OTU table
 ufitslib.log.info("Mapping reads to OTUs")
-subprocess.call(['vsearch', '--fastq_filter', args.fastq, '--fastaout', demuxtmp], stdout = FNULL, stderr = FNULL)
 subprocess.call(['vsearch', '--usearch_global', demuxtmp, '--db', bioSeqs, '--id', '0.97', '--uc', uctmp, '--strand', 'plus'], stdout = FNULL, stderr = FNULL)
 total = ufitslib.line_count(uctmp)
 ufitslib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
 #Build OTU table
 ufitslib.log.info("Building OTU table")
-uc2tab = os.path.join(parentdir, 'lib', 'uc2otutable.py')
 ufitslib.log.debug("%s %s %s" % (uc2tab, uctmp, bioTable))
 subprocess.call([sys.executable, uc2tab, uctmp, bioTable], stdout = FNULL, stderr = FNULL)
 
-if args.cleanup:
+if not args.debug:
     shutil.rmtree(filtfolder)
     os.remove(dada2out)
     os.remove(derep)
     os.remove(demuxtmp)
     os.remove(uctmp)
     os.remove(iSeqmap)
+    os.remove(dadademux)
 
 #Print location of files to STDOUT
 print "-------------------------------------------------------"
 print "DADA2 Script has Finished Successfully"
 print "-------------------------------------------------------"
-if not args.cleanup:
+if args.debug:
     print "Tmp Folder of files: %s" % filtfolder
 print "Inferred iSeqs: %s" % iSeqs
 print "iSeq OTU Table: %s" % chimeraFreeTable
