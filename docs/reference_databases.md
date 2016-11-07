@@ -1,7 +1,7 @@
 ###Methods for creating Pre-packaged Databases in UFITS
 
 ####Fungal ITS DB
-These databases were created from Unite v7.1, first downloading two databases from the UNITE website.  First the General FASTA release of the DB (here)[https://unite.ut.ee/sh_files/sh_general_release_s_22.08.2016.zip] and secondly the Full UNITE+INSD database (here)[https://unite.ut.ee/sh_files/UNITE_public_22.08.2016.fasta.zip].  The taxonomy information is then reformated and databases produced as follows:
+These databases were created from Unite v7.1, first downloading two databases from the UNITE website.  First the General FASTA release of the DB [here](https://unite.ut.ee/sh_files/sh_general_release_s_22.08.2016.zip) and secondly the Full UNITE+INSD database [here](https://unite.ut.ee/sh_files/UNITE_public_22.08.2016.fasta.zip).  The taxonomy information is then reformated and databases produced as follows:
 ```
 #Create ITS1 USEARCH Database, trim primers if found, convert taxonomy, and create USEARCH database
 ufits database -i UNITE_public_22.08.2016.fasta -o ITS -f ITS1-F -r ITS4 --create_db usearch --keep_all
@@ -13,7 +13,7 @@ ufits database -i sh_general_release_dynamic_s_22.08.2016_dev.fasta -o ITS2_UTAX
 ```
 
 ####Arthropod/Chordate mtCOI DB
-These data were pulled from the (BOLDv4 database)[http://v4.boldsystems.org].  Since most studies using mtCOI regions are interested in identification of insects in the diets of animals, the BOLD database was queried as follows.  All Chordata sequences were downloaded by querying the (BIN database using the search term Chordata)[http://v4.boldsystems.org/index.php/Public_BINSearch?query=Chordata&searchBIN=Search+BINs].  Similarly, the Arthropods were searched by querying the (BIN databases using the search term Arthropoda)[http://v4.boldsystems.org/index.php/Public_BINSearch?query=Arthropoda&searchBIN=Search+BINs].  All data was then downloaded as TSV output.
+These data were pulled from the [BOLDv4 database](http://v4.boldsystems.org].  Since most studies using mtCOI regions are interested in identification of insects in the diets of animals, the BOLD database was queried as follows.  All Chordata sequences were downloaded by querying the [BIN database using the search term Chordata](http://v4.boldsystems.org/index.php/Public_BINSearch?query=Chordata&searchBIN=Search+BINs).  Similarly, the Arthropods were searched by querying the [BIN databases using the search term Arthropoda](http://v4.boldsystems.org/index.php/Public_BINSearch?query=Arthropoda&searchBIN=Search+BINs).  All data was then downloaded as TSV output.
 
 The TSV output files (~ 6GB) where then each formatted using the following method, which reformats the taxonomy information and pulls sequences that are annotated in BINS.
 ```
@@ -35,7 +35,7 @@ ufits database -i arthropods.chordates.all4utax.fa -o COI_UTAX --create_db utax 
 ```
 
 ####16S database
-This is downloaded from R. Edgar's (website)[http://drive5.com/utax/data/rdp_v16.tar.gz] and then formatted for UFITS:
+This is downloaded from R. Edgar's [website](http://drive5.com/utax/data/rdp_v16.tar.gz) and then formatted for UFITS:
 ```
 ufits database -i rdp_v16.fa -o 16S --format off --create_db utax --skip_trimming --keep_all
 ```
