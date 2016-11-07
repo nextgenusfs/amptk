@@ -13,7 +13,7 @@ ufits database -i sh_general_release_dynamic_s_22.08.2016_dev.fasta -o ITS2_UTAX
 ```
 
 ####Arthropod/Chordate mtCOI DB
-These data were pulled from the [BOLDv4 database](http://v4.boldsystems.org].  Since most studies using mtCOI regions are interested in identification of insects in the diets of animals, the BOLD database was queried as follows.  All Chordata sequences were downloaded by querying the [BIN database using the search term Chordata](http://v4.boldsystems.org/index.php/Public_BINSearch?query=Chordata&searchBIN=Search+BINs).  Similarly, the Arthropods were searched by querying the [BIN databases using the search term Arthropoda](http://v4.boldsystems.org/index.php/Public_BINSearch?query=Arthropoda&searchBIN=Search+BINs).  All data was then downloaded as TSV output.
+These data were pulled from the [BOLDv4 database](http://v4.boldsystems.org)  Since most studies using mtCOI regions are interested in identification of insects in the diets of animals, the BOLD database was queried as follows.  All Chordata sequences were downloaded by querying the [BIN database using the search term Chordata](http://v4.boldsystems.org/index.php/Public_BINSearch?query=Chordata&searchBIN=Search+BINs).  Similarly, the Arthropods were searched by querying the [BIN databases using the search term Arthropoda](http://v4.boldsystems.org/index.php/Public_BINSearch?query=Arthropoda&searchBIN=Search+BINs).  All data was then downloaded as TSV output.
 
 The TSV output files (~ 6GB) where then each formatted using the following method, which reformats the taxonomy information and pulls sequences that are annotated in BINS.
 ```
@@ -34,8 +34,19 @@ ufits database -i arthropods.chordates.all4usearch.fa -o COI --create_db usearch
 ufits database -i arthropods.chordates.all4utax.fa -o COI_UTAX --create_db utax --keep_all --skip_trimming --format off
 ```
 
+####LSU database
+The fungal 28S database was downloaded from [here](http://rdp.cme.msu.edu/download/current_Fungi_unaligned.fa.gz).  The sequences were then converted into UFITS databases as follows:
+```
+ufits database -i fungi.unaligned.fa -o LSU --format rdp2utax --skip_trimming --create_db usearch --derep_fulllength --keep_all
+```
+To generate a training set for UTAX, the sequences were first dereplicated, and clustered at 97% to get representative sequences for training.  This training set was then converted to a UTAX database:
+```
+ufits database -i fungi.trimmed.fa -o LSU_UTAX --format off --skip_trimming --create_db utax --keep_all
+```
+
+
 ####16S database
-This is downloaded from R. Edgar's [website](http://drive5.com/utax/data/rdp_v16.tar.gz) and then formatted for UFITS:
+This is downloaded from R. Edgar's [website](http://drive5.com/utax/data/rdp_v16.tar.gz) and then formatted for UFITS.  Note there is room for substantial improvement here, I just don't typically work on 16S - so please let me know if you want some suggestions on what to do here.
 ```
 ufits database -i rdp_v16.fa -o 16S --format off --create_db utax --skip_trimming --keep_all
 ```
