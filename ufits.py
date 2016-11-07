@@ -310,14 +310,17 @@ Usage:       ufits %s <arguments>
 version:     %s
 
 Description: Script is a "wrapper" for the DADA2 pipeline.  It will "pick OTUs" based on denoising
-             the data for each read predicting the initial sequence.  This pipeline is sensitive to     
-             1 bp differences between sequences. Requires R & R packages: dada2, ShortRead
+             the data for each read predicting the original sequence.  This pipeline is sensitive to     
+             1 bp differences between sequences. Since most reference databases classify "species"
+             at 97%% threshold, the inferred sequences (iSeqs) from DADA2 are then clusterd at --pct_otu
+             to create OTUs. Both results are saved.  Requires R & R packages: dada2, ShortRead
     
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              -o, --out           Output base name. Default: dada2
              -l, --length        Length to trim reads. (Required)
              -e, --maxee         Expected error quality trimming. Default: 1.0
-             -p, --platform      Sequencing platform. [ion, illumina, 454]. Default: ion
+             -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
+             --platform          Sequencing platform. [ion, illumina, 454]. Default: ion
              --pool              Pool all samples together for DADA2. Default: off
              --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
              --debug             Keep intermediate files.

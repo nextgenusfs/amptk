@@ -28,7 +28,8 @@ parser.add_argument('-i','--fastq', required=True, help='Input Demuxed containin
 parser.add_argument('-o','--out', default='dada2', help='Output Basename')
 parser.add_argument('-l','--length', type=int, required=True, help='Length to truncate reads')
 parser.add_argument('-e','--maxee', default='1.0', help='MaxEE quality filtering')
-parser.add_argument('-p','--platform', default='ion', choices=['ion', 'illumina', '454'], help='Sequencing platform')
+parser.add_argument('-p','--pct_otu', default='97', help="Biological OTU Clustering Percent")
+parser.add_argument('--platform', default='ion', choices=['ion', 'illumina', '454'], help='Sequencing platform')
 parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom]')
 parser.add_argument('--pool', action='store_true', help='Pool all sequences together for DADA2')
 parser.add_argument('--debug', action='store_true', help='Keep all intermediate files')
@@ -257,14 +258,15 @@ ufitslib.log.debug("%s %s %s" % (uc2tab, dadademux, chimeraFreeTable))
 subprocess.call([sys.executable, uc2tab, dadademux, chimeraFreeTable], stdout = FNULL, stderr = FNULL)
 
 #cluster
-ufitslib.log.info("Clustering iSeqs at 97% to generate biological OTUs")
-subprocess.call(['vsearch', '--cluster_smallmem', iSeqs, '--centroids', bioSeqs, '--id', '0.97', '--strand', 'plus', '--relabel', 'OTU_', '--qmask', 'none'], stdout = FNULL, stderr = FNULL)
+ufitslib.log.info("Clustering iSeqs at %s%% to generate biological OTUs" % args.pct_otu)
+radius = float(args.pct_otu) / 100.
+subprocess.call(['vsearch', '--cluster_smallmem', iSeqs, '--centroids', bioSeqs, '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU_', '--qmask', 'none', '--usersort'], stdout = FNULL, stderr = FNULL)
 total = ufitslib.countfasta(bioSeqs)
 ufitslib.log.info('{0:,}'.format(total) + ' OTUs generated')
 
 #determine where iSeqs clustered
 iSeqmap = args.out+'.iseq_map.uc'
-subprocess.call(['vsearch', '--usearch_global', iSeqs, '--db', bioSeqs, '--id', '0.97', '--uc', iSeqmap, '--strand', 'plus'], stdout = FNULL, stderr = FNULL)
+subprocess.call(['vsearch', '--usearch_global', iSeqs, '--db', bioSeqs, '--id', str(radius), '--uc', iSeqmap, '--strand', 'plus'], stdout = FNULL, stderr = FNULL)
 iSeqMapped = {}
 with open(iSeqmap, 'rU') as mapping:
     for line in mapping:
