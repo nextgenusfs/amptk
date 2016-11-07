@@ -702,7 +702,7 @@ Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI
         else:
             if '-i' in arguments:
                 arguments.remove('-i')
-                URL = {'ITS': 'https://www.dropbox.com/s/hi1ddpq3wmiysie/ITS.ufits.tar.gz?dl=1', '16S': 'https://www.dropbox.com/s/dqbrr9wsqnki2di/16S.ufits.tar.gz?dl=1', 'LSU': 'https://www.dropbox.com/s/xqrted7sts48hfl/LSU.ufits.tar.gz?dl=1', 'COI': 'https://www.dropbox.com/s/yx31ryn3jugajgs/COI.ufits.tar.gz?dl=1'}
+                URL = {'ITS': 'https://www.dropbox.com/s/hi1ddpq3wmiysie/ITS.ufits.tar.gz?dl=1', '16S': 'https://www.dropbox.com/s/dqbrr9wsqnki2di/16S.ufits.tar.gz?dl=1', 'LSU': 'https://www.dropbox.com/s/xqrted7sts48hfl/LSU.ufits.tar.gz?dl=1', 'COI': 'https://www.dropbox.com/s/dm10eqsmf01q51c/COI.ufits.tar.gz?dl=0'}
                 if len(arguments) < 1:
                     print help
                     sys.exit(1)
