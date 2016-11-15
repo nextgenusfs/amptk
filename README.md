@@ -87,6 +87,9 @@ ufits install -i ITS
 
 The resulting databases are stored in the `DB` folder of the `ufits` directory.  These data are used for both Chimera reference filtering and for assigning taxonomy.
 
+####What processing script do I use??####
+You need to be familiar with your read structure! For example, do you have barcodes at the 5' end of your amplicons?  Is the primer sequence in your reads or has it been removed by the sequencing software?  I prefer that data be minimally processed - this acts largely as a quality control filter.  For example when using Ion Torrent data (see instructions below) it is beneficial to turn off all filtering of the data on the server, by doing this you ensure that the reads are properly quality filtered and barcodes/primers are used as an additional quality filter.  If you have PE MiSeq data, typically it comes in an already demultiplexed format, i.e. a folder of PE reads for each sample (_R1.fastq.gz, _R2.fastq.gz) - these data can be used directly with the `ufits illumina` command.  A somewhat common (although I think not ideal) approach is to use a custom sequencing primer with Illumina data - and then the output from the sequencer is already demulitplexed and primers are already stripped - in this case, you can use the `ufits illumina` command, but make sure to pass the `--require_primer off` option.   However, I have seen several other formats of data as well - even with Illumina data being in a single file, where then the `ufits illumina2` script is helpful.  Bottom line is if you don't know how your data is structured in terms of barcodes, primers, reads, paired-ends, etc - you need to find out before doing anything else....
+
 
 ####Processing Ion Torrent Data:####
 
