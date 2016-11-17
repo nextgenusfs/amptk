@@ -71,6 +71,16 @@ def checkvsearch():
             else:
                 return False
 
+def runSubprocess(cmd, logfile):
+    logfile.debug(' '.join(cmd))
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = proc.communicate()
+    if stdout:
+        logfile.debug(stdout)
+    if stderr:
+        logfile.debug(stderr)
+
+
 def get_version():
     version = subprocess.Popen(['ufits', 'version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
     return version

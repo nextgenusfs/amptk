@@ -122,8 +122,8 @@ if args.mock_barcode: #if user passes a column name for mock
     #map OTUs to mock community
     mock_out = base + '.mockmap.uc'
     ufitslib.log.info("Mapping OTUs to Mock Community (USEARCH8)")
-    ufitslib.log.debug("%s -usearch_global %s -strand plus -id 0.95 -db %s -uc %s" % (usearch, mock, args.fasta, mock_out))
-    subprocess.call([usearch, '-usearch_global', mock, '-strand', 'plus', '-id', '0.95', '-db', args.fasta, '-uc', mock_out, '-maxaccepts', '3'], stdout = FNULL, stderr = FNULL)
+    cmd = [usearch, '-usearch_global', mock, '-strand', 'plus', '-id', '0.95', '-db', args.fasta, '-uc', mock_out, '-maxaccepts', '3']
+    ufitslib.runSubprocess(cmd, ufitslib.log)
     #sort the output to avoid problems
     mock_sort = base + '.mockmap.sort.uc'
     with open(mock_sort, 'w') as output:

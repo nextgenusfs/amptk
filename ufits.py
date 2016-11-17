@@ -55,7 +55,7 @@ def download(url, name):
     f.close()
 
 
-version = '0.5.5'
+version = '0.5.6'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -178,10 +178,10 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              -o, --out           Output folder name. Default: ufits-data
              --reads             Paired-end or forward reads. Default: paired [paired, forward]
              --read_length       Illumina Read length (250 if 2 x 250 bp run). Default: 300 
-             --rescue_forward    Rescue Forward Reads if PE do not merge, e.g. abnormally long amplicons
+             --rescue_forward    Rescue Forward Reads if PE do not merge, e.g. long amplicons. Default: on [on,off]
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4
-             --require_primer    Require the Forward primer to be present. Default: on [on, off]
+             --require_primer    Require the Forward primer to be present. Default: on [on,off]
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -m, --min_len       Minimum length read to keep. Default: 50
              -l, --trim_len      Length to trim/pad reads. Default: 250

@@ -32,7 +32,7 @@ parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help=
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer (ITS4)')
 parser.add_argument('--require_primer', dest="primer", default='on', choices=['on', 'off'], help='Require Fwd primer to be present')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
-parser.add_argument('--rescue_forward', action="store_true", help='Rescue Not-merged forward reads')
+parser.add_argument('--rescue_forward', default='on', choices=['on', 'off'], help='Rescue Not-merged forward reads')
 parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
 parser.add_argument('-m','--min_len', default='50', help='Minimum read length to keep')
 parser.add_argument('-l','--trim_len', default='250', help='Trim length for reads')
@@ -64,8 +64,8 @@ def MergeReads(R1, R2, outname, read_length, log_file):
     #next run USEARCH8 mergepe
     merge_out = outname + '.merged.fq'
     skip_for = outname + '.notmerged.R1.fq'
-    ufitslib.log.debug("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastq_truncqual 5 -fastq_maxdiffs 8 -minhsp 12" % (usearch, pretrim_R1, pretrim_R2, merge_out, skip_for))
     with open(log_file, 'ab') as logfile:
+        logfile.write("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastq_truncqual 5 -fastq_maxdiffs 8 -minhsp 12" % (usearch, pretrim_R1, pretrim_R2, merge_out, skip_for))
         subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8'], stdout = logfile, stderr = logfile)
 
     #now concatenate files for downstream pre-process_illumina.py script
@@ -73,7 +73,7 @@ def MergeReads(R1, R2, outname, read_length, log_file):
     final_out = os.path.join(args.out, outname)
     with open(final_out, 'w') as cat_file:
         shutil.copyfileobj(open(merge_out,'rU'), cat_file)
-        if args.rescue_forward:
+        if args.rescue_forward == 'on':
             shutil.copyfileobj(open(skip_for,'rU'), cat_file)
 
     #clean and close up intermediate files

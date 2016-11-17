@@ -138,10 +138,12 @@ if args.method == 'blast':
         #get number of cpus
         cpus = multiprocessing.cpu_count() - 2
         ufitslib.log.info("Running local BLAST using db: %s" % args.local_blast)
-        subprocess.call(['blastn', '-num_threads', str(cpus), '-query', args.fasta, '-db', os.path.abspath(args.local_blast), '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out], stderr = FNULL)
+        cmd = ['blastn', '-num_threads', str(cpus), '-query', args.fasta, '-db', os.path.abspath(args.local_blast), '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out]
+        ufitslib.runSubprocess(cmd, ufitslib.log)
     else:
         ufitslib.log.info("Running BLASTN using NCBI remote nt database, this may take awhile")
-        subprocess.call(['blastn', '-query', args.fasta, '-db', 'nt', '-remote', '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out], stderr = FNULL)
+        cmd = ['blastn', '-query', args.fasta, '-db', 'nt', '-remote', '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out]
+        ufitslib.runSubprocess(cmd, ufitslib.log)
     
     #load results and reformat
     new = []
@@ -206,13 +208,14 @@ else:
         if args.fasta_db:
             #now run through usearch global
             ufitslib.log.info("Global alignment OTUs with usearch_global (VSEARCH)")
-            subprocess.call(['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(args.fasta_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels'], stdout = FNULL, stderr = FNULL)
+            cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(args.fasta_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels']
+            ufitslib.runSubprocess(cmd, ufitslib.log)
         else:
             if usearch_db:
                 #run through USEARCH
                 ufitslib.log.info("Global alignment OTUs with usearch_global (USEARCH)")
-                ufitslib.log.debug("%s -usearch_global %s -db %s -id %s -top_hit_only -output_no_hits -userout %s -userfields query+target+id -strand both" % (usearch, args.fasta, os.path.abspath(usearch_db), str(args.usearch_cutoff), utax_out))
-                subprocess.call([usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id'], stdout = FNULL, stderr = FNULL)
+                cmd = [usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id']
+                ufitslib.runSubprocess(cmd, ufitslib.log)
             else:
                 ufitslib.log.error("USEARCH DB %s not found, skipping" % usearch_db)
 
@@ -222,8 +225,8 @@ else:
             utax_out = base + '.utax.txt'
             ufitslib.log.info("Classifying OTUs with UTAX (USEARCH8)")
             cutoff = str(args.utax_cutoff)
-            ufitslib.log.debug("%s -utax %s -db %s -utaxout %s -utax_cutoff %s -strand both" % (usearch, args.fasta, utax_db, utax_out, cutoff))
-            subprocess.call([usearch, '-utax', args.fasta, '-db', utax_db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus', '-notrunclabels'], stdout = FNULL, stderr = FNULL)
+            cmd = [usearch, '-utax', args.fasta, '-db', utax_db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus', '-notrunclabels']
+            ufitslib.runSubprocess(cmd, ufitslib.log)
         else:
             ufitslib.log.error("UTAX DB %s not found, skipping" % utax_db)
     

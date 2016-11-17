@@ -93,8 +93,10 @@ filter_fasta = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fa')
 orig_fasta = os.path.join(tmp, args.out+'.orig.fa')
 ufitslib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
 if vsearch:
-    subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '45'], stdout = FNULL, stderr = FNULL)
-    subprocess.call(['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '45'], stdout = FNULL, stderr = FNULL)
+    cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '55']
+    ufitslib.runSubprocess(cmd, ufitslib.log)
+    cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '55']
+    ufitslib.runSubprocess(cmd, ufitslib.log)
 else:
     with open(filter_out, 'w') as output:
         SeqIO.write(ufitslib.MaxEEFilter(args.FASTQ, args.maxee), output, 'fastq')
@@ -107,7 +109,8 @@ ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 derep_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.derep.fa')
 ufitslib.log.info("De-replication (remove duplicate reads)")
 if vsearch:
-    subprocess.call(['vsearch', '--derep_fulllength', filter_fasta, '--sizeout', '--output', derep_out], stdout = FNULL, stderr = FNULL)
+    cmd = ['vsearch', '--derep_fulllength', filter_fasta, '--sizeout', '--output', derep_out]
+    ufitslib.runSubprocess(cmd, ufitslib.log)
 else:
     ufitslib.dereplicate(filter_out, derep_out)
 total = ufitslib.countfasta(derep_out)
@@ -117,8 +120,8 @@ ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 if args.unoise:
     unoise_out = unoise_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.denoised.fa')
     ufitslib.log.info("Denoising Data with UNOISE")
-    ufitslib.log.debug("%s -cluster_fast %s -centroids %s -id 0.9 -maxdiffs 5 -abskew 10 -sizein -sizeout -sort size" % (usearch, derep_out, unoise_out))
-    subprocess.call([usearch, '-cluster_fast', derep_out, '-centroids', unoise_out, '-id', '0.9', '-maxdiffs', '5', '-abskew', '10', '-sizein', '-sizeout', '-sort', 'size'], stdout = FNULL, stderr = FNULL)
+    cmd = [usearch, '-cluster_fast', derep_out, '-centroids', unoise_out, '-id', '0.9', '-maxdiffs', '5', '-abskew', '10', '-sizein', '-sizeout', '-sort', 'size']
+    ufitslib.runSubprocess(cmd, ufitslib.log)   
     total = ufitslib.countfasta(unoise_out)
     ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 else:
@@ -126,16 +129,16 @@ else:
 
 #now run usearch 8 sort by size
 sort_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.sort.fa')
-ufitslib.log.info("Sorting reads by size: removing reads seen less than %s times" % args.minsize)
-ufitslib.log.debug("%s -sortbysize %s -minsize %s -fastaout %s" % (usearch, unoise_out, args.minsize, sort_out))
-subprocess.call([usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '-fastaout', sort_out], stdout = FNULL, stderr = FNULL)
+cmd = [usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '-fastaout', sort_out]
+ufitslib.runSubprocess(cmd, ufitslib.log)   
 
 #now run clustering algorithm
 radius = str(100 - int(args.pct_otu))
 otu_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otus.fa')
-ufitslib.log.info("Clustering OTUs (UPARSE)")
+ufitslib.log.info("Clustering OTUs (UPARSE)") 
 ufitslib.log.debug("%s -cluster_otus %s -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
 loggy = subprocess.Popen([usearch, '-cluster_otus', sort_out, '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+ufitslib.log.debug('\n'+' '.join(loggy))
 #get number of OTUs and denovo chimeras
 for i in loggy:
     if 'chimeras' in i:
@@ -175,12 +178,11 @@ else:
     if not os.path.isfile(uchime_out):
         if vsearch:
             ufitslib.log.info("Chimera Filtering (VSEARCH) using %s DB" % args.uchime_ref)
-            ufitslib.log.debug("vsearch --uchime_ref %s --db %s --nonchimeras %s --mindiv 1" % (otu_clean, uchime_db, uchime_out))
-            subprocess.call(['vsearch', '--mindiv', '1.0', '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out], stdout = FNULL, stderr = FNULL)
+            cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out]
         else:
             ufitslib.log.info("Chimera Filtering (UCHIME) using %s DB" % args.uchime_ref)
-            ufitslib.log.debug("%s -uchime_ref %s -strand plus -db %s -nonchimeras %s -mindiv 1" % (usearch, otu_clean, uchime_db, uchime_out))
-            subprocess.call([usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out, '-mindiv', '1.0'], stdout = FNULL, stderr = FNULL)
+            cmd = [usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out, '-mindiv', '1.0']
+        ufitslib.runSubprocess(cmd, ufitslib.log)
         total = ufitslib.countfasta(uchime_out)
         uchime_chimeras = numOTUs - total
         ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed, ' + '{0:,}'.format(uchime_chimeras) + ' ref chimeras')
@@ -194,10 +196,10 @@ else:
 
 ufitslib.log.info("Mapping Reads to OTUs")
 if vsearch:
-    subprocess.call(['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', uchime_out, '--uc', uc_out], stdout = FNULL, stderr = FNULL)
+    cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', uchime_out, '--uc', uc_out]
 else:
-    ufitslib.log.debug("%s -usearch_global %s -strand plus -id 0.97 -db %s -uc %s" % (usearch, reads, uchime_out, uc_out))
-    subprocess.call([usearch, '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out], stdout = FNULL, stderr = FNULL)
+    cmd = [usearch, '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out]
+ufitslib.runSubprocess(cmd, ufitslib.log)
 
 #count reads mapped
 if vsearch:

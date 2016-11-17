@@ -237,7 +237,8 @@ elif args.fastq.endswith('.bam'):
     ufitslib.CheckDependencies(['bedtools'])
     SeqIn = args.out+'.fastq'
     ufitslib.log.info("Converting Ion Torrent BAM file to FASTQ using BedTools")
-    subprocess.call(['bedtools', 'bamtofastq', '-i', args.fastq, '-fq', SeqIn], stdout=FNULL, stderr=FNULL)
+    cmd = ['bedtools', 'bamtofastq', '-i', args.fastq, '-fq', SeqIn]
+    ufitslib.runSubprocess(cmd, ufitslib.log)
 else:        
     SeqIn = args.fastq
 
