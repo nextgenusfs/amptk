@@ -49,7 +49,7 @@ def folder2list(input, ending):
     return names
 
 def maxEE(input, maxee, output):
-    subprocess.call(['vsearch', '--fastq_filter', input, '--fastq_maxee', str(maxee), '--fastqout', output, '--fastq_qmax', '55'], stdout = FNULL, stderr = FNULL)
+    subprocess.call(['vsearch', '--fastq_filter', input, '--fastq_maxee', str(maxee), '--fastqout', output, '--fastq_qmax', '55', '--fastq_maxns' '0'], stdout = FNULL, stderr = FNULL)
 
 def splitDemux(input, outputdir, length):
     for title, seq, qual in FastqGeneralIterator(open(input)):
