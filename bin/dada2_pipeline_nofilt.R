@@ -24,9 +24,10 @@ install.packages.auto <- function(x) {
     eval(parse(text = sprintf("require(\"%s\")", x)))
   }
 }
-install.packages.auto("dada2")
 install.packages.auto("ShortRead")
-#install.packages.auto("ggplot2")
+install.packages.auto("ggplot2")
+install.packages.auto("reshape2")
+install.packages.auto("dada2")
 
 #setup arguments, first is path to folder, second is path to output csv
 args = commandArgs(trailingOnly=TRUE)

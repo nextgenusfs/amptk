@@ -49,7 +49,7 @@ def folder2list(input, ending):
     return names
 
 def maxEE(input, maxee, output):
-    subprocess.call(['vsearch', '--fastq_filter', input, '--fastq_maxee', str(maxee), '--fastqout', output, '--fastq_qmax', '45'], stdout=FNULL, stderr = FNULL)
+    subprocess.call(['vsearch', '--fastq_filter', input, '--fastq_maxee', str(maxee), '--fastqout', output, '--fastq_qmax', '55'], stdout = FNULL, stderr = FNULL)
 
 def splitDemux(input, outputdir, length):
     for title, seq, qual in FastqGeneralIterator(open(input)):
@@ -199,7 +199,7 @@ chimeraFreeTable = args.out+'.otu_table.txt'
 iSeqs = args.out+'.iSeqs.fa'
 if not args.uchime_ref:
     os.rename(fastaout, iSeqs)
-    os.rename(otutable, chimeraFreeTable)
+    #os.rename(otutable, chimeraFreeTable)
 else:
     #check if file is present, remove from previous run if it is.
     if os.path.isfile(uchime_out):
@@ -247,7 +247,7 @@ ClusterComp = args.out+'.iSeqs2clusters.txt'
 
 #map reads to DADA2 OTUs
 ufitslib.log.info("Mapping reads to DADA2 iSeqs")
-subprocess.call(['vsearch', '--fastq_filter', args.fastq, '--fastaout', demuxtmp], stdout = FNULL, stderr = FNULL)
+subprocess.call(['vsearch', '--fastq_filter', os.path.abspath(args.fastq),'--fastq_qmax', '55', '--fastq_maxns', '0', '--fastaout', demuxtmp], stdout = FNULL, stderr = FNULL)
 subprocess.call(['vsearch', '--usearch_global', demuxtmp, '--db', iSeqs, '--id', '0.97', '--uc', dadademux, '--strand', 'plus'], stdout = FNULL, stderr = FNULL)
 total = ufitslib.line_count(dadademux)
 ufitslib.log.info('{0:,}'.format(total) + ' reads mapped to iSeqs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
