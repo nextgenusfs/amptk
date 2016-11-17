@@ -52,21 +52,22 @@ if args.R_primer in ufitslib.primer_db:
 else:
     RevPrimer = args.R_primer
     
-def MergeReads(R1, R2, outname, read_length, log_file):
+def MergeReads(R1, R2, outname, read_length):
     usearch = args.usearch
     pretrim_R1 = outname + '.pretrim_R1.fq'
     pretrim_R2 = outname + '.pretrim_R2.fq'
-    ufitslib.log.debug("%s -fastq_filter %s -fastq_trunclen %s -fastqout %s" % (usearch, R1, str(read_length), pretrim_R1))
-    ufitslib.log.debug("%s -fastq_filter %s -fastq_trunclen %s -fastqout %s" % (usearch, R2, str(read_length), pretrim_R2))
-    subprocess.call([usearch, '-fastq_filter', R1, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R1], stdout = FNULL, stderr = FNULL)
-    subprocess.call([usearch, '-fastq_filter', R2, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R2], stdout = FNULL, stderr = FNULL)
+    ufitslib.log.debug("Removing index 3prime bp 'A' from reads")
+    cmd = [usearch, '-fastq_filter', R1, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R1]
+    ufitslib.runSubprocess(cmd, ufitslib.log)
+    cmd = [usearch, '-fastq_filter', R2, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R2]
+    ufitslib.runSubprocess(cmd, ufitslib.log)
 
     #next run USEARCH8 mergepe
     merge_out = outname + '.merged.fq'
     skip_for = outname + '.notmerged.R1.fq'
-    with open(log_file, 'ab') as logfile:
-        logfile.write("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastqout_notmerged_fwd %s -fastq_truncqual 5 -fastq_maxdiffs 8 -minhsp 12" % (usearch, pretrim_R1, pretrim_R2, merge_out, skip_for))
-        subprocess.call([usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8'], stdout = logfile, stderr = logfile)
+    ufitslib.log.debug("Now merging PE reads")
+    cmd = [usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8']
+    ufitslib.runSubprocess(cmd, ufitslib.log)
 
     #now concatenate files for downstream pre-process_illumina.py script
     outname = outname + '.fq'
@@ -75,12 +76,18 @@ def MergeReads(R1, R2, outname, read_length, log_file):
         shutil.copyfileobj(open(merge_out,'rU'), cat_file)
         if args.rescue_forward == 'on':
             shutil.copyfileobj(open(skip_for,'rU'), cat_file)
+    
+    #count output
+    origcount = ufitslib.countfastq(R1)
+    finalcount = ufitslib.countfastq(final_out)
+    pct_out = finalcount / float(origcount)
 
     #clean and close up intermediate files
     os.remove(merge_out)
     os.remove(pretrim_R1)
     os.remove(pretrim_R2)
     os.remove(skip_for)
+    return ufitslib.log.info('{0:,}'.format(finalcount) + ' reads passed ('+'{0:.1%}'.format(pct_out)+')')
 
 def MatchesPrimer(Seq, Primer):
     return primer.MatchPrefix(Seq, Primer)
@@ -272,9 +279,7 @@ with open(map, 'w') as map_file:
 #loop through each set and merge reads
 if args.reads == 'paired':
     ufitslib.log.info("Merging Overlaping Pairs using USEARCH8")
-    Merge_Log = args.out+'.mergedPE.log'
-    if os.path.isfile(Merge_Log):
-        os.remove(Merge_Log)
+
 for i in range(len(fastq_for)):
     name = fastq_for[i].split("_")[0]
     outname = name + '.fq'
@@ -302,7 +307,7 @@ for i in range(len(fastq_for)):
             else:
                 read_length = read_length
                 
-        MergeReads(for_reads, rev_reads, name, read_length, Merge_Log)
+        MergeReads(for_reads, rev_reads, name, read_length)
     else:
         shutil.copy(for_reads, os.path.join(args.out, outname))
     
