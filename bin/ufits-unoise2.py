@@ -33,6 +33,7 @@ parser=argparse.ArgumentParser(prog='ufits-unoise2.py', usage="%(prog)s [options
 parser.add_argument('-i','--fastq', dest="FASTQ", required=True, help='FASTQ file (Required)')
 parser.add_argument('-o','--out', default='out', help='Base output name')
 parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
+parser.add_argument('-m','--minampout', default='4', help='Min size to keep for denoising')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
 parser.add_argument('-p','--pct_otu', default='97', help="Biological OTU Clustering Percent")
 parser.add_argument('--uchime_ref', help='Run UCHIME2 REF [ITS,16S,LSU,COI,custom]')
@@ -127,7 +128,7 @@ ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 #now run de-noiser UNOISE2
 ufitslib.log.info("Denoising reads with UNOISE2")
 unoise_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.unoise.fa')
-cmd = [usearch, '-unoise', derep_out, '-fastaout', unoise_out, '--minampsize', '4']
+cmd = [usearch, '-unoise', derep_out, '-fastaout', unoise_out, '--minampsize', args.minampout]
 ufitslib.runSubprocess(cmd, ufitslib.log)
 total = ufitslib.countfasta(unoise_out)
 ufitslib.log.info('{0:,}'.format(total) + ' denoised sequences')
