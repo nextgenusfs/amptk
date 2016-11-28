@@ -413,6 +413,7 @@ if not args.mapping_file:
 filesize = os.path.getsize(catDemux)
 readablesize = ufitslib.convertSize(filesize)
 ufitslib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
+ufitslib.log.info("Mapping file: %s" % genericmapfile)
 if args.cleanup:
     shutil.rmtree(args.out)
 print "-------------------------------------------------------"

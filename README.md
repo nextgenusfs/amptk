@@ -21,7 +21,7 @@ UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ ufits
 Usage:       ufits <command> <arguments>
-version:     0.5.2
+version:     0.6.0
 
 Description: UFITS is a package of scripts to process NGS amplicon data.  It uses the UPARSE algorithm for clustering
              and thus USEARCH is a dependency.
@@ -37,11 +37,12 @@ Process:     ion         pre-process Ion Torrent data (find barcodes, remove pri
              
 Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
              dada2       run dada2 denoising algorithm, produces "inferred sequences" (requires R, dada2, ShortRead)
+             unoise2     run UNOISE2 denoising algorithm
              cluster_ref closed/open reference based clustering (EXPERIMENTAL)
-             filter      OTU table filtering
-             taxonomy    Assign taxonomy to OTUs
 
-Utilities:   summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)
+Utilities:   filter      OTU table filtering
+             taxonomy    Assign taxonomy to OTUs
+             summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)
              funguild    Run FUNGuild (annotate OTUs with ecological information) 
              meta        pivot OTU table and append to meta data
              heatmap     Create heatmap from OTU table
@@ -56,7 +57,7 @@ And then by calling one of the commands, you get a help menu for each:
 ```
 $ ufits cluster
 Usage:       ufits cluster <arguments>
-version:     0.4.6
+version:     0.6.0
 
 Description: Script is a "wrapper" for the UPARSE algorithm. FASTQ quality trimming via expected 
              errors and Dereplication are run in vsearch if installed otherwise defaults to Python 
@@ -68,11 +69,11 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -m, --minsize       Minimum size to keep (singleton filter). Default: 2
-             --uchime_ref        Run Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
+             --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
-             -u, --usearch       USEARCH executable. Default: usearch8
-             --cleanup           Remove intermediate files.
+             --debug             Keep intermediate files.
+             -u, --usearch       USEARCH executable. Default: usearch9
 ```
 ####Installing Databases:####
 UFITS is pre-configured to deal with amplicons from fungal ITS, fungal LSU, bacterial 16S, and insect COI.  After installation of UFITS, you can download and install these databases using the `ufits install` command (to overwrite existing databases, use the `--force` option.  To install all of the databases, you would type:
@@ -96,9 +97,10 @@ You need to be familiar with your read structure! For example, do you have barco
 From the Torrent Server, analyze the data using the `--disable-all-filters` BaseCaller argument.  This will leave the adapters/key/barcode sequence intact.  You can download either the unaligned BAM file from the server or a FASTQ file. You can then de-multiplex the data as follows:
 
 ```
-ufits ion -i data.bam -o data
-ufits ion --barcodes 1,5,24 -i data.fastq -o data
-ufits ion --barcode_fasta my_barcodes.fa -i data.fastq -o data
+ufits ion -i data.bam -o data -f fITS7 -r ITS4
+ufits ion --barcodes 1,5,24 -i data.fastq -o data -f ITS1-F -r ITS2
+ufits ion --barcode_fasta my_barcodes.fa -i data.fastq -o data -f ITS1 -r ITS2
+ufits ion -i data.bam -m mapping_file.txt -o data
 ```
 
 This will find Ion barcodes (1, 5, and 24) and relabel header with that information (barcodelabel=BC_5;). By default, it will look for all 96 Ion Xpress barcodes, specifiy the barcodes you used by a comma separated list. You can also pass in a fasta file containing your barcode sequences with properly labeled headers. Next the script will find and trim both the forward and reverse primers (default is ITS2 region: fITS7 & ITS4), and then finally will trim or pad with N's to a set length (default: 250 bp).  Trimming to the same length is critcally important for USEARCH to cluster correctly, padding with N's after finding the reverse primer keeps short ITS sequences from being discarded.  These options can be customized using: `--fwd_primer`, `--rev_primer`, `--trim_len`, etc.
@@ -125,7 +127,8 @@ Paired-end MiSeq data is typically delivered already de-multiplexed into separat
 
 You can processes a folder of Illumina data like this:
 ```
-ufits illumina -i folder_name -o miseqData
+ufits illumina -i folder_name -o miseqData -f fITS7 -r ITS4
+ufits illumina -i folder_name -o miseqData -m mapping_file.txt
 ```
 
 This will find all files ending with '.fastq.gz' in the input folder, gunzip the files, and then sequentially process the paired read files.  First it will run USEARCH8 `-fastq_mergepairs`, however, since some ITS sequences are too long to overlap you can rescue longer sequences by recovering the the non-merged forward reads by passing the `--rescue_forward` argument.  Alternatively, you can only utilize the forward reads (R1), by passing the `--reads forward` argument.  Next the forward and reverse primers are removed and the reads are trimmed/padded to a set length of clustering. Finally, the resulting FASTQ files for each of the processed samples are concatenated together into a file called `miseqData.demux.fq` that will be used for the next clustering step.  The script will also output a text file called `miseqData-filenames.txt` that contains a tab-delimited output of the sample name as well as [i5] and [i7] index sequences that were used.  The script will produce a folder containing the individual de-multiplexed files named from the `-o, --out` argment.
@@ -173,43 +176,45 @@ Issuing the `ufits taxonomy` command will inform you which databases have been p
 ```
 $ ufits taxonomy
 Usage:       ufits taxonomy <arguments>
-version:     0.5.2
+version:     0.6.0
 
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
-             uses a hybrid approach, e.g. gets taxonomy information from UTAX as well as global alignment hits from the larger
-             UNITE-INSD database, and then parses both results to extract the most taxonomy information that it can at 
-             'trustable' levels. UTAX results are used if BLAST-like search pct identity is less than 97 pct.  If pct identity
-             is greater than 97 pct, the result with most taxonomy levels is retained.
+             uses a hybrid approach, e.g. gets taxonomy information from SINTAX, UTAX, and global alignment hits from the larger
+             UNITE-INSD database, and then parses results to extract the most taxonomy information that it can at 
+             'trustable' levels. SINTAX/UTAX results are used if BLAST-like search pct identity is less than 97%.  
+             If % identity is greater than 97%, the result with most taxonomy levels is retained.
     
-Arguments:   -i, --otu_table     Input OTU table file (i.e. otu_table from ufits cluster) (Required)
-             -f, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
+Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
+             -i, --otu_table     Input OTU table file (i.e. otu_table from ufits cluster)
              -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
-             -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid, rdp, blast]
              -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: ITS2
+             -m, --mapping_file  QIIME-like mapping file
+             --method            Taxonomy method. Default: hybrid [utax, sintax, usearch, hybrid, rdp, blast]
              --fasta_db          Alternative database of fasta sequenes to use for global alignment.
              --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --usearch_db        USEARCH formatted database. Default: USEARCH.udb
              --usearch_cutoff    USEARCH threshold percent identity. Default 0.7
-             -r, --rdp           Path to RDP Classifier. Required if -m rdp
+             --sintax_cutoff     SINTAX confidence value threshold. Default: 0.8 [0 to 0.9]
+             -r, --rdp           Path to RDP Classifier. Required if --method rdp
              --rdp_db            RDP Classifer DB set. [fungalits_unite, fungalits_warcup. fungallsu, 16srrna]  
              --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
              --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi to keep only fungi.
-             -u, --usearch       USEARCH executable. Default: usearch8
+             -u, --usearch       USEARCH executable. Default: usearch9
 ```
 
 And then you can use the `ufits taxonomy` command to assign taxonomy to your OTUs as well as append them to your OTU table as follows:
 
 ```
 #use of hybrid taxonomy approach
-ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv -d ITS2
+ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv -m mapping_file.txt -d ITS2
 
 #filter data to only include OTUs identified to Fungi
-ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv -d ITS2 --tax_filter Fungi
+ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv -m mapping_file.txt -d ITS2 --tax_filter Fungi
 
 #use RDP classifier
-ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv -m rdp --rdp_db fungalits_unite -rdp /path/to/classifier.jar
+ufits taxonomy -f data.filtered.otus.fa -o output -i data.final.csv -m mapping_file.txt --method rdp --rdp_db fungalits_unite -rdp /path/to/classifier.jar
 ```
 
 ####Summarizing the Taxonomy:####
@@ -222,6 +227,8 @@ ufits summarize -i data.taxonomy.otu_table.txt -o data-summary
 
 The optional `--graphs` argument will create the stacked bar graphs.  You can save in a variety of formats as well as convert the result to precent of total with the `--percent` argument.
 
+####Downstream Processing:####
+As of `ufits v0.6.0`, the output from the `ufits taxonomy` command will create a biom file that contains taxonomy compatible with QIIME, [PHINCH](www.phinch.org), [PhyloSeq](https://joey711.github.io/phyloseq/index.html), and [MetaCoMET](http://probes.pw.usda.gov/MetaCoMET/index.php). The script will also output a phylogenetic tree from your OTUs which is required for some downstream analysis.  Moreover, you can pass the `-m, --mapping_file` option to `ufits taxonomy` and all columns will be incorporated as sample metadata.  A mapping file is created automatically for you in the pre-processing steps of ufits, such as `ufits ion` and `ufits illumina`.  You can easily add your metadata to this file using something like excel, and then save as a tab delimited text file.
 
 ####Dependencies####
 * Python 2
@@ -233,7 +240,7 @@ The optional `--graphs` argument will create the stacked bar graphs.  You can sa
 * matplotlib
 * psutil
 * bedtools (only needed if using Ion Torrent BAM file as input)
-* vsearch (version > 1.9.0, this is optional but will increase speed of UFITS and is required for very large datasets) installed via homebrew installation by default
+* vsearch (version > 1.9.0, this is optional but will increase speed of UFITS and is required for very large datasets) installed via homebrew installation by default.  Newer tools require vsearch.
 * biom-format (to create biom OTU table)
 * h5py (for biom)
 * R (dada2)
