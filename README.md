@@ -230,7 +230,7 @@ The optional `--graphs` argument will create the stacked bar graphs.  You can sa
 ####Downstream Processing:####
 As of `ufits v0.6.0`, the output from the `ufits taxonomy` command will create a biom file that contains taxonomy compatible with QIIME, [PHINCH](www.phinch.org), [PhyloSeq](https://joey711.github.io/phyloseq/index.html), and [MetaCoMET](http://probes.pw.usda.gov/MetaCoMET/index.php). The script will also output a phylogenetic tree from your OTUs which is required for some downstream analysis.  Moreover, you can pass the `-m, --mapping_file` option to `ufits taxonomy` and all columns will be incorporated as sample metadata.  A mapping file is created automatically for you in the pre-processing steps of ufits, such as `ufits ion` and `ufits illumina`.  You can easily add your metadata to this file using something like excel, and then save as a tab delimited text file.
 
-[QIIME and PhyloSeq import instructions(docs/downstream_processing.md)
+[QIIME and PhyloSeq import instructions](docs/downstream_processing.md)
 
 
 ####Dependencies####
