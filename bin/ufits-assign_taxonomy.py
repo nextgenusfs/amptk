@@ -33,7 +33,8 @@ parser=argparse.ArgumentParser(prog='ufits-assign_taxonomy.py', usage="%(prog)s 
 parser.add_argument('-i', '--input', dest="otu_table", help='Append Taxonomy to OTU table')
 parser.add_argument('-f','--fasta', required=True, help='FASTA input')
 parser.add_argument('-o','--out', help='Output file (FASTA)')
-parser.add_argument('-m','--method', default='hybrid',choices=['utax', 'usearch', 'hybrid', 'rdp', 'blast'], help='Taxonomy method')
+parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')
+parser.add_argument('--method', default='hybrid',choices=['utax', 'usearch', 'sintax', 'hybrid', 'rdp', 'blast'], help='Taxonomy method')
 parser.add_argument('-d','--db', help='Pre-installed Databases: [ITS,ITS1,ITS2,16S,LSU,COI]')
 parser.add_argument('--fasta_db', help='Alternative database of fasta sequences')
 parser.add_argument('--utax_db', help='UTAX Reference Database')
@@ -44,8 +45,10 @@ parser.add_argument('-r', '--rdp', dest='rdp', default='/Users/jon/scripts/rdp_c
 parser.add_argument('--rdp_db', dest='rdp_tax', default='fungalits_unite', choices=['16srrna', 'fungallsu', 'fungalits_warcup', 'fungalits_unite'], help='Training set for RDP Classifier')
 parser.add_argument('--rdp_cutoff', default=0.8, type=restricted_float, help='RDP confidence value threshold')
 parser.add_argument('--local_blast', help='Path to local Blast DB')
-parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH8 EXE')
 parser.add_argument('--tax_filter', help='Retain only OTUs with match in OTU table')
+parser.add_argument('--sintax_cutoff', default=0.8, type=restricted_float, help='SINTAX threshold.')
+parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
 if not args.out:
@@ -99,11 +102,12 @@ if not ufitslib.check_utax(usearch):
 
 #Setup DB locations and names, etc
 DBdir = os.path.join(parentdir, 'DB')
-DataBase = { 'ITS1': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS1_UTAX.udb')), 'ITS2': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS2_UTAX.udb')), 'ITS': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS_UTAX.udb')), '16S': (None, os.path.join(DBdir, '16S.udb')), 'LSU': (os.path.join(DBdir, 'LSU.udb'), os.path.join(DBdir, 'LSU_UTAX.udb')), 'COI': (os.path.join(DBdir,'COI.udb'), os.path.join(DBdir, 'COI_UTAX.udb'))}
+DataBase = { 'ITS1': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS1_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), 'ITS2': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS2_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), 'ITS': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), '16S': (None, os.path.join(DBdir, '16S.udb'), os.path.join(DBdir, '16S.extracted.fa')), 'LSU': (os.path.join(DBdir, 'LSU.udb'), os.path.join(DBdir, 'LSU_UTAX.udb'), os.path.join(DBdir, 'LSU.extracted.fa')), 'COI': (os.path.join(DBdir,'COI.udb'), os.path.join(DBdir, 'COI_UTAX.udb'), os.path.join(DBdir, 'COI.extracted.fa'))}
 #get DB names up front
 if args.db in DataBase:
     utax_db = DataBase.get(args.db)[1]
     usearch_db = DataBase.get(args.db)[0]
+    sintax_db = DataBase.get(args.db)[2]
     if not utax_db:
         utax_db = args.utax_db
     if not usearch_db:
@@ -202,6 +206,7 @@ else:
     #setup output taxonomy files
     utax_out = base + '.usearch.txt'
     usearch_out = base + '.usearch.txt'
+    sintax_out = base + '.sintax.txt'
 
     #check status of USEARCH DB and run
     if args.method in ['hybrid', 'usearch']:
@@ -223,53 +228,103 @@ else:
         if utax_db:
             #now run through UTAX
             utax_out = base + '.utax.txt'
-            ufitslib.log.info("Classifying OTUs with UTAX (USEARCH8)")
+            ufitslib.log.info("Classifying OTUs with UTAX (USEARCH)")
             cutoff = str(args.utax_cutoff)
             cmd = [usearch, '-utax', args.fasta, '-db', utax_db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus', '-notrunclabels']
             ufitslib.runSubprocess(cmd, ufitslib.log)
         else:
             ufitslib.log.error("UTAX DB %s not found, skipping" % utax_db)
     
+    if args.method in ['hybrid', 'sintax']:
+        if ufitslib.check_unoise(usearch):
+            if args.fasta_db: #if you pass fasta file here, over ride any auto detection
+                sintax_db = args.fasta_db
+            #now run sintax
+            ufitslib.log.info("Classifying OTUs with SINTAX (USEARCH)")
+            cmd = [usearch, '-sintax', args.fasta, '-db', os.path.abspath(sintax_db), '-tabbedout', sintax_out, '-sintax_cutoff', str(args.sintax_cutoff), '-strand', 'both']
+            ufitslib.runSubprocess(cmd, ufitslib.log)
+        else:
+            ufitslib.log.error("USEARCH version not compatible with SINTAX")
+    
     #now process results, load into dictionary - slightly different depending on which classification was run.
-    if os.path.isfile(utax_out) and os.path.isfile(usearch_out): #now run hybrid approach
+    if os.path.isfile(utax_out) and os.path.isfile(usearch_out) and os.path.isfile(sintax_out): #now run hybrid approach
         #load results into dictionary for appending to OTU table
         ufitslib.log.debug("Loading UTAX results into dictionary")
         with open(utax_out, 'rU') as infile:
             reader = csv.reader(infile, delimiter="\t")
             utaxDict = {rows[0]:rows[2] for rows in reader}
+        ufitslib.log.debug("Loading SINTAX results into dictionary")
+        with open(sintax_out, 'rU') as infile:
+            reader = csv.reader(infile, delimiter="\t")
+            sintaxDict = {rows[0]:rows[3] for rows in reader}
+
         ufitslib.log.debug("Loading Global Alignment results into dictionary, cross-checking")
         newTable = []
+        usearchDict = {}
         with open(usearch_out, 'rU') as infile:
             reader = csv.reader(infile, delimiter="\t")
             for line in reader:
+                usearchDict[line[0]] = line[1]+' ('+line[2]+')'
                 if line[1] == "*":
                     utaxLook = utaxDict.get(line[0]) or "No Hit"
+                    sintaxLook = sintaxDict.get(line[0]) or "No Hit"
                     if utaxLook != "No Hit":
                         utaxLook = 'UTAX;' + utaxLook
-                    newTable.append([line[0], utaxLook])
+                    if sintaxLook != "No Hit":
+                        sintaxLook = 'SINTAX;' + sintaxLook
+                    if sintaxLook.count(',') >= utaxLook.count(','):
+                        if 'No Hit' in sintaxLook:
+                            newTable.append([line[0], 'UTAX;*'])
+                        else:
+                            newTable.append([line[0], sintaxLook])
+                    else:
+                        newTable.append([line[0], utaxLook])
                 elif float(line[2]) < 97:
                     utaxLook = utaxDict.get(line[0]) or "No Hit"
+                    sintaxLook = sintaxDict.get(line[0]) or "No Hit"
                     if utaxLook != "No Hit":
                         utaxLook = 'UTAX;' + utaxLook
-                    newTable.append([line[0], utaxLook])
+                    if sintaxLook != "No Hit":
+                        sintaxLook = 'SINTAX;' + sintaxLook
+                    if sintaxLook.count(',') >= utaxLook.count(','):
+                        newTable.append([line[0], sintaxLook])
+                    else:
+                        newTable.append([line[0], utaxLook])
                 else:
                     #compare the levels of taxonomy, by counting tax levels
                     utaxLook = utaxDict.get(line[0])
                     utaxCount = utaxLook.count(',')
+                    sintaxLook = sintaxDict.get(line[0])
+                    sintaxCount = sintaxLook.count(',')
                     usearchResult = line[1]
                     usearchCount = usearchResult.count(',')
-                    if utaxCount > usearchCount:
+                    if utaxCount == sintaxCount == usearchCount:
+                        newTable.append([line[0], re.sub("tax=", "", usearchResult)])
+                    elif utaxCount > sintaxCount and utaxCount > usearchCount:
                         utaxLook = 'UTAX;' + utaxLook
                         newTable.append([line[0], utaxLook])
+                    elif sintaxCount > utaxCount and sintaxCount > usearchCount:
+                        sintaxLook = 'SINTAX;' + sintaxLook
+                        newTable.append([line[0], sintaxLook])
+                    elif usearchCount > utaxCount and usearchCount > sintaxCount:
+                        newTable.append([line[0], re.sub("tax=", "", usearchResult)])
+                    elif utaxCount == sintaxCount and utaxCount > usearchCount:
+                        utaxLook = 'UTAX;' + utaxLook
+                        newTable.append([line[0], utaxLook])
+                    elif usearchCount == utaxCount or usearchCount == sintaxCount:
+                        newTable.append([line[0], re.sub("tax=", "", usearchResult)])
                     else:
-                        newTable.append([line[0], re.sub("tax=", "", usearchResult)])       
+                        print "Help, logic error"        
+        
         otuDict = {rows[0]:rows[1] for rows in newTable}
+    
     elif os.path.isfile(utax_out) and not os.path.isfile(usearch_out):    
         #load results into dictionary for appending to OTU table
         ufitslib.log.debug("Loading UTAX results into dictionary")
         with open(utax_out, 'rU') as infile:
             reader = csv.reader(infile, delimiter="\t")
             otuDict = {rows[0]:rows[2] for rows in reader}
+    
     elif os.path.isfile(usearch_out) and not os.path.isfile(utax_out): 
         #load results into dictionary for appending to OTU table
         ufitslib.log.debug("Loading Global Alignment results into dictionary")
@@ -282,6 +337,13 @@ else:
                 else:
                     newTable.append([line[0], re.sub("tax=", "", line[1])+' ('+line[2]+')'])
         otuDict = {rows[0]:rows[1] for rows in newTable} 
+    
+    elif os.path.isfile(sintax_out):
+        #load results into dictionary for appending to OTU table
+        ufitslib.log.debug("Loading SINTAX results into dictionary")
+        with open(sintax_out, 'rU') as infile:
+            reader = csv.reader(infile, delimiter="\t")
+            otuDict = {rows[0]:rows[3] for rows in reader}  
 
 #now format results
 if args.otu_table:
@@ -334,11 +396,27 @@ with open(otuTax, 'w') as output:
             rec.description = tax
             SeqIO.write(rec, output, 'fasta')
 
-#output final taxonomy in two-column format
+#output final taxonomy in two-column format, followed by the hits for usearch/sintax/utax if hybrid is used.
 taxFinal = base + '.taxonomy.txt'
 with open(taxFinal, 'w') as finaltax:
-    for k,v in natsorted(otuDict.items()):
-        finaltax.write('%s\t%s\n' % (k,v))
+    if args.method == 'hybrid':
+        finaltax.write('#OTUID\ttaxonomy\tUSEARCH\tSINTAX\tUTAX\n')
+        for k,v in natsorted(otuDict.items()):
+            finaltax.write('%s\t%s\t%s\t%s\t%s\n' % (k,v, usearchDict.get(k), sintaxDict.get(k), utaxDict.get(k)))
+    else:
+        finaltax.write('#OTUID\ttaxonomy\n')
+        for k,v in natsorted(otuDict.items()):
+            finaltax.write('%s\t%s\t%s\t%s\t%s\n' % (k,v))
+      
+#convert taxonomy to qiime format for biom
+qiimeTax = base + '.qiime.taxonomy.txt'
+ufitslib.utax2qiime(taxFinal, qiimeTax)
+
+#create OTU phylogeny for downstream processes
+ufitslib.log.info("Generating phylogenetic tree")
+tree_out = base + '.tree.phy'
+cmd = [usearch, '-cluster_agg', args.fasta, '-treeout', tree_out]
+ufitslib.runSubprocess(cmd, ufitslib.log)
 
 #print some summary file locations
 ufitslib.log.info("Taxonomy finished: %s" % taxFinal)
@@ -349,7 +427,18 @@ if args.otu_table:
     if ufitslib.which('biom'):
         if os.path.isfile(outBiom):
             os.remove(outBiom)
-        subprocess.call(['biom', 'convert', '-i', taxTable, '-o', outBiom, '--table-type', "OTU table", '--to-hdf5'])
+        subprocess.call(['biom', 'convert', '-i', args.otu_table, '-o', outBiom+'.tmp', '--table-type', "OTU table", '--to-json'])
+        if args.mapping_file:
+            subprocess.call(['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '-m', args.mapping_file, '--sc-separated', 'taxonomy'])
+        else:
+            subprocess.call(['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '--sc-separated',  'taxonomy'])
+        os.remove(outBiom+'.tmp')
         ufitslib.log.info("BIOM OTU table created: %s" % outBiom)
-ufitslib.log.info("OTUs with taxonomy: %s" % otuTax)    
+ufitslib.log.info("OTUs with taxonomy: %s" % otuTax)
+ufitslib.log.info("OTU phylogeny: %s" % tree_out)  
+
+#clean up intermediate files
+if not args.debug:
+    for i in [utax_out, usearch_out, sintax_out, qiimeTax]:
+        ufitslib.removefile(i)   
 print "-------------------------------------------------------"
