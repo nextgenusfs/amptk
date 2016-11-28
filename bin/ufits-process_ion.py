@@ -62,12 +62,7 @@ def TrimRead(record, Ftrim, Rtrim, Name, Count):
     else:
         record = record[Ftrim:]
     #rename header
-    if args.multi == 'False':
-        record.id = LabelPrefix + str(Count) + ";barcodelabel=" + Name + ";"
-    elif args.multi != 'False':
-        if args.multi.endswith('_'):
-            args.multi = args.multi.replace('_', '')
-        record.id = LabelPrefix + str(Count) + ";barcodelabel=" + args.multi + "_" + Name + ";"
+    record.id = LabelPrefix + str(Count) + ";barcodelabel=" + Name + ";"
     record.name = ''
     record.description = ''
     return record
@@ -77,7 +72,6 @@ def ProcessReads(records):
     for rec in records:
         #convert to string for processing
         Seq = str(rec.seq)
-        
         #look for barcodes
         Barcode, BarcodeLabel = FindBarcode(Seq, Barcodes)
         if Barcode == "": #if not found, try to find with mismatches
@@ -224,16 +218,27 @@ else:
         #get script path and barcode file name
         pgm_barcodes = os.path.join(parentdir, 'DB', args.barcode_fasta)
         if args.barcodes == "all":
-            shutil.copyfile(pgm_barcodes, barcode_file)
+            if args.multi == 'False':
+                shutil.copyfile(pgm_barcodes, barcode_file)
+            else:
+                with open(barcode_file, 'w') as barcodeout:
+                    with open(pgm_barcodes, 'rU') as input:
+                        for rec in SeqIO.parse(input, 'fasta'):
+                            outname = args.multi+'.'+rec.id
+                            barcodeout.write(">%s\n%s\n" % (outname, rec.seq))
         else:
             bc_list = args.barcodes.split(",")
             inputSeqFile = open(pgm_barcodes, "rU")
             SeqRecords = SeqIO.to_dict(SeqIO.parse(inputSeqFile, "fasta"))
             for rec in bc_list:
-                name = "BC_" + rec
+                name = "BC." + rec
                 seq = SeqRecords[name].seq
+                if args.multi != 'False':
+                    outname = args.multi+'.'+name
+                else:
+                    outname = name
                 outputSeqFile = open(barcode_file, "a")
-                outputSeqFile.write(">%s\n%s\n" % (name, seq))
+                outputSeqFile.write(">%s\n%s\n" % (outname, seq))
             outputSeqFile.close()
             inputSeqFile.close()
     else:
