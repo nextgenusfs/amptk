@@ -9,6 +9,7 @@ import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
 import lib.ufitslib as ufitslib
 from natsort import natsorted
+import pandas as pd
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -244,10 +245,10 @@ else:
             cmd = [usearch, '-sintax', args.fasta, '-db', os.path.abspath(sintax_db), '-tabbedout', sintax_out, '-sintax_cutoff', str(args.sintax_cutoff), '-strand', 'both']
             ufitslib.runSubprocess(cmd, ufitslib.log)
         else:
-            ufitslib.log.error("USEARCH version not compatible with SINTAX")
+            ufitslib.log.error("USEARCH version not compatible with SINTAX, please upgrade to at least version 9.1.13")
     
     #now process results, load into dictionary - slightly different depending on which classification was run.
-    if os.path.isfile(utax_out) and os.path.isfile(usearch_out) and os.path.isfile(sintax_out): #now run hybrid approach
+    if args.method == 'hybrid' and os.path.isfile(utax_out) and os.path.isfile(usearch_out) and os.path.isfile(sintax_out): #now run hybrid approach
         #load results into dictionary for appending to OTU table
         ufitslib.log.debug("Loading UTAX results into dictionary")
         with open(utax_out, 'rU') as infile:
@@ -314,18 +315,17 @@ else:
                     elif usearchCount == utaxCount or usearchCount == sintaxCount:
                         newTable.append([line[0], re.sub("tax=", "", usearchResult)])
                     else:
-                        print "Help, logic error"        
-        
+                        print "Help, logic error"            
         otuDict = {rows[0]:rows[1] for rows in newTable}
     
-    elif os.path.isfile(utax_out) and not os.path.isfile(usearch_out):    
+    elif args.method == 'utax' and os.path.isfile(utax_out):    
         #load results into dictionary for appending to OTU table
         ufitslib.log.debug("Loading UTAX results into dictionary")
         with open(utax_out, 'rU') as infile:
             reader = csv.reader(infile, delimiter="\t")
             otuDict = {rows[0]:rows[2] for rows in reader}
     
-    elif os.path.isfile(usearch_out) and not os.path.isfile(utax_out): 
+    elif args.method == 'usearch' and os.path.isfile(usearch_out): 
         #load results into dictionary for appending to OTU table
         ufitslib.log.debug("Loading Global Alignment results into dictionary")
         newTable = []
@@ -337,26 +337,25 @@ else:
                 else:
                     newTable.append([line[0], re.sub("tax=", "", line[1])+' ('+line[2]+')'])
         otuDict = {rows[0]:rows[1] for rows in newTable} 
-    
-    elif os.path.isfile(sintax_out):
+
+    elif args.method == 'sintax' and os.path.isfile(sintax_out):
         #load results into dictionary for appending to OTU table
         ufitslib.log.debug("Loading SINTAX results into dictionary")
         with open(sintax_out, 'rU') as infile:
             reader = csv.reader(infile, delimiter="\t")
-            otuDict = {rows[0]:rows[3] for rows in reader}  
+            otuDict = {rows[0]:rows[3] for rows in reader} 
 
 #now format results
 if args.otu_table:
-    otu_table = args.otu_table
-
     #check if otu_table variable is empty, then load in otu table
     ufitslib.log.info("Appending taxonomy to OTU table and OTUs")
     taxTable = base + '.otu_table.taxonomy.txt'
+    tmpTable = base + '.otu_table.tmp'
 
     #append to OTU table
     counts = 0
     with open(taxTable, 'w') as outTable:
-        with open(otu_table, 'rU') as inTable:
+        with open(args.otu_table, 'rU') as inTable:
             #guess the delimiter format
             firstline = inTable.readline()
             dialect = ufitslib.guess_csv_dialect(firstline)
@@ -382,9 +381,24 @@ if args.otu_table:
                     join_line = ('\t'.join(str(x) for x in line))
                     counts += 1
                 outTable.write("%s\n" % join_line)
+
     if args.tax_filter:
         nonfungal = total - counts
         ufitslib.log.info("Found %i OTUs not matching %s, writing %i %s hits to taxonomy OTU table" % (nonfungal, args.tax_filter, counts, args.tax_filter))
+        #need to create a filtered table without taxonomy for BIOM output
+        with open(tmpTable, 'w') as output:
+            with open(taxTable, 'rU') as input:
+                firstline = input.readline()
+                dialect = ufitslib.guess_csv_dialect(firstline)
+                input.seek(0)
+                #parse OTU table
+                reader = csv.reader(input, dialect)
+                for line in reader:
+                    del line[-1]
+                    join_line = '\t'.join(str(x) for x in line)
+                    output.write("%s\n" % join_line)
+    else:
+        tmpTable = args.otu_table
 
 #append to OTUs 
 otuTax = base + '.otus.taxonomy.fa'        
@@ -406,7 +420,7 @@ with open(taxFinal, 'w') as finaltax:
     else:
         finaltax.write('#OTUID\ttaxonomy\n')
         for k,v in natsorted(otuDict.items()):
-            finaltax.write('%s\t%s\t%s\t%s\t%s\n' % (k,v))
+            finaltax.write('%s\t%s\n' % (k,v))
       
 #convert taxonomy to qiime format for biom
 qiimeTax = base + '.qiime.taxonomy.txt'
@@ -427,7 +441,7 @@ if args.otu_table:
     if ufitslib.which('biom'):
         if os.path.isfile(outBiom):
             os.remove(outBiom)
-        subprocess.call(['biom', 'convert', '-i', args.otu_table, '-o', outBiom+'.tmp', '--table-type', "OTU table", '--to-json'])
+        subprocess.call(['biom', 'convert', '-i', tmpTable, '-o', outBiom+'.tmp', '--table-type', "OTU table", '--to-json'])
         if args.mapping_file:
             subprocess.call(['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '-m', args.mapping_file, '--sc-separated', 'taxonomy'])
         else:
@@ -439,6 +453,6 @@ ufitslib.log.info("OTU phylogeny: %s" % tree_out)
 
 #clean up intermediate files
 if not args.debug:
-    for i in [utax_out, usearch_out, sintax_out, qiimeTax]:
+    for i in [utax_out, usearch_out, sintax_out, qiimeTax, tmpTable]:
         ufitslib.removefile(i)   
 print "-------------------------------------------------------"

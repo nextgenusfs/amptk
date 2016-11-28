@@ -422,6 +422,7 @@ def utax2qiime(input, output):
                     continue
                 OTU = line.split('\t')[0]
                 tax = line.split('\t')[1].replace('\n', '')
+                tax = tax.split(' (')[0]
                 ID = tax.split(';')[0].replace(':', '_')
                 try:
                     levels = tax.split(';')[1]
