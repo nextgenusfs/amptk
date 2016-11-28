@@ -26,7 +26,7 @@ class colr:
 
 parser=argparse.ArgumentParser(prog='ufits-unoise2.py', usage="%(prog)s [options] -i file.demux.fq\n%(prog)s -h for help menu",
     description='''Script runs UNOISE2 algorithm.
-    Requires USEARCH by Robert C. Edgar: http://drive5.com/usearch''',
+    Requires USEARCH9 by Robert C. Edgar: http://drive5.com/usearch''',
     epilog="""Written by Jon Palmer (2016) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
@@ -38,8 +38,7 @@ parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='
 parser.add_argument('-p','--pct_otu', default='97', help="Biological OTU Clustering Percent")
 parser.add_argument('--uchime_ref', help='Run UCHIME2 REF [ITS,16S,LSU,COI,custom]')
 parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
-parser.add_argument('--size_annotations', action='store_true', help='Append size annotations')
-parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
+parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
 def checkfastqsize(input):
@@ -128,7 +127,7 @@ ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 #now run de-noiser UNOISE2
 ufitslib.log.info("Denoising reads with UNOISE2")
 unoise_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.unoise.fa')
-cmd = [usearch, '-unoise', derep_out, '-fastaout', unoise_out, '--minampsize', args.minampout]
+cmd = [usearch, '-unoise2', derep_out, '-fastaout', unoise_out, '--minampsize', args.minampout]
 ufitslib.runSubprocess(cmd, ufitslib.log)
 total = ufitslib.countfasta(unoise_out)
 ufitslib.log.info('{0:,}'.format(total) + ' denoised sequences')
@@ -137,7 +136,7 @@ ufitslib.log.info('{0:,}'.format(total) + ' denoised sequences')
 radius = float(args.pct_otu) / 100.
 ufitslib.log.info("Clustering denoised sequences into OTUs at %s%%" % args.pct_otu)
 uclust_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.uclust.fa')
-cmd = [usearch, '-cluster_smallmem', unoise_out, '-id', str(radius), '-centroids', uclust_out, '-relabel', 'OTU_']
+cmd = [usearch, '-cluster_smallmem', unoise_out, '-id', str(radius), '-centroids', uclust_out, '-relabel', 'OTU']
 ufitslib.runSubprocess(cmd, ufitslib.log)
 total = ufitslib.countfasta(uclust_out)
 ufitslib.log.info('{0:,}'.format(total) + ' OTUs generated')
@@ -228,14 +227,14 @@ final_otu = os.path.join(currentdir, args.out + '.cluster.otus.fa')
 shutil.copyfile(uchime_out, final_otu)
 final_otu_table = os.path.join(currentdir, args.out + '.otu_table.txt')
 shutil.copyfile(otu_table, final_otu_table)
-if args.cleanup:
+if not args.debug:
     shutil.rmtree(tmp)
 
 #Print location of files to STDOUT
 print "-------------------------------------------------------"
 print "UNOISE2 Script has Finished Successfully"
 print "-------------------------------------------------------"
-if not args.cleanup:
+if not not args.debug:
     print "Tmp Folder of files: %s" % tmp
 print "Clustered OTUs: %s" % final_otu
 print "OTU Table: %s" % final_otu_table
