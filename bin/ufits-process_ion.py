@@ -29,13 +29,14 @@ parser.add_argument('-q','--qual', help='QUAL file (if -i is FASTA)')
 parser.add_argument('-o','--out', dest="out", default='ion', help='Base name for output')
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer')
+parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--barcode_mismatch', default=0, type=int, help='Number of mis-matches in barcode')
 parser.add_argument('--barcode_fasta', default='pgm_barcodes.fa', help='FASTA file containing Barcodes (Names & Sequences)')
 parser.add_argument('--reverse_barcode', help='FASTA file containing 3 prime Barocdes')
 parser.add_argument('-b','--list_barcodes', dest="barcodes", default='all', help='Enter Barcodes used separated by commas')
 parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
-parser.add_argument('-m','--min_len', default='50', help='Minimum read length to keep')
+parser.add_argument('--min_len', default='50', help='Minimum read length to keep')
 parser.add_argument('-l','--trim_len', default='250', help='Trim length for reads')
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
 parser.add_argument('--mult_samples', dest="multi", default='False', help='Combine multiple samples (i.e. FACE1)')
@@ -44,7 +45,7 @@ parser.add_argument('--ion', action='store_true', help='Input data is Ion Torren
 parser.add_argument('--454', action='store_true', help='Input data is 454')
 parser.add_argument('--reverse', help='Illumina reverse reads')
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
-parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH8 EXE')
 args=parser.parse_args()
 
 def FindBarcode(Seq, BarcodeDict):
@@ -53,18 +54,6 @@ def FindBarcode(Seq, BarcodeDict):
         if Seq.startswith(Barcode):
             return Barcode, BarcodeLabel
     return "", ""
-
-def fuzzymatch(seq1, seq2, num_errors):
-    from Bio import pairwise2
-    seq1_a, seq2_a, score, start, end = pairwise2.align.localms(seq1, seq2, 5.0, -4.0, -9.0, -0.5, one_alignment_only=True, gap_char='-')[0]
-    if start < 2: #align needs to start in first 2 bp
-        if end < len(seq1)+2:
-            match_region = seq2_a[start:end]
-            seq_region = seq1_a[start:end]
-            matches = sum((1 if s == match_region[i] else 0) for i, s in enumerate(seq_region))
-            # too many errors -- no trimming
-            if (len(seq1) - matches) <= int(num_errors):
-                return (score, start, end)
 
 def TrimRead(record, Ftrim, Rtrim, Name, Count):
     #function to trim a seqrecord and rename
@@ -95,7 +84,7 @@ def ProcessReads(records):
             if args.barcode_mismatch > 0:
                 hit = [None, None, 0, None, None]
                 for k,v in Barcodes.items():
-                    alignment = fuzzymatch(v, Seq, args.barcode_mismatch)
+                    alignment = ufitslib.fuzzymatch(v, Seq, args.barcode_mismatch)
                     if alignment:
                         if alignment[0] > hit[2]:
                             hit = [k, v, alignment[0], alignment[1], alignment[2]]
@@ -134,7 +123,7 @@ def ProcessReads(records):
                     if args.barcode_mismatch > 0:
                         hit = [None, None, 0, None, None]
                         for k,v in RevBarcodes.items():
-                            alignment = fuzzymatch(k, CutSeq, args.barcode_mismatch)
+                            alignment = ufitslib.fuzzymatch(k, CutSeq, args.barcode_mismatch)
                             if alignment:
                                 if alignment[0] > hit[2]:
                                     hit = [v, k, alignment[0], alignment[1], alignment[2]]
@@ -214,22 +203,78 @@ ufitslib.SystemInfo()
 version = ufitslib.get_version()
 ufitslib.log.info("%s" % version)
 
+#parse a mapping file or a barcode fasta file, primers, etc get setup
+#dealing with Barcodes, get ion barcodes or parse the barcode_fasta argument
+barcode_file = args.out + ".barcodes_used.fa"
+if os.path.isfile(barcode_file):
+    os.remove(barcode_file)
+
+#check if mapping file passed, use this if present, otherwise use command line arguments
+if args.mapping_file:
+    if not os.path.isfile(args.mapping_file):
+        ufitslib.error("Mapping file is not valid: %s" % args.mapping_file)
+        sys.exit(1)
+    mapdata = ufitslib.parseMappingFile(args.mapping_file, barcode_file)
+    #forward primer in first item in tuple, reverse in second
+    FwdPrimer = mapdata[0]
+    RevPrimer = mapdata[1]
+    genericmapfile = args.mapping_file
+else:
+    if args.barcode_fasta == 'pgm_barcodes.fa':
+        #get script path and barcode file name
+        pgm_barcodes = os.path.join(parentdir, 'DB', args.barcode_fasta)
+        if args.barcodes == "all":
+            shutil.copyfile(pgm_barcodes, barcode_file)
+        else:
+            bc_list = args.barcodes.split(",")
+            inputSeqFile = open(pgm_barcodes, "rU")
+            SeqRecords = SeqIO.to_dict(SeqIO.parse(inputSeqFile, "fasta"))
+            for rec in bc_list:
+                name = "BC_" + rec
+                seq = SeqRecords[name].seq
+                outputSeqFile = open(barcode_file, "a")
+                outputSeqFile.write(">%s\n%s\n" % (name, seq))
+            outputSeqFile.close()
+            inputSeqFile.close()
+    else:
+        shutil.copyfile(args.barcode_fasta, barcode_file)
+    
+    #parse primers here so doesn't conflict with mapping primers
+    #look up primer db otherwise default to entry
+    if args.F_primer in ufitslib.primer_db:
+        FwdPrimer = ufitslib.primer_db.get(args.F_primer)
+    else:
+        FwdPrimer = args.F_primer
+    if args.R_primer in ufitslib.primer_db:
+        RevPrimer = ufitslib.primer_db.get(args.R_primer)
+    else:
+        RevPrimer = args.R_primer
+
+    #because we use an 'A' linker between barcode and primer sequence, add an A if ion is chemistry
+    if args.ion:
+        FwdPrimer = 'A' + FwdPrimer
+        Adapter = 'CCATCTCATCCCTGCGTGTCTCCGACTCAG'
+    else:
+        Adapter = ''
+
 #if SFF file passed, convert to FASTQ with biopython
 if args.fastq.endswith(".sff"):
     if args.barcode_fasta == 'pgm_barcodes.fa':
-        ufitslib.log.error("You did not specify a --barcode_fasta, it is required for 454 data")
-        os._exit(1)
+        if not args.mapping_file:
+            ufitslib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required for 454 data")
+            sys.exit(1)
     ufitslib.log.info("SFF input detected, converting to FASTQ")
     SeqIn = args.out + '.sff.extract.fastq'
     SeqIO.convert(args.fastq, "sff-trim", SeqIn, "fastq")
 elif args.fastq.endswith(".fas") or args.fastq.endswith(".fasta") or args.fastq.endswith(".fa"):
     if not args.qual:
         ufitslib.log.error("FASTA input detected, however no QUAL file was given.  You must have FASTA + QUAL files")
-        os._exit(1)
+        sys.exit(1)
     else:
         if args.barcode_fasta == 'pgm_barcodes.fa':
-            ufitslib.log.error("You did not specify a --barcode_fasta, it is required for 454 data")
-            os._exit(1)
+            if not args.mapping_file:
+                ufitslib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required for 454 data")
+                sys.exit(1)
         SeqIn = args.out + '.fastq'
         ufitslib.log.info("FASTA + QUAL detected, converting to FASTQ")
         ufitslib.faqual2fastq(args.fastq, args.qual, SeqIn)
@@ -245,8 +290,9 @@ else:
 #check if illumina argument is passed, if so then run merge PE
 if args.illumina:
     if args.barcode_fasta == 'pgm_barcodes.fa':
-        ufitslib.log.error("You did not specify a --barcode_fasta, it is required this type of data")
-        os._exit(1)
+        if not args.mapping_file:
+            ufitslib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required for Illumina2 data")
+            sys.exit(1)
     if args.reverse:
         FNULL = open(os.devnull, 'w')
         #test for usearch
@@ -255,7 +301,7 @@ if args.illumina:
             usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
         except OSError:
             ufitslib.log.warning("%s not found in your PATH, exiting." % usearch)
-            os._exit(1)
+            sys.exit(1)
         ufitslib.log.info("USEARCH version: %s" % usearch_test)
         
         #next run USEARCH8 mergepe
@@ -275,48 +321,11 @@ if args.illumina:
         ufitslib.log.info("Running UFITS on forward Illumina reads")
         SeqIn = args.fastq 
 
-#look up primer db otherwise default to entry
-if args.F_primer in ufitslib.primer_db:
-    FwdPrimer = ufitslib.primer_db.get(args.F_primer)
-else:
-    FwdPrimer = args.F_primer
-if args.R_primer in ufitslib.primer_db:
-    RevPrimer = ufitslib.primer_db.get(args.R_primer)
-else:
-    RevPrimer = args.R_primer
-
-#because we use an 'A' linker between barcode and primer sequence, add an A if ion is chemistry
-if args.ion:
-    FwdPrimer = 'A' + FwdPrimer
-
+#start here to process the reads, first reverse complement the reverse primer
 RevPrimer = revcomp_lib.RevComp(RevPrimer)
 ufitslib.log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
 
-#dealing with Barcodes, get ion barcodes or parse the barcode_fasta argument
-barcode_file = args.out + ".barcodes_used.fa"
-if os.path.isfile(barcode_file):
-    os.remove(barcode_file)
-
-if args.barcode_fasta == 'pgm_barcodes.fa':
-    #get script path and barcode file name
-    pgm_barcodes = os.path.join(parentdir, 'DB', args.barcode_fasta)
-    if args.barcodes == "all":
-        shutil.copyfile(pgm_barcodes, barcode_file)
-    else:
-        bc_list = args.barcodes.split(",")
-        inputSeqFile = open(pgm_barcodes, "rU")
-        SeqRecords = SeqIO.to_dict(SeqIO.parse(inputSeqFile, "fasta"))
-        for rec in bc_list:
-            name = "BC_" + rec
-            seq = SeqRecords[name].seq
-            outputSeqFile = open(barcode_file, "a")
-            outputSeqFile.write(">%s\n%s\n" % (name, seq))
-        outputSeqFile.close()
-        inputSeqFile.close()
-else:
-    shutil.copyfile(args.barcode_fasta, barcode_file)
-
-#setup barcode dictionary
+#then setup barcode dictionary
 Barcodes = fasta.ReadSeqsDict(barcode_file)
 
 #setup for looking for reverse barcode
@@ -424,14 +433,23 @@ with open(catDemux, 'rU') as input:
 
 #now let's count the barcodes found and count the number of times they are found.
 barcode_counts = "%30s:  %s" % ('Sample', 'Count')
+barcodes_found = []
 for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
     barcode_counts += "\n%30s:  %s" % (k, str(BarcodeCount[k]))
+    if k not in barcodes_found:
+        barcodes_found.append(k)
 ufitslib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
+
+if not args.mapping_file:
+    #create a generic mappingfile for downstream processes
+    genericmapfile = args.out + '.mapping_file.txt'
+    ufitslib.CreateGenericMappingFile(barcode_file, FwdPrimer, revcomp_lib.RevComp(RevPrimer), Adapter, genericmapfile, barcodes_found)
 
 #get file size
 filesize = os.path.getsize(catDemux)
 readablesize = ufitslib.convertSize(filesize)
 ufitslib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
+ufitslib.log.info("Mapping file: %s" % genericmapfile)
 
 print "-------------------------------------------------------"
 if 'win32' in sys.platform:

@@ -5,6 +5,11 @@
 import sys, os, subprocess, inspect, tarfile, shutil, urllib2, urlparse
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
+URL = { 'ITS': 'https://www.dropbox.com/s/3eofu8rjgr242jk/ITS.ufits.tar.gz?dl=1', 
+        '16S': 'https://www.dropbox.com/s/dqbrr9wsqnki2di/16S.ufits.tar.gz?dl=1', 
+        'LSU': 'https://www.dropbox.com/s/xqrted7sts48hfl/LSU.ufits.tar.gz?dl=1', 
+        'COI': 'https://www.dropbox.com/s/dm10eqsmf01q51c/COI.ufits.tar.gz?dl=1' }
+
 def flatten(l):
     flatList = []
     for elem in l:
@@ -55,7 +60,7 @@ def download(url, name):
     f.close()
 
 
-version = '0.5.6'
+version = '0.6.0'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -75,11 +80,12 @@ Process:     ion         pre-process Ion Torrent data (find barcodes, remove pri
              
 Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
              dada2       run dada2 denoising algorithm, produces "inferred sequences" (requires R, dada2, ShortRead)
+             unoise2     run UNOISE2 denoising algorithm
              cluster_ref closed/open reference based clustering (EXPERIMENTAL)
-             filter      OTU table filtering
-             taxonomy    Assign taxonomy to OTUs
 
-Utilities:   summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)
+Utilities:   filter      OTU table filtering
+             taxonomy    Assign taxonomy to OTUs
+             summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)
              funguild    Run FUNGuild (annotate OTUs with ecological information) 
              meta        pivot OTU table and append to meta data
              heatmap     Create heatmap from OTU table
@@ -104,14 +110,16 @@ Description: Script processes Ion Torrent PGM data for UFITS clustering.  The in
     
 Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
              -o, --out           Output base name. Default: out
+             -m, --mapping_file  QIIME-like mapping file
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4
-             --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
              -b, --barcodes      Barcodes used (list, e.g: 1,3,4,5,20). Default: all
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
-             -m, --min_len       Minimum length read to keep. Default: 50
              -l, --trim_len      Length to trim/pad reads. Default: 250
+             --min_len           Minimum length read to keep. Default: 50
              --full_length       Keep only full length sequences.
+             --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
+             --barcode_mismatch  Number of mismatches in barcodes to allow. Default: 0
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
              --cpus              Number of CPUs to use. Default: all
              --mult_samples      Combine multiple chip runs, name prefix for chip
@@ -142,16 +150,19 @@ Description: Script takes Illumina MiSeq data that is not de-multiplexed and has
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              --reverse           Illumina PE reverse reads.
              -o, --out           Output base name. Default: out
-             --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
-             --reverse_barcode   FASTA file containing 3' barcodes. Default: none
+             -m, --mapping_file  QIIME-like mapping file
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
-             -m, --min_len       Minimum length read to keep. Default: 50
              -l, --trim_len      Length to trim/pad reads. Default: 250
+             --min_len           Minimum length read to keep. Default: 50
+             --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
+             --reverse_barcode   FASTA file containing 3' barcodes. Default: none
              --full_length       Keep only full length sequences.
+             --primer_mismatch   Number of mismatches in primers to allow. Default: 2
+             --barcode_mismatch  Number of mismatches in barcodes to allow. Default: 0
              --cpus              Number of CPUs to use. Default: all
-             -u, --usearch       USEARCH executable. Default: usearch8
+             -u, --usearch       USEARCH executable. Default: usearch9
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -176,19 +187,21 @@ Description: Script takes a folder of Illumina MiSeq data that is already de-mul
     
 Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              -o, --out           Output folder name. Default: ufits-data
+             -m, --mapping_file  QIIME-like mapping file
+             -f, --fwd_primer    Forward primer sequence. Default: fITS7
+             -r, --rev_primer    Reverse primer sequence Default: ITS4
+             -n, --name_prefix   Prefix for re-naming reads. Default: R_             
+             -l, --trim_len      Length to trim/pad reads. Default: 250
+             --min_len           Minimum length read to keep. Default: 50
+             --full_length       Keep only full length sequences.
              --reads             Paired-end or forward reads. Default: paired [paired, forward]
              --read_length       Illumina Read length (250 if 2 x 250 bp run). Default: 300 
              --rescue_forward    Rescue Forward Reads if PE do not merge, e.g. long amplicons. Default: on [on,off]
-             -f, --fwd_primer    Forward primer sequence. Default: fITS7
-             -r, --rev_primer    Reverse primer sequence Default: ITS4
              --require_primer    Require the Forward primer to be present. Default: on [on,off]
-             -n, --name_prefix   Prefix for re-naming reads. Default: R_
-             -m, --min_len       Minimum length read to keep. Default: 50
-             -l, --trim_len      Length to trim/pad reads. Default: 250
-             --full_length       Keep only full length sequences.
+             --primer_mismatch   Number of mismatches in primers to allow. Default: 2
              --cpus              Number of CPUs to use. Default: all
-             -u, --usearch       USEARCH executable. Default: usearch8
              --cleanup           Remove intermediate files.
+             -u, --usearch       USEARCH executable. Default: usearch9
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -213,13 +226,16 @@ Description: Script processes Roche 454 data for UFITS clustering.  The input to
 Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
              -q, --qual          QUAL file (Required if -i is FASTA).
              -o, --out           Output base name. Default: out
+             -m, --mapping_file  QIIME-like mapping file
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4
+             -n, --name_prefix   Prefix for re-naming reads. Default: R_
+             -l, --trim_len      Length to trim/pad reads. Default: 250
+             --min_len       Minimum length read to keep. Default: 50
              --barcode_fasta     FASTA file containing barcodes. (Required)
              --reverse_barcode   FASTA file containing 3' barcodes. Default: none
-             -n, --name_prefix   Prefix for re-naming reads. Default: R_
-             -m, --min_len       Minimum length read to keep. Default: 50
-             -l, --trim_len      Length to trim/pad reads. Default: 250
+             --primer_mismatch   Number of mismatches in primers to allow. Default: 2
+             --barcode_mismatch  Number of mismatches in barcodes to allow. Default: 0
              --cpus              Number of CPUs to use. Default: all
         """ % (sys.argv[1], version)
         
@@ -252,8 +268,8 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
-             -u, --usearch       USEARCH executable. Default: usearch8
-             --cleanup           Remove intermediate files.
+             --debug             Keep intermediate files.
+             -u, --usearch       USEARCH executable. Default: usearch9
         """ % (sys.argv[1], version)
        
         arguments = sys.argv[2:]
@@ -278,20 +294,20 @@ Description: Script first quality filters reads, dereplicates, and then runs chi
     
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              -d, --db            Database [ITS,ITS1,ITS2,16S,LSU,COI,custom]. (Required)
+             -o, --out           Output base name. Default: out
+             -e, --maxee         Expected error quality trimming. Default: 1.0
+             -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
+             -m, --minsize       Minimum size to keep (singleton filter). Default: 2
              --id                Percent ID for closed reference clustering. Default: 97
              --utax_db           UTAX formatted DB.
              --utax_level        UTAX Taxonomy level to keep. Default: k [k,p,c,o,f,g,s]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --mock              Mock community fasta file
              --closed_ref_only   Run only closed reference clustering.
-             -o, --out           Output base name. Default: out
-             -e, --maxee         Expected error quality trimming. Default: 1.0
-             -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
-             -m, --minsize       Minimum size to keep (singleton filter). Default: 2
              --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, 16S, LSU, COI, custom path]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
-             -u, --usearch       USEARCH executable. Default: usearch8
-             --cleanup           Remove intermediate files.
+             --debug             Keep intermediate files.
+             -u, --usearch       USEARCH executable. Default: usearch9
         """ % (sys.argv[1], version)
        
         arguments = sys.argv[2:]
@@ -336,7 +352,36 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
         else:
             print help
             sys.exit(1)            
+
+    elif sys.argv[1] == 'unoise2':
+        help = """
+Usage:       ufits %s <arguments>
+version:     %s
+
+Description: Script will run the UNOISE2 denoising algorithm followed by clustering with
+             UCLUST to generate OTUs. OTU table is then constructed by mapping reads to 
+             the OTUs.  Requires USEARCH v9.0.232 or greater.
     
+Arguments:   -i, --fastq         Input FASTQ file (Required)
+             -o, --out           Output base name. Default: out
+             -e, --maxee         Expected error quality trimming. Default: 1.0
+             -m, --minampout     Minimum size to keep for denoising. Default: 4
+             -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
+             -u, --usearch       Path to USEARCH9. Default: usearch9
+             --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
+             --debug             Keep intermediate files.
+        """ % (sys.argv[1], version)
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'bin', 'ufits-unoise2.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            sys.exit(1) 
+                 
     elif sys.argv[1] == 'filter':
         help = """
 Usage:       ufits %s <arguments>
@@ -360,9 +405,9 @@ Filtering    -n, --normalize     Normalize reads to number of reads per sample [
              --min_reads_otu     Minimum number of reads for valid OTU from whole experiment. Default: 2
              --col_order         Column order (comma separated list). Default: sort naturally
              --keep_mock         Keep Spike-in mock community. Default: False
-             -u, --usearch       USEARCH executable. Default: usearch8
-             --show_stats        Show OTU stats on STDOUT   
+             --show_stats        Show OTU stats on STDOUT  
              --cleanup           Remove intermediate files.
+             -u, --usearch       USEARCH executable. Default: usearch9 
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -578,27 +623,29 @@ Usage:       ufits %s <arguments>
 version:     %s
 
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
-             uses a hybrid approach, e.g. gets taxonomy information from UTAX as well as global alignment hits from the larger
-             UNITE-INSD database, and then parses both results to extract the most taxonomy information that it can at 
-             'trustable' levels. UTAX results are used if BLAST-like search pct identity is less than 97 pct.  If pct identity
-             is greater than 97 pct, the result with most taxonomy levels is retained.
+             uses a hybrid approach, e.g. gets taxonomy information from SINTAX, UTAX, and global alignment hits from the larger
+             UNITE-INSD database, and then parses results to extract the most taxonomy information that it can at 
+             'trustable' levels. SINTAX/UTAX results are used if BLAST-like search pct identity is less than 97%%.  
+             If %% identity is greater than 97%%, the result with most taxonomy levels is retained.
     
 Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
              -i, --otu_table     Input OTU table file (i.e. otu_table from ufits cluster)
              -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
-             -m, --method        Taxonomy method. Default: hybrid [utax, usearch, hybrid, rdp, blast]
              -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: ITS2
+             -m, --mapping_file  QIIME-like mapping file
+             --method            Taxonomy method. Default: hybrid [utax, sintax, usearch, hybrid, rdp, blast]
              --fasta_db          Alternative database of fasta sequenes to use for global alignment.
              --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --usearch_db        USEARCH formatted database. Default: USEARCH.udb
              --usearch_cutoff    USEARCH threshold percent identity. Default 0.7
-             -r, --rdp           Path to RDP Classifier. Required if -m rdp
+             --sintax_cutoff     SINTAX confidence value threshold. Default: 0.8 [0 to 0.9]
+             -r, --rdp           Path to RDP Classifier. Required if --method rdp
              --rdp_db            RDP Classifer DB set. [fungalits_unite, fungalits_warcup. fungallsu, 16srrna]  
              --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
              --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi to keep only fungi.
-             -u, --usearch       USEARCH executable. Default: usearch8
+             -u, --usearch       USEARCH executable. Default: usearch9
 
 Databases Configured: 
 %s 
@@ -634,7 +681,7 @@ Arguments:   -i, --fasta         Input FASTA file (UNITE DB or UNITE+INSDC)
              --primer_mismatch   Max Primer Mismatch. Default: 4
              --keep_all          Keep Sequence if forward primer not found.
              --cpus              Number of CPUs to use. Default: all
-             -u, --usearch       USEARCH executable. Default: usearch8       
+             -u, --usearch       USEARCH executable. Default: usearch9       
         """ % (sys.argv[1], version)
 
         arguments = sys.argv[2:]
@@ -702,7 +749,6 @@ Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI
         else:
             if '-i' in arguments:
                 arguments.remove('-i')
-                URL = {'ITS': 'https://www.dropbox.com/s/hi1ddpq3wmiysie/ITS.ufits.tar.gz?dl=1', '16S': 'https://www.dropbox.com/s/dqbrr9wsqnki2di/16S.ufits.tar.gz?dl=1', 'LSU': 'https://www.dropbox.com/s/xqrted7sts48hfl/LSU.ufits.tar.gz?dl=1', 'COI': 'https://www.dropbox.com/s/dm10eqsmf01q51c/COI.ufits.tar.gz?dl=1'}
                 if len(arguments) < 1:
                     print help
                     sys.exit(1)
@@ -727,23 +773,6 @@ Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI
                     shutil.rmtree(x)
                     os.remove(x+'.ufits.tar.gz')
                     print "%s taxonomy database installed" % x
-                '''    
-                #now check for UTAX and USEARCH in DB folder
-                if os.path.isfile(os.path.join(script_path, 'DB', 'FULL.udb')):
-                    if not '--force' in arguments:
-                        print("A formated database was found, to overwrite use '--force'. You can add more custom databases by using the `ufits database` command.")
-                        sys.exit(1)                   
-                #download database
-                print "Downloading pre-formatted database"
-                download('https://www.dropbox.com/s/mrrnqupzh43xyor/ufits_db.tar.gz?dl=1')
-                tfile = tarfile.open("ufits_db.tar.gz", 'r:gz')
-                tfile.extractall('ufits_db')
-                for file in os.listdir('ufits_db'):
-                    os.rename(os.path.join('ufits_db', file), os.path.join(script_path, 'DB', file))
-                shutil.rmtree('ufits_db')
-                os.remove('ufits_db.tar.gz')
-                print "UFITS taxonomy database successfully installed"            
-                '''
             else:
                 print help
                 sys.exit(1)
@@ -786,7 +815,6 @@ Arguments:   -i, --input         Input FASTQ file or folder (Required)
         print "%s option not recognized" % sys.argv[1]
         print default_help
         sys.exit(1)
-    
     
 else:
     print default_help

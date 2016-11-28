@@ -26,6 +26,7 @@ parser=argparse.ArgumentParser(prog='ufits-process_illumina_folder.py', usage="%
 
 parser.add_argument('-i','--input', dest='input', required=True, help='Folder of Illumina Data')
 parser.add_argument('-o','--out', dest="out", default='ufits-data', help='Name for output folder')
+parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')
 parser.add_argument('--reads', dest="reads", default='paired', choices=['paired', 'forward'], help='PE or forward reads')
 parser.add_argument('--read_length', default=300, type=int, help='Read length, i.e. 2 x 300 bp = 300')
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer (fITS7)')
@@ -34,23 +35,13 @@ parser.add_argument('--require_primer', dest="primer", default='on', choices=['o
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--rescue_forward', default='on', choices=['on', 'off'], help='Rescue Not-merged forward reads')
 parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
-parser.add_argument('-m','--min_len', default='50', help='Minimum read length to keep')
+parser.add_argument('--min_len', default='50', help='Minimum read length to keep')
 parser.add_argument('-l','--trim_len', default='250', help='Trim length for reads')
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
-parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH executable')
 parser.add_argument('--cleanup', action='store_true', help='Delete all intermediate files')
 args=parser.parse_args()      
-
-#look up primer db otherwise default to entry
-if args.F_primer in ufitslib.primer_db:
-    FwdPrimer = ufitslib.primer_db.get(args.F_primer)
-else:
-    FwdPrimer = args.F_primer
-if args.R_primer in ufitslib.primer_db:
-    RevPrimer = ufitslib.primer_db.get(args.R_primer)
-else:
-    RevPrimer = args.R_primer
     
 def MergeReads(R1, R2, outname, read_length):
     usearch = args.usearch
@@ -62,7 +53,7 @@ def MergeReads(R1, R2, outname, read_length):
     cmd = [usearch, '-fastq_filter', R2, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R2]
     ufitslib.runSubprocess(cmd, ufitslib.log)
 
-    #next run USEARCH8 mergepe
+    #next run USEARCH mergepe
     merge_out = outname + '.merged.fq'
     skip_for = outname + '.notmerged.R1.fq'
     ufitslib.log.debug("Now merging PE reads")
@@ -196,7 +187,7 @@ args.out = re.sub(r'\W+', '', args.out)
 if not os.path.exists(args.out):
     os.makedirs(args.out)
     
-log_name = args.out+'.ufits-process.log'
+log_name = args.out+'.ufits-demux.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
@@ -215,8 +206,7 @@ usearch = args.usearch
 version_check = ufitslib.get_usearch_version(usearch)
 ufitslib.log.info("USEARCH v%s" % version_check)
 
-'''get filenames, store in list, Illumina file names look like the following:
-<sample name>_<i5>-<i7>_L<lane (0-padded to 3 digits)>_R<read number>_<set number (0-padded to 3 digits>.fastq.gz'''
+#check folder if files are gzipped, then gunzip them
 #try to gunzip files
 gzip_list = []
 for file in os.listdir(args.input):
@@ -233,13 +223,48 @@ if gzip_list:
         OutFile.write(ReadFile)
         OutFile.close()
         InFile.close()
-        os.remove(os.path.join(args.input, file)) #remove .gz file    
+        os.remove(os.path.join(args.input, file)) #remove .gz file  
 
-#now get the FASTQ files and proceed
-filenames = []
-for file in os.listdir(args.input):
-    if file.endswith(".fastq"):
-        filenames.append(file)
+#check for mapping file, if exists, then use names from first column only for filenames
+if args.mapping_file:
+    if not os.path.isfile(args.mapping_file):
+        ufitslib.error("Mapping file is not valid: %s" % args.mapping_file)
+        sys.exit(1)
+    mapdata = ufitslib.parseMappingFileIllumina(args.mapping_file)
+    #forward primer in first item in tuple, reverse in second
+    sample_names = mapdata[0]
+    FwdPrimer = mapdata[1]
+    RevPrimer = mapdata[2]
+    genericmapfile = args.mapping_file
+    #loop through the files in the folder and get the ones in the sample_names lit
+    filenames = []
+    for file in os.listdir(args.input):
+        if file.startswith(tuple(sample_names)):
+            if file.endswith('.fastq'):
+                filenames.append(file)
+    
+    if len(filenames) < 1:
+        ufitslib.log.error("Found 0 valid files from mapping file. Mapping file SampleID must match start of filenames")
+        sys.exit(1)
+
+else: #if not then search through and find all the files you can in the folder
+    '''get filenames, store in list, Illumina file names look like the following:
+    <sample name>_<i5>-<i7>_L<lane (0-padded to 3 digits)>_R<read number>_<set number (0-padded to 3 digits>.fastq.gz'''
+
+    #now get the FASTQ files and proceed
+    filenames = []
+    for file in os.listdir(args.input):
+        if file.endswith(".fastq"):
+            filenames.append(file)
+    #look up primer db otherwise default to entry
+    if args.F_primer in ufitslib.primer_db:
+        FwdPrimer = ufitslib.primer_db.get(args.F_primer)
+    else:
+        FwdPrimer = args.F_primer
+    if args.R_primer in ufitslib.primer_db:
+        RevPrimer = ufitslib.primer_db.get(args.R_primer)
+    else:
+        RevPrimer = args.R_primer
 
 if len(filenames) % 2 != 0:
     print "Check your input files, they do not seem to be properly paired"
@@ -253,7 +278,8 @@ if not any('_R1' in x for x in filenames):
 uniq_names = []
 fastq_for = []
 fastq_rev = []
-map = args.out + '-filenames.txt'
+sampleDict = {}
+map = args.out + '.filenames.txt'
 with open(map, 'w') as map_file:
     map_file.write("Name\t[i5]\t[i7]\tLane\tSet_num\n")
     for item in sorted(filenames):
@@ -266,19 +292,26 @@ with open(map, 'w') as map_file:
             uniq_names.append(column[0])
             if "-" in column[1]:
                 barcode = column[1].split("-")#looking here for the linker between i5 and i7 seqs
+                i5 = barcode[0]
+                i7 = barcode[1]
                 try:
-                    map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], barcode[0], barcode[1], column[2], column[4].split(".",1)[0]))
+                    map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], i5, i7, column[2], column[4].split(".",1)[0]))
                 except IndexError:
                     ufitslib.log.debug("Non-standard names detected, skipping mapping file")              
             else:
+                i5 = column[1]
+                i7 = "None"
                 try:
-                    map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], column[1], "None", column[2], column[4].split(".",1)[0]))
+                    map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], i5, i7, column[2], column[4].split(".",1)[0]))
                 except IndexError:
                     ufitslib.log.debug("Non-standard names detected, skipping mapping file")
-
+            if i7 != "None":
+                sampleDict[column[0]] = i5+'-'+i7
+            else:
+                sampleDict[column[0]] = i5
 #loop through each set and merge reads
 if args.reads == 'paired':
-    ufitslib.log.info("Merging Overlaping Pairs using USEARCH8")
+    ufitslib.log.info("Merging Overlaping Pairs using USEARCH")
 
 for i in range(len(fastq_for)):
     name = fastq_for[i].split("_")[0]
@@ -369,6 +402,12 @@ barcode_counts = "%30s:  %s" % ('Sample', 'Count')
 for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
     barcode_counts += "\n%30s:  %s" % (k, str(BarcodeCount[k]))
 ufitslib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
+
+if not args.mapping_file:
+    #create a generic mappingfile for downstream processes
+    genericmapfile = args.out + '.mapping_file.txt'
+    ufitslib.CreateGenericMappingFileIllumina(sampleDict, FwdPrimer, revcomp_lib.RevComp(RevPrimer), genericmapfile)
+
 
 #get file size
 filesize = os.path.getsize(catDemux)

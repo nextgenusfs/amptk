@@ -1,5 +1,6 @@
 import sys, logging, csv, os, subprocess, multiprocessing, platform
 from Bio import SeqIO
+from natsort import natsorted
 
 ASCII = {'!':'0','"':'1','#':'2','$':'3','%':'4','&':'5',"'":'6','(':'7',')':'8','*':'9','+':'10',',':'11','-':'12','.':'13','/':'14','0':'15','1':'16','2':'17','3':'18','4':'19','5':'20','6':'21','7':'22','8':'23','9':'24',':':'25',';':'26','<':'27','=':'28','>':'29','?':'30','@':'31','A':'32','B':'33','C':'34','D':'35','E':'36','F':'37','G':'38','H':'39','I':'40','J':'41','K':'42','L':'43','M':'44','N':'45','O':'46','P':'47','Q':'48','R':'49','S':'50'}
 
@@ -80,6 +81,87 @@ def runSubprocess(cmd, logfile):
     if stderr:
         logfile.debug(stderr)
 
+def dictFlip(input):
+    #flip the list of dictionaries
+    outDict = {}
+    for k,v in input.iteritems():
+        for i in v:
+            if not i in outDict:
+                outDict[i] = k
+            else:
+                print "duplicate ID found: %s" % i
+    return outDict
+    
+def fuzzymatch(seq1, seq2, num_errors):
+    from Bio import pairwise2
+    seq1_a, seq2_a, score, start, end = pairwise2.align.localms(seq1, seq2, 5.0, -4.0, -9.0, -0.5, one_alignment_only=True, gap_char='-')[0]
+    if start < 2: #align needs to start in first 2 bp
+        if end < len(seq1)+2:
+            match_region = seq2_a[start:end]
+            seq_region = seq1_a[start:end]
+            matches = sum((1 if s == match_region[i] else 0) for i, s in enumerate(seq_region))
+            # too many errors -- no trimming
+            if (len(seq1) - matches) <= int(num_errors):
+                return (score, start, end)
+
+def exactmatch(seq1, seq2):
+    from Bio import pairwise2
+    seq1_a, seq2_a, score, start, end = pairwise2.align.localms(seq1, seq2, 5.0, -4.0, -9.0, -0.5, one_alignment_only=True, gap_char='-')[0]
+    match_region = seq2_a[start:end]
+    seq_region = seq1_a[start:end]
+    matches = sum((1 if s == match_region[i] else 0) for i, s in enumerate(seq_region))
+    # too many errors -- no trimming
+    if (len(seq1) - matches) <= 0:
+        return (score, start, end)
+    else:
+        return False
+
+
+def barcodes2dict(input, mapDict):
+    from Bio.SeqIO.QualityIO import FastqGeneralIterator
+    #here expecting the index reads from illumina, create dictionary for naming?
+    BCdict = {}
+    for title, seq, qual in FastqGeneralIterator(open(input)):
+        readID = title.split(' ')[0]
+        if mapDict:
+            if seq in mapDict:
+                BC = mapDict.get(seq)
+            else:
+                hit = [None, None, 0, None, None]
+                for k,v in mapDict.items():
+                    alignment = fuzzymatch(k, seq, '2')
+                    if alignment:
+                        if alignment[0] > hit[2]:
+                            hit = [k, v, alignment[0], alignment[1], alignment[2]]
+                    else:
+                        continue
+                if hit[0] != None:
+                    BC = hit[1]
+                else:
+                    continue
+        else:
+            BC = seq
+        if not readID in BCdict:
+            BCdict[readID] = BC
+        else:
+            print "duplicate read ID found: %s" % readID
+    return BCdict
+
+def mapping2dict(input):
+    #parse a qiime mapping file pull out seqs and ID into dictionary
+    MapDict = {}
+    with open(input, 'rU') as inputfile:
+        for line in inputfile:
+            if line.startswith('#'):
+                continue
+            cols = line.split('\t')
+            ID = cols[0]
+            Seq = cols[1]
+            if not Seq in MapDict:
+                MapDict[Seq] = ID
+            else:
+                print "duplicate BC seq found %s: %s" % (Seq, ID)
+    return MapDict
 
 def get_version():
     version = subprocess.Popen(['ufits', 'version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
@@ -111,15 +193,13 @@ def check_utax(usearch):
 def check_unoise(usearch):
     vers = get_usearch_version(usearch).split('.')
     if int(vers[0]) >= 9:
-        return True
-    else:
-        if int(vers[1]) >= 0:
-            return True
-        else:
-            if int(vers[2]) >= 2132:
+        if int(vers[1]) < 1:
+            if int(vers[2]) >= 2133:
                 return True
-            else:
-                return False
+        else:
+            return True
+    else:
+        return False
 
 def MemoryCheck():
     import psutil
@@ -333,3 +413,105 @@ def fasta2list(input):
                 seqlist.append(rec.description)
     return seqlist
             
+def utax2qiime(input, output):
+    with open(output, 'w') as outfile:
+        outfile.write('#OTUID\ttaxonomy\n')
+        with open(input, 'rU') as infile:
+            for line in infile:
+                if line.startswith('#'):
+                    continue
+                OTU = line.split('\t')[0]
+                tax = line.split('\t')[1].replace('\n', '')
+                ID = tax.split(';')[0].replace(':', '_')
+                try:
+                    levels = tax.split(';')[1]
+                except IndexError:
+                    levels = '*'
+                levels = levels.replace(',', ';')
+                changes = ['k','p','c','o','f','g','s']
+                for i in changes:
+                    levels = levels.replace(i+':', i+'__')
+                try:
+                    levList = levels.split(';')
+                except IndexError:
+                    levList = [levels]
+                #now loop through and add empty levels
+                if not levList[0].startswith('k__'):
+                    levList = ['k__', 'p__', 'c__', 'o__', 'f__', 'g__', 's__']
+                if len(levList) < 2 and levList[0].startswith('k__'):
+                    levList.extend(['p__', 'c__', 'o__', 'f__', 'g__', 's__'])
+                if len(levList) > 2 and not levList[2].startswith('c__'):
+                    levList.insert(2,'c__')
+                if len(levList) > 3 and not levList[3].startswith('o__'):
+                    levList.insert(3,'o__')
+                if len(levList) > 4 and not levList[4].startswith('f__'):
+                    levList.insert(4,'f__')
+                if len(levList) > 5 and not levList[5].startswith('g__'):
+                    levList.insert(5,'g__')
+                if len(levList) > 6 and not levList[6].startswith('s__'):
+                    levList.insert(6,'s__')             
+                outfile.write('%s\t%s\n' % (OTU, ';'.join(levList)))
+
+def CreateGenericMappingFile(barcode_fasta, fwd_primer, rev_primer, adapter, output, barcodes_found):
+    mapDict = {}
+    with open(barcode_fasta, 'rU') as input:
+        for rec in SeqIO.parse(input, 'fasta'):
+            if rec.id in barcodes_found:
+                if not rec.id in mapDict:
+                    mapDict[rec.id] = (rec.seq, fwd_primer, rev_primer, rec.id, "no_data")
+    with open(output, 'w') as outfile:
+        outfile.write('#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tReversePrimer\tphinchID\tTreatment\n')
+        for k,v in natsorted(mapDict.items()):
+            outfile.write('%s\t%s\t%s\t%s\t%s\t%s\n' % (k, v[0], adapter+v[0]+v[1], v[2], v[3], v[4]))
+
+def CreateGenericMappingFileIllumina(samples, fwd_primer, rev_primer, output):
+    with open(output, 'w') as outfile:
+        outfile.write('#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tReversePrimer\tphinchID\tTreatment\n')
+        for k,v in natsorted(samples.items()):
+            outfile.write('%s\t%s\t%s\t%s\t%s\t%s\n' % (k, v, fwd_primer, rev_primer, k, "no_data"))
+
+def parseMappingFile(input, output):
+    fwdprimer = ''
+    revprimer = ''
+    with open(output, 'w') as outfile:
+        with open(input, 'rU') as inputfile:
+            for line in inputfile:
+                line = line.replace('\n', '')
+                if line.startswith('#'):
+                    continue
+                cols = line.split('\t')
+                outfile.write('>%s\n%s\n' % (cols[0], cols[1]))
+                match = exactmatch(cols[1], cols[2])
+                if match:
+                    if fwdprimer == '':
+                        fwdprimer = cols[2][int(match[2]):]
+                        revprimer = cols[3]
+                else:
+                    print "%s: barcode sequence not in LinkerPrimerSequence" % cols[0]
+    return (fwdprimer, revprimer)
+
+def parseMappingFileIllumina(input):
+    fwdprimer = ''
+    revprimer = ''
+    samples = []
+    with open(input, 'rU') as inputfile:
+        for line in inputfile:
+            line = line.replace('\n', '')
+            if line.startswith('#'):
+                continue
+            cols = line.split('\t')
+            if not cols[0] in samples:
+                samples.append(cols[0])
+            match = exactmatch(cols[1], cols[2])
+            if match:
+                if fwdprimer == '':
+                    fwdprimer = cols[2][int(match[2]):]
+                    revprimer = cols[3]
+            else:
+                fwdprimer = cols[2]
+                revprimer = cols[3]
+        return (samples, fwdprimer, revprimer)
+                          
+def removefile(input):
+    if os.path.isfile(input):
+        os.remove(input)

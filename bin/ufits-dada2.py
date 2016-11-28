@@ -259,7 +259,7 @@ subprocess.call([sys.executable, uc2tab, dadademux, chimeraFreeTable], stdout = 
 #cluster
 ufitslib.log.info("Clustering iSeqs at %s%% to generate biological OTUs" % args.pct_otu)
 radius = float(args.pct_otu) / 100.
-cmd = ['vsearch', '--cluster_smallmem', iSeqs, '--centroids', bioSeqs, '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU_', '--qmask', 'none', '--usersort']
+cmd = ['vsearch', '--cluster_smallmem', iSeqs, '--centroids', bioSeqs, '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU', '--qmask', 'none', '--usersort']
 ufitslib.runSubprocess(cmd, ufitslib.log)
 total = ufitslib.countfasta(bioSeqs)
 ufitslib.log.info('{0:,}'.format(total) + ' OTUs generated')

@@ -34,11 +34,11 @@ parser.add_argument('-o','--out', default='out', help='Base output name')
 parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
 parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent")
 parser.add_argument('-m','--minsize', default='2', help='Min size to keep for clustering')
-parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH8 EXE')
 parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom]')
 parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
 parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOISE)')
-parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
+parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
 #remove logfile if exists
@@ -136,18 +136,10 @@ ufitslib.runSubprocess(cmd, ufitslib.log)
 radius = str(100 - int(args.pct_otu))
 otu_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otus.fa')
 ufitslib.log.info("Clustering OTUs (UPARSE)") 
-ufitslib.log.debug("%s -cluster_otus %s -relabel OTU_ -otu_radius_pct %s -otus %s" % (usearch, sort_out, radius, otu_out))
-loggy = subprocess.Popen([usearch, '-cluster_otus', sort_out, '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-ufitslib.log.debug('\n'+' '.join(loggy))
-#get number of OTUs and denovo chimeras
-for i in loggy:
-    if 'chimeras' in i:
-        OTUlog = i.rstrip()
-        OTUparts = OTUlog.split(' ')
-        numchimeras = int(OTUparts[-3])
-        numOTUs = int(OTUparts[-5])
-
-ufitslib.log.info('{0:,}'.format(numOTUs) + ' OTUs, '+ '{0:,}'.format(numchimeras) + ' de-novo chimeras')
+cmd = [usearch, '-cluster_otus', sort_out, '-relabel', 'OTU', '-otu_radius_pct', radius, '-otus', otu_out]
+ufitslib.runSubprocess(cmd, ufitslib.log)
+numOTUs = ufitslib.countfasta(otu_out)
+ufitslib.log.info('{0:,}'.format(numOTUs) + ' OTUs')
 
 #clean up padded N's
 ufitslib.log.info("Cleaning up padding from OTUs")
@@ -221,14 +213,14 @@ final_otu = os.path.join(currentdir, args.out + '.cluster.otus.fa')
 shutil.copyfile(uchime_out, final_otu)
 final_otu_table = os.path.join(currentdir, args.out + '.otu_table.txt')
 shutil.copyfile(otu_table, final_otu_table)
-if args.cleanup:
+if not args.debug:
     shutil.rmtree(tmp)
 
 #Print location of files to STDOUT
 print "-------------------------------------------------------"
 print "OTU Clustering Script has Finished Successfully"
 print "-------------------------------------------------------"
-if not args.cleanup:
+if not not args.debug:
     print "Tmp Folder of files: %s" % tmp
 print "Clustered OTUs: %s" % final_otu
 print "OTU Table: %s" % final_otu_table

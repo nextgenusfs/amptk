@@ -36,7 +36,7 @@ parser.add_argument('--keep_all', dest='keep_all', action='store_true', help="Ke
 parser.add_argument('--derep_fulllength', action='store_true', help="De-replicate sequences. Default: off")
 parser.add_argument('--primer_mismatch', default=4, help="Max Primer Mismatch")
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: max")
-parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH8 EXE')
 args=parser.parse_args()
 
 #look up primer db otherwise default to entry

@@ -37,13 +37,13 @@ parser.add_argument('-p','--index_bleed',  help='Index Bleed filter. Default: au
 parser.add_argument('-s','--subtract', default=0, help='Threshold to subtract')
 parser.add_argument('-n','--normalize', default='y', choices=['y','n'], help='Normalize OTU table prior to filtering')
 parser.add_argument('--mc',default='synmock', help='Multi-FASTA mock community')
-parser.add_argument('-d','--delimiter', default='csv', choices=['csv','tsv'], help='Delimiter')
+parser.add_argument('-d','--delimiter', default='tsv', choices=['csv','tsv'], help='Delimiter')
 parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
 parser.add_argument('--keep_mock', action='store_true', help='Keep mock sample in OTU table (Default: False)')
 parser.add_argument('--show_stats', action='store_true', help='Show stats datatable STDOUT')
 parser.add_argument('-o','--out', help='Base output name')
 parser.add_argument('--min_reads_otu', default=2, type=int, help='Minimum number of reads per OTU for experiment')
-parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH8 EXE')
 parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
@@ -104,6 +104,12 @@ df.set_index('OTUId', inplace=True)
 ufitslib.log.info("OTU table contains %i OTUs" % len(df.index))
 
 if args.mock_barcode: #if user passes a column name for mock
+    #check if mock barcode is valid
+    validBCs = df.columns.values.tolist()
+    if not args.mock_barcode in validBCs:
+        ufitslib.log.error("%s not a valid barcode." % args.mock_barcode)
+        ufitslib.log.error("Valid barcodes: %s" % (' '.join(validBCs)))
+        sys.exit(1)
     #get default mock community value
     if args.mc == "mock3":
         mock = os.path.join(parentdir, 'DB', 'ufits_mock3.fa')
@@ -121,7 +127,7 @@ if args.mock_barcode: #if user passes a column name for mock
     
     #map OTUs to mock community
     mock_out = base + '.mockmap.uc'
-    ufitslib.log.info("Mapping OTUs to Mock Community (USEARCH8)")
+    ufitslib.log.info("Mapping OTUs to Mock Community (USEARCH)")
     cmd = [usearch, '-usearch_global', mock, '-strand', 'plus', '-id', '0.95', '-db', args.fasta, '-uc', mock_out, '-maxaccepts', '3']
     ufitslib.runSubprocess(cmd, ufitslib.log)
     #sort the output to avoid problems
@@ -353,6 +359,6 @@ print "Filtered OTUs:     %s" % otu_new
 print "-------------------------------------------------------"
 
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits taxonomy -f %s -i %s -d ITS2\n" % (otu_new, final_binary_table)
+    print "\nExample of next cmd: ufits taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_binary_table)
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " ufits taxonomy -f %s -i %s -d ITS2\n" % (otu_new, final_binary_table)
+    print colr.WARN + "\nExample of next cmd:" + colr.END + " ufits taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_binary_table)

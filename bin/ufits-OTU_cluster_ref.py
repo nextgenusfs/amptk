@@ -42,14 +42,14 @@ parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
 parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent")
 parser.add_argument('--id', default='97', help="Threshold for alignment")
 parser.add_argument('-m','--minsize', default='2', help='Min identical seqs to process')
-parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='USEARCH8 EXE')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH8 EXE')
 parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
 parser.add_argument('-d','--db', required=True, help='Reference Database [ITS,ITS1,ITS2,16S,LSU,COI,custom]')
 parser.add_argument('--utax_db', help='UTAX Reference Database')
 parser.add_argument('--utax_cutoff', default=0.8, type=restricted_float, help='UTAX confidence value threshold.')
 parser.add_argument('--utax_level', default='k', choices=['k','p','c','o','f','g','s'], help='UTAX classification level to retain')
 parser.add_argument('--mock', default='synmock', help='Spike-in mock community (fasta)')
-parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
+parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
 parser.add_argument('--closed_ref_only', action='store_true', help='Only run closed reference clustering')
 args=parser.parse_args()
 
@@ -259,7 +259,7 @@ with open(ref_clustered, 'w') as refoutput:
                 res = ref_results.get(rec.id)
                 pident = res[1]
                 tax = res[0]
-                newID = 'OTU_'+str(otu_counter)+';pident='+pident+';'+tax
+                newID = 'OTU'+str(otu_counter)+';pident='+pident+';'+tax
                 rec.id = newID
                 rec.name = ''
                 rec.description = ''
@@ -287,7 +287,7 @@ if not args.closed_ref_only:
     radius = str(100 - int(args.pct_otu))
     otu_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otus.fa')
     ufitslib.log.info("De novo Clustering remaining sequences (UPARSE)")
-    cmd = [usearch, '-cluster_otus', ref_sort, '-sizein', '-sizeout', '-relabel', 'OTU_', '-otu_radius_pct', radius, '-otus', otu_out]
+    cmd = [usearch, '-cluster_otus', ref_sort, '-sizein', '-sizeout', '-relabel', 'OTU', '-otu_radius_pct', radius, '-otus', otu_out]
     ufitslib.runSubprocess(cmd, ufitslib.log)
     total = ufitslib.countfasta(otu_out)
     ufitslib.log.info('{0:,}'.format(total) + ' de novo OTUs')
@@ -312,7 +312,7 @@ if not args.closed_ref_only:
                 tax = col[2]
                 if any(x in tax for x in filt_tax_values):
                     record = seqDict[ID]
-                    record.id = 'OTU_'+str(otu_counter)+';UTAX;tax='+tax
+                    record.id = 'OTU'+str(otu_counter)+';UTAX;tax='+tax
                     record.name = ''
                     record.description = ''
                     SeqIO.write(record, output, 'fasta')
@@ -377,14 +377,14 @@ with open(final_otu_table, 'w') as output:
                 cols[0] = cols[0].replace(';'+tax, '')
             output.write('%s\n' % '\t'.join(cols))
 
-if args.cleanup:
+if not args.debug:
     shutil.rmtree(tmp)
 
 #Print location of files to STDOUT
 print "-------------------------------------------------------"
 print "OTU Clustering Script has Finished Successfully"
 print "-------------------------------------------------------"
-if not args.cleanup:
+if not not args.debug:
     print "Tmp Folder of files: %s" % tmp
 print "Clustered OTUs: %s" % final_otu
 print "OTU Table: %s" % final_otu_table
