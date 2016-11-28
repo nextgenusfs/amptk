@@ -184,17 +184,17 @@ elif args.method == 'rdp':
     f = csv.reader(open(rdp_out), delimiter='\t')
     for col in f:
         if float(col[19]) > args.rdp_cutoff:
-            tax = "k:"+col[2]+" ("+col[4]+"),p:"+col[5]+" ("+col[7]+"),c:"+col[8]+" ("+col[10]+"),o:"+col[11]+" ("+col[13]+"),f:"+col[14]+" ("+col[16]+"),g:"+col[17]+" ("+col[19]+")"
+            tax = "k:"+col[2]+",p:"+col[5]+",c:"+col[8]+",o:"+col[11]+",f:"+col[14]+",g:"+col[17]
         elif float(col[16]) > args.rdp_cutoff:
-            tax = "k:"+col[2]+" ("+col[4]+"),p:"+col[5]+" ("+col[7]+"),c:"+col[8]+" ("+col[10]+"),o:"+col[11]+" ("+col[13]+"),f:"+col[14]+" ("+col[16]+")"
+            tax = "k:"+col[2]+",p:"+col[5]+",c:"+col[8]+",o:"+col[11]+",f:"+col[14]
         elif float(col[13]) > args.rdp_cutoff:
-            tax = "k:"+col[2]+" ("+col[4]+"),p:"+col[5]+" ("+col[7]+"),c:"+col[8]+" ("+col[10]+"),o:"+col[11]+" ("+col[13]+")"
+            tax = "k:"+col[2]+",p:"+col[5]+",c:"+col[8]+",o:"+col[11]
         elif float(col[10]) > args.rdp_cutoff:
-            tax = "k:"+col[2]+" ("+col[4]+"),p:"+col[5]+" ("+col[7]+"),c:"+col[8]+" ("+col[10]+")"
+            tax = "k:"+col[2]+",p:"+col[5]+",c:"+col[8]
         elif float(col[7]) > args.rdp_cutoff:
-            tax = "k:"+col[2]+" ("+col[4]+"),p:"+col[5]+" ("+col[7]+")"
+            tax = "k:"+col[2]+",p:"+col[5]
         elif float(col[4]) > args.rdp_cutoff:
-            tax = "k:"+col[2]+" ("+col[4]+")"
+            tax = "k:"+col[2]
         else:
             tax = "k:unclassified"
         tax_split = tax.split(",")
