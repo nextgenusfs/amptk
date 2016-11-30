@@ -4,6 +4,8 @@
 
 import sys, os, subprocess, inspect, tarfile, shutil, urllib2, urlparse
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0,script_path)
+import lib.ufitslib as ufitslib
 
 URL = { 'ITS': 'https://www.dropbox.com/s/3eofu8rjgr242jk/ITS.ufits.tar.gz?dl=1', 
         '16S': 'https://www.dropbox.com/s/dqbrr9wsqnki2di/16S.ufits.tar.gz?dl=1', 
@@ -66,8 +68,8 @@ default_help = """
 Usage:       ufits <command> <arguments>
 version:     %s
 
-Description: UFITS is a package of scripts to process NGS amplicon data.  It uses the UPARSE algorithm for clustering
-             and thus USEARCH is a dependency.
+Description: UFITS is a package of scripts to process NGS amplicon data.  
+             Dependencies:  USEARCH v9.1.13 and VSEARCH v2.2.0
     
 Process:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
              illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
@@ -93,7 +95,8 @@ Utilities:   filter      OTU table filtering
 
 Setup:       install     Download/install pre-formatted taxonomy DB (UNITE DB formatted for UFITS). Only need to run once.
              database    Format Reference Databases for Taxonomy
-            
+             primers     List primers hard-coded in UFITS. Can use in pre-processing steps.
+             
 Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % version
 
@@ -808,6 +811,14 @@ Arguments:   -i, --input         Input FASTQ file or folder (Required)
         else:
             print help
             sys.exit(1)
+    elif sys.argv[1] == 'primers':
+        print "----------------------------------"
+        print "Primers hard-coded into UFITS:"
+        print "----------------------------------"
+        for k,v in ufitslib.primer_db.items():
+           print k.ljust(13) + v
+        print "----------------------------------"
+        sys.exit(1)
     elif sys.argv[1] == 'version':
         print "ufits v.%s" % version
     else:
