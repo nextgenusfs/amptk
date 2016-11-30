@@ -578,22 +578,26 @@ version:     %s
 Description: Script creates a heatmap from an OTU table.  Several settings are customizable.  Requires Matplotlib,
              numpy, and pandas.
 
-Arguments:   -i, --otu_table     Input OTU table (Required)
+Arguments:   -i, --input         Input OTU table (Required)
              -o, --output        Output file (Required)
-             --format            Image output format. Default: eps [eps, svg, png, pdf]
-             --col_order         Column order (comma separated list). Default: sort naturally
-             --font_size         Font Size for X/Y Axis labels. Default: 10
-             --square            Maintain aspect ratio. Default: off
-             --colors            Color Palette. Default: YlOrRd [many options, see matplotlib docs]
-             --zero_color        Color for OTUs that are missing (zero). Default: white [white, lightgray, black, snow]
-             --border_color      Color for border in-between cells. Default: black [black, white]
-             --percent           Convert numbers to Percent of Sample. Default: off
-             --min_num           Minimum reads per OTU to graph. Default: 1
+             -m, --method        Type of heatmap. Default: clustermap [clustermap,heatmap]
+             -d, --delimiter     Delimiter of OTU table. Default: tsv [tsv,csv]
+             --font              Font set. Default: arial
+             --color             Color Palette. Default: gist_gray_r
+             --figsize           Figure size. Default: 2x8
+             --annotate          Annotate heatmap with values.
+             --distance_metric   Distance metric to use for clustermap. Default: braycurtis
+             --cluster_columns   Cluster the columns (samples). Default: False [True,False]
+             --cluster_method    Clustering method for clustermap. Default: single [single,complete,average,weighted]
+             --scaling           Scale the data by row. Default: None [None, z_score, standard]
+             --yaxis_fontsize    Y-Axis Font Size. Default: 6
+             --xaxis_fontsize    X-Axis Font Size. Default: 6             
+             --debug             Print pandas table on import to terminal
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-heatmap.py')
+            cmd = os.path.join(script_path, 'util', 'csv2heatmap.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)

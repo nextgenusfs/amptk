@@ -71,27 +71,37 @@ if args.table.rsplit(".", 1)[1] == 'csv':
 with open(args.table, 'rU') as f:
     first_line = f.readline()
     OTUhead = first_line.split(delim)[0]
+    if 'Taxonomy' in first_line.split(delim)[-1]:
+        tax = True
+    else:
+        tax = False
+
+#this is so dumb, just use pandas
+df = pd.read_csv(args.table, sep=delim, index_col=0)
+if 'Taxonomy' in df.columns.values:
+    del df['Taxonomy']
+print df
+sys.exit(1)
 
 f2 = csv.reader(open(args.table), delimiter=delim)
 taxTable = []
 #test for taxonomy
-for line in f2:
-    taxTable.append(line)
+if tax:
+    for line in f2:
+        del line[-1]
+        taxTable.append(line)
+else:
+    for line in f2:
+        taxTable.append(line)
+print taxTable
 otuDict = {rows[0]:rows[-1] for rows in taxTable}
 
-taxTable2 = []
-if 'Taxonomy' in taxTable[0][-1]:
-    for line in taxTable:
-        del line[-1]
-        taxTable2.append(line)
-else:
-    taxTable2 = taxTable
 #first convert the numbers to integers instead of strings
 new_table = []
 temp_table = []
 min_table = []
 binary_table = []
-for line in taxTable2:
+for line in taxTable:
     new_table.append([try_int(x) for x in line]) #convert to integers
 header = new_table[:1]
 header = header[0]
@@ -174,7 +184,7 @@ for item in Index[0]:
     
 #construct panda dataframe with appropriate headers and index
 df = pd.DataFrame(finalTable, index=Index, columns=Cols)
-
+print df
 #get sizes
 width = len(df.columns)/4
 height = len(df.index)/4
