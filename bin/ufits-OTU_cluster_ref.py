@@ -153,7 +153,7 @@ ufitslib.runSubprocess(cmd, ufitslib.log)
 total = ufitslib.countfasta(derep_out)
 ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 
-#now run usearch 8 sort by size
+#now run sort by size
 sort_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.sort.fa')
 ufitslib.log.info("Sorting reads by size: removing reads seen less than %s times" % args.minsize)
 cmd = ['vsearch', '--sortbysize', derep_out, '--minsize', args.minsize, '--output', sort_out]
@@ -162,10 +162,10 @@ total = ufitslib.countfasta(sort_out)
 ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 
 #chimera detection
-#first run through de novo chimera detection, using cluster_otus as that is apparently recommended over uchime_denovo
-ufitslib.log.info("De novo chimera detection (USEARCH)")
+#first run through de novo chimera detection
+ufitslib.log.info("De novo chimera detection (VSEARCH)")
 chimera_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.chimera_check.fa')
-cmd = [usearch, '-cluster_otus', sort_out, '-sizein', '-sizeout', '-relabel', 'chimera_', '-otu_radius_pct', '0', '-otus', chimera_out]
+cmd = ['vsearch', '--uchime_denovo', sort_out, '--relabel', 'Seq', '--sizeout', '--nonchimeras', chimera_out]
 ufitslib.runSubprocess(cmd, ufitslib.log)
 total = ufitslib.countfasta(chimera_out)
 ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
@@ -173,12 +173,11 @@ ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 #now run uchime_ref
 uchime_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.uchime.otus.fa')
 #now run chimera filtering if all checks out
-if not os.path.isfile(uchime_out):
-    ufitslib.log.info("Chimera Filtering (VSEARCH)")
-    cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', chimera_out, '--db', refDB, '--nonchimeras', uchime_out]
-    ufitslib.runSubprocess(cmd, ufitslib.log)
-    total = ufitslib.countfasta(uchime_out)
-    ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed')
+ufitslib.log.info("Chimera Filtering (VSEARCH)")
+cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', chimera_out, '--db', refDB, '--sizeout', '--nonchimeras', uchime_out]
+ufitslib.runSubprocess(cmd, ufitslib.log)
+total = ufitslib.countfasta(uchime_out)
+ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed')
     
 #now run usearch_global versus reference database
 align_out = os.path.join(tmp, args.out + '.align.uc')
@@ -249,7 +248,7 @@ if not args.closed_ref_only:
     radius = str(100 - int(args.pct_otu))
     otu_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otus.fa')
     ufitslib.log.info("De novo Clustering remaining sequences (UPARSE)")
-    cmd = [usearch, '-cluster_otus', ref_sort, '-sizein', '-sizeout', '-relabel', 'OTU', '-otu_radius_pct', radius, '-otus', otu_out]
+    cmd = [usearch, '-cluster_otus', ref_sort, '-relabel', 'OTU', '-otu_radius_pct', radius, '-otus', otu_out]
     ufitslib.runSubprocess(cmd, ufitslib.log)
     total = ufitslib.countfasta(otu_out)
     ufitslib.log.info('{0:,}'.format(total) + ' de novo OTUs')
@@ -298,7 +297,7 @@ if args.map_filtered:
 else:
     reads = orig_fasta
 ufitslib.log.info("Mapping Reads to OTUs and Building OTU table")
-cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', uchime_out, '--uc', uc_out, '--otutabout', otu_table]
+cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', otu_clean, '--uc', uc_out, '--otutabout', otu_table]
 ufitslib.runSubprocess(cmd, ufitslib.log)
 
 #count reads mapped
@@ -310,22 +309,7 @@ currentdir = os.getcwd()
 final_otu = os.path.join(currentdir, args.out + '.cluster.otus.fa')
 shutil.copyfile(otu_clean, final_otu)
 final_otu_table = os.path.join(currentdir, args.out + '.otu_table.txt')
-#shutil.copyfile(otu_table, final_otu_table)
-
-#split the taxonomy from otu name, making new column at the end
-with open(final_otu_table, 'w') as output:
-    with open(otu_table, 'rU') as input:
-        for line in input:
-            line = line.replace('\n', '')
-            cols = line.split('\t')
-            if line.startswith('OTUId'):
-                cols.append('Taxonomy')
-            else:
-                otuname = cols[0].split(';', 1)[0]
-                tax = cols[0].split(';', 1)[1]
-                cols.append(tax)
-                cols[0] = cols[0].replace(';'+tax, '')
-            output.write('%s\n' % '\t'.join(cols))
+shutil.copyfile(otu_table, final_otu_table)
 
 if not args.debug:
     shutil.rmtree(tmp)

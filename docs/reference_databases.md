@@ -1,15 +1,15 @@
 ###Methods for creating Pre-packaged Databases in UFITS
 
 ####Fungal ITS DB
-These databases were created from Unite v7.1, first downloading two databases from the UNITE website.  First the General FASTA release of the DB [here](https://unite.ut.ee/sh_files/sh_general_release_s_22.08.2016.zip) and secondly the Full UNITE+INSD database [here](https://unite.ut.ee/sh_files/UNITE_public_22.08.2016.fasta.zip).  The taxonomy information is then reformated and databases produced as follows:
+These databases were created from Unite v7.1.2 (released November 20th, 2016), first downloading two databases from the UNITE website.  First the General FASTA release of the DB [here](https://unite.ut.ee/sh_files/sh_general_release_s_20.11.2016.zip) and secondly the Full UNITE+INSD database [here](https://unite.ut.ee/sh_files/UNITE_public_20.11.2016.fasta.zip).  The taxonomy information is then reformated and databases produced as follows:
 ```
-#Create ITS1 USEARCH Database, trim primers if found, convert taxonomy, and create USEARCH database
-ufits database -i UNITE_public_22.08.2016.fasta -o ITS -f ITS1-F -r ITS4 --create_db usearch --keep_all
+#Create full length ITS USEARCH Database, trim primers if found, convert taxonomy, and create USEARCH database
+ufits database -i UNITE_public_20.11.2016.fasta -o ITS -f ITS1-F -r ITS4 --create_db usearch --keep_all
 
 #Create UTAX Databases
-ufits database -i sh_general_release_dynamic_s_22.08.2016_dev.fasta -o ITS_UTAX --create_db utax -f ITS1-F -r ITS4 --keep_all
-ufits database -i sh_general_release_dynamic_s_22.08.2016_dev.fasta -o ITS1_UTAX --create_db utax -f ITS1-F -r ITS2 --keep_all
-ufits database -i sh_general_release_dynamic_s_22.08.2016_dev.fasta -o ITS2_UTAX --create_db utax -f fITS7 -r ITS4
+ufits database -i sh_general_release_dynamic_s_20.11.2016_dev.fasta -o ITS_UTAX --create_db utax -f ITS1-F -r ITS4 --keep_all
+ufits database -i sh_general_release_dynamic_s_20.11.2016_dev.fasta -o ITS1_UTAX --create_db utax -f ITS1-F -r ITS2 --keep_all
+ufits database -i sh_general_release_dynamic_s_20.11.2016_dev.fasta -o ITS2_UTAX --create_db utax -f fITS7 -r ITS4
 ```
 
 ####Arthropod/Chordate mtCOI DB
@@ -35,7 +35,7 @@ ufits database -i arthropods.chordates.all4utax.fa -o COI_UTAX --create_db utax 
 ```
 
 ####LSU database
-The fungal 28S database was downloaded from [here](http://rdp.cme.msu.edu/download/current_Fungi_unaligned.fa.gz).  The sequences were then converted into UFITS databases as follows:
+The fungal 28S database (LSU) was downloaded from [here](http://rdp.cme.msu.edu/download/current_Fungi_unaligned.fa.gz).  The sequences were then converted into UFITS databases as follows:
 ```
 ufits database -i fungi.unaligned.fa -o LSU --format rdp2utax --skip_trimming --create_db usearch --derep_fulllength --keep_all
 ```

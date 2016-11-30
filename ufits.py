@@ -304,7 +304,6 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --mock              Mock community fasta file
              --closed_ref_only   Run only closed reference clustering.
-             --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, 16S, LSU, COI, custom path]
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              --debug             Keep intermediate files.
              -u, --usearch       USEARCH executable. Default: usearch9
