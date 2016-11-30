@@ -1,7 +1,7 @@
 # UFITS
 ###USEARCH Fungal ITS Clustering:###
 
-UFITS is a series of scripts to process fungal ITS amplicon data using USEARCH8, although it can also be used to process any NGS amplicon data and includes databases setup for analysis of fungal ITS, fungal LSU, bacterial 16S, and insect COI amplicons.  It can handle Ion Torrent, MiSeq, and 454 data and is cross-platform compatible (works on Mac, Linux - and could work on Windows).
+UFITS is a series of scripts to process fungal ITS amplicon data using USEARCH and VSEARCH, although it can also be used to process any NGS amplicon data and includes databases setup for analysis of fungal ITS, fungal LSU, bacterial 16S, and insect COI amplicons.  It can handle Ion Torrent, MiSeq, and 454 data and is cross-platform compatible (works on Mac, Linux - and could work on Windows).  At least USEARCH v9.1.13 and VSEARCH v2.2.0 are required as of UFITS v0.7.0.
 ___
 
 <img src="https://github.com/nextgenusfs/ufits/blob/master/docs/ufits.png" width="400">
@@ -21,7 +21,7 @@ UFITS comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ ufits
 Usage:       ufits <command> <arguments>
-version:     0.6.0
+version:     0.7.0
 
 Description: UFITS is a package of scripts to process NGS amplicon data.  It uses the UPARSE algorithm for clustering
              and thus USEARCH is a dependency.
@@ -57,7 +57,7 @@ And then by calling one of the commands, you get a help menu for each:
 ```
 $ ufits cluster
 Usage:       ufits cluster <arguments>
-version:     0.6.0
+version:     0.7.0
 
 Description: Script is a "wrapper" for the UPARSE algorithm. FASTQ quality trimming via expected 
              errors and Dereplication are run in vsearch if installed otherwise defaults to Python 
@@ -76,7 +76,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -u, --usearch       USEARCH executable. Default: usearch9
 ```
 ####Installing Databases:####
-UFITS is pre-configured to deal with amplicons from fungal ITS, fungal LSU, bacterial 16S, and insect COI.  After installation of UFITS, you can download and install these databases using the `ufits install` command (to overwrite existing databases, use the `--force` option.  To install all of the databases, you would type:
+UFITS is pre-configured to deal with amplicons from fungal ITS, fungal LSU, bacterial 16S, and insect COI.  You can see how the databases were constructed [here](docs/reference_databases.md).  After installation of UFITS, you can download and install these databases using the `ufits install` command (to overwrite existing databases, use the `--force` option.  To install all of the databases, you would type:
 
 ```
 #install all databases
