@@ -66,7 +66,12 @@ if args.table.rsplit(".", 1)[1] == 'txt':
 if args.table.rsplit(".", 1)[1] == 'csv':
     delim = ","
     
-#open OTU table   
+#open OTU table
+#get the OTU header info (depending on how OTU table was constructed, this might be different, so find it as you need for indexing)
+with open(args.table, 'rU') as f:
+    first_line = f.readline()
+    OTUhead = first_line.split(delim)[0]
+
 f2 = csv.reader(open(args.table), delimiter=delim)
 taxTable = []
 #test for taxonomy
@@ -104,7 +109,7 @@ if args.percent:
     for line in min_table[1:]:
         temp_table.append(line[1:])
     sums = [sum(i) for i in zip(*temp_table)]
-    sums.insert(0,'OTUId')
+    sums.insert(0,OTUhead)
 
     #now get percentage for each
     for line in min_table[1:]:
@@ -124,8 +129,8 @@ elif args.col_order == "None":
     sortHead = header
 else:
     sortHead = args.col_order.split(",")
-    sortHead.append('OTUId')
-otu = sortHead.index('OTUId') #pull out the OTU header
+    sortHead.append(OTUhead)
+otu = sortHead.index(OTUhead) #pull out the OTU header
 sortHead.insert(0, sortHead.pop(otu)) #re-insert the OTU header in first column
 
 #sort the table without header row and then add back

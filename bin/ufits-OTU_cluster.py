@@ -3,8 +3,7 @@
 #This script runs USEARCH OTU clustering
 #written by Jon Palmer nextgenusfs@gmail.com
 
-import sys, os, argparse, subprocess, inspect, csv, re, logging, shutil, multiprocessing
-from Bio import SeqIO
+import sys, os, argparse, inspect, shutil
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
@@ -34,7 +33,7 @@ parser.add_argument('-o','--out', default='out', help='Base output name')
 parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
 parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent")
 parser.add_argument('-m','--minsize', default='2', help='Min size to keep for clustering')
-parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH8 EXE')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
 parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom]')
 parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
 parser.add_argument('--unoise', action='store_true', help='Run De-noising (UNOISE)')

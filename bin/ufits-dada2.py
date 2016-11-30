@@ -33,6 +33,7 @@ parser.add_argument('--platform', default='ion', choices=['ion', 'illumina', '45
 parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom]')
 parser.add_argument('--pool', action='store_true', help='Pool all sequences together for DADA2')
 parser.add_argument('--debug', action='store_true', help='Keep all intermediate files')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
 args=parser.parse_args()
 
 dada2script = os.path.join(parentdir, 'bin', 'dada2_pipeline_nofilt.R')

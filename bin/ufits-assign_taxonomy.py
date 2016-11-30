@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, re, argparse, logging, subprocess, csv, inspect, multiprocessing
+import sys, os, re, argparse, subprocess, csv, inspect, multiprocessing
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -112,9 +112,7 @@ sintax_out = base + '.sintax.txt'
 #start with less common uses, i.e. Blast, rdp
 if args.method == 'blast':
     #check if command line blast installed
-    try:
-        blast_test = subprocess.Popen(['blastn', '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
-    except OSError:
+    if not ufitslib.which('blastn'):
         ufitslib.log.error("BLASTN not found in your PATH, exiting.")
         sys.exit(1)
     
@@ -430,6 +428,8 @@ if args.otu_table and not args.method == 'blast':
             ufitslib.runSubprocess(cmd, ufitslib.log)
         ufitslib.removefile(outBiom+'.tmp')
         ufitslib.log.info("BIOM OTU table created: %s" % outBiom)
+    else:
+        ufitslib.log.info("biom program not installed, install via `pip install biom-format`")
 ufitslib.log.info("OTUs with taxonomy: %s" % otuTax)
 ufitslib.log.info("OTU phylogeny: %s" % tree_out)  
 

@@ -57,7 +57,7 @@ def MergeReads(R1, R2, outname, read_length):
     merge_out = outname + '.merged.fq'
     skip_for = outname + '.notmerged.R1.fq'
     ufitslib.log.debug("Now merging PE reads")
-    cmd = [usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8']
+    cmd = [usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for,'-minhsp', '12','-fastq_maxdiffs', '8']
     ufitslib.runSubprocess(cmd, ufitslib.log)
 
     #now concatenate files for downstream pre-process_illumina.py script

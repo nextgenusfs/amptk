@@ -3,7 +3,7 @@
 #This script filters results from ufits-OTU_cluster.py
 #written by Jon Palmer palmer.jona at gmail dot com
 
-import os, argparse, inspect, subprocess, csv, logging, sys, math
+import sys, os, argparse, inspect, subprocess, csv, sys, math
 from Bio import SeqIO
 from natsort import natsorted
 import pandas as pd
@@ -36,7 +36,7 @@ parser.add_argument('-b','--mock_barcode', help='Barocde of Mock community')
 parser.add_argument('-p','--index_bleed',  help='Index Bleed filter. Default: auto')
 parser.add_argument('-s','--subtract', default=0, help='Threshold to subtract')
 parser.add_argument('-n','--normalize', default='y', choices=['y','n'], help='Normalize OTU table prior to filtering')
-parser.add_argument('--mc',default='synmock', help='Multi-FASTA mock community')
+parser.add_argument('--mc', help='Multi-FASTA mock community')
 parser.add_argument('-d','--delimiter', default='tsv', choices=['csv','tsv'], help='Delimiter')
 parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
 parser.add_argument('--keep_mock', action='store_true', help='Keep mock sample in OTU table (Default: False)')
@@ -44,7 +44,7 @@ parser.add_argument('--show_stats', action='store_true', help='Show stats datata
 parser.add_argument('-o','--out', help='Base output name')
 parser.add_argument('--min_reads_otu', default=2, type=int, help='Minimum number of reads per OTU for experiment')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH8 EXE')
-parser.add_argument('--cleanup', action='store_true', help='Remove Intermediate Files')
+parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
 if not args.out:
@@ -56,8 +56,7 @@ else:
 
 #remove logfile if exists
 log_name = base + '.ufits-filter.log'
-if os.path.isfile(log_name):
-    os.remove(log_name)
+ufitslib.removefile(log_name)
 
 ufitslib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
@@ -104,12 +103,20 @@ df.set_index(OTUhead, inplace=True)
 
 ufitslib.log.info("OTU table contains %i OTUs" % len(df.index))
 
+#setup output files/variables
+mock_out = base + '.mockmap.uc'
+mock_sort = base + '.mockmap.sort.uc'
+
 if args.mock_barcode: #if user passes a column name for mock
     #check if mock barcode is valid
     validBCs = df.columns.values.tolist()
     if not args.mock_barcode in validBCs:
         ufitslib.log.error("%s not a valid barcode." % args.mock_barcode)
         ufitslib.log.error("Valid barcodes: %s" % (' '.join(validBCs)))
+        sys.exit(1)
+    #make sure there is a --mc passed here otherwise throw error
+    if not args.mc:
+        ufitslib.log.error("If using the -b,--barcode option you must specify a fasta file of mock community via the --mc option")
         sys.exit(1)
     #get default mock community value
     if args.mc == "mock3":
@@ -127,12 +134,10 @@ if args.mock_barcode: #if user passes a column name for mock
     mock_ref_count = ufitslib.countfasta(mock)
     
     #map OTUs to mock community
-    mock_out = base + '.mockmap.uc'
     ufitslib.log.info("Mapping OTUs to Mock Community (USEARCH)")
     cmd = [usearch, '-usearch_global', mock, '-strand', 'plus', '-id', '0.95', '-db', args.fasta, '-uc', mock_out, '-maxaccepts', '3']
     ufitslib.runSubprocess(cmd, ufitslib.log)
     #sort the output to avoid problems
-    mock_sort = base + '.mockmap.sort.uc'
     with open(mock_sort, 'w') as output:
         subprocess.call(['sort', '-k4,4nr', mock_out], stdout = output)
 
@@ -159,7 +164,7 @@ if args.mock_barcode: #if user passes a column name for mock
                         if not line[-1] in seen:
                             chimeras.append(line[-1])        
             else:
-                missing.append(line[-2])
+                missing.append(line[-2].split(' ')[0])
 
     if missing:
         ufitslib.log.info("Mock members not found: %s" % ', '.join(missing))
@@ -344,17 +349,17 @@ print "-------------------------------------------------------"
 print "OTU Table filtering finished"
 print "-------------------------------------------------------"
 print "OTU Table Stats:   %s" % stats_table
-if args.cleanup:
-    removelist = [sorted_table, normal_table_pct, normal_table_nums, final_table, subtract_table, mock_out, mock_sort]
-    for file in [f for f in removelist if os.path.isfile(f)]:
-        os.remove(file)
+print "Sorted OTU table:  %s" % sorted_table
+if not args.debug:
+    for i in [normal_table_pct, normal_table_nums, subtract_table, mock_out, mock_sort]:
+        ufitslib.removefile(i)
 else:
-    print "Sorted OTU table:  %s" % sorted_table
+    
     print "Normalized (pct):  %s" % normal_table_pct
     print "Normalized (10k):  %s" % normal_table_nums
     if args.subtract != 0:
         print "Subtracted table:  %s" % subtract_table
-    print "Final filtered:    %s" % final_table
+print "Final filtered:    %s" % final_table
 print "Final binary:      %s" % final_binary_table
 print "Filtered OTUs:     %s" % otu_new
 print "-------------------------------------------------------"
