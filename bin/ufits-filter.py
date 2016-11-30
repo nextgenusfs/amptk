@@ -99,9 +99,12 @@ stats_table = base+'.stats'+ending
 #load OTU table into pandas DataFrame
 df = pd.read_csv(args.otu_table, sep='\t')
 df.set_index(OTUhead, inplace=True)
-if 'taxonomy' or 'Taxonomy' in df.columns.values:
-    otuDict = df[df.columns.values[-1]].to_dict()
-    del df[df.columns.values[-1]]
+headers = list(df.columns.values)
+if headers[-1] == 'taxonomy' or headers[-1] == 'Taxonomy':
+    otuDict = df[headers[-1]].to_dict()
+    del df[headers[-1]]
+else:
+    otuDict = False
     
 ufitslib.log.info("OTU table contains %i OTUs" % len(df.index))
 
@@ -198,6 +201,7 @@ else:
         if not i in df2.columns.values:
             col_headers.remove(i)
     df = df2.reindex(columns=col_headers)
+
 if otuDict:
     df['Taxonomy'] = pd.Series(otuDict)
     df.to_csv(sorted_table, sep=delim)
