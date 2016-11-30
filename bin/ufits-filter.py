@@ -13,7 +13,6 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
 import lib.ufitslib as ufitslib
 
-
 class colr:
     GRN = '\033[92m'
     END = '\033[0m'
@@ -100,7 +99,10 @@ stats_table = base+'.stats'+ending
 #load OTU table into pandas DataFrame
 df = pd.read_csv(args.otu_table, sep='\t')
 df.set_index(OTUhead, inplace=True)
-
+if 'taxonomy' or 'Taxonomy' in df.columns.values:
+    otuDict = df[df.columns.values[-1]].to_dict()
+    del df[df.columns.values[-1]]
+    
 ufitslib.log.info("OTU table contains %i OTUs" % len(df.index))
 
 #setup output files/variables
@@ -196,8 +198,12 @@ else:
         if not i in df2.columns.values:
             col_headers.remove(i)
     df = df2.reindex(columns=col_headers)
-
-df.to_csv(sorted_table, sep=delim)
+if otuDict:
+    df['Taxonomy'] = pd.Series(otuDict)
+    df.to_csv(sorted_table, sep=delim)
+    del df['Taxonomy']
+else:
+    df.to_csv(sorted_table, sep=delim)
 
 #get sums of columns
 fs = df.sum(axis=0)
@@ -213,10 +219,20 @@ filt3 = pd.DataFrame(filt2, index=fotus.index)
 if args.normalize == 'y':
     #normalize the OTU table
     normal = filt3.truediv(fs)
-    normal.to_csv(normal_table_pct, sep=delim)
+    if otuDict:
+        normal['Taxonomy'] = pd.Series(otuDict)
+        normal.to_csv(normal_table_pct, sep=delim)
+        del normal['Taxonomy']
+    else:
+        normal.to_csv(normal_table_pct, sep=delim)
     #normalize back to read counts, pretend 100,000 reads in each
     norm_round = np.round(normal.multiply(100000), decimals=0)
-    norm_round.to_csv(normal_table_nums, sep=delim)
+    if otuDict:
+        norm_round['Taxonomy'] = pd.Series(otuDict)
+        norm_round.to_csv(normal_table_nums, sep=delim)
+        del norm_round['Taxonomy']
+    else:
+        norm_round.to_csv(normal_table_nums, sep=delim)
     ufitslib.log.info("Normalizing OTU table to number of reads per sample")
 else:
     norm_round = filt3
@@ -306,7 +322,12 @@ if subtract_num != 0:
             pass
     sub = sub.loc[~(sub==0).all(axis=1)]
     sub = sub.astype(int)
-    sub.to_csv(subtract_table, sep=delim)
+    if otuDict:
+        sub['Taxonomy'] = pd.Series(otuDict)
+        sub.to_csv(subtract_table, sep=delim)
+        del sub['Taxonomy']
+    else:
+        sub.to_csv(subtract_table, sep=delim)
     otus_if_sub = sub[sub > 0].count(axis=0, numeric_only=True)
     final = sub.astype(int)
 otus_per_sample = final[final > 0].count(axis=0, numeric_only=True)
@@ -324,9 +345,18 @@ if not args.keep_mock:
         pass
 final = final.loc[~(final==0).all(axis=1)]
 final = final.astype(int)
-final.to_csv(final_table, sep=delim)
+if otuDict:
+    final['Taxonomy'] = pd.Series(otuDict)
+    final.to_csv(final_table, sep=delim)
+    del final['Taxonomy']
+else:
+    final.to_csv(final_table, sep=delim)
 final[final > 0] = 1
-final.to_csv(final_binary_table, sep=delim)
+if otuDict:
+    final['Taxonomy'] = pd.Series(otuDict)
+    final.to_csv(final_binary_table, sep=delim)
+else:
+    final.to_csv(final_binary_table, sep=delim)
 ufitslib.log.info("Filtering OTU table down to %i OTUs" % (len(final.index)))
 
 #generate final OTU list for taxonomy
