@@ -5,11 +5,8 @@ from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
-import lib.primer as primer
-import lib.revcomp_lib as revcomp_lib
 import lib.ufitslib as ufitslib
 from natsort import natsorted
-import pandas as pd
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -74,36 +71,14 @@ print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
 ufitslib.SystemInfo()
-#get version of ufits
-version = ufitslib.get_version()
-ufitslib.log.info("%s" % version)
+#Do a version check
 usearch = args.usearch
-version_check = ufitslib.get_usearch_version(usearch)
-ufitslib.log.info("USEARCH v%s" % version_check)
-
-#check if vsearch version > 1.9.1 is installed
-vsearch_check = ufitslib.which('vsearch')
-if vsearch_check:
-    vsearch = ufitslib.checkvsearch()
-    vsearch_version = ufitslib.get_vsearch_version()
-    if vsearch:
-        ufitslib.log.info("vsearch v%s" % vsearch_version)
-    else:
-        ufitslib.log.info("vsearch v%s detected, need version at least v1.9.1, using Python for filtering")
-else:
-    vsearch = False
-    if args.fasta_db:
-        ufitslib.log.info("vsearch not installed and is required to use --fasta_db")
-        sys.exit(1)
-
-#check usearch version
-if not ufitslib.check_utax(usearch):
-    ufitslib.log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % version_check)
-    sys.exit(1)
+ufitslib.versionDependencyChecks(usearch)
 
 #Setup DB locations and names, etc
 DBdir = os.path.join(parentdir, 'DB')
 DataBase = { 'ITS1': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS1_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), 'ITS2': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS2_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), 'ITS': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), '16S': (None, os.path.join(DBdir, '16S.udb'), os.path.join(DBdir, '16S.extracted.fa')), 'LSU': (os.path.join(DBdir, 'LSU.udb'), os.path.join(DBdir, 'LSU_UTAX.udb'), os.path.join(DBdir, 'LSU.extracted.fa')), 'COI': (os.path.join(DBdir,'COI.udb'), os.path.join(DBdir, 'COI_UTAX.udb'), os.path.join(DBdir, 'COI.extracted.fa'))}
+
 #get DB names up front
 if args.db in DataBase:
     utax_db = DataBase.get(args.db)[1]
@@ -127,6 +102,13 @@ ufitslib.log.info("Loading FASTA Records")
 total = ufitslib.countfasta(args.fasta)
 ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
 
+#declare output files/variables here
+blast_out = base + '.blast.txt'
+rdp_out = base + '.rdp.txt'
+utax_out = base + '.usearch.txt'
+usearch_out = base + '.usearch.txt'
+sintax_out = base + '.sintax.txt'
+
 #start with less common uses, i.e. Blast, rdp
 if args.method == 'blast':
     #check if command line blast installed
@@ -137,7 +119,6 @@ if args.method == 'blast':
         sys.exit(1)
     
     #now run blast remotely using NCBI nt database
-    blast_out = base + '.blast.txt'
     outformat = "6 qseqid sseqid pident stitle"
     if args.local_blast:
         #get number of cpus
@@ -174,8 +155,8 @@ elif args.method == 'rdp':
     ufitslib.log.info("Using RDP classifier %s training set" % args.rdp_tax)
     
     #run RDP
-    rdp_out = base + '.rdp.txt'
-    subprocess.call(['java', '-Xmx2000m', '-jar', args.rdp, 'classify', '-g', args.rdp_tax, '-o', rdp_out, '-f', 'fixrank', args.fasta])
+    cmd = ['java', '-Xmx2000m', '-jar', args.rdp, 'classify', '-g', args.rdp_tax, '-o', rdp_out, '-f', 'fixrank', args.fasta]
+    ufitslib.runSubprocess(cmd, ufitslib.log)
     
     #load in results and put into dictionary
     new = []
@@ -184,19 +165,19 @@ elif args.method == 'rdp':
     f = csv.reader(open(rdp_out), delimiter='\t')
     for col in f:
         if float(col[19]) > args.rdp_cutoff:
-            tax = "k:"+col[2]+",p:"+col[5]+",c:"+col[8]+",o:"+col[11]+",f:"+col[14]+",g:"+col[17]
+            tax = "RDP;k:"+col[2]+",p:"+col[5]+",c:"+col[8]+",o:"+col[11]+",f:"+col[14]+",g:"+col[17]
         elif float(col[16]) > args.rdp_cutoff:
-            tax = "k:"+col[2]+",p:"+col[5]+",c:"+col[8]+",o:"+col[11]+",f:"+col[14]
+            tax = "RDP;k:"+col[2]+",p:"+col[5]+",c:"+col[8]+",o:"+col[11]+",f:"+col[14]
         elif float(col[13]) > args.rdp_cutoff:
-            tax = "k:"+col[2]+",p:"+col[5]+",c:"+col[8]+",o:"+col[11]
+            tax = "RDP;k:"+col[2]+",p:"+col[5]+",c:"+col[8]+",o:"+col[11]
         elif float(col[10]) > args.rdp_cutoff:
-            tax = "k:"+col[2]+",p:"+col[5]+",c:"+col[8]
+            tax = "RDP;k:"+col[2]+",p:"+col[5]+",c:"+col[8]
         elif float(col[7]) > args.rdp_cutoff:
-            tax = "k:"+col[2]+",p:"+col[5]
+            tax = "RDP;k:"+col[2]+",p:"+col[5]
         elif float(col[4]) > args.rdp_cutoff:
-            tax = "k:"+col[2]
+            tax = "RDP;k:"+col[2]
         else:
-            tax = "k:unclassified"
+            tax = "RDP;k:unclassified"
         tax_split = tax.split(",")
         tax = [s for s in tax_split if not any(re.search(s) for re in remove_exp)]
         tax = ",".join(tax)
@@ -204,11 +185,6 @@ elif args.method == 'rdp':
         new.append(line)
     otuDict = dict(new)
 else:
-    #setup output taxonomy files
-    utax_out = base + '.usearch.txt'
-    usearch_out = base + '.usearch.txt'
-    sintax_out = base + '.sintax.txt'
-
     #check status of USEARCH DB and run
     if args.method in ['hybrid', 'usearch']:
         if args.fasta_db:
@@ -237,16 +213,13 @@ else:
             ufitslib.log.error("UTAX DB %s not found, skipping" % utax_db)
     
     if args.method in ['hybrid', 'sintax']:
-        if ufitslib.check_unoise(usearch):
-            if args.fasta_db: #if you pass fasta file here, over ride any auto detection
-                sintax_db = args.fasta_db
-            #now run sintax
-            ufitslib.log.info("Classifying OTUs with SINTAX (USEARCH)")
-            cmd = [usearch, '-sintax', args.fasta, '-db', os.path.abspath(sintax_db), '-tabbedout', sintax_out, '-sintax_cutoff', str(args.sintax_cutoff), '-strand', 'both']
-            ufitslib.runSubprocess(cmd, ufitslib.log)
-        else:
-            ufitslib.log.error("USEARCH version not compatible with SINTAX, please upgrade to at least version 9.1.13")
-    
+        if args.fasta_db: #if you pass fasta file here, over ride any auto detection
+            sintax_db = args.fasta_db
+        #now run sintax
+        ufitslib.log.info("Classifying OTUs with SINTAX (USEARCH)")
+        cmd = [usearch, '-sintax', args.fasta, '-db', os.path.abspath(sintax_db), '-tabbedout', sintax_out, '-sintax_cutoff', str(args.sintax_cutoff), '-strand', 'both']
+        ufitslib.runSubprocess(cmd, ufitslib.log)
+
     #now process results, load into dictionary - slightly different depending on which classification was run.
     if args.method == 'hybrid' and os.path.isfile(utax_out) and os.path.isfile(usearch_out) and os.path.isfile(sintax_out): #now run hybrid approach
         #load results into dictionary for appending to OTU table
@@ -363,13 +336,13 @@ if args.otu_table:
             #parse OTU table
             reader = csv.reader(inTable, dialect)
             for line in reader:
-                if 'OTUId' in line[0]:
+                if line[0].startswith(("#OTU", "OTUId")):
                     line.append('Taxonomy')
                 else:
                     tax = otuDict.get(line[0]) or "No Hit"
                     line.append(tax)
-                if args.tax_filter:
-                    if 'OTUId' in line[0]:
+                if args.tax_filter and not args.method == 'blast':
+                    if line[0].startswith(("#OTU", "OTUId")):
                         join_line = ('\t'.join(str(x) for x in line))
                     else:
                         if args.tax_filter in line[-1]:
@@ -383,20 +356,24 @@ if args.otu_table:
                 outTable.write("%s\n" % join_line)
 
     if args.tax_filter:
-        nonfungal = total - counts
-        ufitslib.log.info("Found %i OTUs not matching %s, writing %i %s hits to taxonomy OTU table" % (nonfungal, args.tax_filter, counts, args.tax_filter))
-        #need to create a filtered table without taxonomy for BIOM output
-        with open(tmpTable, 'w') as output:
-            with open(taxTable, 'rU') as input:
-                firstline = input.readline()
-                dialect = ufitslib.guess_csv_dialect(firstline)
-                input.seek(0)
-                #parse OTU table
-                reader = csv.reader(input, dialect)
-                for line in reader:
-                    del line[-1]
-                    join_line = '\t'.join(str(x) for x in line)
-                    output.write("%s\n" % join_line)
+        if args.method == 'blast':
+            ufitslib.log.info("Blast is incompatible with --tax_filter, use a different method")
+            tmpTable = args.otu_table
+        else:
+            nonfungal = total - counts
+            ufitslib.log.info("Found %i OTUs not matching %s, writing %i %s hits to taxonomy OTU table" % (nonfungal, args.tax_filter, counts, args.tax_filter))
+            #need to create a filtered table without taxonomy for BIOM output
+            with open(tmpTable, 'w') as output:
+                with open(taxTable, 'rU') as input:
+                    firstline = input.readline()
+                    dialect = ufitslib.guess_csv_dialect(firstline)
+                    input.seek(0)
+                    #parse OTU table
+                    reader = csv.reader(input, dialect)
+                    for line in reader:
+                        del line[-1]
+                        join_line = '\t'.join(str(x) for x in line)
+                        output.write("%s\n" % join_line)
     else:
         tmpTable = args.otu_table
 
@@ -423,8 +400,11 @@ with open(taxFinal, 'w') as finaltax:
             finaltax.write('%s\t%s\n' % (k,v))
       
 #convert taxonomy to qiime format for biom
-qiimeTax = base + '.qiime.taxonomy.txt'
-ufitslib.utax2qiime(taxFinal, qiimeTax)
+if not args.method == 'blast':
+    qiimeTax = base + '.qiime.taxonomy.txt'
+    ufitslib.utax2qiime(taxFinal, qiimeTax)
+else:
+    ufitslib.log.error("Blast taxonomy is not compatible with BIOM output, use a different method")
 
 #create OTU phylogeny for downstream processes
 ufitslib.log.info("Generating phylogenetic tree")
@@ -434,25 +414,27 @@ ufitslib.runSubprocess(cmd, ufitslib.log)
 
 #print some summary file locations
 ufitslib.log.info("Taxonomy finished: %s" % taxFinal)
-if args.otu_table:
+if args.otu_table and not args.method == 'blast':
     ufitslib.log.info("Classic OTU table with taxonomy: %s" % taxTable)
-    #output final OTU table in Biom v2.1 format (if biom installed)
+    #output final OTU table in Biom v1.0 (i.e. json format if biom installed)
     outBiom = base + '.biom'
     if ufitslib.which('biom'):
-        if os.path.isfile(outBiom):
-            os.remove(outBiom)
-        subprocess.call(['biom', 'convert', '-i', tmpTable, '-o', outBiom+'.tmp', '--table-type', "OTU table", '--to-json'])
+        ufitslib.removefile(outBiom)
+        cmd = ['biom', 'convert', '-i', tmpTable, '-o', outBiom+'.tmp', '--table-type', "OTU table", '--to-json']
+        ufitslib.runSubprocess(cmd, ufitslib.log)
         if args.mapping_file:
-            subprocess.call(['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '-m', args.mapping_file, '--sc-separated', 'taxonomy'])
+            cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '-m', args.mapping_file, '--sc-separated', 'taxonomy']
+            ufitslib.runSubprocess(cmd, ufitslib.log)
         else:
-            subprocess.call(['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '--sc-separated',  'taxonomy'])
-        os.remove(outBiom+'.tmp')
+            cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '--sc-separated',  'taxonomy']
+            ufitslib.runSubprocess(cmd, ufitslib.log)
+        ufitslib.removefile(outBiom+'.tmp')
         ufitslib.log.info("BIOM OTU table created: %s" % outBiom)
 ufitslib.log.info("OTUs with taxonomy: %s" % otuTax)
 ufitslib.log.info("OTU phylogeny: %s" % tree_out)  
 
 #clean up intermediate files
 if not args.debug:
-    for i in [utax_out, usearch_out, sintax_out, qiimeTax, tmpTable]:
+    for i in [utax_out, usearch_out, sintax_out, qiimeTax, base+'.otu_table.tmp']:
         ufitslib.removefile(i)   
 print "-------------------------------------------------------"

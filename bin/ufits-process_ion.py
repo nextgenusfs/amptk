@@ -45,7 +45,7 @@ parser.add_argument('--ion', action='store_true', help='Input data is Ion Torren
 parser.add_argument('--454', action='store_true', help='Input data is 454')
 parser.add_argument('--reverse', help='Illumina reverse reads')
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
-parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH8 EXE')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH EXE')
 args=parser.parse_args()
 
 def FindBarcode(Seq, BarcodeDict):
@@ -193,9 +193,9 @@ print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
 ufitslib.SystemInfo()
-#get version of ufits
-version = ufitslib.get_version()
-ufitslib.log.info("%s" % version)
+#Do a version check
+usearch = args.usearch
+ufitslib.versionDependencyChecks(usearch)
 
 #parse a mapping file or a barcode fasta file, primers, etc get setup
 #dealing with Barcodes, get ion barcodes or parse the barcode_fasta argument

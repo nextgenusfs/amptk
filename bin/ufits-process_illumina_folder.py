@@ -47,10 +47,10 @@ def MergeReads(R1, R2, outname, read_length):
     usearch = args.usearch
     pretrim_R1 = outname + '.pretrim_R1.fq'
     pretrim_R2 = outname + '.pretrim_R2.fq'
-    ufitslib.log.debug("Removing index 3prime bp 'A' from reads")
-    cmd = [usearch, '-fastq_filter', R1, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R1]
+    ufitslib.log.debug("Removing index 3prime bp 'A' from reads")    
+    cmd = ['vsearch', '--fastq_filter', R1, '--fastq_trunclen', str(read_length), '--fastqout', pretrim_R1]
     ufitslib.runSubprocess(cmd, ufitslib.log)
-    cmd = [usearch, '-fastq_filter', R2, '-fastq_trunclen', str(read_length), '-fastqout', pretrim_R2]
+    cmd = [usearch, '--fastq_filter', R2, '--fastq_trunclen', str(read_length), '--fastqout', pretrim_R2]
     ufitslib.runSubprocess(cmd, ufitslib.log)
 
     #next run USEARCH mergepe
@@ -200,11 +200,8 @@ print "-------------------------------------------------------"
 #initialize script, log system info and usearch version
 ufitslib.SystemInfo()
 #get version of ufits
-version = ufitslib.get_version()
-ufitslib.log.info("%s" % version)
 usearch = args.usearch
-version_check = ufitslib.get_usearch_version(usearch)
-ufitslib.log.info("USEARCH v%s" % version_check)
+ufitslib.versionDependencyChecks(usearch)
 
 #check folder if files are gzipped, then gunzip them
 #try to gunzip files

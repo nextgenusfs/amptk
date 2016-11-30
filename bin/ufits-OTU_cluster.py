@@ -54,26 +54,9 @@ print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
 ufitslib.SystemInfo()
-#get version of ufits
-version = ufitslib.get_version()
-ufitslib.log.info("%s" % version)
+#Do a version check
 usearch = args.usearch
-version_check = ufitslib.get_usearch_version(usearch)
-ufitslib.log.info("USEARCH v%s" % version_check)
-
-
-#check if vsearch version > 1.9.1 is installed
-vsearch_check = ufitslib.which('vsearch')
-if vsearch_check:
-    vsearch = ufitslib.checkvsearch()
-    vsearch_version = ufitslib.get_vsearch_version()
-    if vsearch:
-        ufitslib.log.info("VSEARCH v%s" % vsearch_version)
-    else:
-        ufitslib.log.info("VSEARCH v%s detected, need version at least v1.9.1, using Python for filtering")
-else:
-    vsearch = False
-    ufitslib.log.info("VSEARCH not installed, using Python for filtering")
+ufitslib.versionDependencyChecks(usearch)
 
 #make tmp folder
 tmp = args.out + '_tmp'
@@ -92,27 +75,18 @@ filter_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fq')
 filter_fasta = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fa')
 orig_fasta = os.path.join(tmp, args.out+'.orig.fa')
 ufitslib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
-if vsearch:
-    cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '55']
-    ufitslib.runSubprocess(cmd, ufitslib.log)
-    cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '55']
-    ufitslib.runSubprocess(cmd, ufitslib.log)
-else:
-    with open(filter_out, 'w') as output:
-        SeqIO.write(ufitslib.MaxEEFilter(args.FASTQ, args.maxee), output, 'fastq')
-    SeqIO.convert(args.FASTQ, 'fastq', orig_fasta, 'fasta')
-    SeqIO.convert(filter_out, 'fastq', filter_fasta, 'fasta')
+cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '55']
+ufitslib.runSubprocess(cmd, ufitslib.log)
+cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '55']
+ufitslib.runSubprocess(cmd, ufitslib.log)
 total = ufitslib.countfastq(filter_out)
 ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 
 #now run full length dereplication
 derep_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.derep.fa')
 ufitslib.log.info("De-replication (remove duplicate reads)")
-if vsearch:
-    cmd = ['vsearch', '--derep_fulllength', filter_fasta, '--sizeout', '--output', derep_out]
-    ufitslib.runSubprocess(cmd, ufitslib.log)
-else:
-    ufitslib.dereplicate(filter_out, derep_out)
+cmd = ['vsearch', '--derep_fulllength', filter_fasta, '--sizeout', '--output', derep_out]
+ufitslib.runSubprocess(cmd, ufitslib.log)
 total = ufitslib.countfasta(derep_out)
 ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 
@@ -120,16 +94,16 @@ ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 if args.unoise:
     unoise_out = unoise_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.denoised.fa')
     ufitslib.log.info("Denoising Data with UNOISE")
-    cmd = [usearch, '-cluster_fast', derep_out, '-centroids', unoise_out, '-id', '0.9', '-maxdiffs', '5', '-abskew', '10', '-sizein', '-sizeout', '-sort', 'size']
+    cmd = [usearch, '-cluster_fast', derep_out, '-centroids', unoise_out, '-id', '0.9', '--maxdiffs', '5', '-abskew', '10', '-sizein', '-sizeout', '-sort', 'size']
     ufitslib.runSubprocess(cmd, ufitslib.log)   
     total = ufitslib.countfasta(unoise_out)
     ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 else:
     unoise_out = derep_out
 
-#now run usearch 8 sort by size
+#now sort my size remove singletons
 sort_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.sort.fa')
-cmd = [usearch, '-sortbysize', unoise_out, '-minsize', args.minsize, '-fastaout', sort_out]
+cmd = ['vsearch', '--sortbysize', unoise_out, '--minsize', args.minsize, '--output', sort_out]
 ufitslib.runSubprocess(cmd, ufitslib.log)   
 
 #now run clustering algorithm
@@ -168,44 +142,29 @@ else:
             uchime_out = otu_clean
     #now run chimera filtering if all checks out
     if not os.path.isfile(uchime_out):
-        if vsearch:
-            ufitslib.log.info("Chimera Filtering (VSEARCH) using %s DB" % args.uchime_ref)
-            cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out]
-        else:
-            ufitslib.log.info("Chimera Filtering (UCHIME) using %s DB" % args.uchime_ref)
-            cmd = [usearch, '-uchime_ref', otu_clean, '-strand', 'plus', '-db', uchime_db, '-nonchimeras', uchime_out, '-mindiv', '1.0']
+
+        ufitslib.log.info("Chimera Filtering (VSEARCH) using %s DB" % args.uchime_ref)
+        cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out]
         ufitslib.runSubprocess(cmd, ufitslib.log)
         total = ufitslib.countfasta(uchime_out)
         uchime_chimeras = numOTUs - total
         ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed, ' + '{0:,}'.format(uchime_chimeras) + ' ref chimeras')
 
-#now map reads back to OTUs
+#now map reads back to OTUs and build OTU table
 uc_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.mapping.uc')
+otu_table = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otu_table.txt')
+#setup reads to map
 if args.map_filtered:
     reads = filter_fasta
 else:
     reads = orig_fasta
-
-ufitslib.log.info("Mapping Reads to OTUs")
-if vsearch:
-    cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', uchime_out, '--uc', uc_out]
-else:
-    cmd = [usearch, '-usearch_global', reads, '-strand', 'plus', '-id', '0.97', '-db', uchime_out, '-uc', uc_out]
+ufitslib.log.info("Mapping Reads to OTUs and Building OTU table")
+cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', uchime_out, '--uc', uc_out, '--otutabout', otu_table]
 ufitslib.runSubprocess(cmd, ufitslib.log)
 
 #count reads mapped
-if vsearch:
-    total = ufitslib.line_count(uc_out)
-else:
-    total = ufitslib.line_count2(uc_out)
+total = ufitslib.line_count(uc_out)
 ufitslib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
-
-#Build OTU table
-otu_table = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otu_table.txt')
-uc2tab = os.path.join(parentdir, 'lib', 'uc2otutable.py')
-ufitslib.log.info("Creating OTU Table")
-ufitslib.log.debug("%s %s %s" % (uc2tab, uc_out, otu_table))
-subprocess.call([sys.executable, uc2tab, uc_out, otu_table], stdout = FNULL, stderr = FNULL)
 
 #Move files around, delete tmp if argument passed.
 currentdir = os.getcwd()

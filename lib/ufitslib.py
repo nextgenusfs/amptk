@@ -51,27 +51,6 @@ def getreadlength(input):
                 break
     return read_length
     
-def get_vsearch_version():
-    version = subprocess.Popen(['vsearch', '--version'], stderr=subprocess.PIPE, stdout=subprocess.PIPE).communicate()
-    for v in version:
-        if v.startswith('vsearch'):
-            vers = v.replace('vsearch v', '')
-            vers2 = vers.split('_')[0]
-            return vers2
- 
-def checkvsearch():
-    vers = get_vsearch_version().split('.')
-    if int(vers[0]) > 1:
-        return True
-    else:
-        if int(vers[1]) > 9:
-            return True
-        else:
-            if int(vers[2]) > 0:
-                return True
-            else:
-                return False
-
 def runSubprocess(cmd, logfile):
     logfile.debug(' '.join(cmd))
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -177,29 +156,38 @@ def get_usearch_version(usearch):
     vers2 = vers.split('_')[0]
     return vers2
 
-def check_utax(usearch):
-    vers = get_usearch_version(usearch).split('.')
-    if int(vers[0]) >= 8:
+def get_vsearch_version():
+    version = subprocess.Popen(['vsearch', '--version'], stderr=subprocess.PIPE, stdout=subprocess.PIPE).communicate()
+    for v in version:
+        if v.startswith('vsearch'):
+            vers = v.replace('vsearch v', '')
+            vers2 = vers.split('_')[0]
+            return vers2
+
+def versiontuple(v):
+    return tuple(map(int, (v.split("."))))
+
+def gvc(input, check):
+    if versiontuple(input) >= versiontuple(check):
         return True
     else:
-        if int(vers[1]) >= 1:
-            return True
-        else:
-            if int(vers[2]) >= 1756:
-                return True
-            else:
-                return False
-
-def check_unoise(usearch):
-    vers = get_usearch_version(usearch).split('.')
-    if int(vers[0]) >= 9:
-        if int(vers[1]) < 1:
-            if int(vers[2]) >= 2133:
-                return True
-        else:
-            return True
-    else:
         return False
+
+def versionDependencyChecks(usearch):
+    #to run ufits need usearch > 9.0.2132 and vsearch > 2.2.0
+    ufits_version = get_version()
+    usearch_version = get_usearch_version(usearch)
+    vsearch_version = get_vsearch_version()
+    usearch_pass = '9.0.2132'
+    vsearch_pass = '2.2.0'
+    if not gvc(usearch_version, usearch_pass):
+        log.error("USEARCH v%s detected, needs to be atleast v%s" % (usearch_version, usearch_pass))
+        sys.exit(1)
+    if not gvc(vsearch_version, vsearch_pass):
+        log.error("VSEARCH v%s detected, needs to be atleast v%s" % (vsearch_version, vsearch_pass))
+        sys.exit(1)
+    log.info("%s, USEARCH v%s, VSEARCH v%s" % (ufits_version, usearch_version, vsearch_version))
+    
 
 def MemoryCheck():
     import psutil

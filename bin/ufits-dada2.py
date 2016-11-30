@@ -70,7 +70,7 @@ def getAvgLength(input):
 #remove logfile if exists
 log_name = args.out + '.ufits-dada2.log'
 if os.path.isfile(log_name):
-    os.remove(log_name)
+    ufitslib.removefile(log_name)
 
 ufitslib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
@@ -79,26 +79,13 @@ ufitslib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 #initialize script, log system info and usearch version
 ufitslib.SystemInfo()
-#get version of ufits
-version = ufitslib.get_version()
-ufitslib.log.info("%s" % version)
+#Do a version check
+usearch = args.usearch
+ufitslib.versionDependencyChecks(usearch)
 
 #check dependencies
-programs = ['Rscript', 'vsearch']
+programs = ['Rscript']
 ufitslib.CheckDependencies(programs)
-
-#check if vsearch version > 1.9.1 is installed
-vsearch_check = ufitslib.which('vsearch')
-if vsearch_check:
-    vsearch = ufitslib.checkvsearch()
-    vsearch_version = ufitslib.get_vsearch_version()
-    if vsearch:
-        ufitslib.log.info("VSEARCH v%s" % vsearch_version)
-    else:
-        ufitslib.log.info("VSEARCH v%s detected, need version at least v1.9.1, using Python for filtering")
-else:
-    vsearch = False
-    ufitslib.log.info("VSEARCH not installed, using Python for filtering")    
 
 #Count FASTQ records and remove 3' N's as dada2 can't handle them
 ufitslib.log.info("Loading FASTQ Records")
@@ -112,13 +99,8 @@ ufitslib.fastq_strip_padding(args.fastq, no_ns)
 #quality filter
 ufitslib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
 derep = args.out+'.qual-filtered.fq'
-if vsearch:
-    filtercmd = ['vsearch', '--fastq_filter', no_ns, '--fastq_maxee', str(args.maxee), '--fastqout', derep, '--fastq_qmax', '55', '--fastq_maxns', '0']
-    ufitslib.runSubprocess(filtercmd, ufitslib.log)
-else:
-    with open(derep, 'w') as output:
-        SeqIO.write(ufitslib.MaxEEFilter(no_ns, args.maxee), output, 'fastq')
-
+filtercmd = ['vsearch', '--fastq_filter', no_ns, '--fastq_maxee', str(args.maxee), '--fastqout', derep, '--fastq_qmax', '55', '--fastq_maxns', '0']
+ufitslib.runSubprocess(filtercmd, ufitslib.log)
 total = ufitslib.countfastq(derep)
 ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
 
@@ -199,7 +181,7 @@ if not args.uchime_ref:
 else:
     #check if file is present, remove from previous run if it is.
     if os.path.isfile(uchime_out):
-        os.remove(uchime_out)
+        ufitslib.removefile(uchime_out)
     #R. Edgar now says using largest DB is better for UCHIME, so use the one distributed with taxonomy
     if args.uchime_ref in ['ITS', '16S', 'LSU', 'COI']: #test if it is one that is setup, otherwise default to full path
         uchime_db = os.path.join(parentdir, 'DB', args.uchime_ref+'.extracted.fa')
@@ -229,9 +211,9 @@ else:
             SeqIO.write(inferredSeqs[x], iSeqout, 'fasta')
     if not args.debug:
         #clean up chimeras fasta
-        os.remove(uchime_out)
+        ufitslib.removefile(uchime_out)
         if os.path.isfile(fastaout):
-            os.remove(fastaout)
+            ufitslib.removefile(fastaout)
 
 
 #setup output files
@@ -246,15 +228,10 @@ ClusterComp = args.out+'.iSeqs2clusters.txt'
 ufitslib.log.info("Mapping reads to DADA2 iSeqs")
 cmd = ['vsearch', '--fastq_filter', os.path.abspath(args.fastq),'--fastq_qmax', '55', '--fastq_maxns', '0', '--fastaout', demuxtmp]
 ufitslib.runSubprocess(cmd, ufitslib.log)
-cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', iSeqs, '--id', '0.97', '--uc', dadademux, '--strand', 'plus']
+cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', iSeqs, '--id', '0.97', '--uc', dadademux, '--strand', 'plus', '--otutabout', chimeraFreeTable ]
 ufitslib.runSubprocess(cmd, ufitslib.log)
 total = ufitslib.line_count(dadademux)
 ufitslib.log.info('{0:,}'.format(total) + ' reads mapped to iSeqs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
-#Build OTU table
-ufitslib.log.info("Building iSeq OTU table")
-uc2tab = os.path.join(parentdir, 'lib', 'uc2otutable.py')
-ufitslib.log.debug("%s %s %s" % (uc2tab, dadademux, chimeraFreeTable))
-subprocess.call([sys.executable, uc2tab, dadademux, chimeraFreeTable], stdout = FNULL, stderr = FNULL)
 
 #cluster
 ufitslib.log.info("Clustering iSeqs at %s%% to generate biological OTUs" % args.pct_otu)
@@ -285,24 +262,20 @@ with open(ClusterComp, 'w') as clusters:
         clusters.write('%s\t%s\n' % (k, ', '.join(v)))
 #create OTU table
 ufitslib.log.info("Mapping reads to OTUs")
-cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', bioSeqs, '--id', '0.97', '--uc', uctmp, '--strand', 'plus']
+cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', bioSeqs, '--id', '0.97', '--uc', uctmp, '--strand', 'plus', '--otutabout', bioTable]
 ufitslib.runSubprocess(cmd, ufitslib.log)
 total = ufitslib.line_count(uctmp)
 ufitslib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
-#Build OTU table
-ufitslib.log.info("Building OTU table")
-ufitslib.log.debug("%s %s %s" % (uc2tab, uctmp, bioTable))
-subprocess.call([sys.executable, uc2tab, uctmp, bioTable], stdout = FNULL, stderr = FNULL)
 
 if not args.debug:
-    os.remove(no_ns)
+    ufitslib.removefile(no_ns)
     shutil.rmtree(filtfolder)
-    os.remove(dada2out)
-    os.remove(derep)
-    os.remove(demuxtmp)
-    os.remove(uctmp)
-    os.remove(iSeqmap)
-    os.remove(dadademux)
+    ufitslib.removefile(dada2out)
+    ufitslib.removefile(derep)
+    ufitslib.removefile(demuxtmp)
+    ufitslib.removefile(uctmp)
+    ufitslib.removefile(iSeqmap)
+    ufitslib.removefile(dadademux)
 
 #Print location of files to STDOUT
 print "-------------------------------------------------------"

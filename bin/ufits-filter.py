@@ -67,19 +67,20 @@ print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
 ufitslib.SystemInfo()
-#get version of ufits
-version = ufitslib.get_version()
-ufitslib.log.info("%s" % version)
+#Do a version check
 usearch = args.usearch
-version_check = ufitslib.get_usearch_version(usearch)
-ufitslib.log.info("USEARCH v%s" % version_check)
+ufitslib.versionDependencyChecks(usearch)
 
 #check if otu_table is empty
 ufitslib.log.info("Loading OTU table: %s" % args.otu_table)
 check = os.stat(args.otu_table).st_size
 if check == 0:
     ufitslib.log.error("Input OTU table is empty")
-    os._exit(1)
+    sys.exit(1)
+#get the OTU header info (depending on how OTU table was constructed, this might be different, so find it as you need for indexing)
+with open(args.otu_table, 'rU') as f:
+    first_line = f.readline()
+    OTUhead = first_line.split('\t')[0]
 
 if args.delimiter == 'csv':
     delim = ','
@@ -99,7 +100,7 @@ stats_table = base+'.stats'+ending
 
 #load OTU table into pandas DataFrame
 df = pd.read_csv(args.otu_table, sep='\t')
-df.set_index('OTUId', inplace=True)
+df.set_index(OTUhead, inplace=True)
 
 ufitslib.log.info("OTU table contains %i OTUs" % len(df.index))
 
@@ -275,11 +276,11 @@ for row in norm_round.itertuples():
         result.append(i)
     cleaned.append(result)
 
-header = ['OTUId']
+header = [OTUhead]
 for i in norm_round.columns:
     header.append(i)
 final = pd.DataFrame(cleaned, columns=header)
-final.set_index('OTUId', inplace=True)
+final.set_index(OTUhead, inplace=True)
 if args.subtract != 'auto':
     subtract_num = int(args.subtract)
 else:
