@@ -50,7 +50,7 @@ def MergeReads(R1, R2, outname, read_length):
     ufitslib.log.debug("Removing index 3prime bp 'A' from reads")    
     cmd = ['vsearch', '--fastq_filter', R1, '--fastq_trunclen', str(read_length), '--fastqout', pretrim_R1]
     ufitslib.runSubprocess(cmd, ufitslib.log)
-    cmd = [usearch, '--fastq_filter', R2, '--fastq_trunclen', str(read_length), '--fastqout', pretrim_R2]
+    cmd = ['vsearch', '--fastq_filter', R2, '--fastq_trunclen', str(read_length), '--fastqout', pretrim_R2]
     ufitslib.runSubprocess(cmd, ufitslib.log)
 
     #next run USEARCH mergepe
