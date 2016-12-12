@@ -190,7 +190,7 @@ Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from ufits cluster)
              -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: ITS2
              -m, --mapping_file  QIIME-like mapping file
              --method            Taxonomy method. Default: hybrid [utax, sintax, usearch, hybrid, rdp, blast]
-             --fasta_db          Alternative database of fasta sequenes to use for global alignment.
+             --fasta_db          Alternative database of fasta sequences to use for global alignment.
              --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --usearch_db        USEARCH formatted database. Default: USEARCH.udb
