@@ -10,6 +10,33 @@ class colr:
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
+    
+def runMultiProgress(function, inputList, cpus):
+    import multiprocessing
+    from progressbar import ProgressBar, Percentage
+    try:
+        from progressbar import AdaptiveETA
+        eta = AdaptiveETA()
+    except ImportError:
+        from progressbar import ETA
+        eta = ETA()
+    from time import sleep
+    #setup pool
+    p = multiprocessing.Pool(cpus)
+    #setup progress bar
+    widgets = ['     Progress: ', Percentage(),' || ', eta]
+    pbar = ProgressBar(widgets=widgets, term_width=30, maxval=len(inputList)).start()
+    #setup results and split over cpus
+    results = []
+    r = [p.apply_async(function, (x,), callback=results.append) for x in inputList]
+    #refresh pbar every 5 seconds
+    while len(results) != len(inputList):
+        pbar.update(len(results))
+        sleep(5)
+    pbar.finish()
+    p.close()
+    p.join()
+
 
 def myround(x, base=10):
     return int(base * round(float(x)/base))
