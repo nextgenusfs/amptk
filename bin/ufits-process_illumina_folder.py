@@ -88,7 +88,7 @@ def processRead(input):
     #local variables that need to be previously declared: ForPrimer, RevPrimer
     Name = os.path.basename(input).split(".fq",-1)[0]
     DemuxOut = os.path.join(args.out, Name + '.demux.fq')
-    counter = 1
+    counter = 0
     PL = len(FwdPrimer)
     with open(DemuxOut, 'w') as out:
         for title, seq, qual in FastqGeneralIterator(open(input)):
@@ -122,13 +122,12 @@ def processRead(input):
                     Seq = Seq[:args.trim_len]
                     Qual = Qual[:args.trim_len]
             #got here, reads are primers trimmed and trim/padded, check length
-            if len(Seq) < args.min_len:
-                continue           
-            #now fix header
-            Title = 'R_'+str(counter)+';barcodelabel='+Name+';'
-            #now write to file and bump counter
-            counter += 1
-            out.write("@%s\n%s\n+\n%s\n" % (Title, Seq, Qual))
+            if len(Seq) >= args.min_len:
+                counter += 1     
+                #now fix header
+                Title = 'R_'+str(counter)+';barcodelabel='+Name+';'
+                #now write to file
+                out.write("@%s\n%s\n+\n%s\n" % (Title, Seq, Qual))
                         
 #sometimes people add slashes in the output directory, this could be bad, try to fix it
 args.out = re.sub(r'\W+', '', args.out)
@@ -312,6 +311,8 @@ ufitslib.log.info("splitting the job over %i cpus, but this may still take awhil
 
 #make sure primer is reverse complemented
 RevPrimer = revcomp_lib.RevComp(RevPrimer)
+ufitslib.log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
+
 #finally process reads over number of cpus
 ufitslib.runMultiProgress(processRead, file_list, cpus)
 print "-------------------------------------------------------"

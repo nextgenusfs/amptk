@@ -28,8 +28,7 @@ def filter_sample(file, output):
     with open(output, 'w') as out:
         for title, seq, qual in FastqGeneralIterator(open(file)):
             total_count += 1
-            sample = title.split('barcodelabel=')[1]
-            sample = sample[:-1]
+            sample = title.split('=',1)[1].split(';')[0]
             if sample in keep_list:
                 keep_count += 1
                 if args.format == 'fastq':

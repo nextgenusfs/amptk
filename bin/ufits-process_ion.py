@@ -2,6 +2,7 @@
 
 import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools, re
 from Bio import SeqIO
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -31,13 +32,11 @@ parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help=
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer')
 parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
-parser.add_argument('--barcode_mismatch', default=0, type=int, help='Number of mis-matches in barcode')
 parser.add_argument('--barcode_fasta', default='pgm_barcodes.fa', help='FASTA file containing Barcodes (Names & Sequences)')
 parser.add_argument('--reverse_barcode', help='FASTA file containing 3 prime Barocdes')
 parser.add_argument('-b','--list_barcodes', dest="barcodes", default='all', help='Enter Barcodes used separated by commas')
-parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
-parser.add_argument('--min_len', default='50', help='Minimum read length to keep')
-parser.add_argument('-l','--trim_len', default='250', help='Trim length for reads')
+parser.add_argument('--min_len', default=50, type=int, help='Minimum read length to keep')
+parser.add_argument('-l','--trim_len', default=250, type=int, help='Trim length for reads')
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
 parser.add_argument('--mult_samples', dest="multi", default='False', help='Combine multiple samples (i.e. FACE1)')
 parser.add_argument('--illumina', action='store_true', help='Input data is single file Illumina')
@@ -55,130 +54,67 @@ def FindBarcode(Seq, BarcodeDict):
             return Barcode, BarcodeLabel
     return "", ""
 
-def TrimRead(record, Ftrim, Rtrim, Name, Count):
-    #function to trim a seqrecord and rename
-    if Rtrim:
-        record = record[Ftrim:Rtrim]
-    else:
-        record = record[Ftrim:]
-    #rename header
-    record.id = LabelPrefix + str(Count) + ";barcodelabel=" + Name + ";"
-    record.name = ''
-    record.description = ''
-    return record
-
-def ProcessReads(records):
-    global OutCount
-    for rec in records:
-        #convert to string for processing
-        Seq = str(rec.seq)
-        #look for barcodes
-        Barcode, BarcodeLabel = FindBarcode(Seq, Barcodes)
-        if Barcode == "": #if not found, try to find with mismatches
-            if args.barcode_mismatch > 0:
-                hit = [None, None, 0, None, None]
-                for k,v in Barcodes.items():
-                    alignment = ufitslib.fuzzymatch(v, Seq, args.barcode_mismatch)
-                    if alignment:
-                        if alignment[0] > hit[2]:
-                            hit = [k, v, alignment[0], alignment[1], alignment[2]]
-                if hit[0] != None:
-                    BarcodeLength = hit[4] - hit[3] #might be shorter than actual barcode
-                    BarcodeLabel = hit[0]
-                    Barcode = hit[1]
-                else:
-                    continue
-            else:
+def processRead(input):
+    base = os.path.basename(input).split('.')[0]
+    PL = len(FwdPrimer)
+    RL = len(RevPrimer)
+    with open(os.path.join(tmpdir, base+'.demux.fq'), 'w') as out:
+        counter = 0
+        for title, seq, qual in FastqGeneralIterator(open(input)):
+            bcmismatch = 0
+            #look for barcode
+            Barcode, BarcodeLabel = FindBarcode(seq, Barcodes)
+            if Barcode == "":
                 continue
-        else: #barcode was found from dictionary
             BarcodeLength = len(Barcode)
-
-        #now look for primer, if not found, move onto next record
-        BestPosFor, BestDiffsFor = primer.BestMatch2(Seq, FwdPrimer, MAX_PRIMER_MISMATCHES)
-        if BestPosFor > 0 and BestPosFor <= BarcodeLength+2: #if found will be > 0, and should be found after barcode
-            ForTrim = BestPosFor + PL
-        else:
-            continue
-        
-        #counter for numbering reads
-        OutCount += 1
-
-        #look for reverse primer
-        BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, MAX_PRIMER_MISMATCHES)
-        if BestPosRev > 0:  #reverse primer was found    
-            #location to trim sequences
-            RevTrim = BestPosRev
-            
-            #determine reverse barcode
-            if args.reverse_barcode:
-                BCcut = BestPosRev + RL
-                CutSeq = Seq[BCcut:]
-                if not CutSeq in RevBarcodes:
-                    if args.barcode_mismatch > 0:
-                        hit = [None, None, 0, None, None]
-                        for k,v in RevBarcodes.items():
-                            alignment = ufitslib.fuzzymatch(k, CutSeq, args.barcode_mismatch)
-                            if alignment:
-                                if alignment[0] > hit[2]:
-                                    hit = [v, k, alignment[0], alignment[1], alignment[2]]
-                        if hit[0] != None:
-                            BCname = hit[0]
-                        else:
+            #now search for forward primer
+            BestPosFor, BestDiffsFor = primer.BestMatch2(seq, FwdPrimer, args.primer_mismatch)
+            if BestPosFor > 0 and BestPosFor <= BarcodeLength+2: #if found will be > 0, and should be found after barcode
+                ForTrim = BestPosFor + PL
+                #now search for reverse primer
+                BestPosRev, BestDiffsRev = primer.BestMatch2(seq, RevPrimer, args.primer_mismatch)
+                if BestPosRev > 0:  #reverse primer was found    
+                    #location to trim sequences
+                    RevTrim = BestPosRev                
+                    #determine reverse barcode
+                    if args.reverse_barcode:
+                        RevBCdiffs = 0
+                        BCcut = BestPosRev + RL
+                        CutSeq = seq[BCcut:]
+                        RevBarcode, RevBarcodeLabel = FindBarcode(CutSeq, RevBarcodes)
+                        if RevBarcode == "":
                             continue
-                    else:
-                        continue
+                        BarcodeLabel = BarcodeLabel+'_'+RevBarcodeLabel                       
+                    #now trim record remove forward and reverse reads
+                    Seq = seq[ForTrim:RevTrim]
+                    Qual = qual[ForTrim:RevTrim]
+                    #since found reverse primer, now also need to pad/trim
+                    if not args.full_length:
+                        if len(Seq) < args.trim_len:
+                            pad = args.trim_len - len(Seq)
+                            Seq = Seq + pad*'N'
+                            Qual = Qual +pad*'J'
+                        elif len(Seq) > args.trim_len:
+                            Seq = Seq[:args.trim_len]
+                            Qual = Qual[:args.trim_len]
                 else:
-                    BCname = RevBarcodes.get(CutSeq)
-                #update name
-                BarcodeLabel = BarcodeLabel+'_'+BCname
-            
-            #trim record
-            rec = TrimRead(rec, ForTrim, RevTrim, BarcodeLabel, OutCount)
-            
-            #check length       
-            L = len(rec.seq)
-            if L < MinLen:
-                continue
-            if not args.full_length:
-                #now check trim length, pad if necessary
-                if L < TrimLen:
-                    pad = TrimLen - L
-                    Seq = str(rec.seq)
-                    Seq = Seq + pad*'N'
-                    Qual = rec.letter_annotations["phred_quality"]
-                    pad = TrimLen - L
-                    add = [40] * pad
-                    Qual.extend(add)
-                    del rec.letter_annotations["phred_quality"]
-                    rec.seq = Seq
-                    rec.letter_annotations["phred_quality"] = Qual
-                    yield rec
-                elif L >= TrimLen:   
-                    rec = rec[:TrimLen]
-                    yield rec
-            else:
-                yield rec
-
-        else: #if it is full length, we did not find reverse primer, so drop read
-            if not args.full_length:
-                #trim record
-                rec = TrimRead(rec, ForTrim, False, BarcodeLabel, OutCount)
-                #check length
-                L = len(rec.seq)
-                if L < MinLen: #remove if shorter than minimum length
-                    continue
-                #truncate down to trim length
-                if L >= TrimLen:
-                    rec = rec[:TrimLen]        
-                    yield rec
-
-
-def worker(input):
-    output = input.split(".",-1)[0] + '.demux.fq'
-    with open(output, 'w') as o:
-        with open(input, 'rU') as i:
-            SeqRecords = SeqIO.parse(i, 'fastq')
-            SeqIO.write(ProcessReads(SeqRecords), o, 'fastq')  
+                    #trim record, did not find reverse primer
+                    if args.full_length: #if full length then move to next record
+                        continue
+                    #trim away forward primer
+                    Seq = seq[ForTrim:]
+                    Qual = seq[ForTrim:]
+                    #check length and trim, throw away if too short as it was bad read
+                    if len(Seq) < args.trim_len:
+                        continue
+                    Seq = Seq[:args.trim_len]
+                    Qual = Qual[:args.trim_len]
+                #check minimum length
+                if len(Seq) >= int(args.min_len):
+                    counter += 1
+                    #rename header
+                    Name = 'R_'+str(counter)+';barcodelabel='+BarcodeLabel+';'
+                    out.write("@%s\n%s\n+\n%s\n" % (Name, Seq, Qual))
 
 args.out = re.sub(r'\W+', '', args.out)
 
@@ -360,46 +296,38 @@ if not args.cpus:
 else:
     cpus = args.cpus
 
-#get other values
-MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
-LabelPrefix = args.prefix
-MinLen = int(args.min_len)
-TrimLen = int(args.trim_len)
-PL = len(FwdPrimer)
-RL = len(RevPrimer)
-OutCount = 0
+#Count FASTQ records
+ufitslib.log.info("Loading FASTQ Records")
+orig_total = ufitslib.countfastq(SeqIn)
+size = ufitslib.checkfastqsize(SeqIn)
+readablesize = ufitslib.convertSize(size)
+ufitslib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 
+#create tmpdir and split input into n cpus
+tmpdir = args.out.split('.')[0]+'_'+str(os.getpid())
+if not os.path.exists(tmpdir):
+    os.makedirs(tmpdir)
 #split the input FASTQ file into chunks to process
 with open(SeqIn, 'rU') as input:
-    SeqCount = ufitslib.countfastq(SeqIn)
-    ufitslib.log.info('{0:,}'.format(SeqCount) + ' records loaded')
     SeqRecords = SeqIO.parse(SeqIn, 'fastq')
-    chunks = SeqCount / cpus + 1
-    ufitslib.log.info("splitting job over %i cpus, this may still take awhile" % cpus)
+    chunks = orig_total / (2*cpus)+1
     #divide into chunks, store in tmp file
-    pid = os.getpid()
-    folder = 'ufits_tmp_' + str(pid)
-    if not os.path.exists(folder):
-        os.makedirs(folder)
     for i, batch in enumerate(ufitslib.batch_iterator(SeqRecords, chunks)) :
         filename = "chunk_%i.fq" % (i+1)
-        tmpout = os.path.join(folder, filename)
+        tmpout = os.path.join(tmpdir, filename)
         handle = open(tmpout, "w")
         count = SeqIO.write(batch, handle, "fastq")
         handle.close()
 
 #now get file list from tmp folder
 file_list = []
-for file in os.listdir(folder):
+for file in os.listdir(tmpdir):
     if file.endswith(".fq"):
-        file = os.path.join(folder, file)
+        file = os.path.join(tmpdir, file)
         file_list.append(file)
 
-p = multiprocessing.Pool(cpus)
-for f in file_list:
-    p.apply_async(worker, [f])
-p.close()
-p.join()
+#finally process reads over number of cpus
+ufitslib.runMultiProgress(processRead, file_list, cpus)
 
 print "-------------------------------------------------------"
 #Now concatenate all of the demuxed files together
@@ -407,14 +335,14 @@ ufitslib.log.info("Concatenating Demuxed Files")
 
 tmpDemux = args.out + '.tmp.demux.fq'
 with open(tmpDemux, 'wb') as outfile:
-    for filename in glob.glob(os.path.join(folder,'*.demux.fq')):
+    for filename in glob.glob(os.path.join(tmpdir,'*.demux.fq')):
         if filename == tmpDemux:
             continue
         with open(filename, 'rU') as readfile:
             shutil.copyfileobj(readfile, outfile)
 
 #clean up tmp folder
-shutil.rmtree(folder)
+shutil.rmtree(tmpdir)
 
 #last thing is to re-number of reads as it is possible they could have same name from multitprocessor split
 catDemux = args.out + '.demux.fq'
@@ -430,7 +358,7 @@ BarcodeCount = {}
 with open(catDemux, 'rU') as input:
     header = itertools.islice(input, 0, None, 4)
     for line in header:
-        ID = line.split("=")[-1].split(";")[0]
+        ID = line.split("=",1)[-1].split(";")[0]
         if ID not in BarcodeCount:
             BarcodeCount[ID] = 1
         else:

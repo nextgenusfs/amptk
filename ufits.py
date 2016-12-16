@@ -163,7 +163,6 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              --reverse_barcode   FASTA file containing 3' barcodes. Default: none
              --full_length       Keep only full length sequences.
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
-             --barcode_mismatch  Number of mismatches in barcodes to allow. Default: 0
              --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch9
         """ % (sys.argv[1], version)
@@ -192,8 +191,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              -o, --out           Output folder name. Default: ufits-data
              -m, --mapping_file  QIIME-like mapping file
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
-             -r, --rev_primer    Reverse primer sequence Default: ITS4
-             -n, --name_prefix   Prefix for re-naming reads. Default: R_             
+             -r, --rev_primer    Reverse primer sequence Default: ITS4      
              -l, --trim_len      Length to trim/pad reads. Default: 250
              --min_len           Minimum length read to keep. Default: 50
              --full_length       Keep only full length sequences.
@@ -238,7 +236,6 @@ Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
              --barcode_fasta     FASTA file containing barcodes. (Required)
              --reverse_barcode   FASTA file containing 3' barcodes. Default: none
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
-             --barcode_mismatch  Number of mismatches in barcodes to allow. Default: 0
              --cpus              Number of CPUs to use. Default: all
         """ % (sys.argv[1], version)
         
@@ -402,6 +399,7 @@ Optional:    -o, --out           Base name for output files. Default: use input 
              
 Filtering    -n, --normalize     Normalize reads to number of reads per sample [y,n]. Default: y
              -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.005
+             -t, --threshold     Number to use for establishing read count threshold. Default: max [max,sum,top5,top10,top25]
              -s, --subtract      Threshold to subtract from all OTUs (any number or auto). Default: 0
              -d, --delimiter     Delimiter of OTU tables. Default: csv  [csv, tsv]
              --min_reads_otu     Minimum number of reads for valid OTU from whole experiment. Default: 2

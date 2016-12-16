@@ -24,7 +24,7 @@ def countOTUs(file):
     count = 0
     with open(file, 'rU') as input:
         for line in input:
-            if line.startswith('OTUId'):
+            if line.startswith('#OTU ID'):
                 continue
             else:
                 count += 1
@@ -64,7 +64,7 @@ def transposeTable(metadata, otu_Dict, outfile, filter):
         for line in reader:
             count += 1
             if count == 1:
-                header = otu_Dict.get('OTUId')
+                header = otu_Dict.get('#OTU ID')
                 header = list(header)
                 if filter:
                     result = []
