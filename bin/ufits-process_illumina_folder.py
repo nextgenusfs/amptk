@@ -121,7 +121,10 @@ def processRead(input):
                 elif len(Seq) > args.trim_len:
                     Seq = Seq[:args.trim_len]
                     Qual = Qual[:args.trim_len]
-            #got here, reads are primers trimmed and trim/padded, now fix header
+            #got here, reads are primers trimmed and trim/padded, check length
+            if len(Seq) < args.min_len:
+                continue           
+            #now fix header
             Title = 'R_'+str(counter)+';barcodelabel='+Name+';'
             #now write to file and bump counter
             counter += 1
