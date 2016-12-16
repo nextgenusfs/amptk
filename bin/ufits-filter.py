@@ -33,9 +33,10 @@ parser.add_argument('-i','--otu_table', required=True, help='Input OTU table')
 parser.add_argument('-f','--fasta', required=True, help='Input OTUs (multi-fasta)')
 parser.add_argument('-b','--mock_barcode', help='Barocde of Mock community')
 parser.add_argument('-p','--index_bleed',  help='Index Bleed filter. Default: auto')
+parser.add_argument('-t','--threshold', default='max', choices=['sum','max','top25','top10','top5'],help='Threshold to use when calculating index-bleed')
 parser.add_argument('-s','--subtract', default=0, help='Threshold to subtract')
 parser.add_argument('-n','--normalize', default='y', choices=['y','n'], help='Normalize OTU table prior to filtering')
-parser.add_argument('--mc', help='Multi-FASTA mock community')
+parser.add_argument('-m','--mc', help='Multi-FASTA mock community')
 parser.add_argument('-d','--delimiter', default='tsv', choices=['csv','tsv'], help='Delimiter')
 parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
 parser.add_argument('--keep_mock', action='store_true', help='Keep mock sample in OTU table (Default: False)')
@@ -264,7 +265,7 @@ if args.mock_barcode:
     subtract_num = max(sample_df.max())
 
     #get max values for bleed
-    #can only use into samples measurement if using synmock
+    #can only use into samples measurement if not using synmock
     if args.mc == 'synmock':
         if bleed1max > bleed2max:
             bleedfilter = math.ceil(bleed1max*1000)/1000
@@ -293,7 +294,22 @@ else:
 cleaned = []
 for row in norm_round.itertuples():
     result = [row[0]]
-    total = max(row[1:]) #get max OTU count from table to calculate index bleed from.
+    if args.threshold == 'max':
+        total = max(row[1:]) #get max OTU count from table to calculate index bleed from.
+    elif args.threshold == 'sum':
+        total = sum(row[1:])
+    elif args.threshold == 'top25':
+        top = sorted(row[1:], key=int, reverse=True)
+        topn = int(round(len(row[1:])*0.25))
+        total = sum(top[:topn])
+    elif args.threshold == 'top10':
+        top = sorted(row[1:], key=int, reverse=True)
+        topn = int(round(len(row[1:])*0.10))
+        total = sum(top[:topn])
+    elif args.threshold == 'top5':
+        top = sorted(row[1:], key=int, reverse=True)
+        topn = int(round(len(row[1:])*0.05))
+        total = sum(top[:topn])
     sub = total * bleedfilter
     for i in row[1:]:
         if i < sub:
