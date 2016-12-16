@@ -10,6 +10,7 @@ import lib.ufitslib as ufitslib
 import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
 from Bio import SeqIO
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -34,9 +35,8 @@ parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='
 parser.add_argument('--require_primer', dest="primer", default='on', choices=['on', 'off'], help='Require Fwd primer to be present')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--rescue_forward', default='on', choices=['on', 'off'], help='Rescue Not-merged forward reads')
-parser.add_argument('-n','--name_prefix', dest="prefix", default='R_', help='Prefix for renaming reads')
-parser.add_argument('--min_len', default='50', help='Minimum read length to keep')
-parser.add_argument('-l','--trim_len', default='250', help='Trim length for reads')
+parser.add_argument('--min_len', default=50, type=int, help='Minimum read length to keep')
+parser.add_argument('-l','--trim_len', default=250, type=int, help='Trim length for reads')
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH executable')
@@ -82,105 +82,52 @@ def MergeReads(R1, R2, outname, read_length):
 
 def MatchesPrimer(Seq, Primer):
     return primer.MatchPrefix(Seq, Primer)
-    
-def ProcessReads(records):
-    OutCount = 0
-    MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
-    LabelPrefix = args.prefix
-    MinLen = int(args.min_len)
-    TrimLen = int(args.trim_len)
+
+def processRead(input):
+    #input is expected to be a FASTQ file
+    #local variables that need to be previously declared: ForPrimer, RevPrimer
+    Name = os.path.basename(input).split(".fq",-1)[0]
+    DemuxOut = os.path.join(args.out, Name + '.demux.fq')
+    counter = 1
     PL = len(FwdPrimer)
-    revPrimer = revcomp_lib.RevComp(RevPrimer)
-    for rec in records:
-        OutCount += 1
-        rec.id = LabelPrefix + str(OutCount) + ";barcodelabel=" + name + ";"
-        rec.name = ""
-        rec.description = ""
-        #turn sequence into string for matching
-        Seq = str(rec.seq)
-        Diffs = MatchesPrimer(Seq, FwdPrimer)
-        if args.primer == "on":
-            if Diffs > MAX_PRIMER_MISMATCHES:
-                continue
-            # Strip fwd primer from rec
-            rec = rec[PL:]
-        elif args.primer == "off":
-            if Diffs < MAX_PRIMER_MISMATCHES:
-                # Strip fwd primer from rec
-                rec = rec[PL:]      
-        #turn seq into str again
-        Seq = str(rec.seq)
-        #look for reverse primer
-        BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, revPrimer, MAX_PRIMER_MISMATCHES)
-        if BestPosRev > 0:
-            # Strip rev primer from rec.seq
-            rec = rec[:BestPosRev]
-            #check length       
-            L = len(rec.seq)
-            if L < MinLen:
-                continue
+    with open(DemuxOut, 'w') as out:
+        for title, seq, qual in FastqGeneralIterator(open(input)):
+            #first thing is look for forward primer, if found trim it off
+            Diffs = MatchesPrimer(seq, FwdPrimer)
+            if args.primer == 'on':
+                if Diffs > args.primer_mismatch:
+                    continue
+                else:
+                    seq = seq[PL:]
+                    qual = qual[PL:]
+            elif args.primer == 'off':
+                if Diffs <= args.primer_mismatch:
+                    seq = seq[PL:]
+                    qual = qual[PL:]
+            #now look for reverse primer
+            BestPosRev, BestDiffsRev = primer.BestMatch2(seq, RevPrimer, args.primer_mismatch)
+            if BestPosRev > 0:  #reverse primer was found    
+                #location to trim sequences, trim seqs
+                Seq = seq[:BestPosRev]
+                Qual = qual[:BestPosRev]
+            #if full_length is passed, then only trim primers
             if not args.full_length:
-                #now check trim length, pad if necessary
-                if L < TrimLen:
-                    pad = TrimLen - L
-                    Seq = str(rec.seq)
+                #got here if primers were found they were trimmed
+                #now check seq length, pad if too short, trim if too long
+                if len(Seq) < args.trim_len:
+                    pad = args.trim_len - len(Seq)
                     Seq = Seq + pad*'N'
-                    Qual = rec.letter_annotations["phred_quality"]
-                    pad = TrimLen - L
-                    add = [40] * pad
-                    Qual.extend(add)
-                    del rec.letter_annotations["phred_quality"]
-                    rec.seq = Seq
-                    rec.letter_annotations["phred_quality"] = Qual
-                    yield rec
-                elif L >= TrimLen:   
-                    rec = rec[:TrimLen]
-                    yield rec
-            else:
-                yield rec
-        else:
-            #check length
-            L = len(rec.seq)
-            if not args.full_length:
-                if args.primer == 'off': #if custom primer used, then need to pad from end not only if rev primer found
-                    if L < MinLen: #but for quality control, need to cull reads that are really short as they are likely garbage
-                        continue
-                    if L < TrimLen:
-                        pad = TrimLen - L
-                        Seq = str(rec.seq)
-                        Seq = Seq + pad*'N'
-                        Qual = rec.letter_annotations["phred_quality"]
-                        pad = TrimLen - L
-                        add = [40] * pad
-                        Qual.extend(add)
-                        del rec.letter_annotations["phred_quality"]
-                        rec.seq = Seq
-                        rec.letter_annotations["phred_quality"] = Qual
-                        yield rec
-                    elif L >= TrimLen:   
-                        rec = rec[:TrimLen]
-                        yield rec
-                elif args.primer == 'on':
-                    #truncate down to trim length
-                    if L >= TrimLen:
-                        rec = rec[:TrimLen]        
-                        yield rec
-            else:
-                if L >= MinLen:
-                    yield rec
-
-def worker(file):
-    global name
-    name = file.split(".fq",-1)[0]
-    name = name.split("/",1)[1]
-    demuxname = name + '.demux.fq'
-    DemuxOut = os.path.join(args.out, demuxname)
-    with open(DemuxOut, 'w') as output:
-        with open(file, 'rU') as input:
-            SeqRecords = SeqIO.parse(input, 'fastq')
-            SeqIO.write(ProcessReads(SeqRecords), output, 'fastq')
-
-#sometimes people add slashes in the output directory, this is bad, try to fix it
+                    Qual = Qual +pad*'J'
+                elif len(Seq) > args.trim_len:
+                    Seq = Seq[:args.trim_len]
+                    Qual = Qual[:args.trim_len]
+            #got here, reads are primers trimmed and trim/padded, now fix header
+            Title = 'R_'+str(counter)+';barcodelabel='+Name+';'
+            #now write to file and bump counter
+            counter += 1
+            out.write("@%s\n%s\n+\n%s\n" % (Title, Seq, Qual))
+                        
+#sometimes people add slashes in the output directory, this could be bad, try to fix it
 args.out = re.sub(r'\W+', '', args.out)
             
 #create directory and check for existing logfile
@@ -360,13 +307,10 @@ else:
     ufitslib.log.info("Stripping primers and keeping only full length sequences")
 ufitslib.log.info("splitting the job over %i cpus, but this may still take awhile" % (cpus))
 
-#parallize over number of cpus
-p = multiprocessing.Pool(cpus)
-for f in file_list:
-    p.apply_async(worker, [f])
-p.close()
-p.join()
-
+#make sure primer is reverse complemented
+RevPrimer = revcomp_lib.RevComp(RevPrimer)
+#finally process reads over number of cpus
+ufitslib.runMultiProgress(processRead, file_list, cpus)
 print "-------------------------------------------------------"
 #Now concatenate all of the demuxed files together
 ufitslib.log.info("Concatenating Demuxed Files")
