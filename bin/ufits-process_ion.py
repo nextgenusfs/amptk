@@ -202,8 +202,9 @@ else:
 gzip_list = []
 if args.fastq.endswith('.gz'):
     gzip_list.append(os.path.abspath(args.fastq))
-if args.reverse.endswith('.gz'):
-    gzip_list.append(os.path.abspath(args.reverse))
+if args.reverse:
+    if args.reverse.endswith('.gz'):
+        gzip_list.append(os.path.abspath(args.reverse))
 if gzip_list:
     ufitslib.log.info("Gzipped input files detected, uncompressing")
     for file in gzip_list:
