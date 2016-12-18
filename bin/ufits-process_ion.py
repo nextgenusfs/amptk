@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools, re
+import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools, re, gzip
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from natsort import natsorted
@@ -198,6 +198,28 @@ else:
     else:
         Adapter = ''
 
+#check if input is compressed
+gzip_list = []
+if args.fastq.endswith('.gz'):
+    gzip_list.append(os.path.abspath(args.fastq))
+if args.reverse.endswith('.gz'):
+    gzip_list.append(os.path.abspath(args.reverse))
+if gzip_list:
+    ufitslib.log.info("Gzipped input files detected, uncompressing")
+    for file in gzip_list:
+        ufitslib.log.debug("Uncompressing %s" % file)
+        OutName = os.path.splitext(file)[0]
+        InFile = gzip.open(file, 'rU')
+        ReadFile = InFile.read()
+        OutFile = open(OutName, 'w')
+        OutFile.write(ReadFile)
+        OutFile.close()
+        InFile.close()
+        os.remove(file) #remove .gz file  
+    args.fastq = args.fastq.replace('.gz', '')
+    if args.reverse:
+        args.reverse = args.reverse.replace('.gz', '')
+        
 #if SFF file passed, convert to FASTQ with biopython
 if args.fastq.endswith(".sff"):
     if args.barcode_fasta == 'pgm_barcodes.fa':
@@ -236,16 +258,7 @@ if args.illumina:
             sys.exit(1)
     if args.reverse:
         FNULL = open(os.devnull, 'w')
-        #test for usearch
-        usearch = args.usearch
-        try:
-            usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
-        except OSError:
-            ufitslib.log.warning("%s not found in your PATH, exiting." % usearch)
-            sys.exit(1)
-        ufitslib.log.info("USEARCH version: %s" % usearch_test)
-        
-        #next run USEARCH8 mergepe
+        #next run USEARCH9 mergepe
         SeqIn = args.out + '.merged.fq'
         mergelog = args.out + '.mergedPE.log'
         notmerged = args.out + '.notmergedfwd.fq'
@@ -284,12 +297,11 @@ if args.reverse_barcode:
         with open(args.reverse_barcode, 'rU') as input:
             for rec in SeqIO.parse(input, 'fasta'):
                 RevSeq = str(rec.seq.reverse_complement())
-                if not RevSeq in RevBarcodes:
-                    RevBarcodes[RevSeq] = rec.id
+                if not rec.id in RevBarcodes:
+                    RevBarcodes[rec.id] = RevSeq
                 else:
                     ufitslib.log.error("Duplicate reverse barcodes detected, exiting")
                     sys.exit(1)
-    
 #get number of CPUs to use
 if not args.cpus:
     cpus = multiprocessing.cpu_count()

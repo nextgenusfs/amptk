@@ -1,4 +1,4 @@
-import sys, logging, csv, os, subprocess, multiprocessing, platform
+import sys, logging, csv, os, subprocess, multiprocessing, platform, time
 from Bio import SeqIO
 from natsort import natsorted
 
@@ -12,32 +12,24 @@ class colr:
     WARN = '\033[93m'
     
 def runMultiProgress(function, inputList, cpus):
-    import multiprocessing
-    from progressbar import ProgressBar, Percentage
-    try:
-        from progressbar import AdaptiveETA
-        eta = AdaptiveETA()
-    except ImportError:
-        from progressbar import ETA
-        eta = ETA()
-    from time import sleep
     #setup pool
     p = multiprocessing.Pool(cpus)
-    #setup progress bar
-    widgets = ['     Progress: ', Percentage(),' || ', eta]
-    pbar = ProgressBar(widgets=widgets, term_width=30, maxval=len(inputList)).start()
     #setup results and split over cpus
+    tasks = len(inputList)
     results = []
-    r = [p.apply_async(function, (x,), callback=results.append) for x in inputList]
+    for i in inputList:
+        results.append(p.apply_async(function, [i]))
     #refresh pbar every 5 seconds
-    while len(results) != len(inputList):
-        pbar.update(len(results))
-        sleep(5)
-    pbar.finish()
+    while True:
+        incomplete_count = sum(1 for x in results if not x.ready())
+        if incomplete_count == 0:
+            break
+        sys.stdout.write("     Progress: %.2f%% \r" % (float(tasks - incomplete_count) / tasks * 100))
+        sys.stdout.flush()
+        time.sleep(1)
     p.close()
     p.join()
-
-
+    
 def myround(x, base=10):
     return int(base * round(float(x)/base))
 
