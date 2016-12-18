@@ -637,6 +637,7 @@ Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from ufits cluster)
              -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
              -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: ITS2
              -m, --mapping_file  QIIME-like mapping file
+             -t, --taxonomy      Taxonomy calculated elsewhere. 2 Column file.
              --method            Taxonomy method. Default: hybrid [utax, sintax, usearch, hybrid, rdp, blast]
              --fasta_db          Alternative database of fasta sequenes to use for global alignment.
              --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
