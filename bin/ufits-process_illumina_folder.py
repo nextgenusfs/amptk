@@ -88,6 +88,7 @@ def processRead(input):
     #local variables that need to be previously declared: ForPrimer, RevPrimer
     Name = os.path.basename(input).split(".fq",-1)[0]
     DemuxOut = os.path.join(args.out, Name + '.demux.fq')
+    Sample = Name.split('_')[0]
     counter = 0
     PL = len(FwdPrimer)
     with open(DemuxOut, 'w') as out:
@@ -110,6 +111,9 @@ def processRead(input):
                 #location to trim sequences, trim seqs
                 Seq = seq[:BestPosRev]
                 Qual = qual[:BestPosRev]
+            else:
+                Seq = seq
+                Qual = qual
             #if full_length is passed, then only trim primers
             if not args.full_length:
                 #got here if primers were found they were trimmed
@@ -125,7 +129,7 @@ def processRead(input):
             if len(Seq) >= args.min_len:
                 counter += 1     
                 #now fix header
-                Title = 'R_'+str(counter)+';barcodelabel='+Name+';'
+                Title = 'R_'+str(counter)+';barcodelabel='+Sample+';'
                 #now write to file
                 out.write("@%s\n%s\n+\n%s\n" % (Title, Seq, Qual))
                         
