@@ -212,7 +212,7 @@ def runMultiProgress(function, inputList, cpus):
     else:
         p = multiprocessing.Pool(cpus)
         for i in inputList:
-            p.apply_async(function, [i]
+            p.apply_async(function, [i])
         p.close()
         p.join()
 
