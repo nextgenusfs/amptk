@@ -189,32 +189,23 @@ def versionDependencyChecks(usearch):
     log.info("%s, USEARCH v%s, VSEARCH v%s" % (ufits_version, usearch_version, vsearch_version))
 
 def runMultiProgress(function, inputList, cpus):
-    #get version of python
-    python_vers = (sys.version_info[0], sys.version_info[1],sys.version_info[2])
-    if python_vers >= (2,7,9):
-        #setup pool
-        p = multiprocessing.Pool(cpus)
-        #setup results and split over cpus
-        tasks = len(inputList)
-        results = []
-        for i in inputList:
-            results.append(p.apply_async(function, [i]))
-        #refresh pbar every 5 seconds
-        while True:
-            incomplete_count = sum(1 for x in results if not x.ready())
-            if incomplete_count == 0:
-                break
-            sys.stdout.write("     Progress: %.2f%% \r" % (float(tasks - incomplete_count) / tasks * 100))
-            sys.stdout.flush()
-            time.sleep(1)
-        p.close()
-        p.join()
-    else:
-        p = multiprocessing.Pool(cpus)
-        for i in inputList:
-            p.apply_async(function, [i])
-        p.close()
-        p.join()
+    #setup pool
+    p = multiprocessing.Pool(cpus)
+    #setup results and split over cpus
+    tasks = len(inputList)
+    results = []
+    for i in inputList:
+        results.append(p.apply_async(function, [i]))
+    #refresh pbar every 5 seconds
+    while True:
+        incomplete_count = sum(1 for x in results if not x.ready())
+        if incomplete_count == 0:
+            break
+        sys.stdout.write("     Progress: %.2f%% \r" % (float(tasks - incomplete_count) / tasks * 100))
+        sys.stdout.flush()
+        time.sleep(1)
+    p.close()
+    p.join()
 
 def MemoryCheck():
     import psutil
