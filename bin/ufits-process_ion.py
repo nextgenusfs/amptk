@@ -293,6 +293,7 @@ if args.reverse_barcode:
                 RevSeq = str(rec.seq.reverse_complement())
                 if not rec.id in RevBarcodes:
                     RevBarcodes[rec.id] = RevSeq
+                    output.write('>%s\n%s\n' % (rec.id, RevSeq))
                 else:
                     ufitslib.log.error("Duplicate reverse barcodes detected, exiting")
                     sys.exit(1)
