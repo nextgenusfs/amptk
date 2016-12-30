@@ -29,7 +29,7 @@ parser.add_argument('-i','--input', dest='input', required=True, help='Folder of
 parser.add_argument('-o','--out', dest="out", default='ufits-data', help='Name for output folder')
 parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')
 parser.add_argument('--reads', dest="reads", default='paired', choices=['paired', 'forward'], help='PE or forward reads')
-parser.add_argument('--read_length', default=300, type=int, help='Read length, i.e. 2 x 300 bp = 300')
+parser.add_argument('--read_length', type=int, help='Read length, i.e. 2 x 300 bp = 300')
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer (ITS4)')
 parser.add_argument('--require_primer', dest="primer", default='on', choices=['on', 'off'], help='Require Fwd primer to be present')
@@ -41,44 +41,7 @@ parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH executable')
 parser.add_argument('--cleanup', action='store_true', help='Delete all intermediate files')
-args=parser.parse_args()      
-    
-def MergeReads(R1, R2, outname, read_length):
-    usearch = args.usearch
-    pretrim_R1 = outname + '.pretrim_R1.fq'
-    pretrim_R2 = outname + '.pretrim_R2.fq'
-    ufitslib.log.debug("Removing index 3prime bp 'A' from reads")    
-    cmd = ['vsearch', '--fastq_filter', R1, '--fastq_trunclen', str(read_length), '--fastqout', pretrim_R1]
-    ufitslib.runSubprocess(cmd, ufitslib.log)
-    cmd = ['vsearch', '--fastq_filter', R2, '--fastq_trunclen', str(read_length), '--fastqout', pretrim_R2]
-    ufitslib.runSubprocess(cmd, ufitslib.log)
-
-    #next run USEARCH mergepe
-    merge_out = outname + '.merged.fq'
-    skip_for = outname + '.notmerged.R1.fq'
-    ufitslib.log.debug("Now merging PE reads")
-    cmd = [usearch, '-fastq_mergepairs', for_reads, '-reverse', rev_reads, '-fastqout', merge_out, '-fastqout_notmerged_fwd', skip_for,'-minhsp', '12','-fastq_maxdiffs', '8']
-    ufitslib.runSubprocess(cmd, ufitslib.log)
-
-    #now concatenate files for downstream pre-process_illumina.py script
-    outname = outname + '.fq'
-    final_out = os.path.join(args.out, outname)
-    with open(final_out, 'w') as cat_file:
-        shutil.copyfileobj(open(merge_out,'rU'), cat_file)
-        if args.rescue_forward == 'on':
-            shutil.copyfileobj(open(skip_for,'rU'), cat_file)
-    
-    #count output
-    origcount = ufitslib.countfastq(R1)
-    finalcount = ufitslib.countfastq(final_out)
-    pct_out = finalcount / float(origcount)
-
-    #clean and close up intermediate files
-    os.remove(merge_out)
-    os.remove(pretrim_R1)
-    os.remove(pretrim_R2)
-    os.remove(skip_for)
-    return ufitslib.log.info('{0:,}'.format(finalcount) + ' reads passed ('+'{0:.1%}'.format(pct_out)+')')
+args=parser.parse_args()
 
 def MatchesPrimer(Seq, Primer):
     return primer.MatchPrefix(Seq, Primer)
@@ -95,13 +58,15 @@ def processRead(input):
         for title, seq, qual in FastqGeneralIterator(open(input)):
             #first thing is look for forward primer, if found trim it off
             Diffs = MatchesPrimer(seq, FwdPrimer)
-            if args.primer == 'on':
+            #if require primer is on make finding primer in amplicon required if amplicon is larger than read length
+            #if less than read length, can't enforce primer because could have been trimmed via staggered trim in fastq_mergepairs
+            if args.primer == 'on' and len(seq) > ReadLen:
                 if Diffs > args.primer_mismatch:
                     continue
                 else:
                     seq = seq[PL:]
                     qual = qual[PL:]
-            elif args.primer == 'off':
+            else:
                 if Diffs <= args.primer_mismatch:
                     seq = seq[PL:]
                     qual = qual[PL:]
@@ -263,37 +228,33 @@ with open(map, 'w') as map_file:
 if args.reads == 'paired':
     ufitslib.log.info("Merging Overlaping Pairs using USEARCH")
 
+ReadLengths = []
 for i in range(len(fastq_for)):
     name = fastq_for[i].split("_")[0]
     outname = name + '.fq'
+    for_reads = os.path.join(args.input, fastq_for[i])
+    rev_reads = os.path.join(args.input, fastq_rev[i])
+    #if read length explicity passed use it otherwise measure it
+    if args.read_length:
+        read_length = args.read_length
+    else:
+        read_length = ufitslib.GuessRL(for_reads)
+    ufitslib.log.info("working on sample %s (Read Length: %i)" % (name, read_length))
+    #append read lengths for processReads function
+    ReadLengths.append(read_length)
+    #checked for merged output, skip if it exists
     if os.path.isfile(os.path.join(args.out, outname)):
         ufitslib.log.info("Output for %s detected, skipping files" % outname)
         continue
-    for_reads = os.path.join(args.input, fastq_for[i])
-    rev_reads = os.path.join(args.input, fastq_rev[i])
-    ufitslib.log.info("working on sample %s" % name)
-    if args.reads == 'paired':
-        #get read length
-        fp = open(for_reads)
-        for i, line in enumerate(fp):
-            if i == 1:
-                read_length = len(line)
-                read_length = ufitslib.myround(read_length)
-            elif i > 2:
-                break
-        fp.close()
-
-        if args.read_length != read_length:
-            ufitslib.log.warning("Measured read length (%i bp) does not equal %i bp, proceeding with larger value" % (read_length, args.read_length))
-            if args.read_length > read_length:
-                read_length = args.read_length
-            else:
-                read_length = read_length
-                
-        MergeReads(for_reads, rev_reads, name, read_length)
+    #if PE reads, then need to merge them
+    if args.reads == 'paired':                
+        ufitslib.MergeReads(for_reads, rev_reads, args.out, name+'.fq', read_length, args.min_len, args.usearch, args.rescue_forward)
     else:
         shutil.copy(for_reads, os.path.join(args.out, outname))
-    
+
+#get read lengths for process read function
+ReadLen = max(set(ReadLengths))
+
 #Now all the data is in folder args.out that needs to be de-multiplexed
 if not args.cpus:
     cpus = multiprocessing.cpu_count()

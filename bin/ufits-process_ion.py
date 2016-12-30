@@ -258,20 +258,13 @@ if args.illumina:
             ufitslib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required for Illumina2 data")
             sys.exit(1)
     if args.reverse:
-        FNULL = open(os.devnull, 'w')
-        #next run USEARCH9 mergepe
+        #next run USEARCH9 mergePE
+        #get read length
+        RL = ufitslib.GuessRL(args.fastq)
+        #merge reads
+        ufitslib.log.info("Merging Illumina reads")
         SeqIn = args.out + '.merged.fq'
-        mergelog = args.out + '.mergedPE.log'
-        notmerged = args.out + '.notmergedfwd.fq'
-        ufitslib.log.info("Merging PE Illumina reads with USEARCH")
-        ufitslib.log.debug("%s -fastq_mergepairs %s -reverse %s -fastqout %s -fastq_truncqual 5 -fastq_maxdiffs 8 -minhsp 12" % (usearch, args.fastq, args.reverse, SeqIn))
-        with open(mergelog, 'w') as logfile:
-            subprocess.call([usearch, '-fastq_mergepairs', args.fastq, '-reverse', args.reverse, '-fastqout', SeqIn, '-fastq_truncqual', '5','-minhsp', '12','-fastq_maxdiffs', '8', '-fastqout_notmerged_fwd', notmerged], stdout = logfile, stderr = logfile)
-        #recover forward reads that were not merged, could be longer sequence and still be ok
-        with open(SeqIn, 'a') as output:
-            with open(notmerged, 'rU') as input:
-                for line in input:
-                    output.write(line)
+        ufitslib.MergeReads(args.fastq, args.reverse, '.', SeqIn, RL, args.min_len, usearch, 'on')
     else:
         ufitslib.log.info("Running UFITS on forward Illumina reads")
         SeqIn = args.fastq 

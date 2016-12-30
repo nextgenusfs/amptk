@@ -1,5 +1,6 @@
-import sys, logging, csv, os, subprocess, multiprocessing, platform, time
+import sys, logging, csv, os, subprocess, multiprocessing, platform, time, shutil
 from Bio import SeqIO
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from natsort import natsorted
 
 ASCII = {'!':'0','"':'1','#':'2','$':'3','%':'4','&':'5',"'":'6','(':'7',')':'8','*':'9','+':'10',',':'11','-':'12','.':'13','/':'14','0':'15','1':'16','2':'17','3':'18','4':'19','5':'20','6':'21','7':'22','8':'23','9':'24',':':'25',';':'26','<':'27','=':'28','>':'29','?':'30','@':'31','A':'32','B':'33','C':'34','D':'35','E':'36','F':'37','G':'38','H':'39','I':'40','J':'41','K':'42','L':'43','M':'44','N':'45','O':'46','P':'47','Q':'48','R':'49','S':'50'}
@@ -13,6 +14,16 @@ class colr:
         
 def myround(x, base=10):
     return int(base * round(float(x)/base))
+
+def GuessRL(input):
+    #read first 50 records, get length then exit
+    lengths = []
+    for title, seq, qual in FastqGeneralIterator(open(input)):
+        if len(lengths) < 50:
+            lengths.append(len(seq))
+        else:
+            break
+    return myround(max(set(lengths)))
 
 def countfasta(input):
     count = 0
@@ -59,6 +70,40 @@ def runSubprocess(cmd, logfile):
         logfile.debug(stdout)
     if stderr:
         logfile.debug(stderr)
+        
+
+def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue):
+    pretrim_R1 = os.path.join(tmpdir, outname + '.pretrim_R1.fq')
+    pretrim_R2 = os.path.join(tmpdir, outname + '.pretrim_R2.fq')
+    log.debug("Removing index 3prime bp 'A' from reads")    
+    cmd = ['vsearch', '--fastq_filter', R1, '--fastq_trunclen', str(read_length), '--fastqout', pretrim_R1]
+    runSubprocess(cmd, log)
+    cmd = ['vsearch', '--fastq_filter', R2, '--fastq_trunclen', str(read_length), '--fastqout', pretrim_R2]
+    runSubprocess(cmd, log)
+
+    #next run USEARCH mergepe
+    merge_out = os.path.join(tmpdir, outname + '.merged.fq')
+    skip_for = os.path.join(tmpdir, outname + '.notmerged.R1.fq')
+    report = os.path.join(tmpdir, outname +'.merge_report.txt')
+    log.debug("Now merging PE reads")
+    cmd = [usearch, '-fastq_mergepairs', pretrim_R1, '-reverse', pretrim_R2, '-fastqout', merge_out, '-fastq_trunctail', '5', '-fastqout_notmerged_fwd', skip_for,'-minhsp', '12','-fastq_maxdiffs', '8', '-report', report, '-fastq_minmergelen', str(minlen)]
+    runSubprocess(cmd, log)
+    #now concatenate files for downstream pre-process_illumina.py script
+    final_out = os.path.join(tmpdir, outname)
+    with open(final_out, 'w') as cat_file:
+        shutil.copyfileobj(open(merge_out,'rU'), cat_file)
+        if rescue == 'on':
+            shutil.copyfileobj(open(skip_for,'rU'), cat_file)    
+    #count output
+    origcount = countfastq(R1)
+    finalcount = countfastq(final_out)
+    pct_out = finalcount / float(origcount)
+    #clean and close up intermediate files
+    os.remove(merge_out)
+    os.remove(pretrim_R1)
+    os.remove(pretrim_R2)
+    os.remove(skip_for)
+    return log.info('{0:,}'.format(finalcount) + ' reads passed ('+'{0:.1%}'.format(pct_out)+')')
 
 def dictFlip(input):
     #flip the list of dictionaries

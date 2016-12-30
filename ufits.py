@@ -62,7 +62,7 @@ def download(url, name):
     f.close()
 
 
-version = '0.7.3'
+version = '0.7.4'
 
 default_help = """
 Usage:       ufits <command> <arguments>
@@ -185,7 +185,7 @@ version:     %s
 
 Description: Script takes a folder of Illumina MiSeq data that is already de-multiplexed and processes it for
              clustering using UFITS.  The default behavior is to: 1) merge the PE reads using USEARCH, 2) find and
-             trim away primers, 3) rename reads according to sample name, 4) trim/pad reads to a set length.
+             trim primers, 3) rename reads according to sample name, 4) trim/pad reads to a set length.
     
 Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              -o, --out           Output folder name. Default: ufits-data
@@ -196,7 +196,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              --min_len           Minimum length read to keep. Default: 50
              --full_length       Keep only full length sequences.
              --reads             Paired-end or forward reads. Default: paired [paired, forward]
-             --read_length       Illumina Read length (250 if 2 x 250 bp run). Default: 300 
+             --read_length       Illumina Read length (250 if 2 x 250 bp run). Default: auto detect
              --rescue_forward    Rescue Forward Reads if PE do not merge, e.g. long amplicons. Default: on [on,off]
              --require_primer    Require the Forward primer to be present. Default: on [on,off]
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
