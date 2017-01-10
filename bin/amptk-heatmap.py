@@ -14,8 +14,8 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
 
-parser=argparse.ArgumentParser(prog='ufits-heatmap.py', usage="%(prog)s -i ufits.otu_table.txt\n%(prog)s -h for help menu",
-    description='''Draw heatmap from OTU table generated with UFITS.''',
+parser=argparse.ArgumentParser(prog='amptk-heatmap.py', usage="%(prog)s -i amptk.otu_table.txt\n%(prog)s -h for help menu",
+    description='''Draw heatmap from OTU table generated with AMPtk.''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 

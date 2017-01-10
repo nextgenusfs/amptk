@@ -9,7 +9,7 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)      
 
-parser=argparse.ArgumentParser(prog='ufits-merge_metadata.py',
+parser=argparse.ArgumentParser(prog='amptk-merge_metadata.py',
     description='''Takes a meta data csv file and OTU table and makes transposed output files.''',
     epilog="""Written by Jon Palmer (2016) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)

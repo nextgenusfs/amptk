@@ -10,7 +10,7 @@ sys.path.insert(0,parentdir)
 import lib.fasta as fasta
 import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
-import lib.ufitslib as ufitslib
+import lib.amptklib as amptklib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -20,7 +20,7 @@ class col:
     END = '\033[0m'
     WARN = '\033[93m'
 
-parser=argparse.ArgumentParser(prog='ufits-process_ion.py', usage="%(prog)s [options] -i file.fastq\n%(prog)s -h for help menu",
+parser=argparse.ArgumentParser(prog='amptk-process_ion.py', usage="%(prog)s [options] -i file.fastq\n%(prog)s -h for help menu",
     description='''Script finds barcodes, strips forward and reverse primers, relabels, and then trim/pads reads to a set length''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
@@ -118,20 +118,20 @@ def processRead(input):
 
 args.out = re.sub(r'\W+', '', args.out)
 
-log_name = args.out + '.ufits-demux.log'
+log_name = args.out + '.amptk-demux.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 FNULL = open(os.devnull, 'w')
-ufitslib.setupLogging(log_name)
+amptklib.setupLogging(log_name)
 cmd_args = " ".join(sys.argv)+'\n'
-ufitslib.log.debug(cmd_args)
+amptklib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.SystemInfo()
+amptklib.SystemInfo()
 #Do a version check
 usearch = args.usearch
-ufitslib.versionDependencyChecks(usearch)
+amptklib.versionDependencyChecks(usearch)
 
 #parse a mapping file or a barcode fasta file, primers, etc get setup
 #dealing with Barcodes, get ion barcodes or parse the barcode_fasta argument
@@ -142,9 +142,9 @@ if os.path.isfile(barcode_file):
 #check if mapping file passed, use this if present, otherwise use command line arguments
 if args.mapping_file:
     if not os.path.isfile(args.mapping_file):
-        ufitslib.error("Mapping file is not valid: %s" % args.mapping_file)
+        amptklib.error("Mapping file is not valid: %s" % args.mapping_file)
         sys.exit(1)
-    mapdata = ufitslib.parseMappingFile(args.mapping_file, barcode_file)
+    mapdata = amptklib.parseMappingFile(args.mapping_file, barcode_file)
     #forward primer in first item in tuple, reverse in second
     FwdPrimer = mapdata[0]
     RevPrimer = mapdata[1]
@@ -182,12 +182,12 @@ else:
     
     #parse primers here so doesn't conflict with mapping primers
     #look up primer db otherwise default to entry
-    if args.F_primer in ufitslib.primer_db:
-        FwdPrimer = ufitslib.primer_db.get(args.F_primer)
+    if args.F_primer in amptklib.primer_db:
+        FwdPrimer = amptklib.primer_db.get(args.F_primer)
     else:
         FwdPrimer = args.F_primer
-    if args.R_primer in ufitslib.primer_db:
-        RevPrimer = ufitslib.primer_db.get(args.R_primer)
+    if args.R_primer in amptklib.primer_db:
+        RevPrimer = amptklib.primer_db.get(args.R_primer)
     else:
         RevPrimer = args.R_primer
 
@@ -206,9 +206,9 @@ if args.reverse:
     if args.reverse.endswith('.gz'):
         gzip_list.append(os.path.abspath(args.reverse))
 if gzip_list:
-    ufitslib.log.info("Gzipped input files detected, uncompressing")
+    amptklib.log.info("Gzipped input files detected, uncompressing")
     for file in gzip_list:
-        ufitslib.log.debug("Uncompressing %s" % file)
+        amptklib.log.debug("Uncompressing %s" % file)
         OutName = os.path.splitext(file)[0]
         InFile = gzip.open(file, 'rU')
         ReadFile = InFile.read()
@@ -225,29 +225,29 @@ if gzip_list:
 if args.fastq.endswith(".sff"):
     if args.barcode_fasta == 'pgm_barcodes.fa':
         if not args.mapping_file:
-            ufitslib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required for 454 data")
+            amptklib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required for 454 data")
             sys.exit(1)
-    ufitslib.log.info("SFF input detected, converting to FASTQ")
+    amptklib.log.info("SFF input detected, converting to FASTQ")
     SeqIn = args.out + '.sff.extract.fastq'
     SeqIO.convert(args.fastq, "sff-trim", SeqIn, "fastq")
 elif args.fastq.endswith(".fas") or args.fastq.endswith(".fasta") or args.fastq.endswith(".fa"):
     if not args.qual:
-        ufitslib.log.error("FASTA input detected, however no QUAL file was given.  You must have FASTA + QUAL files")
+        amptklib.log.error("FASTA input detected, however no QUAL file was given.  You must have FASTA + QUAL files")
         sys.exit(1)
     else:
         if args.barcode_fasta == 'pgm_barcodes.fa':
             if not args.mapping_file:
-                ufitslib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required for 454 data")
+                amptklib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required for 454 data")
                 sys.exit(1)
         SeqIn = args.out + '.fastq'
-        ufitslib.log.info("FASTA + QUAL detected, converting to FASTQ")
-        ufitslib.faqual2fastq(args.fastq, args.qual, SeqIn)
+        amptklib.log.info("FASTA + QUAL detected, converting to FASTQ")
+        amptklib.faqual2fastq(args.fastq, args.qual, SeqIn)
 elif args.fastq.endswith('.bam'):
-    ufitslib.CheckDependencies(['bedtools'])
+    amptklib.CheckDependencies(['bedtools'])
     SeqIn = args.out+'.fastq'
-    ufitslib.log.info("Converting Ion Torrent BAM file to FASTQ using BedTools")
+    amptklib.log.info("Converting Ion Torrent BAM file to FASTQ using BedTools")
     cmd = ['bedtools', 'bamtofastq', '-i', args.fastq, '-fq', SeqIn]
-    ufitslib.runSubprocess(cmd, ufitslib.log)
+    amptklib.runSubprocess(cmd, amptklib.log)
 else:        
     SeqIn = args.fastq
 
@@ -255,23 +255,23 @@ else:
 if args.illumina:
     if args.barcode_fasta == 'pgm_barcodes.fa':
         if not args.mapping_file:
-            ufitslib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required for Illumina2 data")
+            amptklib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required for Illumina2 data")
             sys.exit(1)
     if args.reverse:
         #next run USEARCH9 mergePE
         #get read length
-        RL = ufitslib.GuessRL(args.fastq)
+        RL = amptklib.GuessRL(args.fastq)
         #merge reads
-        ufitslib.log.info("Merging Illumina reads")
+        amptklib.log.info("Merging Illumina reads")
         SeqIn = args.out + '.merged.fq'
-        ufitslib.MergeReads(args.fastq, args.reverse, '.', SeqIn, RL, args.min_len, usearch, 'on')
+        amptklib.MergeReads(args.fastq, args.reverse, '.', SeqIn, RL, args.min_len, usearch, 'on')
     else:
-        ufitslib.log.info("Running UFITS on forward Illumina reads")
+        amptklib.log.info("Running AMPtk on forward Illumina reads")
         SeqIn = args.fastq 
 
 #start here to process the reads, first reverse complement the reverse primer
 RevPrimer = revcomp_lib.RevComp(RevPrimer)
-ufitslib.log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
+amptklib.log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
 
 #then setup barcode dictionary
 Barcodes = fasta.ReadSeqsDict(barcode_file)
@@ -283,7 +283,7 @@ if args.reverse_barcode:
     if os.path.isfile(rev_barcode_file):
         os.remove(rev_barcode_file)
     if not os.path.isfile(args.reverse_barcode):
-        ufitslib.log.info("Reverse barcode is not a valid file, exiting")
+        amptklib.log.info("Reverse barcode is not a valid file, exiting")
         sys.exit(1) 
     shutil.copyfile(args.reverse_barcode, rev_barcode_file)
     #parse and put into dictionary
@@ -295,7 +295,7 @@ if args.reverse_barcode:
                     RevBarcodes[rec.id] = RevSeq
                     output.write('>%s\n%s\n' % (rec.id, RevSeq))
                 else:
-                    ufitslib.log.error("Duplicate reverse barcodes detected, exiting")
+                    amptklib.log.error("Duplicate reverse barcodes detected, exiting")
                     sys.exit(1)
 #get number of CPUs to use
 if not args.cpus:
@@ -304,11 +304,11 @@ else:
     cpus = args.cpus
 
 #Count FASTQ records
-ufitslib.log.info("Loading FASTQ Records")
-orig_total = ufitslib.countfastq(SeqIn)
-size = ufitslib.checkfastqsize(SeqIn)
-readablesize = ufitslib.convertSize(size)
-ufitslib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
+amptklib.log.info("Loading FASTQ Records")
+orig_total = amptklib.countfastq(SeqIn)
+size = amptklib.checkfastqsize(SeqIn)
+readablesize = amptklib.convertSize(size)
+amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 
 #create tmpdir and split input into n cpus
 tmpdir = args.out.split('.')[0]+'_'+str(os.getpid())
@@ -319,7 +319,7 @@ with open(SeqIn, 'rU') as input:
     SeqRecords = SeqIO.parse(SeqIn, 'fastq')
     chunks = orig_total / (2*cpus)+1
     #divide into chunks, store in tmp file
-    for i, batch in enumerate(ufitslib.batch_iterator(SeqRecords, chunks)) :
+    for i, batch in enumerate(amptklib.batch_iterator(SeqRecords, chunks)) :
         filename = "chunk_%i.fq" % (i+1)
         tmpout = os.path.join(tmpdir, filename)
         handle = open(tmpout, "w")
@@ -334,11 +334,11 @@ for file in os.listdir(tmpdir):
         file_list.append(file)
 
 #finally process reads over number of cpus
-ufitslib.runMultiProgress(processRead, file_list, cpus)
+amptklib.runMultiProgress(processRead, file_list, cpus)
 
 print "-------------------------------------------------------"
 #Now concatenate all of the demuxed files together
-ufitslib.log.info("Concatenating Demuxed Files")
+amptklib.log.info("Concatenating Demuxed Files")
 
 tmpDemux = args.out + '.tmp.demux.fq'
 with open(tmpDemux, 'wb') as outfile:
@@ -353,12 +353,12 @@ shutil.rmtree(tmpdir)
 
 #last thing is to re-number of reads as it is possible they could have same name from multitprocessor split
 catDemux = args.out + '.demux.fq'
-ufitslib.fastqreindex(tmpDemux, catDemux)
+amptklib.fastqreindex(tmpDemux, catDemux)
 os.remove(tmpDemux)
         
-ufitslib.log.info("Counting FASTQ Records")
-total = ufitslib.countfastq(catDemux)
-ufitslib.log.info('{0:,}'.format(total) + ' reads processed')
+amptklib.log.info("Counting FASTQ Records")
+total = amptklib.countfastq(catDemux)
+amptklib.log.info('{0:,}'.format(total) + ' reads processed')
 
 #now loop through data and find barcoded samples, counting each.....
 BarcodeCount = {}
@@ -378,21 +378,21 @@ for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
     barcode_counts += "\n%30s:  %s" % (k, str(BarcodeCount[k]))
     if k not in barcodes_found:
         barcodes_found.append(k)
-ufitslib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
+amptklib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
 if not args.mapping_file:
     #create a generic mappingfile for downstream processes
     genericmapfile = args.out + '.mapping_file.txt'
-    ufitslib.CreateGenericMappingFile(barcode_file, FwdPrimer, revcomp_lib.RevComp(RevPrimer), Adapter, genericmapfile, barcodes_found)
+    amptklib.CreateGenericMappingFile(barcode_file, FwdPrimer, revcomp_lib.RevComp(RevPrimer), Adapter, genericmapfile, barcodes_found)
 
 #get file size
 filesize = os.path.getsize(catDemux)
-readablesize = ufitslib.convertSize(filesize)
-ufitslib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
-ufitslib.log.info("Mapping file: %s" % genericmapfile)
+readablesize = amptklib.convertSize(filesize)
+amptklib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
+amptklib.log.info("Mapping file: %s" % genericmapfile)
 
 print "-------------------------------------------------------"
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits cluster -i %s -o out\n" % (catDemux)
+    print "\nExample of next cmd: amptk cluster -i %s -o out\n" % (catDemux)
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out\n" % (catDemux)
+    print col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (catDemux)

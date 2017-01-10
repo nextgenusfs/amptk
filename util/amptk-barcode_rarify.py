@@ -8,7 +8,7 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)      
 
-parser=argparse.ArgumentParser(prog='ufits-remove_samples.py',
+parser=argparse.ArgumentParser(prog='amptk-remove_samples.py',
     description='''Script to sub-sample reads down to the same number for each sample (barcode)''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)

@@ -8,7 +8,7 @@ from Bio.SeqIO.FastaIO import FastaIterator
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
-parser=argparse.ArgumentParser(prog='bold2ufits.py',
+parser=argparse.ArgumentParser(prog='bold2amptk.py',
     description='''Parse bold2utax.py output, search for primer, truncate, and construct DB''',
     epilog="""Written by Jon Palmer (2016) nextgenusfs@gmail.com""",
     formatter_class = MyFormatter)
@@ -23,8 +23,8 @@ args=parser.parse_args()
 
 FNULL = open(os.devnull, 'w')
 pid = os.getpid()
-primer = 'bold2ufits_'+str(pid)+'.primer.tmp'
-primermatch = 'bold2ufits_'+str(pid)+'.match.tmp'
+primer = 'bold2amptk_'+str(pid)+'.primer.tmp'
+primermatch = 'bold2amptk_'+str(pid)+'.match.tmp'
 
 #first create tmp primer fasta file
 with open(primer, 'w') as primerout:
@@ -45,7 +45,7 @@ with open(primermatch, 'rU') as input:
             PrimerFound[ID] = int(trunc)
 
 #loop through seqs, remove primer if found, and truncate to length
-truncated = 'bold2ufits_'+str(pid)+'.truncate.tmp'
+truncated = 'bold2amptk_'+str(pid)+'.truncate.tmp'
 with open(truncated, 'w') as output:
     for record in FastaIterator(open(args.input)):
         RecID = record.id.split(';')[0]
@@ -57,7 +57,7 @@ with open(truncated, 'w') as output:
         output.write('>%s\n%s\n' % (record.description, Seq))
 
 #look for exact replicates via dereplication
-derep_out = 'bold2ufits_'+str(pid)+'.derep.tmp'
+derep_out = 'bold2amptk_'+str(pid)+'.derep.tmp'
 subprocess.call([args.usearch, '-derep_fulllength', truncated, '-uc', derep_out, '-notrunclabels'], stdout = FNULL, stderr = FNULL)
 DerepRemove = []
 with open(derep_out, 'rU') as dereplication:

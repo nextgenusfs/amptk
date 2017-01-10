@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
-#Wrapper script for UFITS package.
+#Wrapper script for AMPtk package.
 
 import sys, os, subprocess, inspect, tarfile, shutil, urllib2, urlparse
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0,script_path)
-import lib.ufitslib as ufitslib
+import lib.amptklib as amptklib
 
-URL = { 'ITS': 'https://www.dropbox.com/s/3eofu8rjgr242jk/ITS.ufits.tar.gz?dl=1', 
-        '16S': 'https://www.dropbox.com/s/dqbrr9wsqnki2di/16S.ufits.tar.gz?dl=1', 
-        'LSU': 'https://www.dropbox.com/s/xqrted7sts48hfl/LSU.ufits.tar.gz?dl=1', 
-        'COI': 'https://www.dropbox.com/s/dm10eqsmf01q51c/COI.ufits.tar.gz?dl=1' }
+URL = { 'ITS': 'https://www.dropbox.com/s/3eofu8rjgr242jk/ITS.amptk.tar.gz?dl=1', 
+        '16S': 'https://www.dropbox.com/s/dqbrr9wsqnki2di/16S.amptk.tar.gz?dl=1', 
+        'LSU': 'https://www.dropbox.com/s/xqrted7sts48hfl/LSU.amptk.tar.gz?dl=1', 
+        'COI': 'https://www.dropbox.com/s/dm10eqsmf01q51c/COI.amptk.tar.gz?dl=1' }
 
 def flatten(l):
     flatList = []
@@ -62,13 +62,13 @@ def download(url, name):
     f.close()
 
 
-version = '0.7.4'
+version = '0.7.5'
 
 default_help = """
-Usage:       ufits <command> <arguments>
+Usage:       amptk <command> <arguments>
 version:     %s
 
-Description: UFITS is a package of scripts to process NGS amplicon data.  
+Description: AMPtk is a package of scripts to process NGS amplicon data.  
              Dependencies:  USEARCH v9.1.13 and VSEARCH v2.2.0
     
 Process:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
@@ -93,9 +93,9 @@ Utilities:   filter      OTU table filtering
              heatmap     Create heatmap from OTU table
              SRA         De-multiplex data and create meta data for NCBI SRA submission
 
-Setup:       install     Download/install pre-formatted taxonomy DB (UNITE DB formatted for UFITS). Only need to run once.
+Setup:       install     Download/install pre-formatted taxonomy DB (UNITE DB formatted for AMPtk). Only need to run once.
              database    Format Reference Databases for Taxonomy
-             primers     List primers hard-coded in UFITS. Can use in pre-processing steps.
+             primers     List primers hard-coded in AMPtk. Can use in pre-processing steps.
              
 Written by Jon Palmer (2015) nextgenusfs@gmail.com
         """ % version
@@ -103,10 +103,10 @@ Written by Jon Palmer (2015) nextgenusfs@gmail.com
 if len(sys.argv) > 1:
     if sys.argv[1] == 'ion':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script processes Ion Torrent PGM data for UFITS clustering.  The input to this script should be a 
+Description: Script processes Ion Torrent PGM data for AMPtk clustering.  The input to this script should be a 
              FASTQ file obtained from the Torrent Server analyzed with the `--disable-all-filters` flag to the 
              BaseCaller.  This script does the following: 1) finds Ion barcode sequences, 2) relabels headers with
              appropriate barcode name, 3) removes primer sequences, 4) trim/pad reads to a set length.
@@ -130,7 +130,7 @@ Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-process_ion.py')
+            cmd = os.path.join(script_path, 'bin', 'amptk-process_ion.py')
             arguments.insert(0, cmd)
             arguments.append('--ion')
             exe = sys.executable
@@ -141,11 +141,11 @@ Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
             sys.exit(1)
     elif sys.argv[1] == 'illumina2':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script takes Illumina MiSeq data that is not de-multiplexed and has read structure similar to Ion/454
-             such that the reads are <barcode><fwd_primer>Read<rev_primer> for clustering using UFITS.  The default 
+             such that the reads are <barcode><fwd_primer>Read<rev_primer> for clustering using AMPtk.  The default 
              behavior is to: 1) merge the PE reads using USEARCH, 2) find barcodes, 3)find and trim primers, 
              3) rename reads according to sample name, 4) trim/pad reads to a set length.  This script can also handle
              dual barcodes (3' barcodes using the --reverse_barcode option). 
@@ -169,7 +169,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-process_ion.py')
+            cmd = os.path.join(script_path, 'bin', 'amptk-process_ion.py')
             arguments.insert(0, cmd)
             arguments.append('--illumina')
             exe = sys.executable
@@ -180,15 +180,15 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
             sys.exit(1)
     elif sys.argv[1] == 'illumina':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script takes a folder of Illumina MiSeq data that is already de-multiplexed and processes it for
-             clustering using UFITS.  The default behavior is to: 1) merge the PE reads using USEARCH, 2) find and
+             clustering using AMPtk.  The default behavior is to: 1) merge the PE reads using USEARCH, 2) find and
              trim primers, 3) rename reads according to sample name, 4) trim/pad reads to a set length.
     
 Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
-             -o, --out           Output folder name. Default: ufits-data
+             -o, --out           Output folder name. Default: amptk-data
              -m, --mapping_file  QIIME-like mapping file
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4      
@@ -207,7 +207,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-process_illumina_folder.py')
+            cmd = os.path.join(script_path, 'bin', 'amptk-process_illumina_folder.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -217,10 +217,10 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
             sys.exit(1)
     elif sys.argv[1] == '454':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script processes Roche 454 data for UFITS clustering.  The input to this script should be either a 
+Description: Script processes Roche 454 data for AMPtk clustering.  The input to this script should be either a 
              SFF file, FASTA+QUAL files, or FASTQ file.  This script does the following: 1) finds barcode sequences, 
              2) relabels headers with appropriate barcode name, 3) removes primer sequences, 4) trim/pad reads to a set length.
     
@@ -241,7 +241,7 @@ Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-process_ion.py')
+            cmd = os.path.join(script_path, 'bin', 'amptk-process_ion.py')
             arguments.insert(0, cmd)
             arguments.append('--454')
             exe = sys.executable
@@ -252,7 +252,7 @@ Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
             sys.exit(1)
     elif sys.argv[1] == 'cluster':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script is a "wrapper" for the UPARSE algorithm. FASTQ quality trimming via expected 
@@ -274,7 +274,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
        
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-OTU_cluster.py')
+            cmd = os.path.join(script_path, 'bin', 'amptk-OTU_cluster.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -284,7 +284,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
             sys.exit(1)            
     elif sys.argv[1] == 'cluster_ref':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script first quality filters reads, dereplicates, and then runs chimera
@@ -311,7 +311,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
        
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-OTU_cluster_ref.py')
+            cmd = os.path.join(script_path, 'bin', 'amptk-OTU_cluster_ref.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -321,14 +321,14 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
             sys.exit(1)            
     elif sys.argv[1] == 'dada2':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script is a "wrapper" for the DADA2 pipeline.  It will "pick OTUs" based on denoising
              the data for each read predicting the original sequence.  This pipeline is sensitive to     
              1 bp differences between sequences. Since most reference databases classify "species"
              at 97%% threshold, the inferred sequences (iSeqs) from DADA2 are then clusterd at --pct_otu
-             to create OTUs. Both results are saved.  Requires R & R packages: dada2, ShortRead
+             to create OTUs. Both results are saved.  Requires R packages: dada2, ShortRead
     
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              -o, --out           Output base name. Default: dada2
@@ -343,7 +343,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
        
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-dada2.py')
+            cmd = os.path.join(script_path, 'bin', 'amptk-dada2.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -354,7 +354,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
 
     elif sys.argv[1] == 'unoise2':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script will run the UNOISE2 denoising algorithm followed by clustering with
@@ -372,7 +372,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
         """ % (sys.argv[1], version)
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-unoise2.py')
+            cmd = os.path.join(script_path, 'bin', 'amptk-unoise2.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -383,10 +383,10 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
                  
     elif sys.argv[1] == 'filter':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script filters OTU table generated from the `ufits cluster` command and should be run on all datasets to combat
+Description: Script filters OTU table generated from the `amptk cluster` command and should be run on all datasets to combat
              barcode-switching or index-bleed (as high as 0.3 pct in MiSeq datasets, ~ 0.2 pct in Ion PGM datasets).  This script 
              works best when a spike-in control sequence is used, e.g. Synthetic Mock, although a mock is not required.
     
@@ -395,7 +395,7 @@ Required:    -i, --otu_table     OTU table
              
 Optional:    -o, --out           Base name for output files. Default: use input basename
              -b, --mock_barcode  Name of barcode of mock community (Recommended)
-             --mc                Mock community FASTA file. Default: ufits_synmock.fa 
+             --mc                Mock community FASTA file. Default: amptk_synmock.fa 
              
 Filtering    -n, --normalize     Normalize reads to number of reads per sample [y,n]. Default: y
              -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.005
@@ -406,13 +406,13 @@ Filtering    -n, --normalize     Normalize reads to number of reads per sample [
              --col_order         Column order (comma separated list). Default: sort naturally
              --keep_mock         Keep Spike-in mock community. Default: False
              --show_stats        Show OTU stats on STDOUT  
-             --cleanup           Remove intermediate files.
+             --debug             Keep intermediate files.
              -u, --usearch       USEARCH executable. Default: usearch9 
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-filter.py')
+            cmd = os.path.join(script_path, 'bin', 'amptk-filter.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -422,7 +422,7 @@ Filtering    -n, --normalize     Normalize reads to number of reads per sample [
             sys.exit(1)
     elif sys.argv[1] == 'select':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script filters de-multiplexed data (.demux.fq) to select only reads from samples provided
@@ -437,7 +437,7 @@ Required:    -i, --input     Input FASTQ file (.demux.fq)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'util', 'ufits-keep_samples.py')
+            cmd = os.path.join(script_path, 'util', 'amptk-keep_samples.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -447,7 +447,7 @@ Required:    -i, --input     Input FASTQ file (.demux.fq)
             sys.exit(1)    
     elif sys.argv[1] == 'remove':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script filters de-multiplexed data (.demux.fq) to remove only reads from samples provided
@@ -462,7 +462,7 @@ Required:    -i, --input     Input FASTQ file (.demux.fq)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'util', 'ufits-remove_samples.py')
+            cmd = os.path.join(script_path, 'util', 'amptk-remove_samples.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -472,7 +472,7 @@ Required:    -i, --input     Input FASTQ file (.demux.fq)
             sys.exit(1)    
     elif sys.argv[1] == 'sample':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script sub-samples (rarifies) de-multiplexed data to equal number of reads per sample. For community
@@ -486,7 +486,7 @@ Required:    -i, --input       Input FASTQ file
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'util', 'ufits-barcode_rarify.py')
+            cmd = os.path.join(script_path, 'util', 'amptk-barcode_rarify.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -496,7 +496,7 @@ Required:    -i, --input       Input FASTQ file
             sys.exit(1)
     elif sys.argv[1] == 'meta':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script takes meta data file in CSV format (e.g. from excel) and an OTU table as input.  The first column
@@ -511,7 +511,7 @@ Required:    -i, --input       Input OTU table
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'util', 'ufits-merge_metadata.py')
+            cmd = os.path.join(script_path, 'util', 'amptk-merge_metadata.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -521,7 +521,7 @@ Required:    -i, --input       Input OTU table
             sys.exit(1)
     elif sys.argv[1] == 'show':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script takes de-multiplexed data (.demux.fq) as input and counts reads per barcode.
@@ -535,7 +535,7 @@ Required:    -i, --input     Input FASTQ file (.demux.fq)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'util', 'ufits-get_barcode_counts.py')
+            cmd = os.path.join(script_path, 'util', 'amptk-get_barcode_counts.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -546,7 +546,7 @@ Required:    -i, --input     Input FASTQ file (.demux.fq)
     
     elif sys.argv[1] == 'funguild':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script takes OTU table as input and runs FUNGuild to assing functional annotation to an OTU
@@ -570,7 +570,7 @@ Options:     -i, --input        Input OTU table
 
     elif sys.argv[1] == 'heatmap':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script creates a heatmap from an OTU table.  Several settings are customizable.  Requires Matplotlib,
@@ -617,13 +617,13 @@ Arguments:   -i, --input         Input OTU table (Required)
                     line.insert(0, file)
                     db_list.append(line)
         if len(db_list) < 7:
-            db_print = "No DB configured, run 'ufits database' or 'ufits install' command."
+            db_print = "No DB configured, run 'amptk database' or 'amptk install' command."
         else:
             d = flatten(db_list)
             db_print = fmtcols(d, 6)
         
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
@@ -632,9 +632,9 @@ Description: Script maps OTUs to taxonomy information and can append to an OTU t
              'trustable' levels. SINTAX/UTAX results are used if BLAST-like search pct identity is less than 97%%.  
              If %% identity is greater than 97%%, the result with most taxonomy levels is retained.
     
-Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from ufits cluster) (Required)
-             -i, --otu_table     Input OTU table file (i.e. otu_table from ufits cluster)
-             -o, --out           Base name for output file. Default: ufits-taxonomy.<method>.txt
+Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from amptk cluster) (Required)
+             -i, --otu_table     Input OTU table file (i.e. otu_table from amptk cluster)
+             -o, --out           Base name for output file. Default: amptk-taxonomy.<method>.txt
              -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: ITS2
              -m, --mapping_file  QIIME-like mapping file
              -t, --taxonomy      Taxonomy calculated elsewhere. 2 Column file.
@@ -658,7 +658,7 @@ Databases Configured:
 
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-assign_taxonomy.py')
+            cmd = os.path.join(script_path, 'bin', 'amptk-assign_taxonomy.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -669,13 +669,13 @@ Databases Configured:
             sys.exit(1)                    
     elif sys.argv[1] == 'database':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Setup/Format reference database for ufits taxonomy command.
+Description: Setup/Format reference database for amptk taxonomy command.
     
 Arguments:   -i, --fasta         Input FASTA file (UNITE DB or UNITE+INSDC)
-             -o, --out           Base Name for Output Files. Default: DB of ufits folder
+             -o, --out           Base Name for Output Files. Default: DB of amptk folder
              -f, --fwd_primer    Forward primer. Default: fITS7
              -r, --rev_primer    Reverse primer. Default: ITS4
              --format            Reformat FASTA headers to UTAX format. Default: unite2utax [unite2utax, rdp2utax, off]
@@ -691,7 +691,7 @@ Arguments:   -i, --fasta         Input FASTA file (UNITE DB or UNITE+INSDC)
 
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-extract_region.py')
+            cmd = os.path.join(script_path, 'bin', 'amptk-extract_region.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -708,7 +708,7 @@ Arguments:   -i, --fasta         Input FASTA file (UNITE DB or UNITE+INSDC)
             sys.exit(1)   
     elif sys.argv[1] == 'summarize':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script traverses the taxonomy information and creates an OTU table for each
@@ -717,7 +717,7 @@ Description: Script traverses the taxonomy information and creates an OTU table 
              Matplotlib, numpy, and pandas.
     
 Arguments:   -i, --table     OTU Table containing Taxonomy information (Required)
-             -o, --out       Base name for output files. Default: ufits-summary
+             -o, --out       Base name for output files. Default: amptk-summary
              --graphs        Create stacked Bar Graphs.
              --format        Image output format. Default: eps [eps, svg, png, pdf]
              --percent       Convert numbers to Percent for Graphs. Default: off
@@ -726,7 +726,7 @@ Arguments:   -i, --table     OTU Table containing Taxonomy information (Required
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-summarize_taxonomy.py')
+            cmd = os.path.join(script_path, 'bin', 'amptk-summarize_taxonomy.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -736,10 +736,10 @@ Arguments:   -i, --table     OTU Table containing Taxonomy information (Required
             sys.exit(1)  
     elif sys.argv[1] == 'install':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script downloads pre-formated databases for use with the `ufits taxonomy` 
+Description: Script downloads pre-formated databases for use with the `amptk taxonomy` 
              command. You can download databases for fungal ITS, bacterial 16S, fungal
              LSU, or arthropod/chordate COI amplicons. 
     
@@ -760,7 +760,7 @@ Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI
                 for x in arguments:
                     if os.path.isfile(os.path.join(script_path, 'DB', x+'.udb')):
                         if not '--force' in arguments:
-                            print("A formated database was found, to overwrite use '--force'. You can add more custom databases by using the `ufits database` command.")
+                            print("A formated database was found, to overwrite use '--force'. You can add more custom databases by using the `amptk database` command.")
                             sys.exit(1)
                     #download
                     if not x in URL:
@@ -770,20 +770,20 @@ Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI
                         sys.exit(1)
                     print "Downloading %s pre-formatted database" % x
                     address = URL.get(x)
-                    download(address, x+'.ufits.tar.gz')
-                    tfile = tarfile.open(x+'.ufits.tar.gz', 'r:gz')
+                    download(address, x+'.amptk.tar.gz')
+                    tfile = tarfile.open(x+'.amptk.tar.gz', 'r:gz')
                     tfile.extractall(x)
                     for file in os.listdir(x):
                         shutil.move(os.path.join(x,file), os.path.join(script_path, 'DB', file))
                     shutil.rmtree(x)
-                    os.remove(x+'.ufits.tar.gz')
+                    os.remove(x+'.amptk.tar.gz')
                     print "%s taxonomy database installed" % x
             else:
                 print help
                 sys.exit(1)
     elif sys.argv[1] == 'SRA':
         help = """
-Usage:       ufits %s <arguments>
+Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script aids in submitted your data to NCBI Sequence Read Archive (SRA) by splitting FASTQ file from Ion, 454, 
@@ -806,7 +806,7 @@ Arguments:   -i, --input         Input FASTQ file or folder (Required)
    
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(script_path, 'bin', 'ufits-fastq2sra.py')
+            cmd = os.path.join(script_path, 'bin', 'amptk-fastq2sra.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -816,14 +816,14 @@ Arguments:   -i, --input         Input FASTQ file or folder (Required)
             sys.exit(1)
     elif sys.argv[1] == 'primers':
         print "----------------------------------"
-        print "Primers hard-coded into UFITS:"
+        print "Primers hard-coded into AMPtk:"
         print "----------------------------------"
-        for k,v in ufitslib.primer_db.items():
+        for k,v in amptklib.primer_db.items():
            print k.ljust(13) + v
         print "----------------------------------"
         sys.exit(1)
     elif sys.argv[1] == 'version':
-        print "ufits v.%s" % version
+        print "amptk v.%s" % version
     else:
         print "%s option not recognized" % sys.argv[1]
         print default_help

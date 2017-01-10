@@ -9,7 +9,7 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)      
 
-parser=argparse.ArgumentParser(prog='ufits-get_barcode_counts.py',
+parser=argparse.ArgumentParser(prog='amptk-get_barcode_counts.py',
     description='''Script loops through demuxed fastq file counting occurances of barcodes, can optionally quality trim and recount.''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
@@ -137,7 +137,7 @@ if args.quality_trim:
         print("Using %i cpus to process data" % cpus)
         #divide into chunks, store in tmp file
         pid = os.getpid()
-        folder = 'ufits_tmp_' + str(pid)
+        folder = 'amptk_tmp_' + str(pid)
         if not os.path.exists(folder):
             os.makedirs(folder)
         for i, batch in enumerate(batch_iterator(SeqRecords, chunks)) :

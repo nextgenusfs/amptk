@@ -11,7 +11,7 @@ class col:
     END = '\033[0m'
     WARN = '\033[93m'
 
-parser=argparse.ArgumentParser(prog='ufits-download_db.py', usage="%(prog)s [options] -i <DB name>",
+parser=argparse.ArgumentParser(prog='amptk-download_db.py', usage="%(prog)s [options] -i <DB name>",
     description='''Script downloads ITS reference databases.''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
@@ -89,7 +89,7 @@ def getRTL(url):
     download(url)
     log.info("Download finished, file saved as: %s" % rtl_keep)
 
-log_name = ('ufits_db.log')
+log_name = ('amptk_db.log')
 if os.path.isfile(log_name):
     os.remove(log_name)
 

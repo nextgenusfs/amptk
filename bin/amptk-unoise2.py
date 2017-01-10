@@ -8,7 +8,7 @@ from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
-import lib.ufitslib as ufitslib
+import lib.amptklib as amptklib
 from natsort import natsorted
 
 #get script path for directory
@@ -24,7 +24,7 @@ class colr:
     END = '\033[0m'
     WARN = '\033[93m'
 
-parser=argparse.ArgumentParser(prog='ufits-unoise2.py', usage="%(prog)s [options] -i file.demux.fq\n%(prog)s -h for help menu",
+parser=argparse.ArgumentParser(prog='amptk-unoise2.py', usage="%(prog)s [options] -i file.demux.fq\n%(prog)s -h for help menu",
     description='''Script runs UNOISE2 algorithm.
     Requires USEARCH9 by Robert C. Edgar: http://drive5.com/usearch''',
     epilog="""Written by Jon Palmer (2016) nextgenusfs@gmail.com""",
@@ -46,21 +46,21 @@ def checkfastqsize(input):
     return filesize
 
 #remove logfile if exists
-log_name = args.out + '.ufits-unoise2.log'
+log_name = args.out + '.amptk-unoise2.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
-ufitslib.setupLogging(log_name)
+amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
-ufitslib.log.debug(cmd_args)
+amptklib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.SystemInfo()
+amptklib.SystemInfo()
 #Do a version check
 usearch = args.usearch
-ufitslib.versionDependencyChecks(usearch)
+amptklib.versionDependencyChecks(usearch)
 
 #make tmp folder
 tmp = args.out + '_tmp'
@@ -68,54 +68,54 @@ if not os.path.exists(tmp):
     os.makedirs(tmp)
 
 #Count FASTQ records
-ufitslib.log.info("Loading FASTQ Records")
-orig_total = ufitslib.countfastq(args.FASTQ)
+amptklib.log.info("Loading FASTQ Records")
+orig_total = amptklib.countfastq(args.FASTQ)
 size = checkfastqsize(args.FASTQ)
-readablesize = ufitslib.convertSize(size)
-ufitslib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
+readablesize = amptklib.convertSize(size)
+amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 
 #Expected Errors filtering step and convert to fasta
 filter_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fq')
 filter_fasta = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fa')
 orig_fasta = os.path.join(tmp, args.out+'.orig.fa')
-ufitslib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
+amptklib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
 cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '55']
-ufitslib.runSubprocess(cmd, ufitslib.log)
+amptklib.runSubprocess(cmd, amptklib.log)
 cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '55']
-ufitslib.runSubprocess(cmd, ufitslib.log)
-total = ufitslib.countfastq(filter_out)
-ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
+amptklib.runSubprocess(cmd, amptklib.log)
+total = amptklib.countfastq(filter_out)
+amptklib.log.info('{0:,}'.format(total) + ' reads passed')
 
 #now run full length dereplication
 derep_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.derep.fa')
-ufitslib.log.info("De-replication (remove duplicate reads)")
+amptklib.log.info("De-replication (remove duplicate reads)")
 cmd = ['vsearch', '--derep_fulllength', filter_out, '--relabel', 'Read_', '--sizeout', '--output', derep_out]
-ufitslib.runSubprocess(cmd, ufitslib.log)
-total = ufitslib.countfasta(derep_out)
-ufitslib.log.info('{0:,}'.format(total) + ' reads passed')
+amptklib.runSubprocess(cmd, amptklib.log)
+total = amptklib.countfasta(derep_out)
+amptklib.log.info('{0:,}'.format(total) + ' reads passed')
 
 #now run de-noiser UNOISE2
-ufitslib.log.info("Denoising reads with UNOISE2")
+amptklib.log.info("Denoising reads with UNOISE2")
 unoise_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.unoise.fa')
 cmd = [usearch, '-unoise2', derep_out, '-fastaout', unoise_out, '--minampsize', args.minampout]
-ufitslib.runSubprocess(cmd, ufitslib.log)
-total = ufitslib.countfasta(unoise_out)
-ufitslib.log.info('{0:,}'.format(total) + ' denoised sequences')
+amptklib.runSubprocess(cmd, amptklib.log)
+total = amptklib.countfasta(unoise_out)
+amptklib.log.info('{0:,}'.format(total) + ' denoised sequences')
 
 #now cluster to biological OTUs with UCLUST
 radius = float(args.pct_otu) / 100.
-ufitslib.log.info("Clustering denoised sequences into OTUs at %s%%" % args.pct_otu)
+amptklib.log.info("Clustering denoised sequences into OTUs at %s%%" % args.pct_otu)
 uclust_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.uclust.fa')
 cmd = [usearch, '-cluster_smallmem', unoise_out, '-id', str(radius), '-centroids', uclust_out, '-relabel', 'OTU']
-ufitslib.runSubprocess(cmd, ufitslib.log)
-total = ufitslib.countfasta(uclust_out)
-ufitslib.log.info('{0:,}'.format(total) + ' OTUs generated')
+amptklib.runSubprocess(cmd, amptklib.log)
+total = amptklib.countfasta(uclust_out)
+amptklib.log.info('{0:,}'.format(total) + ' OTUs generated')
 
 #determine where denoised sequences clustered
 ClusterComp = args.out+'.denoised2clusters.txt'
 iSeqmap = args.out+'.unoise_map.uc'
 cmd = [usearch, '-usearch_global', unoise_out, '-db', uclust_out, '-id', str(radius), '-uc', iSeqmap, '-strand', 'plus']
-ufitslib.runSubprocess(cmd, ufitslib.log)
+amptklib.runSubprocess(cmd, amptklib.log)
 iSeqMapped = {}
 with open(iSeqmap, 'rU') as mapping:
     for line in mapping:
@@ -133,9 +133,9 @@ with open(ClusterComp, 'w') as clusters:
         clusters.write('%s\t%s\n' % (k, ', '.join(v)))
 
 #strip N's
-ufitslib.log.info("Cleaning up padding from OTUs")
+amptklib.log.info("Cleaning up padding from OTUs")
 otu_clean = os.path.join(tmp, args.out + '.EE' + args.maxee + '.clean.fa')
-ufitslib.fasta_strip_padding(uclust_out, otu_clean)
+amptklib.fasta_strip_padding(uclust_out, otu_clean)
 
 
 #run optional uchime_ref
@@ -147,17 +147,17 @@ else:
     if args.uchime_ref in ['ITS', '16S', 'LSU', 'COI']: #test if it is one that is setup, otherwise default to full path
         uchime_db = os.path.join(parentdir, 'DB', args.uchime_ref+'.extracted.fa')
         if not os.path.isfile(uchime_db):
-            ufitslib.log.error("Database not properly configured, run `ufits install` to setup DB, skipping chimera filtering")
+            amptklib.log.error("Database not properly configured, run `amptk install` to setup DB, skipping chimera filtering")
             uchime_out = otu_clean
     else:
         uchime_db = os.path.abspath(args.uchime_ref)
     #now run chimera filtering if all checks out
     if not os.path.isfile(uchime_out):
-        ufitslib.log.info("Chimera Filtering (VSEARCH)")
+        amptklib.log.info("Chimera Filtering (VSEARCH)")
         cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out]
-        ufitslib.runSubprocess(cmd, ufitslib.log)
-        total = ufitslib.countfasta(uchime_out)
-        ufitslib.log.info('{0:,}'.format(total) + ' OTUs passed')
+        amptklib.runSubprocess(cmd, amptklib.log)
+        total = amptklib.countfasta(uchime_out)
+        amptklib.log.info('{0:,}'.format(total) + ' OTUs passed')
 
 #now map reads back to OTUs and build OTU table
 uc_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.mapping.uc')
@@ -167,13 +167,13 @@ if args.map_filtered:
     reads = filter_fasta
 else:
     reads = orig_fasta
-ufitslib.log.info("Mapping Reads to OTUs and Building OTU table")
+amptklib.log.info("Mapping Reads to OTUs and Building OTU table")
 cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', uchime_out, '--uc', uc_out, '--otutabout', otu_table]
-ufitslib.runSubprocess(cmd, ufitslib.log)
+amptklib.runSubprocess(cmd, amptklib.log)
 
 #count reads mapped
-total = ufitslib.line_count(uc_out)
-ufitslib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
+total = amptklib.line_count(uc_out)
+amptklib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
 
 #Move files around, delete tmp if argument passed.
 currentdir = os.getcwd()
@@ -197,6 +197,6 @@ print "-------------------------------------------------------"
 otu_print = final_otu.split('/')[-1]
 tab_print = final_otu_table.split('/')[-1]
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
+    print "\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " ufits filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
+    print colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)

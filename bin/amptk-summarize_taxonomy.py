@@ -8,7 +8,7 @@ import csv, argparse, re, os, sys, inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
-import lib.ufitslib as ufitslib
+import lib.amptklib as amptklib
 from lib.stackedBarGraph import StackedBarGrapher as StackedBarGrapher
 try:
     import seaborn as sns
@@ -19,13 +19,13 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
 
-parser=argparse.ArgumentParser(prog='ufits-summarize_taxonomy.py', usage="%(prog)s -i ufits.otu_table.taxonomy.txt\n%(prog)s -h for help menu",
-    description='''Script that produces summary figures and data tables from UFITS taxonomy OTU table.''',
+parser=argparse.ArgumentParser(prog='amptk-summarize_taxonomy.py', usage="%(prog)s -i amptk.otu_table.taxonomy.txt\n%(prog)s -h for help menu",
+    description='''Script that produces summary figures and data tables from AMPtk taxonomy OTU table.''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--table', dest="table", required=True, help='OTU Table (Required)')
-parser.add_argument('-o','--out', dest="out", default='ufits-summary', help='Base name of Output Files')
+parser.add_argument('-o','--out', dest="out", default='amptk-summary', help='Base name of Output Files')
 parser.add_argument('--graphs', dest="graphs", action="store_true", help='Create Stacked Bar Graphs')
 parser.add_argument('--format', dest="format", default='eps', choices=['eps','svg','png','pdf'], help='Image format')
 parser.add_argument('--percent', dest="percent", action="store_true", help='Convert to Pct of Sample')
@@ -192,7 +192,7 @@ sub_table = []
 with open(args.table, 'rU') as inTable:
     #guess the delimiter format
     firstline = inTable.readline()
-    dialect = ufitslib.guess_csv_dialect(firstline)
+    dialect = amptklib.guess_csv_dialect(firstline)
     inTable.seek(0)
     #parse OTU table
     reader = csv.reader(inTable, dialect)

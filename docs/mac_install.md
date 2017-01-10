@@ -25,43 +25,43 @@ brew install python
 pip install biopython natsort pandas numpy matplotlib
 ```
 
-#####4) Now install UFITS via homebrew:
+#####4) Now install AMPtk via homebrew:
 ```
 #tap my homebrew repository
 brew tap nextgenusfs/tap
 
-#install ufits
-brew install ufits
+#install amptk
+brew install amptk
 ```
 
-#####5) You will also need to install USEARCH8 - get it [here](http://www.drive5.com/usearch/download.html).  One way to make the program executable and move into your path:
+#####5) You will also need to install USEARCH9 - get it [here](http://www.drive5.com/usearch/download.html).  One way to make the program executable and move into your path:
 
 ```
 #make executable
-sudo chmod +x /path/to/usearch8.1.1861_i86osx32
+sudo chmod +x /path/to/usearch9.2.64_i86osx32
 ```
 
 ```
 #create softlink to folder in $PATH
-sudo ln -s /path/to/usearch8.1.1861_i86osx32 /usr/local/bin/usearch8
+sudo ln -s /path/to/usearch9.2.64_i86osx32 /usr/local/bin/usearch9
 ```
 
 #####6) Test Installation
-Open terminal, navigate to the `test_data` folder of ufits.  If you installed on Mac with homebrew, it should be here: `/usr/local/opt/ufits/libexec/test_data`.
+Open terminal, navigate to the `test_data` folder of amptk.  If you installed on Mac with homebrew, it should be here: `/usr/local/opt/amptk/libexec/test_data`.
 
 ```
 #test scripts on Ion PGM data
-ufits ion -i ion.test.fastq -o ion
+amptk ion -i ion.test.fastq -o ion
 
 #run clustering
-ufits cluster -i ion.demux.fq -o ion
+amptk cluster -i ion.demux.fq -o ion
 ```
 ```
 #test scripts on MiSeq data
-ufits illumina -i illumina_test_data/
+amptk illumina -i illumina_test_data/
 
 #run clustering
-ufits cluster -i ufits.demux.fq -o miseq
+amptk cluster -i amptk.demux.fq -o miseq
 ```
 
 
