@@ -2,9 +2,6 @@
 ###NGS AMPlicon Tool Kit:###
 
 AMPtk is a series of scripts to process NGS amplicon data using USEARCH and VSEARCH, it can also be used to process any NGS amplicon data and includes databases setup for analysis of fungal ITS, fungal LSU, bacterial 16S, and insect COI amplicons.  It can handle Ion Torrent, MiSeq, and 454 data.  At least USEARCH v9.1.13 and VSEARCH v2.2.0 are required as of AMPtk v0.7.0.
-___
-
-<img src="https://github.com/nextgenusfs/amptk/blob/master/docs/amptk.png" width="400">
 
 
 ####Installation:####
