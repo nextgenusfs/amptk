@@ -200,7 +200,8 @@ Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from amptk cluster)
              --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
              --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi to keep only fungi.
-             -u, --usearch       USEARCH executable. Default: usearch9```
+             -u, --usearch       USEARCH executable. Default: usearch9
+```
 
 And then you can use the `amptk taxonomy` command to assign taxonomy to your OTUs as well as append them to your OTU table as follows:
 
