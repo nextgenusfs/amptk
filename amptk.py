@@ -7,10 +7,10 @@ script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfra
 sys.path.insert(0,script_path)
 import lib.amptklib as amptklib
 
-URL = { 'ITS': 'https://www.dropbox.com/s/3eofu8rjgr242jk/ITS.amptk.tar.gz?dl=1', 
-        '16S': 'https://www.dropbox.com/s/dqbrr9wsqnki2di/16S.amptk.tar.gz?dl=1', 
-        'LSU': 'https://www.dropbox.com/s/xqrted7sts48hfl/LSU.amptk.tar.gz?dl=1', 
-        'COI': 'https://www.dropbox.com/s/dm10eqsmf01q51c/COI.amptk.tar.gz?dl=1' }
+URL = { 'ITS': 'https://uwmadison.box.com/shared/static/wft8j518ryvvcaenrzkilvbp7zwfwbrm.gz', 
+        '16S': 'https://uwmadison.box.com/shared/static/a77ld44jmt82jtssnad3l6qnqocgm5jk.gz', 
+        'LSU': 'https://uwmadison.box.com/shared/static/kvuxyngnpvh8942zzno7ijsfkkvpdhef.gz', 
+        'COI': 'https://uwmadison.box.com/shared/static/cptpdyp2i5olvoue6yr3kjf6o0ffhmx4.gz' }
 
 def flatten(l):
     flatList = []
@@ -44,25 +44,21 @@ def download(url, name):
     meta = u.info()
     file_size = int(meta.getheaders("Content-Length")[0])
     print("Downloading: {0} Bytes: {1}".format(url, file_size))
-
     file_size_dl = 0
     block_sz = 8192
     while True:
         buffer = u.read(block_sz)
         if not buffer:
             break
-
         file_size_dl += len(buffer)
         f.write(buffer)
         p = float(file_size_dl) / file_size
         status = r"{0}  [{1:.2%}]".format(file_size_dl, p)
         status = status + chr(8)*(len(status)+1)
         sys.stdout.write(status)
-
     f.close()
 
-
-version = '0.7.5'
+version = '0.8.0'
 
 default_help = """
 Usage:       amptk <command> <arguments>
@@ -81,19 +77,19 @@ Process:     ion         pre-process Ion Torrent data (find barcodes, remove pri
              sample      sub-sample (rarify) de-multiplexed reads per sample
              
 Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
-             dada2       run dada2 denoising algorithm, produces "inferred sequences" (requires R, dada2, ShortRead)
-             unoise2     run UNOISE2 denoising algorithm
+             dada2       dada2 denoising algorithm, produces "inferred sequences" (requires R, dada2, ShortRead)
+             unoise2     UNOISE2 denoising algorithm
              cluster_ref closed/open reference based clustering (EXPERIMENTAL)
 
 Utilities:   filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
-             summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)
+             summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs)
              funguild    Run FUNGuild (annotate OTUs with ecological information) 
              meta        pivot OTU table and append to meta data
              heatmap     Create heatmap from OTU table
              SRA         De-multiplex data and create meta data for NCBI SRA submission
 
-Setup:       install     Download/install pre-formatted taxonomy DB (UNITE DB formatted for AMPtk). Only need to run once.
+Setup:       install     Download/install pre-formatted taxonomy DB. Only need to run once.
              database    Format Reference Databases for Taxonomy
              primers     List primers hard-coded in AMPtk. Can use in pre-processing steps.
              
@@ -119,6 +115,7 @@ Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
              -b, --barcodes      Barcodes used (list, e.g: 1,3,4,5,20). Default: all
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -l, --trim_len      Length to trim/pad reads. Default: 250
+             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: on
              --min_len           Minimum length read to keep. Default: 50
              --full_length       Keep only full length sequences.
              --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
@@ -158,6 +155,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -r, --rev_primer    Reverse primer sequence Default: ITS4
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -l, --trim_len      Length to trim/pad reads. Default: 250
+             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: on
              --min_len           Minimum length read to keep. Default: 50
              --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
              --reverse_barcode   FASTA file containing 3' barcodes. Default: none
@@ -193,6 +191,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4      
              -l, --trim_len      Length to trim/pad reads. Default: 250
+             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: on
              --min_len           Minimum length read to keep. Default: 50
              --full_length       Keep only full length sequences.
              --reads             Paired-end or forward reads. Default: paired [paired, forward]
@@ -232,7 +231,8 @@ Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
              -r, --rev_primer    Reverse primer sequence Default: ITS4
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -l, --trim_len      Length to trim/pad reads. Default: 250
-             --min_len       Minimum length read to keep. Default: 50
+             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: on
+             --min_len           Minimum length read to keep. Default: 50
              --barcode_fasta     FASTA file containing barcodes. (Required)
              --reverse_barcode   FASTA file containing 3' barcodes. Default: none
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
@@ -387,7 +387,7 @@ Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script filters OTU table generated from the `amptk cluster` command and should be run on all datasets to combat
-             barcode-switching or index-bleed (as high as 0.3 pct in MiSeq datasets, ~ 0.2 pct in Ion PGM datasets).  This script 
+             barcode-switching or index-bleed (as high as 2%% in MiSeq datasets, ~ 0.3%% in Ion PGM datasets).  This script 
              works best when a spike-in control sequence is used, e.g. Synthetic Mock, although a mock is not required.
     
 Required:    -i, --otu_table     OTU table
@@ -395,13 +395,14 @@ Required:    -i, --otu_table     OTU table
              
 Optional:    -o, --out           Base name for output files. Default: use input basename
              -b, --mock_barcode  Name of barcode of mock community (Recommended)
-             --mc                Mock community FASTA file. Default: amptk_synmock.fa 
+             -m, --mc            Mock community FASTA file. Required if -b passed.
+             -c, --calculate     Calculate index-bleed options. Default: all [in,all]
              
 Filtering    -n, --normalize     Normalize reads to number of reads per sample [y,n]. Default: y
              -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.005
              -t, --threshold     Number to use for establishing read count threshold. Default: max [max,sum,top5,top10,top25]
              -s, --subtract      Threshold to subtract from all OTUs (any number or auto). Default: 0
-             -d, --delimiter     Delimiter of OTU tables. Default: csv  [csv, tsv]
+             -d, --delimiter     Delimiter of OTU tables. Default: tsv  [csv, tsv]
              --min_reads_otu     Minimum number of reads for valid OTU from whole experiment. Default: 2
              --col_order         Column order (comma separated list). Default: sort naturally
              --keep_mock         Keep Spike-in mock community. Default: False
@@ -674,7 +675,7 @@ version:     %s
 
 Description: Setup/Format reference database for amptk taxonomy command.
     
-Arguments:   -i, --fasta         Input FASTA file (UNITE DB or UNITE+INSDC)
+Arguments:   -i, --fasta         Input FASTA file
              -o, --out           Base Name for Output Files. Default: DB of amptk folder
              -f, --fwd_primer    Forward primer. Default: fITS7
              -r, --rev_primer    Reverse primer. Default: ITS4

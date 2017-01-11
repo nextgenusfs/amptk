@@ -39,6 +39,7 @@ parser.add_argument('--min_len', default=50, type=int, help='Minimum read length
 parser.add_argument('-l','--trim_len', default=250, type=int, help='Trim length for reads')
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
+parser.add_argument('-p','--pad', default='on', choices=['on', 'off'], help='Pad with Ns to a set length')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH executable')
 parser.add_argument('--cleanup', action='store_true', help='Delete all intermediate files')
 args=parser.parse_args()
@@ -83,11 +84,11 @@ def processRead(input):
             if not args.full_length:
                 #got here if primers were found they were trimmed
                 #now check seq length, pad if too short, trim if too long
-                if len(Seq) < args.trim_len:
+                if len(Seq) < args.trim_len and args.pad == 'on':
                     pad = args.trim_len - len(Seq)
                     Seq = Seq + pad*'N'
                     Qual = Qual +pad*'J'
-                elif len(Seq) > args.trim_len:
+                else len(Seq) > args.trim_len:
                     Seq = Seq[:args.trim_len]
                     Qual = Qual[:args.trim_len]
             #got here, reads are primers trimmed and trim/padded, check length

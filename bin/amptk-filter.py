@@ -34,6 +34,7 @@ parser.add_argument('-f','--fasta', required=True, help='Input OTUs (multi-fasta
 parser.add_argument('-b','--mock_barcode', help='Barocde of Mock community')
 parser.add_argument('-p','--index_bleed',  help='Index Bleed filter. Default: auto')
 parser.add_argument('-t','--threshold', default='max', choices=['sum','max','top25','top10','top5'],help='Threshold to use when calculating index-bleed')
+parser.add_argument('-c','--calculate', default='all', choices=['all', 'in'], help='Calculate index-bleed, if synthetic mock use all otherwise use in')
 parser.add_argument('-s','--subtract', default=0, help='Threshold to subtract')
 parser.add_argument('-n','--normalize', default='y', choices=['y','n'], help='Normalize OTU table prior to filtering')
 parser.add_argument('-m','--mc', help='Multi-FASTA mock community')
@@ -278,12 +279,14 @@ if args.mock_barcode:
 
     #get max values for bleed
     #can only use into samples measurement if not using synmock
-    if args.mc == 'synmock':
+    if args.calculate == 'all':
         if bleed1max > bleed2max:
             bleedfilter = math.ceil(bleed1max*1000)/1000
         else:
             bleedfilter = math.ceil(bleed2max*1000)/1000
         amptklib.log.info("Index bleed, mock into samples: %f%%.  Index bleed, samples into mock: %f%%." % (bleed1max*100, bleed2max*100))
+        if bleed1max > 0.05:
+            amptklib.log.info("Index bleed into samples is abnormally high (%f%%), if you have biological mock you should use `--calculate in`" % bleed1max*100)
     else:
         bleedfilter = math.ceil(bleed2max*1000)/1000
         amptklib.log.info("Index bleed, samples into mock: %f%%." % (bleed2max*100))

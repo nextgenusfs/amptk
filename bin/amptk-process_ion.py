@@ -31,6 +31,7 @@ parser.add_argument('-o','--out', dest="out", default='ion', help='Base name for
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer')
 parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')
+parser.add_argument('-p','--pad', default='on', choices=['on', 'off'], help='Pad with Ns to a set length')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--barcode_fasta', default='pgm_barcodes.fa', help='FASTA file containing Barcodes (Names & Sequences)')
 parser.add_argument('--reverse_barcode', help='FASTA file containing 3 prime Barocdes')
@@ -90,11 +91,11 @@ def processRead(input):
                     Qual = qual[ForTrim:RevTrim]
                     #since found reverse primer, now also need to pad/trim
                     if not args.full_length:
-                        if len(Seq) < args.trim_len:
+                        if len(Seq) < args.trim_len and args.pad == 'on':
                             pad = args.trim_len - len(Seq)
                             Seq = Seq + pad*'N'
                             Qual = Qual +pad*'J'
-                        elif len(Seq) > args.trim_len:
+                        else len(Seq) > args.trim_len:
                             Seq = Seq[:args.trim_len]
                             Qual = Qual[:args.trim_len]
                 else:
