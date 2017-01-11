@@ -285,14 +285,15 @@ if args.mock_barcode:
         else:
             bleedfilter = math.ceil(bleed2max*1000)/1000
         amptklib.log.info("Index bleed, mock into samples: %f%%.  Index bleed, samples into mock: %f%%." % (bleed1max*100, bleed2max*100))
-        if bleed1max > 0.05:
-            amptklib.log.info("Index bleed into samples is abnormally high (%f%%), if you have biological mock you should use `--calculate in`" % bleed1max*100)
     else:
         bleedfilter = math.ceil(bleed2max*1000)/1000
         amptklib.log.info("Index bleed, samples into mock: %f%%." % (bleed2max*100))
         
 else:
     bleedfilter = args.index_bleed #this is value needed to filter MiSeq, Ion is likely less, but shouldn't effect the data very much either way.
+
+if bleedfilter > 0.05:
+    amptklib.log.info("Index bleed into samples is abnormally high (%f%%), if you have biological mock you should use `--calculate in`" % (bleedfilter))
 
 if args.index_bleed:
     args.index_bleed = float(args.index_bleed)

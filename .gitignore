@@ -8,3 +8,8 @@ DB/COI*
 DB/ITS*
 DB/LSU*
 DB/16S*
+test_data/miseq*
+test_data/test_results*
+test_data/alt*
+test_data/illumina2*
+test_data/test*
