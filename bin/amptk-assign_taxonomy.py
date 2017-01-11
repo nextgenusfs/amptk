@@ -5,7 +5,7 @@ from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
-import lib.ufitslib as ufitslib
+import lib.amptklib as amptklib
 from natsort import natsorted
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -23,7 +23,7 @@ def restricted_float(x):
         raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]"%(x,))
     return x
 
-parser=argparse.ArgumentParser(prog='ufits-assign_taxonomy.py', usage="%(prog)s [options] -f <FASTA File>",
+parser=argparse.ArgumentParser(prog='amptk-assign_taxonomy.py', usage="%(prog)s [options] -f <FASTA File>",
     description='''assign taxonomy to OTUs''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
@@ -60,21 +60,21 @@ else:
     base = args.out
     
 #remove logfile if exists
-log_name = base + '.ufits-taxonomy.log'
+log_name = base + '.amptk-taxonomy.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
-ufitslib.setupLogging(log_name)
+amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
-ufitslib.log.debug(cmd_args)
+amptklib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.SystemInfo()
+amptklib.SystemInfo()
 #Do a version check
 usearch = args.usearch
-ufitslib.versionDependencyChecks(usearch)
+amptklib.versionDependencyChecks(usearch)
 
 #Setup DB locations and names, etc
 DBdir = os.path.join(parentdir, 'DB')
@@ -95,13 +95,13 @@ else:
 
 if args.method in ['hybrid', 'usearch', 'utax']:
     if not utax_db and not usearch_db and not args.fasta_db:
-        ufitslib.log.error("You have not selected a database, need either --db, --utax_db, --usearch_db, or --fasta_db")
+        amptklib.log.error("You have not selected a database, need either --db, --utax_db, --usearch_db, or --fasta_db")
         sys.exit(1)
 
 #Count records
-ufitslib.log.info("Loading FASTA Records")
-total = ufitslib.countfasta(args.fasta)
-ufitslib.log.info('{0:,}'.format(total) + ' OTUs')
+amptklib.log.info("Loading FASTA Records")
+total = amptklib.countfasta(args.fasta)
+amptklib.log.info('{0:,}'.format(total) + ' OTUs')
 
 #declare output files/variables here
 blast_out = base + '.blast.txt'
@@ -114,8 +114,8 @@ if not args.taxonomy:
     #start with less common uses, i.e. Blast, rdp
     if args.method == 'blast':
         #check if command line blast installed
-        if not ufitslib.which('blastn'):
-            ufitslib.log.error("BLASTN not found in your PATH, exiting.")
+        if not amptklib.which('blastn'):
+            amptklib.log.error("BLASTN not found in your PATH, exiting.")
             sys.exit(1)
     
         #now run blast remotely using NCBI nt database
@@ -123,13 +123,13 @@ if not args.taxonomy:
         if args.local_blast:
             #get number of cpus
             cpus = multiprocessing.cpu_count() - 2
-            ufitslib.log.info("Running local BLAST using db: %s" % args.local_blast)
+            amptklib.log.info("Running local BLAST using db: %s" % args.local_blast)
             cmd = ['blastn', '-num_threads', str(cpus), '-query', args.fasta, '-db', os.path.abspath(args.local_blast), '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out]
-            ufitslib.runSubprocess(cmd, ufitslib.log)
+            amptklib.runSubprocess(cmd, amptklib.log)
         else:
-            ufitslib.log.info("Running BLASTN using NCBI remote nt database, this may take awhile")
+            amptklib.log.info("Running BLASTN using NCBI remote nt database, this may take awhile")
             cmd = ['blastn', '-query', args.fasta, '-db', 'nt', '-remote', '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out]
-            ufitslib.runSubprocess(cmd, ufitslib.log)
+            amptklib.runSubprocess(cmd, amptklib.log)
     
         #load results and reformat
         new = []
@@ -148,15 +148,15 @@ if not args.taxonomy:
         try:
             rdp_test = subprocess.Popen(['java', '-Xmx2000m', '-jar', args.rdp, 'classify'], stdout=subprocess.PIPE).communicate()[0].rstrip()
         except OSError:
-            ufitslib.log.error("%s not found in your PATH, exiting." % args.rdp)
+            amptklib.log.error("%s not found in your PATH, exiting." % args.rdp)
             sys.exit(1)
     
         #RDP database
-        ufitslib.log.info("Using RDP classifier %s training set" % args.rdp_tax)
+        amptklib.log.info("Using RDP classifier %s training set" % args.rdp_tax)
     
         #run RDP
         cmd = ['java', '-Xmx2000m', '-jar', args.rdp, 'classify', '-g', args.rdp_tax, '-o', rdp_out, '-f', 'fixrank', args.fasta]
-        ufitslib.runSubprocess(cmd, ufitslib.log)
+        amptklib.runSubprocess(cmd, amptklib.log)
     
         #load in results and put into dictionary
         new = []
@@ -189,50 +189,50 @@ if not args.taxonomy:
         if args.method in ['hybrid', 'usearch']:
             if args.fasta_db:
                 #now run through usearch global
-                ufitslib.log.info("Global alignment OTUs with usearch_global (VSEARCH)")
+                amptklib.log.info("Global alignment OTUs with usearch_global (VSEARCH)")
                 cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(args.fasta_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels']
-                ufitslib.runSubprocess(cmd, ufitslib.log)
+                amptklib.runSubprocess(cmd, amptklib.log)
             else:
                 if usearch_db:
                     #run through USEARCH
-                    ufitslib.log.info("Global alignment OTUs with usearch_global (USEARCH)")
+                    amptklib.log.info("Global alignment OTUs with usearch_global (USEARCH)")
                     cmd = [usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id']
-                    ufitslib.runSubprocess(cmd, ufitslib.log)
+                    amptklib.runSubprocess(cmd, amptklib.log)
                 else:
-                    ufitslib.log.error("USEARCH DB %s not found, skipping" % usearch_db)
+                    amptklib.log.error("USEARCH DB %s not found, skipping" % usearch_db)
 
         if args.method in ['hybrid', 'utax']:
             if utax_db:
                 #now run through UTAX
                 utax_out = base + '.utax.txt'
-                ufitslib.log.info("Classifying OTUs with UTAX (USEARCH)")
+                amptklib.log.info("Classifying OTUs with UTAX (USEARCH)")
                 cutoff = str(args.utax_cutoff)
                 cmd = [usearch, '-utax', args.fasta, '-db', utax_db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus', '-notrunclabels']
-                ufitslib.runSubprocess(cmd, ufitslib.log)
+                amptklib.runSubprocess(cmd, amptklib.log)
             else:
-                ufitslib.log.error("UTAX DB %s not found, skipping" % utax_db)
+                amptklib.log.error("UTAX DB %s not found, skipping" % utax_db)
     
         if args.method in ['hybrid', 'sintax']:
             if args.fasta_db: #if you pass fasta file here, over ride any auto detection
                 sintax_db = args.fasta_db
             #now run sintax
-            ufitslib.log.info("Classifying OTUs with SINTAX (USEARCH)")
+            amptklib.log.info("Classifying OTUs with SINTAX (USEARCH)")
             cmd = [usearch, '-sintax', args.fasta, '-db', os.path.abspath(sintax_db), '-tabbedout', sintax_out, '-sintax_cutoff', str(args.sintax_cutoff), '-strand', 'both']
-            ufitslib.runSubprocess(cmd, ufitslib.log)
+            amptklib.runSubprocess(cmd, amptklib.log)
 
         #now process results, load into dictionary - slightly different depending on which classification was run.
         if args.method == 'hybrid' and os.path.isfile(utax_out) and os.path.isfile(usearch_out) and os.path.isfile(sintax_out): #now run hybrid approach
             #load results into dictionary for appending to OTU table
-            ufitslib.log.debug("Loading UTAX results into dictionary")
+            amptklib.log.debug("Loading UTAX results into dictionary")
             with open(utax_out, 'rU') as infile:
                 reader = csv.reader(infile, delimiter="\t")
                 utaxDict = {rows[0]:rows[2] for rows in reader}
-            ufitslib.log.debug("Loading SINTAX results into dictionary")
+            amptklib.log.debug("Loading SINTAX results into dictionary")
             with open(sintax_out, 'rU') as infile:
                 reader = csv.reader(infile, delimiter="\t")
                 sintaxDict = {rows[0]:rows[3] for rows in reader}
 
-            ufitslib.log.debug("Loading Global Alignment results into dictionary, cross-checking")
+            amptklib.log.debug("Loading Global Alignment results into dictionary, cross-checking")
             newTable = []
             usearchDict = {}
             with open(usearch_out, 'rU') as infile:
@@ -293,14 +293,14 @@ if not args.taxonomy:
     
         elif args.method == 'utax' and os.path.isfile(utax_out):    
             #load results into dictionary for appending to OTU table
-            ufitslib.log.debug("Loading UTAX results into dictionary")
+            amptklib.log.debug("Loading UTAX results into dictionary")
             with open(utax_out, 'rU') as infile:
                 reader = csv.reader(infile, delimiter="\t")
                 otuDict = {rows[0]:rows[2] for rows in reader}
     
         elif args.method == 'usearch' and os.path.isfile(usearch_out): 
             #load results into dictionary for appending to OTU table
-            ufitslib.log.debug("Loading Global Alignment results into dictionary")
+            amptklib.log.debug("Loading Global Alignment results into dictionary")
             newTable = []
             with open(usearch_out, 'rU') as infile:
                 reader = csv.reader(infile, delimiter="\t")
@@ -313,13 +313,13 @@ if not args.taxonomy:
 
         elif args.method == 'sintax' and os.path.isfile(sintax_out):
             #load results into dictionary for appending to OTU table
-            ufitslib.log.debug("Loading SINTAX results into dictionary")
+            amptklib.log.debug("Loading SINTAX results into dictionary")
             with open(sintax_out, 'rU') as infile:
                 reader = csv.reader(infile, delimiter="\t")
                 otuDict = {rows[0]:rows[3] for rows in reader} 
 else:
     #you have supplied a two column taxonomy file, parse and build otuDict
-    ufitslib.log.debug("Loading custom Taxonomy into dictionary")
+    amptklib.log.debug("Loading custom Taxonomy into dictionary")
     with open(args.taxonomy, 'rU') as infile:
         reader = csv.reader(infile, delimiter="\t")
         otuDict = {rows[0]:rows[1] for rows in reader} 
@@ -327,7 +327,7 @@ else:
 #now format results
 if args.otu_table:
     #check if otu_table variable is empty, then load in otu table
-    ufitslib.log.info("Appending taxonomy to OTU table and OTUs")
+    amptklib.log.info("Appending taxonomy to OTU table and OTUs")
     taxTable = base + '.otu_table.taxonomy.txt'
     tmpTable = base + '.otu_table.tmp'
 
@@ -337,7 +337,7 @@ if args.otu_table:
         with open(args.otu_table, 'rU') as inTable:
             #guess the delimiter format
             firstline = inTable.readline()
-            dialect = ufitslib.guess_csv_dialect(firstline)
+            dialect = amptklib.guess_csv_dialect(firstline)
             inTable.seek(0)
             #parse OTU table
             reader = csv.reader(inTable, dialect)
@@ -363,16 +363,16 @@ if args.otu_table:
 
     if args.tax_filter:
         if args.method == 'blast':
-            ufitslib.log.info("Blast is incompatible with --tax_filter, use a different method")
+            amptklib.log.info("Blast is incompatible with --tax_filter, use a different method")
             tmpTable = args.otu_table
         else:
             nonfungal = total - counts
-            ufitslib.log.info("Found %i OTUs not matching %s, writing %i %s hits to taxonomy OTU table" % (nonfungal, args.tax_filter, counts, args.tax_filter))
+            amptklib.log.info("Found %i OTUs not matching %s, writing %i %s hits to taxonomy OTU table" % (nonfungal, args.tax_filter, counts, args.tax_filter))
             #need to create a filtered table without taxonomy for BIOM output
             with open(tmpTable, 'w') as output:
                 with open(taxTable, 'rU') as input:
                     firstline = input.readline()
-                    dialect = ufitslib.guess_csv_dialect(firstline)
+                    dialect = amptklib.guess_csv_dialect(firstline)
                     input.seek(0)
                     #parse OTU table
                     reader = csv.reader(input, dialect)
@@ -410,41 +410,41 @@ else:
 #convert taxonomy to qiime format for biom
 if not args.method == 'blast':
     qiimeTax = base + '.qiime.taxonomy.txt'
-    ufitslib.utax2qiime(taxFinal, qiimeTax)
+    amptklib.utax2qiime(taxFinal, qiimeTax)
 else:
-    ufitslib.log.error("Blast taxonomy is not compatible with BIOM output, use a different method")
+    amptklib.log.error("Blast taxonomy is not compatible with BIOM output, use a different method")
 
 #create OTU phylogeny for downstream processes
-ufitslib.log.info("Generating phylogenetic tree")
+amptklib.log.info("Generating phylogenetic tree")
 tree_out = base + '.tree.phy'
 cmd = [usearch, '-cluster_agg', args.fasta, '-treeout', tree_out]
-ufitslib.runSubprocess(cmd, ufitslib.log)
+amptklib.runSubprocess(cmd, amptklib.log)
 
 #print some summary file locations
-ufitslib.log.info("Taxonomy finished: %s" % taxFinal)
+amptklib.log.info("Taxonomy finished: %s" % taxFinal)
 if args.otu_table and not args.method == 'blast':
-    ufitslib.log.info("Classic OTU table with taxonomy: %s" % taxTable)
+    amptklib.log.info("Classic OTU table with taxonomy: %s" % taxTable)
     #output final OTU table in Biom v1.0 (i.e. json format if biom installed)
     outBiom = base + '.biom'
-    if ufitslib.which('biom'):
-        ufitslib.removefile(outBiom)
+    if amptklib.which('biom'):
+        amptklib.removefile(outBiom)
         cmd = ['biom', 'convert', '-i', tmpTable, '-o', outBiom+'.tmp', '--table-type', "OTU table", '--to-json']
-        ufitslib.runSubprocess(cmd, ufitslib.log)
+        amptklib.runSubprocess(cmd, amptklib.log)
         if args.mapping_file:
             cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '-m', args.mapping_file, '--sc-separated', 'taxonomy']
-            ufitslib.runSubprocess(cmd, ufitslib.log)
+            amptklib.runSubprocess(cmd, amptklib.log)
         else:
             cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '--sc-separated',  'taxonomy']
-            ufitslib.runSubprocess(cmd, ufitslib.log)
-        ufitslib.removefile(outBiom+'.tmp')
-        ufitslib.log.info("BIOM OTU table created: %s" % outBiom)
+            amptklib.runSubprocess(cmd, amptklib.log)
+        amptklib.removefile(outBiom+'.tmp')
+        amptklib.log.info("BIOM OTU table created: %s" % outBiom)
     else:
-        ufitslib.log.info("biom program not installed, install via `pip install biom-format`")
-ufitslib.log.info("OTUs with taxonomy: %s" % otuTax)
-ufitslib.log.info("OTU phylogeny: %s" % tree_out)  
+        amptklib.log.info("biom program not installed, install via `pip install biom-format`")
+amptklib.log.info("OTUs with taxonomy: %s" % otuTax)
+amptklib.log.info("OTU phylogeny: %s" % tree_out)  
 
 #clean up intermediate files
 if not args.debug:
     for i in [utax_out, usearch_out, sintax_out, qiimeTax, base+'.otu_table.tmp']:
-        ufitslib.removefile(i)   
+        amptklib.removefile(i)   
 print "-------------------------------------------------------"

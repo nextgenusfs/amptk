@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#This script filters results from ufits-OTU_cluster.py
+#This script filters results from amptk-OTU_cluster.py
 #written by Jon Palmer palmer.jona at gmail dot com
 
 import sys, os, argparse, inspect, subprocess, csv, sys, math
@@ -11,7 +11,7 @@ import numpy as np
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
-import lib.ufitslib as ufitslib
+import lib.amptklib as amptklib
 
 class colr:
     GRN = '\033[92m'
@@ -22,8 +22,8 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)      
 
-parser=argparse.ArgumentParser(prog='ufits-filter.py',
-    description='''Script inspects output of ufits-OTU_cluster.py and 
+parser=argparse.ArgumentParser(prog='amptk-filter.py',
+    description='''Script inspects output of amptk-OTU_cluster.py and 
     determines useful threshold for OTU output based on a spike-in 
     mock community.''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
@@ -34,6 +34,7 @@ parser.add_argument('-f','--fasta', required=True, help='Input OTUs (multi-fasta
 parser.add_argument('-b','--mock_barcode', help='Barocde of Mock community')
 parser.add_argument('-p','--index_bleed',  help='Index Bleed filter. Default: auto')
 parser.add_argument('-t','--threshold', default='max', choices=['sum','max','top25','top10','top5'],help='Threshold to use when calculating index-bleed')
+parser.add_argument('-c','--calculate', default='all', choices=['all', 'in'], help='Calculate index-bleed, if synthetic mock use all otherwise use in')
 parser.add_argument('-s','--subtract', default=0, help='Threshold to subtract')
 parser.add_argument('-n','--normalize', default='y', choices=['y','n'], help='Normalize OTU table prior to filtering')
 parser.add_argument('-m','--mc', help='Multi-FASTA mock community')
@@ -55,26 +56,26 @@ else:
     base = args.out
 
 #remove logfile if exists
-log_name = base + '.ufits-filter.log'
-ufitslib.removefile(log_name)
+log_name = base + '.amptk-filter.log'
+amptklib.removefile(log_name)
 
-ufitslib.setupLogging(log_name)
+amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
-ufitslib.log.debug(cmd_args)
+amptklib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.SystemInfo()
+amptklib.SystemInfo()
 #Do a version check
 usearch = args.usearch
-ufitslib.versionDependencyChecks(usearch)
+amptklib.versionDependencyChecks(usearch)
 
 #check if otu_table is empty
-ufitslib.log.info("Loading OTU table: %s" % args.otu_table)
+amptklib.log.info("Loading OTU table: %s" % args.otu_table)
 check = os.stat(args.otu_table).st_size
 if check == 0:
-    ufitslib.log.error("Input OTU table is empty")
+    amptklib.log.error("Input OTU table is empty")
     sys.exit(1)
 #get the OTU header info (depending on how OTU table was constructed, this might be different, so find it as you need for indexing)
 with open(args.otu_table, 'rU') as f:
@@ -107,7 +108,7 @@ if headers[-1] == 'taxonomy' or headers[-1] == 'Taxonomy':
 else:
     otuDict = False
     
-ufitslib.log.info("OTU table contains %i OTUs" % len(df.index))
+amptklib.log.info("OTU table contains %i OTUs" % len(df.index))
 
 #setup output files/variables
 mock_out = base + '.mockmap.uc'
@@ -117,32 +118,32 @@ if args.mock_barcode: #if user passes a column name for mock
     #check if mock barcode is valid
     validBCs = df.columns.values.tolist()
     if not args.mock_barcode in validBCs:
-        ufitslib.log.error("%s not a valid barcode." % args.mock_barcode)
-        ufitslib.log.error("Valid barcodes: %s" % (' '.join(validBCs)))
+        amptklib.log.error("%s not a valid barcode." % args.mock_barcode)
+        amptklib.log.error("Valid barcodes: %s" % (' '.join(validBCs)))
         sys.exit(1)
     #make sure there is a --mc passed here otherwise throw error
     if not args.mc:
-        ufitslib.log.error("If using the -b,--barcode option you must specify a fasta file of mock community via the --mc option")
+        amptklib.log.error("If using the -b,--barcode option you must specify a fasta file of mock community via the --mc option")
         sys.exit(1)
     #get default mock community value
     if args.mc == "mock3":
-        mock = os.path.join(parentdir, 'DB', 'ufits_mock3.fa')
+        mock = os.path.join(parentdir, 'DB', 'amptk_mock3.fa')
     elif args.mc == "mock2":
-        mock = os.path.join(parentdir, 'DB', 'ufits_mock2.fa')
+        mock = os.path.join(parentdir, 'DB', 'amptk_mock2.fa')
     elif args.mc == "mock1":
-        mock = os.path.join(parentdir, 'DB', 'ufits_mock1.fa')
+        mock = os.path.join(parentdir, 'DB', 'amptk_mock1.fa')
     elif args.mc == "synmock":
-        mock = os.path.join(parentdir, 'DB', 'ufits_synmock.fa')
+        mock = os.path.join(parentdir, 'DB', 'amptk_synmock.fa')
     else:
         mock = os.path.abspath(args.mc)
 
     #open mock community fasta and count records
-    mock_ref_count = ufitslib.countfasta(mock)
+    mock_ref_count = amptklib.countfasta(mock)
     
     #map OTUs to mock community
-    ufitslib.log.info("Mapping OTUs to Mock Community (USEARCH)")
+    amptklib.log.info("Mapping OTUs to Mock Community (USEARCH)")
     cmd = [usearch, '-usearch_global', mock, '-strand', 'plus', '-id', '0.95', '-db', args.fasta, '-uc', mock_out, '-maxaccepts', '3']
-    ufitslib.runSubprocess(cmd, ufitslib.log)
+    amptklib.runSubprocess(cmd, amptklib.log)
     #sort the output to avoid problems
     with open(mock_sort, 'w') as output:
         subprocess.call(['sort', '-k4,4nr', mock_out], stdout = output)
@@ -173,7 +174,7 @@ if args.mock_barcode: #if user passes a column name for mock
                 missing.append(line[-2].split(' ')[0])
 
     if missing:
-        ufitslib.log.info("Mock members not found: %s" % ', '.join(missing))
+        amptklib.log.info("Mock members not found: %s" % ', '.join(missing))
     #make name change dict
     annotate_dict = {}
     for k,v in found_dict.items():
@@ -192,10 +193,10 @@ if args.mock_barcode:
 #sort the table
 df2 = df.reindex(index=natsorted(df.index))
 if args.col_order == 'naturally':
-    ufitslib.log.info("Sorting OTU table naturally")
+    amptklib.log.info("Sorting OTU table naturally")
     df = df2.reindex(columns=natsorted(df2.columns))
 else:
-    ufitslib.log.info("Sorting OTU table by user defined order (--col_order)")
+    amptklib.log.info("Sorting OTU table by user defined order (--col_order)")
     col_headers = args.col_order.split(',')
     #check if all names in headers or not
     for i in col_headers:
@@ -217,7 +218,7 @@ otus_per_sample_original = df[df > 0].count(axis=0, numeric_only=True)
 filtered = pd.DataFrame(df, columns=fs.index)
 filt2 = filtered.loc[(filtered != 0).any(1)]
 tos = filt2.sum(axis=1)
-ufitslib.log.info("Removing OTUs according to --min_reads_otu: (OTUs with less than %i reads from all samples)" % args.min_reads_otu)
+amptklib.log.info("Removing OTUs according to --min_reads_otu: (OTUs with less than %i reads from all samples)" % args.min_reads_otu)
 fotus = tos[tos >= args.min_reads_otu] #valid allele must be found atleast from than 2 times, i.e. no singletons
 filt3 = pd.DataFrame(filt2, index=fotus.index)
 
@@ -238,7 +239,7 @@ if args.normalize == 'y':
         del norm_round['Taxonomy']
     else:
         norm_round.to_csv(normal_table_nums, sep=delim)
-    ufitslib.log.info("Normalizing OTU table to number of reads per sample")
+    amptklib.log.info("Normalizing OTU table to number of reads per sample")
 else:
     norm_round = filt3
 
@@ -253,42 +254,56 @@ if args.mock_barcode:
     for i in norm_round.index:
         if not i in mock:
             sample.append(i)
+    #first calculate bleed out of mock community
+    #slice normalized dataframe to get only mock OTUs from table
     mock_df = pd.DataFrame(norm_round, index=mock)
+    #get total number of reads from mock OTUs from entire table
     total = np.sum(np.sum(mock_df,axis=None))
+    #now drop the mock barcode sample
     mock_df.drop(args.mock_barcode, axis=1, inplace=True)
+    #get number of reads that are result of bleed over
     bleed1 = np.sum(np.sum(mock_df,axis=None))
+    #calculate rate of bleed by taking num reads bleed divided by the total
     bleed1max = bleed1 / float(total)
+    #second, calculate bleed into mock community
+    #slice the OTU table to get all OTUs that are not in mock community from the mock sample
     sample_df = pd.DataFrame(norm_round, index=sample, columns=[args.mock_barcode])
+    #get total number of reads that don't belong in mock
     bleed2 = np.sum(np.sum(sample_df,axis=None))
+    #now pull the entire mock sample
     mock_sample = pd.DataFrame(norm_round, columns=[args.mock_barcode])
+    #calcuate bleed into mock by taking num reads that don't belong divided by the total, so this is x% of bad reads in the mock
     bleed2max = bleed2 / float(np.sum(mock_sample.sum(axis=1)))
+    #autocalculate the subtraction filter by taking the maximum value that doesn't belong
     subtract_num = max(sample_df.max())
 
     #get max values for bleed
     #can only use into samples measurement if not using synmock
-    if args.mc == 'synmock':
+    if args.calculate == 'all':
         if bleed1max > bleed2max:
             bleedfilter = math.ceil(bleed1max*1000)/1000
         else:
             bleedfilter = math.ceil(bleed2max*1000)/1000
-        ufitslib.log.info("Index bleed, mock into samples: %f%%.  Index bleed, samples into mock: %f%%." % (bleed1max*100, bleed2max*100))
+        amptklib.log.info("Index bleed, mock into samples: %f%%.  Index bleed, samples into mock: %f%%." % (bleed1max*100, bleed2max*100))
+        if bleed1max > 0.05:
+            amptklib.log.info("Index bleed into samples is abnormally high (%f%%), if you have biological mock you should use `--calculate in`" % bleed1max*100)
     else:
         bleedfilter = math.ceil(bleed2max*1000)/1000
-        ufitslib.log.info("Index bleed, samples into mock: %f%%." % (bleed2max*100))
+        amptklib.log.info("Index bleed, samples into mock: %f%%." % (bleed2max*100))
         
 else:
     bleedfilter = args.index_bleed #this is value needed to filter MiSeq, Ion is likely less, but shouldn't effect the data very much either way.
 
 if args.index_bleed:
     args.index_bleed = float(args.index_bleed)
-    ufitslib.log.info("Overwriting auto detect index-bleed, setting to %f%%" % (args.index_bleed*100))
+    amptklib.log.info("Overwriting auto detect index-bleed, setting to %f%%" % (args.index_bleed*100))
     bleedfilter = args.index_bleed
 else:
     if bleedfilter:
-        ufitslib.log.info("Will use value of %f%% for index-bleed OTU filtering." % (bleedfilter*100))
+        amptklib.log.info("Will use value of %f%% for index-bleed OTU filtering." % (bleedfilter*100))
     else:
         bleedfilter = 0 #no filtering if you don't pass -p or -b 
-        ufitslib.log.info("No spike-in mock (-b) or index-bleed (-p) specified, thus not running index-bleed filtering") 
+        amptklib.log.info("No spike-in mock (-b) or index-bleed (-p) specified, thus not running index-bleed filtering") 
 
 #to combat barcode switching, loop through each OTU filtering out if less than bleedfilter threshold
 cleaned = []
@@ -327,12 +342,12 @@ if args.subtract != 'auto':
 else:
     try:
         subtract_num = int(subtract_num)
-        ufitslib.log.info("Auto subtract filter set to %i" % subtract_num)
+        amptklib.log.info("Auto subtract filter set to %i" % subtract_num)
     except NameError:
         subtract_num = 0
-        ufitslib.log.info("Error: to use 'auto' subtract feature, provide a sample name to -b,--mock_barcode.")
+        amptklib.log.info("Error: to use 'auto' subtract feature, provide a sample name to -b,--mock_barcode.")
 if subtract_num != 0:
-    ufitslib.log.info("Subtracting %i from OTU table" % subtract_num)
+    amptklib.log.info("Subtracting %i from OTU table" % subtract_num)
     sub = final.subtract(subtract_num)
     sub[sub < 0] = 0 #if negative, change to zero
     if not args.keep_mock:
@@ -377,10 +392,10 @@ if otuDict:
     final.to_csv(final_binary_table, sep=delim)
 else:
     final.to_csv(final_binary_table, sep=delim)
-ufitslib.log.info("Filtering OTU table down to %i OTUs" % (len(final.index)))
+amptklib.log.info("Filtering OTU table down to %i OTUs" % (len(final.index)))
 
 #generate final OTU list for taxonomy
-ufitslib.log.info("Filtering valid OTUs")
+amptklib.log.info("Filtering valid OTUs")
 otu_new = base + '.filtered.otus.fa'
 with open(otu_new, 'w') as otu_update:
     with open(args.fasta, "rU") as myfasta:
@@ -402,7 +417,7 @@ print "OTU Table Stats:   %s" % stats_table
 print "Sorted OTU table:  %s" % sorted_table
 if not args.debug:
     for i in [normal_table_pct, normal_table_nums, subtract_table, mock_out, mock_sort]:
-        ufitslib.removefile(i)
+        amptklib.removefile(i)
 else:
     
     print "Normalized (pct):  %s" % normal_table_pct
@@ -415,6 +430,6 @@ print "Filtered OTUs:     %s" % otu_new
 print "-------------------------------------------------------"
 
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_binary_table)
+    print "\nExample of next cmd: amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_binary_table)
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " ufits taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_binary_table)
+    print colr.WARN + "\nExample of next cmd:" + colr.END + " amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_binary_table)

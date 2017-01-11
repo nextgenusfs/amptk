@@ -188,7 +188,7 @@ def mapping2dict(input):
     return MapDict
 
 def get_version():
-    version = subprocess.Popen(['ufits', 'version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
+    version = subprocess.Popen(['amptk', 'version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
     return version
 
 def get_usearch_version(usearch):
@@ -219,8 +219,8 @@ def gvc(input, check):
         return False
 
 def versionDependencyChecks(usearch):
-    #to run ufits need usearch > 9.0.2132 and vsearch > 2.2.0
-    ufits_version = get_version()
+    #to run amptk need usearch > 9.0.2132 and vsearch > 2.2.0
+    amptk_version = get_version()
     usearch_version = get_usearch_version(usearch)
     vsearch_version = get_vsearch_version()
     usearch_pass = '9.0.2132'
@@ -231,7 +231,7 @@ def versionDependencyChecks(usearch):
     if not gvc(vsearch_version, vsearch_pass):
         log.error("VSEARCH v%s detected, needs to be atleast v%s" % (vsearch_version, vsearch_pass))
         sys.exit(1)
-    log.info("%s, USEARCH v%s, VSEARCH v%s" % (ufits_version, usearch_version, vsearch_version))
+    log.info("%s, USEARCH v%s, VSEARCH v%s" % (amptk_version, usearch_version, vsearch_version))
 
 def runMultiProgress(function, inputList, cpus):
     #setup pool

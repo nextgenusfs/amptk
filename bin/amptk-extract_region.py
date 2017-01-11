@@ -8,7 +8,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
-import lib.ufitslib as ufitslib
+import lib.amptklib as amptklib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -19,13 +19,13 @@ class col:
     END = '\033[0m'
     WARN = '\033[93m'
 
-parser=argparse.ArgumentParser(prog='ufits-extract_region.py', usage="%(prog)s [options] -f <FASTA File>",
+parser=argparse.ArgumentParser(prog='amptk-extract_region.py', usage="%(prog)s [options] -f <FASTA File>",
     description='''Script searches for primers and removes them if found.  Useful for trimming a reference dataset for assigning taxonomy after OTU clustering.  It is also capable of reformatting UNITE taxonomy fasta headers to be compatible with UTAX and creating USEARCH/UTAX UBD databases for assigning taxonomy.''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--fasta', dest='fasta', required=True, help='FASTA input')
-parser.add_argument('-o','--out', dest='out', default='ufits', help='Base Name Output files')
+parser.add_argument('-o','--out', dest='out', default='amptk', help='Base Name Output files')
 parser.add_argument('-f','--fwd_primer', dest='F_primer', default='fITS7', help='Forward primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest='R_primer', default='ITS4', help='Reverse primer (ITS4)')
 parser.add_argument('--skip_trimming', dest='trimming', action='store_true', help='Skip Primer trimming (not recommended)')
@@ -318,16 +318,16 @@ def makeDB(input):
     try:
         usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
     except OSError:
-        ufitslib.log.error("%s not found in your PATH, exiting." % usearch)
+        amptklib.log.error("%s not found in your PATH, exiting." % usearch)
         os._exit(1)
     version = usearch_test.split(" v")[1]
     majorV = version.split(".")[0]
     minorV = version.split(".")[1]
     if int(majorV) < 8 or (int(majorV) >= 8 and int(minorV) < 1):
-        ufitslib.log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % usearch_test)
+        amptklib.log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % usearch_test)
         os._exit(1)
     else:
-        ufitslib.log.info("USEARCH version: %s" % usearch_test)
+        amptklib.log.info("USEARCH version: %s" % usearch_test)
 
     db_details = args.out + '.udb.txt'
     usearch_db = args.out + '.udb'
@@ -345,30 +345,30 @@ def makeDB(input):
         utax_log = args.out + '.utax.log'
         if os.path.isfile(utax_log):
             os.remove(utax_log)
-        ufitslib.log.info("Creating UTAX Database, this may take awhile")
-        ufitslib.log.debug("%s -makeudb_utax %s -output %s -report %s -utax_trainlevels kpcofgs -utax_splitlevels NVkpcofgs -notrunclabels" % (usearch, input, usearch_db, report))
+        amptklib.log.info("Creating UTAX Database, this may take awhile")
+        amptklib.log.debug("%s -makeudb_utax %s -output %s -report %s -utax_trainlevels kpcofgs -utax_splitlevels NVkpcofgs -notrunclabels" % (usearch, input, usearch_db, report))
         with open(utax_log, 'w') as utaxLog:
             subprocess.call([usearch, '-makeudb_utax', input, '-output', usearch_db, '-report', report, '-utax_trainlevels', 'kpcofgs', '-utax_splitlevels', 'NVkpcofgs', '-notrunclabels'], stdout = utaxLog, stderr = utaxLog)
 
         #check if file is actually there
         if os.path.isfile(usearch_db):
-            ufitslib.log.info("Database %s created successfully" % usearch_db)
+            amptklib.log.info("Database %s created successfully" % usearch_db)
         else:
-            ufitslib.log.error("There was a problem creating the DB, check the UTAX log file %s" % utax_log)
+            amptklib.log.error("There was a problem creating the DB, check the UTAX log file %s" % utax_log)
 
     if args.create_db == 'usearch':
         #create log file for this to troubleshoot
         usearch_log = args.out + '.usearch.log'
         if os.path.isfile(usearch_log):
             os.remove(usearch_log)
-        ufitslib.log.info("Creating USEARCH Database")
-        ufitslib.log.debug("%s -makeudb_usearch %s -output %s -notrunclabels" % (usearch, input, usearch_db))
+        amptklib.log.info("Creating USEARCH Database")
+        amptklib.log.debug("%s -makeudb_usearch %s -output %s -notrunclabels" % (usearch, input, usearch_db))
         with open(usearch_log, 'w') as logfile:
             subprocess.call([usearch, '-makeudb_usearch', input, '-output', usearch_db, '-notrunclabels'], stdout = logfile, stderr = logfile)
         if os.path.isfile(usearch_db):
-            ufitslib.log.info("Database %s created successfully" % usearch_db)
+            amptklib.log.info("Database %s created successfully" % usearch_db)
         else:
-            ufitslib.log.error("There was a problem creating the DB, check the log file %s" % utax_log)
+            amptklib.log.error("There was a problem creating the DB, check the log file %s" % utax_log)
 
 def batch_iterator(iterator, batch_size):
     entry = True #Make sure we loop once
@@ -399,19 +399,19 @@ log_name = args.out + '.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
-ufitslib.setupLogging(log_name)
+amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
-ufitslib.log.debug(cmd_args)
+amptklib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 FileName = args.fasta
 fwdLen = len(FwdPrimer)
 
 if not args.trimming:
-    ufitslib.log.info("Searching for primers, this may take awhile: Fwd: %s  Rev: %s" % (args.F_primer, args.R_primer))
+    amptklib.log.info("Searching for primers, this may take awhile: Fwd: %s  Rev: %s" % (args.F_primer, args.R_primer))
 else:
-    ufitslib.log.info("Working on file: %s" % FileName)
+    amptklib.log.info("Working on file: %s" % FileName)
 
 if not args.cpus:
     cpus = multiprocessing.cpu_count()
@@ -420,13 +420,13 @@ else:
 
 with open(FileName, 'rU') as input:
     SeqCount = countfasta(FileName)
-    ufitslib.log.info('{0:,}'.format(SeqCount) + ' records loaded')
+    amptklib.log.info('{0:,}'.format(SeqCount) + ' records loaded')
     SeqRecords = SeqIO.parse(FileName, 'fasta')
     chunks = SeqCount / cpus + 1
-    ufitslib.log.info("Using %i cpus to process data" % cpus)
+    amptklib.log.info("Using %i cpus to process data" % cpus)
     #divide into chunks, store in tmp file
     pid = os.getpid()
-    folder = 'ufits_tmp_' + str(pid)
+    folder = 'amptk_tmp_' + str(pid)
     if not os.path.exists(folder):
         os.makedirs(folder)
     for i, batch in enumerate(batch_iterator(SeqRecords, chunks)) :
@@ -461,16 +461,16 @@ shutil.rmtree(folder)
 
 if args.derep_fulllength:
     Passed = countfasta(OutName)
-    ufitslib.log.info('{0:,}'.format(Passed) + ' records passed (%.2f%%)' % (Passed*100.0/SeqCount))
-    ufitslib.log.info("Now dereplicating sequences (remove if sequence and header identical)")
+    amptklib.log.info('{0:,}'.format(Passed) + ' records passed (%.2f%%)' % (Passed*100.0/SeqCount))
+    amptklib.log.info("Now dereplicating sequences (remove if sequence and header identical)")
     Derep = args.out + '.derep.extracted.fa'
     dereplicate(OutName, Derep)
     Total = countfasta(Derep)
-    ufitslib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/Passed))
+    amptklib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/Passed))
     os.remove(OutName)
 else:
     Total = countfasta(OutName)
-    ufitslib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
+    amptklib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
     Derep = OutName
 
 if args.create_db:

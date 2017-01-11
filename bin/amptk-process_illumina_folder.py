@@ -6,7 +6,7 @@ from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
-import lib.ufitslib as ufitslib
+import lib.amptklib as amptklib
 import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
 from Bio import SeqIO
@@ -20,13 +20,13 @@ class col:
     END = '\033[0m'
     WARN = '\033[93m'
 
-parser=argparse.ArgumentParser(prog='ufits-process_illumina_folder.py', usage="%(prog)s [options] -i folder",
-    description='''Script that takes De-mulitplexed Illumina data from a folder and processes it for ufits (merge PE reads, strip primers, trim/pad to set length.''',
+parser=argparse.ArgumentParser(prog='amptk-process_illumina_folder.py', usage="%(prog)s [options] -i folder",
+    description='''Script that takes De-mulitplexed Illumina data from a folder and processes it for amptk (merge PE reads, strip primers, trim/pad to set length.''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--input', dest='input', required=True, help='Folder of Illumina Data')
-parser.add_argument('-o','--out', dest="out", default='ufits-data', help='Name for output folder')
+parser.add_argument('-o','--out', dest="out", default='amptk-data', help='Name for output folder')
 parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')
 parser.add_argument('--reads', dest="reads", default='paired', choices=['paired', 'forward'], help='PE or forward reads')
 parser.add_argument('--read_length', type=int, help='Read length, i.e. 2 x 300 bp = 300')
@@ -39,6 +39,7 @@ parser.add_argument('--min_len', default=50, type=int, help='Minimum read length
 parser.add_argument('-l','--trim_len', default=250, type=int, help='Trim length for reads')
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
+parser.add_argument('-p','--pad', default='on', choices=['on', 'off'], help='Pad with Ns to a set length')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH executable')
 parser.add_argument('--cleanup', action='store_true', help='Delete all intermediate files')
 args=parser.parse_args()
@@ -83,11 +84,11 @@ def processRead(input):
             if not args.full_length:
                 #got here if primers were found they were trimmed
                 #now check seq length, pad if too short, trim if too long
-                if len(Seq) < args.trim_len:
+                if len(Seq) < args.trim_len and args.pad == 'on':
                     pad = args.trim_len - len(Seq)
                     Seq = Seq + pad*'N'
                     Qual = Qual +pad*'J'
-                elif len(Seq) > args.trim_len:
+                else len(Seq) > args.trim_len:
                     Seq = Seq[:args.trim_len]
                     Qual = Qual[:args.trim_len]
             #got here, reads are primers trimmed and trim/padded, check length
@@ -105,21 +106,21 @@ args.out = re.sub(r'\W+', '', args.out)
 if not os.path.exists(args.out):
     os.makedirs(args.out)
     
-log_name = args.out+'.ufits-demux.log'
+log_name = args.out+'.amptk-demux.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
-ufitslib.setupLogging(log_name)
+amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
-ufitslib.log.debug(cmd_args)
+amptklib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 #initialize script, log system info and usearch version
-ufitslib.SystemInfo()
-#get version of ufits
+amptklib.SystemInfo()
+#get version of amptk
 usearch = args.usearch
-ufitslib.versionDependencyChecks(usearch)
+amptklib.versionDependencyChecks(usearch)
 
 #check folder if files are gzipped, then gunzip them
 #try to gunzip files
@@ -128,9 +129,9 @@ for file in os.listdir(args.input):
     if file.endswith(".fastq.gz"):
         gzip_list.append(file)
 if gzip_list:
-    ufitslib.log.info("Gzipped files detected, uncompressing")
+    amptklib.log.info("Gzipped files detected, uncompressing")
     for file in gzip_list:
-        ufitslib.log.debug("Uncompressing %s" % file)
+        amptklib.log.debug("Uncompressing %s" % file)
         OutName = os.path.join(args.input, os.path.splitext(file)[0])
         InFile = gzip.open(os.path.join(args.input, file), 'rU')
         ReadFile = InFile.read()
@@ -143,9 +144,9 @@ if gzip_list:
 #check for mapping file, if exists, then use names from first column only for filenames
 if args.mapping_file:
     if not os.path.isfile(args.mapping_file):
-        ufitslib.error("Mapping file is not valid: %s" % args.mapping_file)
+        amptklib.error("Mapping file is not valid: %s" % args.mapping_file)
         sys.exit(1)
-    mapdata = ufitslib.parseMappingFileIllumina(args.mapping_file)
+    mapdata = amptklib.parseMappingFileIllumina(args.mapping_file)
     #forward primer in first item in tuple, reverse in second
     sample_names = mapdata[0]
     FwdPrimer = mapdata[1]
@@ -159,7 +160,7 @@ if args.mapping_file:
                 filenames.append(file)
     
     if len(filenames) < 1:
-        ufitslib.log.error("Found 0 valid files from mapping file. Mapping file SampleID must match start of filenames")
+        amptklib.log.error("Found 0 valid files from mapping file. Mapping file SampleID must match start of filenames")
         sys.exit(1)
 
 else: #if not then search through and find all the files you can in the folder
@@ -172,12 +173,12 @@ else: #if not then search through and find all the files you can in the folder
         if file.endswith(".fastq"):
             filenames.append(file)
     #look up primer db otherwise default to entry
-    if args.F_primer in ufitslib.primer_db:
-        FwdPrimer = ufitslib.primer_db.get(args.F_primer)
+    if args.F_primer in amptklib.primer_db:
+        FwdPrimer = amptklib.primer_db.get(args.F_primer)
     else:
         FwdPrimer = args.F_primer
-    if args.R_primer in ufitslib.primer_db:
-        RevPrimer = ufitslib.primer_db.get(args.R_primer)
+    if args.R_primer in amptklib.primer_db:
+        RevPrimer = amptklib.primer_db.get(args.R_primer)
     else:
         RevPrimer = args.R_primer
 
@@ -187,7 +188,7 @@ if len(filenames) % 2 != 0:
 
 #check list for files, i.e. they need to have _R1 and _R2 in the filenames, otherwise throw exception
 if not any('_R1' in x for x in filenames):
-    ufitslib.log.error("Did not find valid FASTQ files.  Your files must have _R1 and _R2 in filename, rename your files and restart script.")
+    amptklib.log.error("Did not find valid FASTQ files.  Your files must have _R1 and _R2 in filename, rename your files and restart script.")
     sys.exit(1)
 
 uniq_names = []
@@ -212,21 +213,21 @@ with open(map, 'w') as map_file:
                 try:
                     map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], i5, i7, column[2], column[4].split(".",1)[0]))
                 except IndexError:
-                    ufitslib.log.debug("Non-standard names detected, skipping mapping file")              
+                    amptklib.log.debug("Non-standard names detected, skipping mapping file")              
             else:
                 i5 = column[1]
                 i7 = "None"
                 try:
                     map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], i5, i7, column[2], column[4].split(".",1)[0]))
                 except IndexError:
-                    ufitslib.log.debug("Non-standard names detected, skipping mapping file")
+                    amptklib.log.debug("Non-standard names detected, skipping mapping file")
             if i7 != "None":
                 sampleDict[column[0]] = i5+'-'+i7
             else:
                 sampleDict[column[0]] = i5
 #loop through each set and merge reads
 if args.reads == 'paired':
-    ufitslib.log.info("Merging Overlaping Pairs using USEARCH")
+    amptklib.log.info("Merging Overlaping Pairs using USEARCH")
 
 ReadLengths = []
 for i in range(len(fastq_for)):
@@ -238,17 +239,17 @@ for i in range(len(fastq_for)):
     if args.read_length:
         read_length = args.read_length
     else:
-        read_length = ufitslib.GuessRL(for_reads)
-    ufitslib.log.info("working on sample %s (Read Length: %i)" % (name, read_length))
+        read_length = amptklib.GuessRL(for_reads)
+    amptklib.log.info("working on sample %s (Read Length: %i)" % (name, read_length))
     #append read lengths for processReads function
     ReadLengths.append(read_length)
     #checked for merged output, skip if it exists
     if os.path.isfile(os.path.join(args.out, outname)):
-        ufitslib.log.info("Output for %s detected, skipping files" % outname)
+        amptklib.log.info("Output for %s detected, skipping files" % outname)
         continue
     #if PE reads, then need to merge them
     if args.reads == 'paired':                
-        ufitslib.MergeReads(for_reads, rev_reads, args.out, name+'.fq', read_length, args.min_len, args.usearch, args.rescue_forward)
+        amptklib.MergeReads(for_reads, rev_reads, args.out, name+'.fq', read_length, args.min_len, args.usearch, args.rescue_forward)
     else:
         shutil.copy(for_reads, os.path.join(args.out, outname))
 
@@ -269,20 +270,20 @@ for file in os.listdir(args.out):
             file = os.path.join(args.out, file)
             file_list.append(file)
 if not args.full_length:
-    ufitslib.log.info("Stripping primers and trim/pad to %s bp" % (args.trim_len))
+    amptklib.log.info("Stripping primers and trim/pad to %s bp" % (args.trim_len))
 else:
-    ufitslib.log.info("Stripping primers and keeping only full length sequences")
-ufitslib.log.info("splitting the job over %i cpus, but this may still take awhile" % (cpus))
+    amptklib.log.info("Stripping primers and keeping only full length sequences")
+amptklib.log.info("splitting the job over %i cpus, but this may still take awhile" % (cpus))
 
 #make sure primer is reverse complemented
 RevPrimer = revcomp_lib.RevComp(RevPrimer)
-ufitslib.log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
+amptklib.log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
 
 #finally process reads over number of cpus
-ufitslib.runMultiProgress(processRead, file_list, cpus)
+amptklib.runMultiProgress(processRead, file_list, cpus)
 print "-------------------------------------------------------"
 #Now concatenate all of the demuxed files together
-ufitslib.log.info("Concatenating Demuxed Files")
+amptklib.log.info("Concatenating Demuxed Files")
 
 catDemux = args.out + '.demux.fq'
 with open(catDemux, 'wb') as outfile:
@@ -292,9 +293,9 @@ with open(catDemux, 'wb') as outfile:
         with open(filename, 'rU') as readfile:
             shutil.copyfileobj(readfile, outfile)
             
-ufitslib.log.info("Counting FASTQ Records")
-total = ufitslib.countfastq(catDemux)
-ufitslib.log.info('{0:,}'.format(total) + ' reads processed')
+amptklib.log.info("Counting FASTQ Records")
+total = amptklib.countfastq(catDemux)
+amptklib.log.info('{0:,}'.format(total) + ' reads processed')
 
 #now loop through data and find barcoded samples, counting each.....
 BarcodeCount = {}
@@ -311,23 +312,23 @@ with open(catDemux, 'rU') as input:
 barcode_counts = "%30s:  %s" % ('Sample', 'Count')
 for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
     barcode_counts += "\n%30s:  %s" % (k, str(BarcodeCount[k]))
-ufitslib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
+amptklib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
 if not args.mapping_file:
     #create a generic mappingfile for downstream processes
     genericmapfile = args.out + '.mapping_file.txt'
-    ufitslib.CreateGenericMappingFileIllumina(sampleDict, FwdPrimer, revcomp_lib.RevComp(RevPrimer), genericmapfile)
+    amptklib.CreateGenericMappingFileIllumina(sampleDict, FwdPrimer, revcomp_lib.RevComp(RevPrimer), genericmapfile)
 
 
 #get file size
 filesize = os.path.getsize(catDemux)
-readablesize = ufitslib.convertSize(filesize)
-ufitslib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
-ufitslib.log.info("Mapping file: %s" % genericmapfile)
+readablesize = amptklib.convertSize(filesize)
+amptklib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
+amptklib.log.info("Mapping file: %s" % genericmapfile)
 if args.cleanup:
     shutil.rmtree(args.out)
 print "-------------------------------------------------------"
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: ufits cluster -i %s -o out\n" % (catDemux)
+    print "\nExample of next cmd: amptk cluster -i %s -o out\n" % (catDemux)
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "ufits cluster -i %s -o out\n" % (catDemux)
+    print col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (catDemux)

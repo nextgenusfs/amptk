@@ -4,7 +4,7 @@ import sys, os, re, gzip, subprocess, argparse, inspect, logging, csv, shutil
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
-import lib.ufitslib as ufitslib
+import lib.amptklib as amptklib
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -15,7 +15,7 @@ class col:
     END = '\033[0m'
     WARN = '\033[93m'
 
-parser=argparse.ArgumentParser(prog='ufits-fastq2sra.py', usage="%(prog)s [options] -i folder",
+parser=argparse.ArgumentParser(prog='amptk-fastq2sra.py', usage="%(prog)s [options] -i folder",
     description='''Script to split FASTQ file from Ion, 454, or Illumina by barcode sequence into separate files for submission to SRA.  This script can take the BioSample worksheet from NCBI and create an SRA metadata file for submission.''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
@@ -35,14 +35,14 @@ args=parser.parse_args()
 
 
 #check if name is in primer_db, else use input value
-if args.F_primer in ufitslib.primer_db:
-    FwdPrimer = ufitslib.primer_db.get(args.F_primer)
+if args.F_primer in amptklib.primer_db:
+    FwdPrimer = amptklib.primer_db.get(args.F_primer)
 else:
     FwdPrimer = args.F_primer
 
 #check if name is in primer_db, else use input value
-if args.R_primer in ufitslib.primer_db:
-    RevPrimer = ufitslib.primer_db.get(args.R_primer)
+if args.R_primer in amptklib.primer_db:
+    RevPrimer = amptklib.primer_db.get(args.R_primer)
 else:
     RevPrimer = args.R_primer
 
@@ -58,29 +58,29 @@ def FindBarcode(Seq):
             return Barcode, BarcodeLabel
     return "", ""
 
-log_name = args.out + '.ufits-sra.log'
+log_name = args.out + '.amptk-sra.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
-ufitslib.setupLogging(log_name)
+amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
-ufitslib.log.debug(cmd_args)
+amptklib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 
 if args.platform != 'illumina' and not args.barcodes:
-    ufitslib.log.error("For ion, 454, or illumina2 datasets you must specificy a multi-fasta file containing barcodes with -b or --barcode_fasta")
+    amptklib.log.error("For ion, 454, or illumina2 datasets you must specificy a multi-fasta file containing barcodes with -b or --barcode_fasta")
     os._exit(1)
 
 #initialize script, log system info
-ufitslib.log.info("Operating system: %s" % sys.platform)
+amptklib.log.info("Operating system: %s" % sys.platform)
 
 #create output directory
 if not os.path.exists(args.out):
     os.makedirs(args.out)
 else:
     if not args.force:
-        ufitslib.log.error("Directory %s exists, add --force argument to overwrite" % args.out)
+        amptklib.log.error("Directory %s exists, add --force argument to overwrite" % args.out)
         os._exit(1)
     else:
         shutil.rmtree(args.out)
@@ -90,7 +90,7 @@ if args.platform == 'illumina':
     #just need to get the correct .fastq.gz files into a folder by themselves
     #if illumina is selected, verify that args.fastq is a folder
     if not os.path.isdir(args.FASTQ):
-        ufitslib.log.error("%s is not a folder, for '--platform illumina', -i must be a folder containing raw reads" % (args.FASTQ))
+        amptklib.log.error("%s is not a folder, for '--platform illumina', -i must be a folder containing raw reads" % (args.FASTQ))
         os._exit(1)
     rawlist = []
     filelist = []
@@ -99,12 +99,12 @@ if args.platform == 'illumina':
             rawlist.append(file)
     if len(rawlist) > 0:
         if not '_R2' in sorted(rawlist)[1]:
-            ufitslib.log.info("Found %i single files, copying to %s folder" % (len(rawlist), args.out))
+            amptklib.log.info("Found %i single files, copying to %s folder" % (len(rawlist), args.out))
             filelist = rawlist
             for file in rawlist:
                 shutil.copyfile(os.path.join(args.FASTQ,file),(os.path.join(args.out,file)))
         else:
-            ufitslib.log.info("Found %i paired-end files, copying to %s folder" % (len(rawlist) / 2, args.out))
+            amptklib.log.info("Found %i paired-end files, copying to %s folder" % (len(rawlist) / 2, args.out))
             for file in rawlist:
                 shutil.copyfile(os.path.join(args.FASTQ,file),(os.path.join(args.out,file)))
                 if '_R1' in file:
@@ -112,11 +112,11 @@ if args.platform == 'illumina':
 
 else:
     #count FASTQ records in input
-    ufitslib.log.info("Loading FASTQ Records")
-    total = ufitslib.countfastq(args.FASTQ)
-    size = ufitslib.checkfastqsize(args.FASTQ)
-    readablesize = ufitslib.convertSize(size)
-    ufitslib.log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
+    amptklib.log.info("Loading FASTQ Records")
+    total = amptklib.countfastq(args.FASTQ)
+    size = amptklib.checkfastqsize(args.FASTQ)
+    readablesize = amptklib.convertSize(size)
+    amptklib.log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
 
     #if --names given, load into dictonary
     if args.names:
@@ -124,7 +124,7 @@ else:
             reader = csv.reader(input)
             namesDict = {col[0]:col[1] for col in reader}
     else:
-        ufitslib.log.info("No names csv passed, using BC header names")
+        amptklib.log.info("No names csv passed, using BC header names")
 
     #load barcode fasta file into dictonary
     Barcodes = {}
@@ -148,7 +148,7 @@ else:
     runningTotal = 0
     for f in files:   
         with open(f, 'w') as output:
-            ufitslib.log.info("working on %s" % (output.name))
+            amptklib.log.info("working on %s" % (output.name))
             with open(args.FASTQ, 'rU') as input:
                 for title, seq, qual in FastqGeneralIterator(input):
                     Barcode, BarcodeLabel = FindBarcode(seq)
@@ -161,13 +161,13 @@ else:
                         continue
                     if BarcodeLabel in output.name:
                         output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
-        Count = ufitslib.countfastq(f)
-        ufitslib.log.info('{0:,}'.format(Count) + ' reads contained valid barcodes')
+        Count = amptklib.countfastq(f)
+        amptklib.log.info('{0:,}'.format(Count) + ' reads contained valid barcodes')
         runningTotal += Count
 
-    ufitslib.log.info('{0:,}'.format(runningTotal) + ' total reads for sra submission')
+    amptklib.log.info('{0:,}'.format(runningTotal) + ' total reads for sra submission')
 
-    ufitslib.log.info("Now Gzipping files")
+    amptklib.log.info("Now Gzipping files")
     gzip_list = []
     for file in os.listdir(args.out):
         if file.endswith(".fastq"):
@@ -190,7 +190,7 @@ else:
 
 #check for BioSample meta file
 if args.biosample:
-    ufitslib.log.info("NCBI BioSample file detected, creating SRA metadata file") 
+    amptklib.log.info("NCBI BioSample file detected, creating SRA metadata file") 
     #load in BioSample file to dictionary
     with open(args.biosample, 'rU') as input:
         reader = csv.reader(input, delimiter='\t')
@@ -221,7 +221,7 @@ if args.biosample:
         model = 'Illumina MiSeq'
         lib_layout = 'paired'
     else:
-        ufitslib.log.error("You specified a platform that is not supported")
+        amptklib.log.error("You specified a platform that is not supported")
         os._exit(1)
     lib_strategy = 'AMPLICON'
     lib_source = 'GENOMIC'

@@ -5,20 +5,20 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
-import lib.ufitslib as ufitslib
+import lib.amptklib as amptklib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)      
 
-parser=argparse.ArgumentParser(prog='ufits-keep_samples.py',
-    description='''Script parses UFITS de-multiplexed FASTQ file and keeps those sequences with barocde names in list ''',
+parser=argparse.ArgumentParser(prog='amptk-remove_samples.py',
+    description='''Script parses AMPtk de-multiplexed FASTQ file and keeps those sequences with barocde names in list ''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('-i','--input', required=True, help='Input UFITS demux FASTQ')
-parser.add_argument('-l','--list', nargs='+', help='Input list of (BC) names to keep')
-parser.add_argument('-f','--file', help='File containing list of names to keep')
+parser.add_argument('-i','--input', required=True, help='Input AMPtk demux FASTQ')
+parser.add_argument('-l','--list', nargs='+', help='Input list of (BC) names to remove')
+parser.add_argument('-f','--file', help='File containing list of names to remove')
 parser.add_argument('-o','--out', required=True, help='Output name')
 parser.add_argument('--format', default='fastq', choices=['fastq','fasta'], help='format of output file')
 args=parser.parse_args()
@@ -29,12 +29,9 @@ def filter_sample(file, output):
         for title, seq, qual in FastqGeneralIterator(open(file)):
             total_count += 1
             sample = title.split('=',1)[1].split(';')[0]
-            if sample in keep_list:
+            if not sample in keep_list:
                 keep_count += 1
-                if args.format == 'fastq':
-                    out.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
-                if args.format == 'fasta':
-                    out.write(">%s\n%s\n" % (title, seq))
+                out.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
 
 if not args.list:
     if not args.file:
@@ -50,7 +47,7 @@ if args.list and args.file:
     os._exit(1)
 
 if args.file:   
-    count = ufitslib.line_count(args.file)
+    count = amptklib.line_count(args.file)
     #load in list of sample names to keep
     with open(args.file, 'rU') as input:
         lines = [line.rstrip('\n') for line in input]
@@ -66,7 +63,7 @@ keep_list = set(lines)
 keep_count = 0
 total_count = 0
 filter_sample(args.input, args.out)
-      
+print("Removed %i samples" % count)
 print("Kept %i reads out of %i total reads" % (keep_count, total_count))
 
 

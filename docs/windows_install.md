@@ -27,12 +27,12 @@ pip install biopython natsort
 #####3) Now download this repository
 
 You can download the newest release here:
-https://github.com/nextgenusfs/ufits/releases
+https://github.com/nextgenusfs/amptk/releases
 
-* unzip and move the folder to a known directory, i.e. C:\Program Files\ufits
+* unzip and move the folder to a known directory, i.e. C:\Program Files\amptk
 
 #####4) Download/Install USEARCH8 - get it [here](http://www.drive5.com/usearch/download.html)#####
-* copy usearch8 exe file into ufits folder (C:\Program Files\ufits)
+* copy usearch8 exe file into amptk folder (C:\Program Files\amptk)
 * change file name to usearch8 (right click and rename)
 
 
@@ -44,24 +44,24 @@ Short instructions:
 * Select Advanced tab
 * Open Environmental Variables
 * Edit System Variables, Path
-* Add to end of string, ;C:\Program Files\ufits
+* Add to end of string, ;C:\Program Files\amptk
 * Now close window
 You may need to restart the command prompt for the new settings to be loaded correctly.
 
 #####6) Test Installation
-Open command prompt, navigate to the `test_data` folder of ufits.
+Open command prompt, navigate to the `test_data` folder of amptk.
 
 ```
 #test scripts on Ion PGM data
-ufits.py ion -i ion.test.fastq -o ion
+amptk.py ion -i ion.test.fastq -o ion
 #run clustering
-ufits.py cluster -i ion.demux.fq -o ion --uchime_ref ITS2 --mock BC_5
+amptk.py cluster -i ion.demux.fq -o ion --uchime_ref ITS2 --mock BC_5
 ```
 ```
 #test scripts on MiSeq data
-ufits.py illumina -i illumina_test_data/
+amptk.py illumina -i illumina_test_data/
 #run clustering
-ufits.py cluster -i ufits.demux.fq -o miseq --uchime_ref ITS2 --mock spike
+amptk.py cluster -i amptk.demux.fq -o miseq --uchime_ref ITS2 --mock spike
 ```
 
 #####7) Adding .PY to PATHEXT (optional)
