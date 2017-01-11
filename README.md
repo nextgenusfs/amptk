@@ -18,9 +18,10 @@ AMPtk comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ amptk
 Usage:       amptk <command> <arguments>
-version:     0.7.0
+version:     0.8.0
 
 Description: AMPtk is a package of scripts to process NGS amplicon data.  
+             Dependencies:  USEARCH v9.1.13 and VSEARCH v2.2.0
     
 Process:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
              illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
@@ -32,20 +33,21 @@ Process:     ion         pre-process Ion Torrent data (find barcodes, remove pri
              sample      sub-sample (rarify) de-multiplexed reads per sample
              
 Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
-             dada2       run dada2 denoising algorithm, produces "inferred sequences" (requires R, dada2, ShortRead)
-             unoise2     run UNOISE2 denoising algorithm
+             dada2       dada2 denoising algorithm, produces "inferred sequences" (requires R, dada2, ShortRead)
+             unoise2     UNOISE2 denoising algorithm
              cluster_ref closed/open reference based clustering (EXPERIMENTAL)
 
 Utilities:   filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
-             summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs for each level of taxonomy)
+             summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs)
              funguild    Run FUNGuild (annotate OTUs with ecological information) 
              meta        pivot OTU table and append to meta data
              heatmap     Create heatmap from OTU table
              SRA         De-multiplex data and create meta data for NCBI SRA submission
 
-Setup:       install     Download/install pre-formatted taxonomy DB (UNITE DB formatted for AMPtk). Only need to run once.
+Setup:       install     Download/install pre-formatted taxonomy DB. Only need to run once.
              database    Format Reference Databases for Taxonomy
+             primers     List primers hard-coded in AMPtk. Can use in pre-processing steps.
 ```
 
 And then by calling one of the commands, you get a help menu for each:
@@ -53,7 +55,7 @@ And then by calling one of the commands, you get a help menu for each:
 ```
 $ amptk cluster
 Usage:       amptk cluster <arguments>
-version:     0.7.0
+version:     0.8.0
 
 Description: Script is a "wrapper" for the UPARSE algorithm. FASTQ quality trimming via expected 
              errors and Dereplication are run in vsearch if installed otherwise defaults to Python 
@@ -172,7 +174,7 @@ Issuing the `amptk taxonomy` command will inform you which databases have been p
 ```
 $ amptk taxonomy
 Usage:       amptk taxonomy <arguments>
-version:     0.6.0
+version:     0.8.0
 
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
              uses a hybrid approach, e.g. gets taxonomy information from SINTAX, UTAX, and global alignment hits from the larger
@@ -185,8 +187,9 @@ Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from amptk cluster)
              -o, --out           Base name for output file. Default: amptk-taxonomy.<method>.txt
              -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: ITS2
              -m, --mapping_file  QIIME-like mapping file
+             -t, --taxonomy      Taxonomy calculated elsewhere. 2 Column file.
              --method            Taxonomy method. Default: hybrid [utax, sintax, usearch, hybrid, rdp, blast]
-             --fasta_db          Alternative database of fasta sequences to use for global alignment.
+             --fasta_db          Alternative database of fasta sequenes to use for global alignment.
              --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --usearch_db        USEARCH formatted database. Default: USEARCH.udb
@@ -197,8 +200,7 @@ Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from amptk cluster)
              --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
              --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi to keep only fungi.
-             -u, --usearch       USEARCH executable. Default: usearch9
-```
+             -u, --usearch       USEARCH executable. Default: usearch9```
 
 And then you can use the `amptk taxonomy` command to assign taxonomy to your OTUs as well as append them to your OTU table as follows:
 
@@ -230,9 +232,9 @@ As of `amptk v0.6.0`, the output from the `amptk taxonomy` command will create a
 
 
 ####Dependencies####
-* Python 2
+* Python 2.7
 * Biopython
-* USEARCH8 (to use UTAX you will need at least version 8.1.1756)
+* USEARCH9
 * natsort
 * pandas
 * numpy
