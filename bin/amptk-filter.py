@@ -292,9 +292,6 @@ if args.mock_barcode:
 else:
     bleedfilter = args.index_bleed #this is value needed to filter MiSeq, Ion is likely less, but shouldn't effect the data very much either way.
 
-if bleedfilter > 0.05:
-    amptklib.log.info("Index bleed into samples is abnormally high (%f%%), if you have biological mock you should use `--calculate in`" % (bleedfilter))
-
 if args.index_bleed:
     args.index_bleed = float(args.index_bleed)
     amptklib.log.info("Overwriting auto detect index-bleed, setting to %f%%" % (args.index_bleed*100))
@@ -305,6 +302,10 @@ else:
     else:
         bleedfilter = 0 #no filtering if you don't pass -p or -b 
         amptklib.log.info("No spike-in mock (-b) or index-bleed (-p) specified, thus not running index-bleed filtering") 
+
+if bleedfilter > 0.05:
+    amptklib.log.info("Index bleed into samples is abnormally high (%f%%), if you have biological mock you should use `--calculate in`" % (bleedfilter*100))
+
 
 #to combat barcode switching, loop through each OTU filtering out if less than bleedfilter threshold
 cleaned = []
