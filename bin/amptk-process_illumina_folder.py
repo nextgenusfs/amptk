@@ -88,7 +88,7 @@ def processRead(input):
                     pad = args.trim_len - len(Seq)
                     Seq = Seq + pad*'N'
                     Qual = Qual +pad*'J'
-                else len(Seq) > args.trim_len:
+                else: #len(Seq) > args.trim_len:
                     Seq = Seq[:args.trim_len]
                     Qual = Qual[:args.trim_len]
             #got here, reads are primers trimmed and trim/padded, check length
