@@ -104,7 +104,7 @@ def processRead(input):
                         continue
                     #trim away forward primer
                     Seq = seq[ForTrim:]
-                    Qual = seq[ForTrim:]
+                    Qual = qual[ForTrim:]
                     #check length and trim, throw away if too short as it was bad read
                     if len(Seq) < args.trim_len:
                         continue
