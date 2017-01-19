@@ -5,7 +5,7 @@ from natsort import natsorted
 
 ASCII = {'!':'0','"':'1','#':'2','$':'3','%':'4','&':'5',"'":'6','(':'7',')':'8','*':'9','+':'10',',':'11','-':'12','.':'13','/':'14','0':'15','1':'16','2':'17','3':'18','4':'19','5':'20','6':'21','7':'22','8':'23','9':'24',':':'25',';':'26','<':'27','=':'28','>':'29','?':'30','@':'31','A':'32','B':'33','C':'34','D':'35','E':'36','F':'37','G':'38','H':'39','I':'40','J':'41','K':'42','L':'43','M':'44','N':'45','O':'46','P':'47','Q':'48','R':'49','S':'50'}
 
-primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC', 'ITS3_KYO2': 'GATGAAGAACGYAGYRAA', 'COI-F': 'GGTCAACAAATCATAAAGATATTGG', 'COI-R': 'GGATTTGGAAATTGATTAGTWCC'}
+primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC', 'ITS3_KYO2': 'GATGAAGAACGYAGYRAA', 'COI-F': 'GGTCAACAAATCATAAAGATATTGG', 'COI-R': 'GGWACTAATCAATTTCCAAATCC'}
 
 class colr:
     GRN = '\033[92m'
@@ -411,7 +411,16 @@ def CheckDependencies(input):
         error = ", ".join(missing)
         log.error("Missing Dependencies: %s.  Please install missing dependencies and re-run script" % (error))
         sys.exit(1)
-        
+
+def fastarename(input, relabel, output):
+    from Bio.SeqIO.FastaIO import FastaIterator
+    with open(output, 'w') as outfile:
+        counter = 1
+        for record in FastaIterator(open(file)):
+            newName = relabel+str(counter) 
+            outputfile.write(">%s\n%s\n" % (newName, record.seq))
+            counter += 1
+
 def fasta_strip_padding(file, output):
     from Bio.SeqIO.FastaIO import FastaIterator
     with open(output, 'w') as outputfile:
