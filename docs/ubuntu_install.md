@@ -72,7 +72,7 @@ Now you can install python packages with conda
 conda install biopython natsort pandas numpy matplotlib biom-format psutil
 ```
 #####2) Install External Dependencies:#####
-You will need to then get VSEARCH, USEARCH, BEDTOOLS
+You will need to then get VSEARCH, USEARCH, BEDTOOLS, R, DADA2
 ```
 #install bedtools
 sudo apt-get install bedtools
@@ -81,6 +81,22 @@ sudo apt-get install bedtools
 wget https://github.com/torognes/vsearch/releases/download/v2.3.4/vsearch-2.3.4-linux-x86_64.tar.gz
 tar -xvzf vsearch-2.3.4-linux-x86_64.tar.gz
 sudo ln -s /path/to/vsearch-2.3.4-linux-x86_64/bin/vsearch /usr/local/bin/vsearch
+
+#install R and DADA2
+sudo apt-get install r-base
+
+#start an R session and install DADA2
+R
+
+#in the R session do the following
+source("http://bioconductor.org/biocLite.R")
+biocLite(suppressUpdates = FALSE)
+biocLite("ShortRead", suppressUpdates = FALSE)
+biocLite("devtools")
+library("devtools")
+devtools::install_github("benjjneb/dada2")
+
+#Alternativly the amptk dada2 script will try to install DADA2 automatically, however it will not be multithreaded...
 ```
 You will also need to install USEARCH9 - get it [here](http://www.drive5.com/usearch/download.html).  One way to make the program executable and move into your path:
 
