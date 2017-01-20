@@ -416,9 +416,9 @@ def fastarename(input, relabel, output):
     from Bio.SeqIO.FastaIO import FastaIterator
     with open(output, 'w') as outfile:
         counter = 1
-        for record in FastaIterator(open(file)):
+        for record in FastaIterator(open(input)):
             newName = relabel+str(counter) 
-            outputfile.write(">%s\n%s\n" % (newName, record.seq))
+            outfile.write(">%s\n%s\n" % (newName, record.seq))
             counter += 1
 
 def fasta_strip_padding(file, output):
