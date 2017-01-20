@@ -94,6 +94,7 @@ sorted_table = base+'.sorted'+ending
 normal_table_pct = base+'.normalized.pct'+ending
 normal_table_nums = base+'.normalized.num'+ending
 subtract_table = base+'.normalized.subtract'+ending
+filtered_table = base+'.normalized'+ending
 final_table = base+'.final'+ending
 final_binary_table = base+'.final.binary'+ending
 stats_table = base+'.stats'+ending
@@ -203,7 +204,7 @@ else:
         if not i in df2.columns.values:
             col_headers.remove(i)
     df = df2.reindex(columns=col_headers)
-
+SortedTable = df
 if otuDict:
     df['Taxonomy'] = pd.Series(otuDict)
     df.to_csv(sorted_table, sep=delim)
@@ -382,18 +383,59 @@ if not args.keep_mock:
         pass
 final = final.loc[~(final==0).all(axis=1)]
 final = final.astype(int)
+
+#output filtered normalized table
 if otuDict:
     final['Taxonomy'] = pd.Series(otuDict)
-    final.to_csv(final_table, sep=delim)
+    final.to_csv(filtered_table, sep=delim)
     del final['Taxonomy']
 else:
-    final.to_csv(final_table, sep=delim)
+    final.to_csv(filtered_table, sep=delim)
+
+#convert to binary
 final[final > 0] = 1
+
+#get the actual read counts from binary table
+merge = {}
+for index, row in final.iteritems():
+	merge[index] = []
+	for i in range(0, len(row)):
+		if row[i] == 0:
+			merge[index].append(row[i])
+		else:
+			merge[index].append(SortedTable[index][row.index[i]])
+
+FiltTable = pd.DataFrame(merge, index=list(final.index))
+FiltTable.index.name = '#OTU ID'
+
+#order the filtered table
+#sort the table
+FiltTable2 = FiltTable.reindex(index=natsorted(FiltTable.index))
+if args.col_order == 'naturally':
+    FiltTable = FiltTable2.reindex(columns=natsorted(FiltTable2.columns))
+else:
+    col_headers = args.col_order.split(',')
+    #check if all names in headers or not
+    for i in col_headers:
+        if not i in FiltTable2.columns.values:
+            col_headers.remove(i)
+    FiltTable = FiltTable2.reindex(columns=col_headers)
+
+#output final table
+if otuDict:
+    FiltTable['Taxonomy'] = pd.Series(otuDict)
+    FiltTable.to_csv(final_table, sep=delim)
+    del FiltTable['Taxonomy']
+else:
+    FiltTable.to_csv(final_table, sep=delim)
+
+#output binary table
 if otuDict:
     final['Taxonomy'] = pd.Series(otuDict)
     final.to_csv(final_binary_table, sep=delim)
 else:
     final.to_csv(final_binary_table, sep=delim)
+
 amptklib.log.info("Filtering OTU table down to %i OTUs" % (len(final.index)))
 
 #generate final OTU list for taxonomy
@@ -415,23 +457,23 @@ with open(otu_new, 'w') as otu_update:
 print "-------------------------------------------------------"
 print "OTU Table filtering finished"
 print "-------------------------------------------------------"
-print "OTU Table Stats:   %s" % stats_table
-print "Sorted OTU table:  %s" % sorted_table
+print "OTU Table Stats:      %s" % stats_table
+print "Sorted OTU table:     %s" % sorted_table
 if not args.debug:
     for i in [normal_table_pct, normal_table_nums, subtract_table, mock_out, mock_sort]:
         amptklib.removefile(i)
-else:
-    
-    print "Normalized (pct):  %s" % normal_table_pct
-    print "Normalized (10k):  %s" % normal_table_nums
+else:   
+    print "Normalized (pct):     %s" % normal_table_pct
+    print "Normalized (10k):     %s" % normal_table_nums
     if args.subtract != 0:
-        print "Subtracted table:  %s" % subtract_table
-print "Final filtered:    %s" % final_table
-print "Final binary:      %s" % final_binary_table
-print "Filtered OTUs:     %s" % otu_new
+        print "Subtracted table:     %s" % subtract_table
+print "Normalized/filter:    %s" % filtered_table
+print "Final Binary table:   %s" % final_binary_table
+print "Final OTU table:      %s" % final_table
+print "Filtered OTUs:        %s" % otu_new
 print "-------------------------------------------------------"
 
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_binary_table)
+    print "\nExample of next cmd: amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table)
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_binary_table)
+    print colr.WARN + "\nExample of next cmd:" + colr.END + " amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table)
