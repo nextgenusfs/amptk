@@ -96,6 +96,9 @@ biocLite("devtools")
 library("devtools")
 devtools::install_github("benjjneb/dada2")
 
+#exit R
+q()
+
 #Alternativly the amptk dada2 script will try to install DADA2 automatically, however it will not be multithreaded...
 ```
 You will also need to install USEARCH9 - get it [here](http://www.drive5.com/usearch/download.html).  One way to make the program executable and move into your path:
