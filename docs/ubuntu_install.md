@@ -22,7 +22,7 @@ Final setup:  type `brew doctor`.
 brew install python
 
 #use pip to install biopython, etc might require sudo.
-pip install biopython natsort pandas numpy matplotlib
+pip install biopython natsort pandas numpy matplotlib biom-format psutil
 ```
 
 #####3) Now install AMPtk via linuxbrew:
@@ -66,6 +66,11 @@ wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
 bash Miniconda2-latest-Linux-x86_64.sh
 
 #restart terminal window for changes to take place
+#setup bioconda channel
+conda config --add channels conda-forge
+conda config --add channels defaults
+conda config --add channels r
+conda config --add channels bioconda
 ```
 Now you can install python packages with conda
 ```
