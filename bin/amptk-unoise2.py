@@ -102,41 +102,10 @@ amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfasta(unoise_out)
 amptklib.log.info('{0:,}'.format(total) + ' denoised sequences')
 
-#now cluster to biological OTUs with UCLUST
-radius = float(args.pct_otu) / 100.
-amptklib.log.info("Clustering denoised sequences into OTUs at %s%%" % args.pct_otu)
-uclust_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.uclust.fa')
-cmd = [usearch, '-cluster_smallmem', unoise_out, '-id', str(radius), '-centroids', uclust_out, '-relabel', 'OTU']
-amptklib.runSubprocess(cmd, amptklib.log)
-total = amptklib.countfasta(uclust_out)
-amptklib.log.info('{0:,}'.format(total) + ' OTUs generated')
-
-#determine where denoised sequences clustered
-ClusterComp = args.out+'.denoised2clusters.txt'
-iSeqmap = args.out+'.unoise_map.uc'
-cmd = [usearch, '-usearch_global', unoise_out, '-db', uclust_out, '-id', str(radius), '-uc', iSeqmap, '-strand', 'plus']
-amptklib.runSubprocess(cmd, amptklib.log)
-iSeqMapped = {}
-with open(iSeqmap, 'rU') as mapping:
-    for line in mapping:
-        line = line.replace('\n', '')
-        cols = line.split('\t')
-        OTU = cols[9]
-        Hit = cols[8]
-        if not OTU in iSeqMapped:
-            iSeqMapped[OTU] = [Hit]
-        else:
-            iSeqMapped[OTU].append(Hit)
-with open(ClusterComp, 'w') as clusters:
-    clusters.write('OTU\tiSeqs\n')
-    for k,v in natsorted(iSeqMapped.items()):
-        clusters.write('%s\t%s\n' % (k, ', '.join(v)))
-
 #strip N's
 amptklib.log.info("Cleaning up padding from OTUs")
 otu_clean = os.path.join(tmp, args.out + '.EE' + args.maxee + '.clean.fa')
-amptklib.fasta_strip_padding(uclust_out, otu_clean)
-
+amptklib.fasta_strip_padding(unoise_out, otu_clean)
 
 #run optional uchime_ref
 if not args.uchime_ref:
@@ -159,16 +128,66 @@ else:
         total = amptklib.countfasta(uchime_out)
         amptklib.log.info('{0:,}'.format(total) + ' OTUs passed')
 
+#inferred sequences
+iSeqs = args.out+'.iSeqs.fa'
+amptklib.fastarename(uchime_out, 'iSeq', iSeqs)
+
+#build OTU table with iSeqs
+uc_iSeq_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.mapping.uc')
+iSeq_otu_table = args.out + '.iSeq.otu_table.txt'
+#setup reads to map
+if args.map_filtered:
+    reads = filter_fasta
+else:
+    reads = orig_fasta
+amptklib.log.info("Mapping Reads to iSeqs and Building OTU table")
+cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', iSeqs, '--uc', uc_iSeq_out, '--otutabout', iSeq_otu_table]
+amptklib.runSubprocess(cmd, amptklib.log)
+
+#count reads mapped
+total = amptklib.line_count(uc_iSeq_out)
+amptklib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
+
+#now cluster to biological OTUs with UCLUST
+radius = float(args.pct_otu) / 100.
+amptklib.log.info("Clustering denoised sequences into biological OTUs at %s%%" % args.pct_otu)
+uclust_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.uclust.fa')
+cmd = ['vsearch', '--cluster_smallmem', iSeqs, '--centroids', uclust_out, '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU', '--qmask', 'none', '--usersort']
+amptklib.runSubprocess(cmd, amptklib.log)
+total = amptklib.countfasta(uclust_out)
+amptklib.log.info('{0:,}'.format(total) + ' OTUs generated')
+
+#determine where denoised sequences clustered
+ClusterComp = args.out+'.denoised2clusters.txt'
+iSeqmap = args.out+'.unoise_map.uc'
+cmd = [usearch, '-usearch_global', iSeqs, '-db', uclust_out, '-id', str(radius), '-uc', iSeqmap, '-strand', 'plus']
+amptklib.runSubprocess(cmd, amptklib.log)
+iSeqMapped = {}
+with open(iSeqmap, 'rU') as mapping:
+    for line in mapping:
+        line = line.replace('\n', '')
+        cols = line.split('\t')
+        OTU = cols[9]
+        Hit = cols[8]
+        if not OTU in iSeqMapped:
+            iSeqMapped[OTU] = [Hit]
+        else:
+            iSeqMapped[OTU].append(Hit)
+with open(ClusterComp, 'w') as clusters:
+    clusters.write('OTU\tiSeqs\n')
+    for k,v in natsorted(iSeqMapped.items()):
+        clusters.write('%s\t%s\n' % (k, ', '.join(v)))
+
 #now map reads back to OTUs and build OTU table
-uc_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.mapping.uc')
-otu_table = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otu_table.txt')
+uc_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.cluster.mapping.uc')
+otu_table = os.path.join(tmp, args.out + '.EE' + args.maxee + '.cluster.otu_table.txt')
 #setup reads to map
 if args.map_filtered:
     reads = filter_fasta
 else:
     reads = orig_fasta
 amptklib.log.info("Mapping Reads to OTUs and Building OTU table")
-cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', uchime_out, '--uc', uc_out, '--otutabout', otu_table]
+cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', uclust_out, '--uc', uc_out, '--otutabout', otu_table]
 amptklib.runSubprocess(cmd, amptklib.log)
 
 #count reads mapped
@@ -178,7 +197,7 @@ amptklib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'
 #Move files around, delete tmp if argument passed.
 currentdir = os.getcwd()
 final_otu = os.path.join(currentdir, args.out + '.cluster.otus.fa')
-shutil.copyfile(uchime_out, final_otu)
+shutil.copyfile(uclust_out, final_otu)
 final_otu_table = os.path.join(currentdir, args.out + '.otu_table.txt')
 shutil.copyfile(otu_table, final_otu_table)
 if not args.debug:
@@ -190,8 +209,11 @@ print "UNOISE2 Script has Finished Successfully"
 print "-------------------------------------------------------"
 if not not args.debug:
     print "Tmp Folder of files: %s" % tmp
+print "inferred Seqs: %s" % os.path.abspath(iSeqs)
+print "iSeq OTU Table: %s" % os.path.abspath(iSeq_otu_table)
 print "Clustered OTUs: %s" % final_otu
 print "OTU Table: %s" % final_otu_table
+print "iSeqs 2 OTUs: %s" % os.path.abspath(ClusterComp)
 print "-------------------------------------------------------"
 
 otu_print = final_otu.split('/')[-1]
