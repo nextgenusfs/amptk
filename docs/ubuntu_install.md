@@ -1,8 +1,9 @@
 ####Linux Install Instructions####
 ___
 
-Note: there are many ways to install these dependencies, this is one way.
+Note: there are many ways to install these dependencies, I will give you two ways.
 
+####Install using LinuxBrew (might be easier?)
 #####1) Install LinuxBrew (copy and paste this into terminal):#####
 ```
 ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install)"
@@ -48,7 +49,59 @@ sudo chmod +x /path/to/usearch9.2.64_i86osx32
 sudo ln -s /path/to/usearch9.2.64_i86osx32 /usr/local/bin/usearch9
 ```
 
-#####5) Test Installation
+
+####Manual Install on Ubuntu
+#####1) Install Python/modules:#####
+You should be able to use system python, however, sometimes `pip` can be problematic and can occastionally require `sudo` which some users don't have.
+```
+#use pip to install biopython, etc might require sudo.
+pip install biopython natsort pandas numpy matplotlib biom-format psutil
+```
+Alternativly you could use Minconda python, which should make installing packages easier.
+```
+#get the minconda package
+wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+
+#install
+bash Miniconda2-latest-Linux-x86_64.sh
+
+#restart terminal window for changes to take place
+```
+Now you can install python packages with conda
+```
+conda install biopython natsort pandas numpy matplotlib biom-format psutil
+```
+#####2) Install External Dependencies:#####
+You will need to then get VSEARCH, USEARCH, BEDTOOLS
+```
+#install bedtools
+sudo apt-get install bedtools
+
+#install vsearch
+wget https://github.com/torognes/vsearch/releases/download/v2.3.4/vsearch-2.3.4-linux-x86_64.tar.gz
+tar -xvzf vsearch-2.3.4-linux-x86_64.tar.gz
+sudo ln -s /path/to/vsearch-2.3.4-linux-x86_64/bin/vsearch /usr/local/bin/vsearch
+```
+You will also need to install USEARCH9 - get it [here](http://www.drive5.com/usearch/download.html).  One way to make the program executable and move into your path:
+
+```
+#make executable
+sudo chmod +x /path/to/usearch9.2.64_i86osx32
+
+#create softlink to folder in $PATH, i.e.
+sudo ln -s /path/to/usearch9.2.64_i86osx32 /usr/local/bin/usearch9
+```
+#####3) Install AMPtk:#####
+You can now install the amplicon tool kit using git:
+```
+#clone the repositry
+git clone https://github.com/nextgenusfs/amptk.git
+
+#softlink into PATH
+sudo ln -s /path/to/amptk/amptk /usr/local/bin/amptk
+```
+
+####Test Installation
 Open terminal, navigate to the `test_data` folder of amptk. If you installed with LinuxBrew it should be here: `$HOME/.linuxbrew/opt/amptk/libexec/test_data`.
 
 ```
@@ -65,5 +118,3 @@ amptk illumina -i illumina_test_data/
 #run clustering
 amptk cluster -i amptk.demux.fq -o miseq
 ```
-
-
