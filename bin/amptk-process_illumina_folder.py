@@ -53,52 +53,65 @@ def processRead(input):
     Name = os.path.basename(input).split(".fq",-1)[0]
     DemuxOut = os.path.join(args.out, Name + '.demux.fq')
     Sample = Name.split('_')[0]
-    counter = 0
+    StatsOut = os.path.join(args.out, Name+'.stats')
+    Total = 0
+    NoPrimer = 0
+    TooShort = 0
+    RevPrimerFound = 0
+    ValidSeqs = 0
     PL = len(FwdPrimer)
-    with open(DemuxOut, 'w') as out:
-        for title, seq, qual in FastqGeneralIterator(open(input)):
-            #first thing is look for forward primer, if found trim it off
-            Diffs = MatchesPrimer(seq, FwdPrimer)
-            #if require primer is on make finding primer in amplicon required if amplicon is larger than read length
-            #if less than read length, can't enforce primer because could have been trimmed via staggered trim in fastq_mergepairs
-            if args.primer == 'on' and len(seq) > ReadLen:
-                if Diffs > args.primer_mismatch:
+    with open(StatsOut, 'w') as counts:
+        with open(DemuxOut, 'w') as out:
+            for title, seq, qual in FastqGeneralIterator(open(input)):
+                Total += 1
+                #first thing is look for forward primer, if found trim it off
+                Diffs = MatchesPrimer(seq, FwdPrimer)
+                #if require primer is on make finding primer in amplicon required if amplicon is larger than read length
+                #if less than read length, can't enforce primer because could have been trimmed via staggered trim in fastq_mergepairs
+                if args.primer == 'on' and len(seq) > ReadLen:
+                    if Diffs > args.primer_mismatch:
+                        NoPrimer += 1
+                        continue
+                    Seq = seq[PL:]
+                    Qual = qual[PL:]
+                else:
+                    if Diffs > args.primer_mismatch:
+                        NoPrimer += 1
+                        continue
+                    Seq = seq[PL:]
+                    Qual = qual[PL:]
+                #now look for reverse primer
+                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, args.primer_mismatch)
+                if BestPosRev > 0:  #reverse primer was found
+                    RevPrimerFound += 1
+                    #location to trim sequences, trim seqs
+                    Seq = Seq[:BestPosRev]
+                    Qual = Qual[:BestPosRev]
+                #if full_length is passed, then only trim primers
+                if not args.full_length:
+                    #got here if primers were found they were trimmed
+                    #now check seq length, pad if too short, trim if too long
+                    if len(Seq) < args.min_len: #need this check here or primer dimers will get through
+                        TooShort += 1
+                        continue
+                    if len(Seq) < args.trim_len and args.pad == 'on':
+                        pad = args.trim_len - len(Seq)
+                        Seq = Seq + pad*'N'
+                        Qual = Qual +pad*'J'
+                    else: #len(Seq) > args.trim_len:
+                        Seq = Seq[:args.trim_len]
+                        Qual = Qual[:args.trim_len]
+                #got here, reads are primers trimmed and trim/padded, check length
+                if len(Seq) < args.min_len:
+                    TooShort += 1
                     continue
-                Seq = seq[PL:]
-                Qual = qual[PL:]
-            else:
-                if Diffs > args.primer_mismatch:
-                    continue
-                Seq = seq[PL:]
-                Qual = qual[PL:]
-            #now look for reverse primer
-            BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, args.primer_mismatch)
-            if BestPosRev > 0:  #reverse primer was found    
-                #location to trim sequences, trim seqs
-                Seq = Seq[:BestPosRev]
-                Qual = Qual[:BestPosRev]
-
-            #if full_length is passed, then only trim primers
-            if not args.full_length:
-                #got here if primers were found they were trimmed
-                #now check seq length, pad if too short, trim if too long
-                if len(Seq) < args.min_len: #need this check here or primer dimers will get through
-                    continue
-                if len(Seq) < args.trim_len and args.pad == 'on':
-                    pad = args.trim_len - len(Seq)
-                    Seq = Seq + pad*'N'
-                    Qual = Qual +pad*'J'
-                else: #len(Seq) > args.trim_len:
-                    Seq = Seq[:args.trim_len]
-                    Qual = Qual[:args.trim_len]
-            #got here, reads are primers trimmed and trim/padded, check length
-            if len(Seq) >= args.min_len:
-                counter += 1     
+                ValidSeqs += 1     
                 #now fix header
-                Title = 'R_'+str(counter)+';barcodelabel='+Sample+';'
+                Title = 'R_'+str(ValidSeqs)+';barcodelabel='+Sample+';'
                 #now write to file
                 out.write("@%s\n%s\n+\n%s\n" % (Title, Seq, Qual))
-                        
+            counts.write('%i,%i,%i,%i,%i\n' % (Total, NoPrimer, RevPrimerFound, TooShort, ValidSeqs))
+             
 #sometimes people add slashes in the output directory, this could be bad, try to fix it
 args.out = re.sub(r'\W+', '', args.out)
             
@@ -292,10 +305,25 @@ with open(catDemux, 'wb') as outfile:
             continue
         with open(filename, 'rU') as readfile:
             shutil.copyfileobj(readfile, outfile)
-            
-amptklib.log.info("Counting FASTQ Records")
-total = amptklib.countfastq(catDemux)
-amptklib.log.info('{0:,}'.format(total) + ' reads processed')
+
+#parse the stats
+#(Total, NoPrimer, RevPrimerFound, TooShort, ValidSeqs))
+finalstats = [0,0,0,0,0]
+for file in os.listdir(args.out):
+    if file.endswith('.stats'):
+        with open(os.path.join(args.out, file), 'rU') as statsfile:
+            line = statsfile.readline()
+            line = line.replace('\n', '')
+            newstats = line.split(',')
+            newstats = [int(i) for i in newstats]
+            for x, num in enumerate(newstats):
+                finalstats[x] += num           
+
+#output stats of the run
+amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
+amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1])+' Fwd Primer found, {0:,}'.format(finalstats[2])+ ' Rev Primer found')
+amptklib.log.info('{0:,}'.format(finalstats[3])+' discarded too short (< %i bp)' % args.min_len)
+amptklib.log.info('{0:,}'.format(finalstats[4])+' valid output reads')
 
 #now loop through data and find barcoded samples, counting each.....
 BarcodeCount = {}
