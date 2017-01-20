@@ -44,9 +44,6 @@ parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='
 parser.add_argument('--cleanup', action='store_true', help='Delete all intermediate files')
 args=parser.parse_args()
 
-def MatchesPrimer(Seq, Primer):
-    return primer.MatchPrefix(Seq, Primer)
-
 def processRead(input):
     #input is expected to be a FASTQ file
     #local variables that need to be previously declared: ForPrimer, RevPrimer
@@ -65,7 +62,7 @@ def processRead(input):
             for title, seq, qual in FastqGeneralIterator(open(input)):
                 Total += 1
                 #first thing is look for forward primer, if found trim it off
-                Diffs = MatchesPrimer(seq, FwdPrimer)
+                Diffs = primer.MatchPrefix(seq, FwdPrimer)
                 #if require primer is on make finding primer in amplicon required if amplicon is larger than read length
                 #if less than read length, can't enforce primer because could have been trimmed via staggered trim in fastq_mergepairs
                 if args.primer == 'on' and len(seq) > ReadLen:
@@ -75,11 +72,13 @@ def processRead(input):
                     Seq = seq[PL:]
                     Qual = qual[PL:]
                 else:
-                    if Diffs > args.primer_mismatch:
+                    if Diffs <= args.primer_mismatch:
+                        Seq = seq[PL:]
+                        Qual = qual[PL:]
+                    else:
                         NoPrimer += 1
-                        continue
-                    Seq = seq[PL:]
-                    Qual = qual[PL:]
+                        Seq = seq
+                        Qual = qual
                 #now look for reverse primer
                 BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, args.primer_mismatch)
                 if BestPosRev > 0:  #reverse primer was found
@@ -87,6 +86,9 @@ def processRead(input):
                     #location to trim sequences, trim seqs
                     Seq = Seq[:BestPosRev]
                     Qual = Qual[:BestPosRev]
+                else:
+                    if args.full_length and len(Seq) > ReadLen: #if full length and no primer found, exit, except when length is less than read length
+                        continue
                 #if full_length is passed, then only trim primers
                 if not args.full_length:
                     #got here if primers were found they were trimmed
