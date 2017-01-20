@@ -64,26 +64,26 @@ def processRead(input):
             if args.primer == 'on' and len(seq) > ReadLen:
                 if Diffs > args.primer_mismatch:
                     continue
-                else:
-                    seq = seq[PL:]
-                    qual = qual[PL:]
+                Seq = seq[PL:]
+                Qual = qual[PL:]
             else:
-                if Diffs <= args.primer_mismatch:
-                    seq = seq[PL:]
-                    qual = qual[PL:]
+                if Diffs > args.primer_mismatch:
+                    continue
+                Seq = seq[PL:]
+                Qual = qual[PL:]
             #now look for reverse primer
-            BestPosRev, BestDiffsRev = primer.BestMatch2(seq, RevPrimer, args.primer_mismatch)
+            BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, args.primer_mismatch)
             if BestPosRev > 0:  #reverse primer was found    
                 #location to trim sequences, trim seqs
-                Seq = seq[:BestPosRev]
-                Qual = qual[:BestPosRev]
-            else:
-                Seq = seq
-                Qual = qual
+                Seq = Seq[:BestPosRev]
+                Qual = Qual[:BestPosRev]
+
             #if full_length is passed, then only trim primers
             if not args.full_length:
                 #got here if primers were found they were trimmed
                 #now check seq length, pad if too short, trim if too long
+                if len(Seq) < args.min_len: #need this check here or primer dimers will get through
+                    continue
                 if len(Seq) < args.trim_len and args.pad == 'on':
                     pad = args.trim_len - len(Seq)
                     Seq = Seq + pad*'N'

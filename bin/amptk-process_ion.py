@@ -62,60 +62,68 @@ def processRead(input):
     with open(os.path.join(tmpdir, base+'.demux.fq'), 'w') as out:
         counter = 0
         for title, seq, qual in FastqGeneralIterator(open(input)):
-            bcmismatch = 0
-            #look for barcode
+            #look for barcode, trim it off
             Barcode, BarcodeLabel = FindBarcode(seq, Barcodes)
             if Barcode == "":
                 continue
             BarcodeLength = len(Barcode)
+            Seq = seq[BarcodeLength:]
+            Qual = qual[BarcodeLength:]
             #now search for forward primer
-            BestPosFor, BestDiffsFor = primer.BestMatch2(seq, FwdPrimer, args.primer_mismatch)
-            if BestPosFor > 0 and BestPosFor <= BarcodeLength+2: #if found will be > 0, and should be found after barcode
-                ForTrim = BestPosFor + PL
-                #now search for reverse primer
-                BestPosRev, BestDiffsRev = primer.BestMatch2(seq, RevPrimer, args.primer_mismatch)
-                if BestPosRev > 0:  #reverse primer was found    
-                    #location to trim sequences
-                    RevTrim = BestPosRev                
-                    #determine reverse barcode
-                    if args.reverse_barcode:
-                        RevBCdiffs = 0
-                        BCcut = BestPosRev + RL
-                        CutSeq = seq[BCcut:]
-                        RevBarcode, RevBarcodeLabel = FindBarcode(CutSeq, RevBarcodes)
-                        if RevBarcode == "":
-                            continue
-                        BarcodeLabel = BarcodeLabel+'_'+RevBarcodeLabel                       
-                    #now trim record remove forward and reverse reads
-                    Seq = seq[ForTrim:RevTrim]
-                    Qual = qual[ForTrim:RevTrim]
-                    #since found reverse primer, now also need to pad/trim
-                    if not args.full_length:
-                        if len(Seq) < args.trim_len and args.pad == 'on':
-                            pad = args.trim_len - len(Seq)
-                            Seq = Seq + pad*'N'
-                            Qual = Qual +pad*'J'
-                        else: #len(Seq) > args.trim_len:
-                            Seq = Seq[:args.trim_len]
-                            Qual = Qual[:args.trim_len]
-                else:
-                    #trim record, did not find reverse primer
-                    if args.full_length: #if full length then move to next record
+            Diffs = primer.MatchPrefix(Seq, FwdPrimer)
+            if Diffs > args.primer_mismatch:
+                continue
+            ForTrim = PL      
+            #BestPosFor, BestDiffsFor = primer.BestMatch2(Seq, FwdPrimer, args.primer_mismatch)
+            #if BestPosFor > 0 and BestPosFor <= 2: #if found will be > 0, and should be found after barcode
+                #ForTrim = BestPosFor + PL
+            #now search for reverse primer
+            BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, args.primer_mismatch)
+            if BestPosRev > 0:  #reverse primer was found    
+                #location to trim sequences
+                RevTrim = BestPosRev                
+                #determine reverse barcode
+                if args.reverse_barcode:
+                    RevBCdiffs = 0
+                    BCcut = BestPosRev + RL
+                    CutSeq = Seq[BCcut:]
+                    RevBarcode, RevBarcodeLabel = FindBarcode(CutSeq, RevBarcodes)
+                    if RevBarcode == "":
                         continue
-                    #trim away forward primer
-                    Seq = seq[ForTrim:]
-                    Qual = qual[ForTrim:]
-                    #check length and trim, throw away if too short as it was bad read
-                    if len(Seq) < args.trim_len:
+                    BarcodeLabel = BarcodeLabel+'_'+RevBarcodeLabel                       
+                #now trim record remove forward and reverse reads
+                Seq = Seq[ForTrim:RevTrim]
+                Qual = Qual[ForTrim:RevTrim]
+                #since found reverse primer, now also need to pad/trim
+                if not args.full_length:
+                    #check minimum length here or primer dimer type sequences will get padded with Ns
+                    if len(Seq) < int(args.min_len):
                         continue
-                    Seq = Seq[:args.trim_len]
-                    Qual = Qual[:args.trim_len]
-                #check minimum length
-                if len(Seq) >= int(args.min_len):
-                    counter += 1
-                    #rename header
-                    Name = 'R_'+str(counter)+';barcodelabel='+BarcodeLabel+';'
-                    out.write("@%s\n%s\n+\n%s\n" % (Name, Seq, Qual))
+                    if len(Seq) < args.trim_len and args.pad == 'on':
+                        pad = args.trim_len - len(Seq)
+                        Seq = Seq + pad*'N'
+                        Qual = Qual +pad*'J'
+                    else: #len(Seq) > args.trim_len:
+                        Seq = Seq[:args.trim_len]
+                        Qual = Qual[:args.trim_len]
+            else:
+                #trim record, did not find reverse primer
+                if args.full_length: #if full length then move to next record
+                    continue
+                #trim away forward primer
+                Seq = Seq[ForTrim:]
+                Qual = Qual[ForTrim:]
+                #check length and trim, throw away if too short as it was bad read
+                if len(Seq) < args.trim_len:
+                    continue
+                Seq = Seq[:args.trim_len]
+                Qual = Qual[:args.trim_len]
+            #check minimum length
+            if len(Seq) >= int(args.min_len):
+                counter += 1
+                #rename header
+                Name = 'R_'+str(counter)+';barcodelabel='+BarcodeLabel+';'
+                out.write("@%s\n%s\n+\n%s\n" % (Name, Seq, Qual))
 
 args.out = re.sub(r'\W+', '', args.out)
 
