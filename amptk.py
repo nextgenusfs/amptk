@@ -58,7 +58,7 @@ def download(url, name):
         sys.stdout.write(status)
     f.close()
 
-version = '0.8.0'
+version = '0.8.1'
 
 default_help = """
 Usage:       amptk <command> <arguments>
@@ -119,7 +119,6 @@ Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
              --min_len           Minimum length read to keep. Default: 50
              --full_length       Keep only full length sequences.
              --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
-             --barcode_mismatch  Number of mismatches in barcodes to allow. Default: 0
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
              --cpus              Number of CPUs to use. Default: all
              --mult_samples      Combine multiple chip runs, name prefix for chip
