@@ -431,10 +431,10 @@ if args.otu_table and not args.method == 'blast':
         cmd = ['biom', 'convert', '-i', tmpTable, '-o', outBiom+'.tmp', '--table-type', "OTU table", '--to-json']
         amptklib.runSubprocess(cmd, amptklib.log)
         if args.mapping_file:
-            cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '-m', args.mapping_file, '--sc-separated', 'taxonomy']
+            cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '-m', args.mapping_file, '--sc-separated', 'taxonomy', '--output-as-json']
             amptklib.runSubprocess(cmd, amptklib.log)
         else:
-            cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '--sc-separated',  'taxonomy']
+            cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '--sc-separated',  'taxonomy', '--output-as-json']
             amptklib.runSubprocess(cmd, amptklib.log)
         amptklib.removefile(outBiom+'.tmp')
         amptklib.log.info("BIOM OTU table created: %s" % outBiom)
