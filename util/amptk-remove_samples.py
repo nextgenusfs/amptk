@@ -31,7 +31,10 @@ def filter_sample(file, output):
             sample = title.split('=',1)[1].split(';')[0]
             if not sample in keep_list:
                 keep_count += 1
-                out.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
+                if args.format == 'fastq':
+                    out.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
+                elif args.format == 'fasta':
+                    out.write(">%s\n%s\n" % (title, seq))
 
 if not args.list:
     if not args.file:
