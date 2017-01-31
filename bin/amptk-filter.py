@@ -42,6 +42,7 @@ parser.add_argument('-d','--delimiter', default='tsv', choices=['csv','tsv'], he
 parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
 parser.add_argument('--keep_mock', action='store_true', help='Keep mock sample in OTU table (Default: False)')
 parser.add_argument('--show_stats', action='store_true', help='Show stats datatable STDOUT')
+parser.add_argument('--negatives', nargs='+', help='Negative Control Sample names')
 parser.add_argument('-o','--out', help='Base output name')
 parser.add_argument('--min_reads_otu', default=2, type=int, help='Minimum number of reads per OTU for experiment')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH8 EXE')
@@ -381,6 +382,7 @@ if not args.keep_mock:
         final.drop(args.mock_barcode, axis=1, inplace=True)
     except:
         pass
+#drop OTUs that are now zeros through whole table
 final = final.loc[~(final==0).all(axis=1)]
 final = final.astype(int)
 
@@ -421,59 +423,105 @@ else:
             col_headers.remove(i)
     FiltTable = FiltTable2.reindex(columns=col_headers)
 
-#output final table
-if otuDict:
-    FiltTable['Taxonomy'] = pd.Series(otuDict)
-    FiltTable.to_csv(final_table, sep=delim)
-    del FiltTable['Taxonomy']
+#check for negative samples and how many OTUs are in these samples
+#if found, filter the OTUs and alert user to rebuild OTU table, I could do this automatically, but would then require
+#there to be reads passed to this script which seems stupid.  Just deleting the OTUs is probably not okay....
+if args.negatives:
+    if len(args.negatives) > 1: #if greater than 1 then assuming list of sample names
+        Neg = args.negatives
+    else:
+        if os.path.isfile(args.negatives[0]): #check if it is a file or not
+            Neg = []
+            with open(args.negatives[0], 'rU') as negfile:
+                for line in negfile:
+                    line = line.replace('\n', '')
+                    Neg.append(line)
+        else:
+            Neg = args.negatives
+    #Now slice the final OTU table, check if values are valid
+    NotFound = []
+    for i in Neg:
+        if not i in FiltTable.columns.values:
+            Neg.remove(i)
+            NotFound.append(i)
+    if len(NotFound) > 0:
+        amptklib.log.info('Samples not found: %s' % ' '.join(NotFound))
+    #slice table
+    NegTable = FiltTable.reindex(columns=Neg)
+    #drop those that are zeros through all samples, just pull out OTUs found in the negative samples
+    NegTable = NegTable.loc[~(NegTable==0).all(axis=1)]
+    NegOTUs = list(NegTable.index)
+    #now make sure you aren't dropping mock OTUs as you want to keep those for filtering new OTU table
+    NegOTUs = [item for item in NegOTUs if item not in mock]
 else:
-    FiltTable.to_csv(final_table, sep=delim)
+    NegOTUs = []
 
-#output binary table
-if otuDict:
-    final['Taxonomy'] = pd.Series(otuDict)
-    final.to_csv(final_binary_table, sep=delim)
-else:
-    final.to_csv(final_binary_table, sep=delim)
+#check if negative OTUs exist, if so, then output updated OTUs and instructions on creating new OTU table
+if len(NegOTUs) > 0:
+    amptklib.log.info("%i OTUs are potentially contamination" % len(NegOTUs))
+    otu_clean = base + '.cleaned.otus.fa'
+    with open(otu_clean, 'w') as otu_update:
+        with open(args.fasta, "rU") as myfasta:
+            for rec in SeqIO.parse(myfasta, 'fasta'):
+                if not rec.id in NegOTUs:
+                    SeqIO.write(rec, otu_update, 'fasta')
+    amptklib.log.info("Cleaned OTUs saved to: %s" % otu_clean)
+    amptklib.log.info("Generate a new OTU table like so:\namptk remove -i %s --format fasta -l %s -o %s\nvsearch --usearch_global %s --db %s --strand plus --id 0.97 --otutabout newOTU.table.txt\n" % (base+'.demux.fq', ' '.join(Neg), base+'.cleaned.fa', base+'.cleaned.fa', otu_clean))
 
-amptklib.log.info("Filtering OTU table down to %i OTUs" % (len(final.index)))
+else: #proceed with rest of script    
+    #output final table
+    if otuDict:
+        FiltTable['Taxonomy'] = pd.Series(otuDict)
+        FiltTable.to_csv(final_table, sep=delim)
+        del FiltTable['Taxonomy']
+    else:
+        FiltTable.to_csv(final_table, sep=delim)
 
-#generate final OTU list for taxonomy
-amptklib.log.info("Filtering valid OTUs")
-otu_new = base + '.filtered.otus.fa'
-with open(otu_new, 'w') as otu_update:
-    with open(args.fasta, "rU") as myfasta:
-        for rec in SeqIO.parse(myfasta, 'fasta'):
-            if args.mock_barcode:
-                #map new names of mock
-                if rec.id in annotate_dict:
-                    newname = annotate_dict.get(rec.id)
-                    rec.id = newname
-                    rec.description = ''
-            if rec.id in final.index:
-                SeqIO.write(rec, otu_update, 'fasta')
+    #output binary table
+    if otuDict:
+        final['Taxonomy'] = pd.Series(otuDict)
+        final.to_csv(final_binary_table, sep=delim)
+    else:
+        final.to_csv(final_binary_table, sep=delim)
+
+    amptklib.log.info("Filtering OTU table down to %i OTUs" % (len(final.index)))
+
+    #generate final OTU list for taxonomy
+    amptklib.log.info("Filtering valid OTUs")
+    otu_new = base + '.filtered.otus.fa'
+    with open(otu_new, 'w') as otu_update:
+        with open(args.fasta, "rU") as myfasta:
+            for rec in SeqIO.parse(myfasta, 'fasta'):
+                if args.mock_barcode:
+                    #map new names of mock
+                    if rec.id in annotate_dict:
+                        newname = annotate_dict.get(rec.id)
+                        rec.id = newname
+                        rec.description = ''
+                if rec.id in final.index:
+                    SeqIO.write(rec, otu_update, 'fasta')
                 
-#tell user what output files are
-print "-------------------------------------------------------"
-print "OTU Table filtering finished"
-print "-------------------------------------------------------"
-print "OTU Table Stats:      %s" % stats_table
-print "Sorted OTU table:     %s" % sorted_table
-if not args.debug:
-    for i in [normal_table_pct, normal_table_nums, subtract_table, mock_out, mock_sort]:
-        amptklib.removefile(i)
-else:   
-    print "Normalized (pct):     %s" % normal_table_pct
-    print "Normalized (10k):     %s" % normal_table_nums
-    if args.subtract != 0:
-        print "Subtracted table:     %s" % subtract_table
-print "Normalized/filter:    %s" % filtered_table
-print "Final Binary table:   %s" % final_binary_table
-print "Final OTU table:      %s" % final_table
-print "Filtered OTUs:        %s" % otu_new
-print "-------------------------------------------------------"
+    #tell user what output files are
+    print "-------------------------------------------------------"
+    print "OTU Table filtering finished"
+    print "-------------------------------------------------------"
+    print "OTU Table Stats:      %s" % stats_table
+    print "Sorted OTU table:     %s" % sorted_table
+    if not args.debug:
+        for i in [normal_table_pct, normal_table_nums, subtract_table, mock_out, mock_sort]:
+            amptklib.removefile(i)
+    else:   
+        print "Normalized (pct):     %s" % normal_table_pct
+        print "Normalized (10k):     %s" % normal_table_nums
+        if args.subtract != 0:
+            print "Subtracted table:     %s" % subtract_table
+    print "Normalized/filter:    %s" % filtered_table
+    print "Final Binary table:   %s" % final_binary_table
+    print "Final OTU table:      %s" % final_table
+    print "Filtered OTUs:        %s" % otu_new
+    print "-------------------------------------------------------"
 
-if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table)
-else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table)
+    if 'win32' in sys.platform:
+        print "\nExample of next cmd: amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table)
+    else:
+        print colr.WARN + "\nExample of next cmd:" + colr.END + " amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table)
