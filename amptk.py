@@ -6,6 +6,7 @@ import sys, os, subprocess, inspect, tarfile, shutil, urllib2, urlparse
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0,script_path)
 import lib.amptklib as amptklib
+from natsort import natsorted
 
 URL = { 'ITS': 'https://uwmadison.box.com/shared/static/wft8j518ryvvcaenrzkilvbp7zwfwbrm.gz', 
         '16S': 'https://uwmadison.box.com/shared/static/a77ld44jmt82jtssnad3l6qnqocgm5jk.gz', 
@@ -58,7 +59,7 @@ def download(url, name):
         sys.stdout.write(status)
     f.close()
 
-version = '0.8.5'
+version = '0.8.6'
 
 default_help = """
 Usage:       amptk <command> <arguments>
@@ -81,7 +82,8 @@ Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
              unoise2     UNOISE2 denoising algorithm
              cluster_ref closed/open reference based clustering (EXPERIMENTAL)
 
-Utilities:   filter      OTU table filtering
+Utilities:   drop        Drop OTUs from dataset
+             filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
              summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs)
              funguild    Run FUNGuild (annotate OTUs with ecological information) 
@@ -602,7 +604,30 @@ Arguments:   -i, --input         Input OTU table (Required)
             subprocess.call(arguments)
         else:
             print help
-            sys.exit(1)    
+            sys.exit(1)
+    elif sys.argv[1] == 'drop':
+        help = """
+Usage:       amptk %s <arguments>
+version:     %s
+
+Description: Script drops OTUs from dataset and outputs new OTU table
+    
+Required:    -i, --input     Input OTU file (.cluster.otus.fa) (FASTA)
+             -r, --reads     Demultiplexed reads (.demux.fq) (FASTQ)
+             -l, --list      List of sample (barcode) names to remove, separate by space
+             -f, --file      List of sample (barcode) names to remove in a file, one per line
+             -o, --out       Output file name. Default: amptk-drop
+        """ % (sys.argv[1], version)
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'util', 'amptk-drop.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            sys.exit(1)
     elif sys.argv[1] == 'taxonomy':
         db_list = ['DB_name', 'DB_type', 'FASTA originated from', 'Fwd Primer', 'Rev Primer', 'Records']
         okay_list = []
@@ -818,7 +843,7 @@ Arguments:   -i, --input         Input FASTQ file or folder (Required)
         print "----------------------------------"
         print "Primers hard-coded into AMPtk:"
         print "----------------------------------"
-        for k,v in amptklib.primer_db.items():
+        for k,v in natsorted(amptklib.primer_db.items()):
            print k.ljust(13) + v
         print "----------------------------------"
         sys.exit(1)

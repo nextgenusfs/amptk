@@ -576,3 +576,338 @@ def parseMappingFileIllumina(input):
 def removefile(input):
     if os.path.isfile(input):
         os.remove(input)
+        
+        
+'''        
+def raup_crick(comm1, comm2, species_pool, reps=1000):
+    s1, s2 = set(comm1), set(comm2)
+    a1, a2 = len(comm1), len(comm2)
+    ssobs = len(set.intersection(s1, s2))
+    ssexp = [len(set.intersection(set(random.sample(species_pool, a1)),
+                                  set(random.sample(species_pool, a2))
+                                  )) 
+             for _ in xrange(reps)]
+    return ((len([s for s in ssexp if s > ssobs]) +
+             len([s for s in ssexp if s == ssobs])/2.
+             )/(len(ssexp)) - 0.5) * 2
+
+ 
+def distance2mds(df, distance, type, output):
+    import numpy as np
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        from sklearn.metrics.pairwise import pairwise_distances
+        from sklearn.manifold import MDS
+        import seaborn as sns
+        import matplotlib.pyplot as plt
+    #run distance metric on matrix and then plot using NMDS
+    num = len(df.index)
+    data = np.array(df).astype(int)
+    bc_dm = pairwise_distances(data, metric=distance)
+    mds = MDS(n_components=2, metric=False, max_iter=999, dissimilarity='precomputed', n_init=10, verbose=0)
+    result = mds.fit(bc_dm)
+    coords = result.embedding_
+    stress = 'stress=' + '{0:.4f}'.format(result.stress_)
+    #get axis information and make square plus some padding
+    xcoords = abs(maxabs(coords[:,0])) + 0.1
+    ycoords = abs(maxabs(coords[:,1])) + 0.1
+    #setup plot
+    fig = plt.figure()
+    #colors
+    colorplot = sns.husl_palette(len(df), l=.5).as_hex()
+    colorplot = [ str(x).upper() for x in colorplot ]
+    for i in range(0,num):
+        plt.plot(coords[i,0], coords[i,1], 'o', markersize=14, color=colorplot[i], label=df.index.values[i])
+    plt.xlabel('NMDS axis 1')
+    plt.ylabel('NMDS axis 2')
+    plt.ylim(-ycoords,ycoords)
+    plt.xlim(-xcoords,xcoords)
+
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+
+    plt.title('NMDS analysis of '+type+' domains')
+    plt.annotate(stress, xy=(1,0), xycoords='axes fraction', fontsize=12, ha='right', va='bottom')
+    fig.savefig(output, format='pdf', dpi=1000, bbox_inches='tight')
+    plt.close(fig)
+    
+def _validate_vector(u, dtype=None):
+    # XXX Is order='c' really necessary?
+    u = np.asarray(u, dtype=dtype, order='c').squeeze()
+    # Ensure values such as u=1 and u=[1] still return 1-D arrays.
+    u = np.atleast_1d(u)
+    if u.ndim > 1:
+        raise ValueError("Input vector should be 1-D.")
+    return u
+
+def _copy_array_if_base_present(a):
+    """
+    Copies the array if its base points to a parent array.
+    """
+    if a.base is not None:
+        return a.copy()
+    elif np.issubsctype(a, np.float32):
+        return np.array(a, dtype=np.double)
+    else:
+        return a
+
+def _convert_to_double(X):
+    if X.dtype != np.double:
+        X = X.astype(np.double)
+    if not X.flags.contiguous:
+        X = X.copy()
+    return X
+
+
+def raupcrick(u, v, n=1180, reps=1000):
+    u = _validate_vector(u)
+    v = _validate_vector(v)
+    #length of vector is species pool?
+    t = [1]*n
+    #calculate alpha1, alpha2 (num observed in each site)
+    a1, a2 = np.count_nonzero(u), np.count_nonzero(v)
+    #calculate the number that are shared
+    ssobs = np.sum(u == v)
+    #now randomly sample the "species pool"
+    idx = np.random.choice(np.arange(len(u)), size=reps)
+    ssexp = np.sum(u[idx] == v[idx])
+    
+    return ((len([s for s in ssexp if s > ssobs]) +
+             len([s for s in ssexp if s == ssobs])/2.
+             )/(len(ssexp)) - 0.5) * 2 
+
+def raupcrickdist(X, reps=1000):
+    X = np.asarray(X, order='c')
+    # The C code doesn't do striding.
+    X = _copy_array_if_base_present(X)
+    s = X.shape
+    if len(s) != 2:
+        raise ValueError('A 2-dimensional array must be passed.')
+    n, p = s
+    D = np.zeros((n,n))
+    #calc the species pool, proportion of sites each species occupies
+    Z = []
+    for i in X:
+        Z.append(np.count_nonzero(i)/float(len(i)))
+    Z = np.array(Z)
+    #Loop through the ndarray
+    for i in range(n):
+        for j in range(n):
+            s = 0
+            for k in range(p):
+                a1, a2 = np.count_nonzero(X[,p])
+                s += (pts[i,k] - pts[j,k])**2
+            m[i, j] = s**0.5
+    return m
+    for i in range(m): #looping through each row?
+        for j in range(m):
+            D[i] = 
+    #calculate alpha1, alpha2 (num observed in each site)
+    a1, a2 = np.count_nonzero(u), np.count_nonzero(v)
+    #calculate the number that are shared
+    ssobs = np.sum(u == v)
+    #now randomly sample the "species pool"
+    idx = np.random.choice(np.arange(len(u)), size=reps)
+    ssexp = np.sum(u[idx] == v[idx])
+
+
+def braycurt(u, v):
+    u = _validate_vector(u)
+    v = _validate_vector(v, dtype=np.float64)
+    return abs(u - v).sum() / abs(u + v).sum()
+
+def pdist(X, metric='euclidean', p=2, w=None, V=None, VI=None):
+    # You can also call this as:
+    #     Y = pdist(X, 'test_abc')
+    # where 'abc' is the metric being tested.  This computes the distance
+    # between all pairs of vectors in X using the distance metric 'abc' but with
+    # a more succinct, verifiable, but less efficient implementation.
+
+    X = np.asarray(X, order='c')
+
+    # The C code doesn't do striding.
+    X = _copy_array_if_base_present(X)
+
+    s = X.shape
+    if len(s) != 2:
+        raise ValueError('A 2-dimensional array must be passed.')
+
+    m, n = s
+    dm = np.zeros((m * (m - 1)) // 2, dtype=np.double)
+
+    wmink_names = ['wminkowski', 'wmi', 'wm', 'wpnorm']
+    if w is None and (metric == wminkowski or metric in wmink_names):
+        raise ValueError('weighted minkowski requires a weight '
+                            'vector `w` to be given.')
+
+    if callable(metric):
+        if metric == minkowski:
+            def dfun(u, v):
+                return minkowski(u, v, p)
+        elif metric == wminkowski:
+            def dfun(u, v):
+                return wminkowski(u, v, p, w)
+        elif metric == seuclidean:
+            def dfun(u, v):
+                return seuclidean(u, v, V)
+        elif metric == mahalanobis:
+            def dfun(u, v):
+                return mahalanobis(u, v, V)
+        else:
+            dfun = metric
+
+        X = _convert_to_double(X)
+
+        k = 0
+        for i in xrange(0, m - 1):
+            for j in xrange(i + 1, m):
+                dm[k] = dfun(X[i], X[j])
+                k = k + 1
+
+    elif isinstance(metric, string_types):
+        mstr = metric.lower()
+
+        try:
+            validate, pdist_fn = _SIMPLE_PDIST[mstr]
+            X = validate(X)
+            pdist_fn(X, dm)
+            return dm
+        except KeyError:
+            pass
+
+        if mstr in ['hamming', 'hamm', 'ha', 'h']:
+            if X.dtype == bool:
+                X = _convert_to_bool(X)
+                _distance_wrap.pdist_hamming_bool_wrap(X, dm)
+            else:
+                X = _convert_to_double(X)
+                _distance_wrap.pdist_hamming_wrap(X, dm)
+        elif mstr in ['jaccard', 'jacc', 'ja', 'j']:
+            if X.dtype == bool:
+                X = _convert_to_bool(X)
+                _distance_wrap.pdist_jaccard_bool_wrap(X, dm)
+            else:
+                X = _convert_to_double(X)
+                _distance_wrap.pdist_jaccard_wrap(X, dm)
+        elif mstr in ['minkowski', 'mi', 'm']:
+            X = _convert_to_double(X)
+            _distance_wrap.pdist_minkowski_wrap(X, dm, p)
+        elif mstr in wmink_names:
+            X = _convert_to_double(X)
+            w = _convert_to_double(np.asarray(w))
+            _distance_wrap.pdist_weighted_minkowski_wrap(X, dm, p, w)
+        elif mstr in ['seuclidean', 'se', 's']:
+            X = _convert_to_double(X)
+            if V is not None:
+                V = np.asarray(V, order='c')
+                if V.dtype != np.double:
+                    raise TypeError('Variance vector V must contain doubles.')
+                if len(V.shape) != 1:
+                    raise ValueError('Variance vector V must '
+                                     'be one-dimensional.')
+                if V.shape[0] != n:
+                    raise ValueError('Variance vector V must be of the same '
+                            'dimension as the vectors on which the distances '
+                            'are computed.')
+                # The C code doesn't do striding.
+                VV = _copy_array_if_base_present(_convert_to_double(V))
+            else:
+                VV = np.var(X, axis=0, ddof=1)
+            _distance_wrap.pdist_seuclidean_wrap(X, VV, dm)
+        elif mstr in ['cosine', 'cos']:
+            X = _convert_to_double(X)
+            norms = _row_norms(X)
+            _distance_wrap.pdist_cosine_wrap(X, dm, norms)
+        elif mstr in ['old_cosine', 'old_cos']:
+            X = _convert_to_double(X)
+            norms = _row_norms(X)
+            nV = norms.reshape(m, 1)
+            # The numerator u * v
+            nm = np.dot(X, X.T)
+            # The denom. ||u||*||v||
+            de = np.dot(nV, nV.T)
+            dm = 1.0 - (nm / de)
+            dm[xrange(0, m), xrange(0, m)] = 0.0
+            dm = squareform(dm)
+        elif mstr in ['correlation', 'co']:
+            X = _convert_to_double(X)
+            X2 = X - X.mean(1)[:, np.newaxis]
+            norms = _row_norms(X2)
+            _distance_wrap.pdist_cosine_wrap(X2, dm, norms)
+        elif mstr in ['mahalanobis', 'mahal', 'mah']:
+            X = _convert_to_double(X)
+            if VI is not None:
+                VI = _convert_to_double(np.asarray(VI, order='c'))
+                VI = _copy_array_if_base_present(VI)
+            else:
+                if m <= n:
+                    # There are fewer observations than the dimension of
+                    # the observations.
+                    raise ValueError("The number of observations (%d) is too "
+                                     "small; the covariance matrix is "
+                                     "singular. For observations with %d "
+                                     "dimensions, at least %d observations "
+                                     "are required." % (m, n, n + 1))
+                V = np.atleast_2d(np.cov(X.T))
+                VI = _convert_to_double(np.linalg.inv(V).T.copy())
+            # (u-v)V^(-1)(u-v)^T
+            _distance_wrap.pdist_mahalanobis_wrap(X, VI, dm)
+        elif metric == 'test_euclidean':
+            dm = pdist(X, euclidean)
+        elif metric == 'test_sqeuclidean':
+            if V is None:
+                V = np.var(X, axis=0, ddof=1)
+            else:
+                V = np.asarray(V, order='c')
+            dm = pdist(X, lambda u, v: seuclidean(u, v, V))
+        elif metric == 'test_braycurtis':
+            dm = pdist(X, braycurtis)
+        elif metric == 'test_mahalanobis':
+            if VI is None:
+                V = np.cov(X.T)
+                VI = np.linalg.inv(V)
+            else:
+                VI = np.asarray(VI, order='c')
+            VI = _copy_array_if_base_present(VI)
+            # (u-v)V^(-1)(u-v)^T
+            dm = pdist(X, (lambda u, v: mahalanobis(u, v, VI)))
+        elif metric == 'test_canberra':
+            dm = pdist(X, canberra)
+        elif metric == 'test_cityblock':
+            dm = pdist(X, cityblock)
+        elif metric == 'test_minkowski':
+            dm = pdist(X, minkowski, p=p)
+        elif metric == 'test_wminkowski':
+            dm = pdist(X, wminkowski, p=p, w=w)
+        elif metric == 'test_cosine':
+            dm = pdist(X, cosine)
+        elif metric == 'test_correlation':
+            dm = pdist(X, correlation)
+        elif metric == 'test_hamming':
+            dm = pdist(X, hamming)
+        elif metric == 'test_jaccard':
+            dm = pdist(X, jaccard)
+        elif metric == 'test_chebyshev' or metric == 'test_chebychev':
+            dm = pdist(X, chebyshev)
+        elif metric == 'test_yule':
+            dm = pdist(X, yule)
+        elif metric == 'test_matching':
+            dm = pdist(X, matching)
+        elif metric == 'test_dice':
+            dm = pdist(X, dice)
+        elif metric == 'test_kulsinski':
+            dm = pdist(X, kulsinski)
+        elif metric == 'test_rogerstanimoto':
+            dm = pdist(X, rogerstanimoto)
+        elif metric == 'test_russellrao':
+            dm = pdist(X, russellrao)
+        elif metric == 'test_sokalsneath':
+            dm = pdist(X, sokalsneath)
+        elif metric == 'test_sokalmichener':
+            dm = pdist(X, sokalmichener)
+        else:
+            raise ValueError('Unknown Distance Metric: %s' % mstr)
+    else:
+        raise TypeError('2nd argument metric must be a string identifier '
+                        'or a function.')
+    return dm
+'''
