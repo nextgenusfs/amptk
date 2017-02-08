@@ -398,6 +398,7 @@ Optional:    -o, --out           Base name for output files. Default: use input 
              -b, --mock_barcode  Name of barcode of mock community (Recommended)
              -m, --mc            Mock community FASTA file. Required if -b passed.
              -c, --calculate     Calculate index-bleed options. Default: all [in,all]
+             --negatives         Negative sample names. (list, separate by space)
              
 Filtering    -n, --normalize     Normalize reads to number of reads per sample [y,n]. Default: y
              -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.005
