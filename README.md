@@ -18,7 +18,7 @@ AMPtk comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ amptk
 Usage:       amptk <command> <arguments>
-version:     0.8.0
+version:     0.8.6
 
 Description: AMPtk is a package of scripts to process NGS amplicon data.  
              Dependencies:  USEARCH v9.1.13 and VSEARCH v2.2.0
@@ -37,7 +37,8 @@ Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
              unoise2     UNOISE2 denoising algorithm
              cluster_ref closed/open reference based clustering (EXPERIMENTAL)
 
-Utilities:   filter      OTU table filtering
+Utilities:   drop        Drop OTUs from dataset
+             filter      OTU table filtering
              taxonomy    Assign taxonomy to OTUs
              summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs)
              funguild    Run FUNGuild (annotate OTUs with ecological information) 
