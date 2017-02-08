@@ -70,7 +70,20 @@ def runSubprocess(cmd, logfile):
         logfile.debug(stdout)
     if stderr:
         logfile.debug(stderr)
-        
+
+def getSize(filename):
+    st = os.stat(filename)
+    return st.st_size
+
+def check_valid_file(input):
+    if os.path.isfile(input):
+        filesize = getSize(input)
+        if int(filesize) < 1:
+            return False
+        else:
+            return True
+    else:
+        return False
 
 def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue):
     pretrim_R1 = os.path.join(tmpdir, outname + '.pretrim_R1.fq')

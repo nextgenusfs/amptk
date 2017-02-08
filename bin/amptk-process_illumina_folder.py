@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-#This script is a wrapper for -fastq_mergepairs from USEARCH8
 import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect, multiprocessing, itertools, re
 from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -240,33 +239,38 @@ with open(map, 'w') as map_file:
                 sampleDict[column[0]] = i5+'-'+i7
             else:
                 sampleDict[column[0]] = i5
+
 #loop through each set and merge reads
 if args.reads == 'paired':
     amptklib.log.info("Merging Overlaping Pairs using USEARCH")
 
 ReadLengths = []
-for i in range(len(fastq_for)):
+for i in range(0,len(fastq_for)):
     name = fastq_for[i].split("_")[0]
     outname = name + '.fq'
     for_reads = os.path.join(args.input, fastq_for[i])
     rev_reads = os.path.join(args.input, fastq_rev[i])
-    #if read length explicity passed use it otherwise measure it
-    if args.read_length:
-        read_length = args.read_length
+    #check sizes
+    if amptklib.check_valid_file(for_reads):
+        #if read length explicity passed use it otherwise measure it
+        if args.read_length:
+            read_length = args.read_length
+        else:
+            read_length = amptklib.GuessRL(for_reads)
+        amptklib.log.info("working on sample %s (Read Length: %i)" % (name, read_length))
+        #append read lengths for processReads function
+        ReadLengths.append(read_length)
+        #checked for merged output, skip if it exists
+        if os.path.isfile(os.path.join(args.out, outname)):
+            amptklib.log.info("Output for %s detected, skipping files" % outname)
+            continue
+        #if PE reads, then need to merge them
+        if args.reads == 'paired' and amptklib.check_valid_file(rev_reads):                
+            amptklib.MergeReads(for_reads, rev_reads, args.out, name+'.fq', read_length, args.min_len, args.usearch, args.rescue_forward)
+        else:
+            shutil.copy(for_reads, os.path.join(args.out, outname))
     else:
-        read_length = amptklib.GuessRL(for_reads)
-    amptklib.log.info("working on sample %s (Read Length: %i)" % (name, read_length))
-    #append read lengths for processReads function
-    ReadLengths.append(read_length)
-    #checked for merged output, skip if it exists
-    if os.path.isfile(os.path.join(args.out, outname)):
-        amptklib.log.info("Output for %s detected, skipping files" % outname)
-        continue
-    #if PE reads, then need to merge them
-    if args.reads == 'paired':                
-        amptklib.MergeReads(for_reads, rev_reads, args.out, name+'.fq', read_length, args.min_len, args.usearch, args.rescue_forward)
-    else:
-        shutil.copy(for_reads, os.path.join(args.out, outname))
+        amptklib.log.debug("ERROR: %s file is empty, skipping" % for_reads)
 
 #get read lengths for process read function
 ReadLen = max(set(ReadLengths))
@@ -283,7 +287,11 @@ for file in os.listdir(args.out):
     if file.endswith(".fq"):
         if not file.endswith('.demux.fq'): #i don't want to demux the demuxed files.
             file = os.path.join(args.out, file)
-            file_list.append(file)
+            #check that the file is not empty
+            if amptklib.check_valid_file(file):
+                file_list.append(file)
+            else:
+                amptklib.log.debug("ERROR: %s demuxed file is empty, skipping" % file)
 if not args.full_length:
     amptklib.log.info("Stripping primers and trim/pad to %s bp" % (args.trim_len))
 else:
