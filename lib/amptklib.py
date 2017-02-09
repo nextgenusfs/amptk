@@ -1,4 +1,6 @@
-import sys, logging, csv, os, subprocess, multiprocessing, platform, time, shutil
+import sys, logging, csv, os, subprocess, multiprocessing, platform, time, shutil, inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from natsort import natsorted
@@ -245,6 +247,16 @@ def versionDependencyChecks(usearch):
         log.error("VSEARCH v%s detected, needs to be atleast v%s" % (vsearch_version, vsearch_pass))
         sys.exit(1)
     log.info("%s, USEARCH v%s, VSEARCH v%s" % (amptk_version, usearch_version, vsearch_version))
+
+def checkRversion():
+    #need to have R version > 3.2
+    cmd = ['Rscript', '--vanilla', os.path.join(parentdir, 'util', 'check_version.R')]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = proc.communicate()
+    versions = stdout.replace(' \n', '')
+    Rvers = versions.split(',')[0]
+    dada2 = versions.split(',')[1]
+    return (Rvers, dada2)
 
 def runMultiProgress(function, inputList, cpus):
     #setup pool

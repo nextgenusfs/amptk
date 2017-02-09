@@ -75,7 +75,7 @@ names(derepSeqs) <- sample.names
 print("-------------")
 print("Sample inference")
 if (args[3] == 'illumina') {
-    dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=args[4], USE_QUALS=TRUE, multithread=CORES)
+    dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=args[4], BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
 } else if (args[3] == 'ion') {
     dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=args[4], HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
 } else {

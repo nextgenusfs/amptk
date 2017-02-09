@@ -26,7 +26,7 @@ parser=argparse.ArgumentParser(prog='amptk-dada2.py',
 
 parser.add_argument('-i','--fastq', required=True, help='Input Demuxed containing FASTQ')
 parser.add_argument('-o','--out', default='dada2', help='Output Basename')
-parser.add_argument('-l','--length', type=int, required=True, help='Length to truncate reads')
+parser.add_argument('-l','--length', type=int, help='Length to truncate reads')
 parser.add_argument('-e','--maxee', default='1.0', help='MaxEE quality filtering')
 parser.add_argument('-p','--pct_otu', default='97', help="Biological OTU Clustering Percent")
 parser.add_argument('--platform', default='ion', choices=['ion', 'illumina', '454'], help='Sequencing platform')
@@ -48,6 +48,14 @@ def folder2list(input, ending):
                 x = os.path.join(input, x)
                 names.append(x)
     return names
+
+def splitDemux2(input, outputdir):
+    for title, seq, qual in FastqGeneralIterator(open(input)):
+        sample = title.split('barcodelabel=')[1]
+        sample = sample.replace(';', '')
+        with open(os.path.join(outputdir, sample+'.fastq'), 'ab') as output:
+            output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
+
 
 def splitDemux(input, outputdir, length):
     for title, seq, qual in FastqGeneralIterator(open(input)):
@@ -87,6 +95,15 @@ amptklib.versionDependencyChecks(usearch)
 #check dependencies
 programs = ['Rscript']
 amptklib.CheckDependencies(programs)
+Rversions = amptklib.checkRversion()
+R_pass = '3.2.1'
+dada2_pass = '1.3.3'
+#check dada2 first, if good move on, otherwise issue warning
+if not amptklib.gvc(Rversions[1], dada2_pass):
+    amptklib.log.error("R v%s; DADA2 v%s detected, need atleast v%s" % (Rversions[0], Rversions[1], dada2_pass))
+    amptklib.log.error("See: http://benjjneb.github.io/dada2/dada-installation.html")
+    sys.exit(1)
+amptklib.log.info("R v%s; DADA2 v%s" % (Rversions[0], Rversions[1]))
 
 #Count FASTQ records and remove 3' N's as dada2 can't handle them
 amptklib.log.info("Loading FASTQ Records")
@@ -105,6 +122,15 @@ amptklib.runSubprocess(filtercmd, amptklib.log)
 total = amptklib.countfastq(derep)
 amptklib.log.info('{0:,}'.format(total) + ' reads passed')
 
+#split into individual files
+amptklib.log.info("Splitting FASTQ file by Sample into individual files")
+filtfolder = args.out+'_filtered'
+if os.path.isdir(filtfolder):
+    shutil.rmtree(filtfolder)
+os.makedirs(filtfolder)
+splitDemux2(derep, filtfolder)
+
+'''
 #Get Average length without any N's
 averageLen = getAvgLength(derep)
 amptklib.log.info("DADA2 compatible read lengths, avg: %i bp, min: %i bp, max: %i bp, top 95%%: %i bp" % (averageLen[0], averageLen[1], averageLen[2], averageLen[3]))
@@ -122,6 +148,7 @@ if os.path.isdir(filtfolder):
     shutil.rmtree(filtfolder)
 os.makedirs(filtfolder)
 splitDemux(derep, filtfolder, TruncLen)
+'''
 
 #now run DADA2 on filtered folder
 amptklib.log.info("Running DADA2 pipeline")
@@ -163,12 +190,7 @@ with open(dada2log, 'rU') as bimeracheck:
             bimeraline = line.split(' ')
             bimeras = int(bimeraline[1])
             totalSeqs = int(bimeraline[5])
-        if line.startswith('[1] "dada2'):
-            dada2version = line.split(' ')[-1].replace('"\n', '').rstrip()
-        if line.startswith('[1] "R '):
-            Rversion = line.split(' ')[-1].replace('"\n', '').rstrip()
 validSeqs = totalSeqs - bimeras
-amptklib.log.info("R v%s, DADA2 v%s" % (Rversion, dada2version))
 amptklib.log.info('{0:,}'.format(totalSeqs) + ' total inferred sequences (iSeqs)')
 amptklib.log.info('{0:,}'.format(bimeras) + ' denovo chimeras removed')
 amptklib.log.info('{0:,}'.format(validSeqs) + ' valid iSeqs')
