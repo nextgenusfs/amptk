@@ -333,7 +333,7 @@ Description: Script is a "wrapper" for the DADA2 pipeline.  It will "pick OTUs" 
     
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              -o, --out           Output base name. Default: dada2
-             -l, --length        Length to trim reads. (Required)
+             -l, --length        Length to trim reads.
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              --platform          Sequencing platform. [ion, illumina, 454]. Default: ion

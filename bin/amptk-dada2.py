@@ -53,9 +53,13 @@ def splitDemux2(input, outputdir):
     for title, seq, qual in FastqGeneralIterator(open(input)):
         sample = title.split('barcodelabel=')[1]
         sample = sample.replace(';', '')
-        with open(os.path.join(outputdir, sample+'.fastq'), 'ab') as output:
-            output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
-
+        if not args.length:
+            with open(os.path.join(outputdir, sample+'.fastq'), 'ab') as output:
+                output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
+        else:
+            if len(seq) >= int(args.length):
+                with open(os.path.join(outputdir, sample+'.fastq'), 'ab') as output:
+                    output.write("@%s\n%s\n+\n%s\n" % (title, seq[:int(args.length):], qual[:int(args.length)]))
 
 def splitDemux(input, outputdir, length):
     for title, seq, qual in FastqGeneralIterator(open(input)):
