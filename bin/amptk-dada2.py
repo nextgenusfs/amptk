@@ -183,7 +183,7 @@ with open(fastaout, 'w') as writefasta:
             line = line.replace('"', '')
             cols = line.split(',')
             Seq = cols[0]
-            ID = 'iSeq_'+str(counter)
+            ID = 'iSeq'+str(counter)
             writefasta.write(">%s\n%s\n" % (ID, Seq))
             counter += 1
 
@@ -310,11 +310,11 @@ print "DADA2 Script has Finished Successfully"
 print "-------------------------------------------------------"
 if args.debug:
     print "Tmp Folder of files: %s" % filtfolder
-print "Inferred iSeqs: %s" % iSeqs
-print "iSeq OTU Table: %s" % chimeraFreeTable
-print "Clustered OTUs: %s" % bioSeqs
-print "OTU Table: %s" % bioTable
-print "iSeqs 2 OTUs: %s" % ClusterComp
+print "Inferred iSeqs: %s" % os.path.abspath(iSeqs)
+print "iSeq OTU Table: %s" % os.path.abspath(chimeraFreeTable)
+print "Clustered OTUs: %s" % os.path.abspath(bioSeqs)
+print "OTU Table: %s" % os.path.abspath(bioTable)
+print "iSeqs 2 OTUs: %s" % os.path.abspath(ClusterComp)
 print "-------------------------------------------------------"
 
 otu_print = bioSeqs.split('/')[-1]
