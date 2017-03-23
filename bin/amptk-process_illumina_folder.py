@@ -40,6 +40,7 @@ parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
 parser.add_argument('-p','--pad', default='on', choices=['on', 'off'], help='Pad with Ns to a set length')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH executable')
+parser.add_argument('--sra', action='store_true', help='Input files are from NCBI SRA not direct from illumina')
 parser.add_argument('--cleanup', action='store_true', help='Delete all intermediate files')
 args=parser.parse_args()
 
@@ -196,84 +197,94 @@ else: #if not then search through and find all the files you can in the folder
     else:
         RevPrimer = args.R_primer
 
-if len(filenames) % 2 != 0:
-    print "Check your input files, they do not seem to be properly paired"
-    sys.exit(1)
+#if files are from SRA, then do something different as they are already merged
+if args.sra:
+    #take list of filenames, move over to output folder
+    sampleDict = {}
+    for x in filenames:
+        rename = os.path.basename(x).split(".fastq",-1)[0]
+        sampleDict[rename] = 'unknown'
+        shutil.copyfile(os.path.join(args.input, x), os.path.join(args.out, rename+'.fq'))
+    ReadLen = args.min_len
+else:
+    if len(filenames) % 2 != 0:
+        print "Check your input files, they do not seem to be properly paired"
+        sys.exit(1)
 
-#check list for files, i.e. they need to have _R1 and _R2 in the filenames, otherwise throw exception
-if not any('_R1' in x for x in filenames):
-    amptklib.log.error("Did not find valid FASTQ files.  Your files must have _R1 and _R2 in filename, rename your files and restart script.")
-    sys.exit(1)
+    #check list for files, i.e. they need to have _R1 and _R2 in the filenames, otherwise throw exception
+    if not any('_R1' in x for x in filenames):
+        amptklib.log.error("Did not find valid FASTQ files.  Your files must have _R1 and _R2 in filename, rename your files and restart script.")
+        sys.exit(1)
 
-uniq_names = []
-fastq_for = []
-fastq_rev = []
-sampleDict = {}
-map = args.out + '.filenames.txt'
-with open(map, 'w') as map_file:
-    map_file.write("Name\t[i5]\t[i7]\tLane\tSet_num\n")
-    for item in sorted(filenames):
-        if '_R1' in item:
-            fastq_for.append(item)
-        if '_R2' in item:
-            fastq_rev.append(item)
-        column = item.split("_")
-        if column[0] not in uniq_names:
-            uniq_names.append(column[0])
-            if "-" in column[1]:
-                barcode = column[1].split("-")#looking here for the linker between i5 and i7 seqs
-                i5 = barcode[0]
-                i7 = barcode[1]
-                try:
-                    map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], i5, i7, column[2], column[4].split(".",1)[0]))
-                except IndexError:
-                    amptklib.log.debug("Non-standard names detected, skipping mapping file")              
+    uniq_names = []
+    fastq_for = []
+    fastq_rev = []
+    sampleDict = {}
+    map = args.out + '.filenames.txt'
+    with open(map, 'w') as map_file:
+        map_file.write("Name\t[i5]\t[i7]\tLane\tSet_num\n")
+        for item in sorted(filenames):
+            if '_R1' in item:
+                fastq_for.append(item)
+            if '_R2' in item:
+                fastq_rev.append(item)
+            column = item.split("_")
+            if column[0] not in uniq_names:
+                uniq_names.append(column[0])
+                if "-" in column[1]:
+                    barcode = column[1].split("-")#looking here for the linker between i5 and i7 seqs
+                    i5 = barcode[0]
+                    i7 = barcode[1]
+                    try:
+                        map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], i5, i7, column[2], column[4].split(".",1)[0]))
+                    except IndexError:
+                        amptklib.log.debug("Non-standard names detected, skipping mapping file")              
+                else:
+                    i5 = column[1]
+                    i7 = "None"
+                    try:
+                        map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], i5, i7, column[2], column[4].split(".",1)[0]))
+                    except IndexError:
+                        amptklib.log.debug("Non-standard names detected, skipping mapping file")
+                if i7 != "None":
+                    sampleDict[column[0]] = i5+'-'+i7
+                else:
+                    sampleDict[column[0]] = i5
+
+    #loop through each set and merge reads
+    if args.reads == 'paired':
+        amptklib.log.info("Merging Overlaping Pairs using USEARCH")
+
+    ReadLengths = []
+    for i in range(0,len(fastq_for)):
+        name = fastq_for[i].split("_")[0]
+        outname = name + '.fq'
+        for_reads = os.path.join(args.input, fastq_for[i])
+        rev_reads = os.path.join(args.input, fastq_rev[i])
+        #check sizes
+        if amptklib.check_valid_file(for_reads):
+            #if read length explicity passed use it otherwise measure it
+            if args.read_length:
+                read_length = args.read_length
             else:
-                i5 = column[1]
-                i7 = "None"
-                try:
-                    map_file.write("%s\t%s\t%s\t%s\t%s\n" % (column[0], i5, i7, column[2], column[4].split(".",1)[0]))
-                except IndexError:
-                    amptklib.log.debug("Non-standard names detected, skipping mapping file")
-            if i7 != "None":
-                sampleDict[column[0]] = i5+'-'+i7
+                read_length = amptklib.GuessRL(for_reads)
+            amptklib.log.info("working on sample %s (Read Length: %i)" % (name, read_length))
+            #append read lengths for processReads function
+            ReadLengths.append(read_length)
+            #checked for merged output, skip if it exists
+            if os.path.isfile(os.path.join(args.out, outname)):
+                amptklib.log.info("Output for %s detected, skipping files" % outname)
+                continue
+            #if PE reads, then need to merge them
+            if args.reads == 'paired' and amptklib.check_valid_file(rev_reads):                
+                amptklib.MergeReads(for_reads, rev_reads, args.out, name+'.fq', read_length, args.min_len, args.usearch, args.rescue_forward)
             else:
-                sampleDict[column[0]] = i5
-
-#loop through each set and merge reads
-if args.reads == 'paired':
-    amptklib.log.info("Merging Overlaping Pairs using USEARCH")
-
-ReadLengths = []
-for i in range(0,len(fastq_for)):
-    name = fastq_for[i].split("_")[0]
-    outname = name + '.fq'
-    for_reads = os.path.join(args.input, fastq_for[i])
-    rev_reads = os.path.join(args.input, fastq_rev[i])
-    #check sizes
-    if amptklib.check_valid_file(for_reads):
-        #if read length explicity passed use it otherwise measure it
-        if args.read_length:
-            read_length = args.read_length
+                shutil.copy(for_reads, os.path.join(args.out, outname))
         else:
-            read_length = amptklib.GuessRL(for_reads)
-        amptklib.log.info("working on sample %s (Read Length: %i)" % (name, read_length))
-        #append read lengths for processReads function
-        ReadLengths.append(read_length)
-        #checked for merged output, skip if it exists
-        if os.path.isfile(os.path.join(args.out, outname)):
-            amptklib.log.info("Output for %s detected, skipping files" % outname)
-            continue
-        #if PE reads, then need to merge them
-        if args.reads == 'paired' and amptklib.check_valid_file(rev_reads):                
-            amptklib.MergeReads(for_reads, rev_reads, args.out, name+'.fq', read_length, args.min_len, args.usearch, args.rescue_forward)
-        else:
-            shutil.copy(for_reads, os.path.join(args.out, outname))
-    else:
-        amptklib.log.debug("ERROR: %s file is empty, skipping" % for_reads)
+            amptklib.log.debug("ERROR: %s file is empty, skipping" % for_reads)
 
-#get read lengths for process read function
-ReadLen = max(set(ReadLengths))
+    #get read lengths for process read function
+    ReadLen = max(set(ReadLengths))
 
 #Now all the data is in folder args.out that needs to be de-multiplexed
 if not args.cpus:

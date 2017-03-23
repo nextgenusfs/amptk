@@ -44,6 +44,9 @@ def primerStrip(file, GoodOut, BadOut, fwdprimer, revprimer):
                 else:
                     bad.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))                   
 
+def primer2Strip(file, GoodOut, BadOut, fwdprimer, revprimer):
+
+
 #now run primer strip
 if args.reverse:
     if not args.rev_primer:

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 #script to draw a heatmap from counts data, i.e. PFAM, InterPro, or even OTU table
-
 import sys, warnings, argparse
 import pandas as pd
 import numpy as np
@@ -34,6 +33,8 @@ parser.add_argument('--figsize', default='2x8', help='Figure size (3x5, 2x10, et
 parser.add_argument('--annotate', action='store_true', help='Annotate heatmap with values')
 parser.add_argument('--scaling', default='None', choices= ['z_score', 'standard', 'None'], help='Scale the data by row')
 parser.add_argument('--debug', action='store_true', help='Print the data table to terminal')
+parser.add_argument('--normalize', help='Normalize data to pct of total, tsv sample ID<tab>reads')
+parser.add_argument('--normalize_counts', default=100000, type=int, help='Value to normalize read counts to')
 args=parser.parse_args()
 
 #parse the figure size and get it into a tuple
@@ -89,8 +90,31 @@ headers = list(data.columns.values)
 if headers[-1] == 'Taxonomy':
     del data['Taxonomy']
 
+#normalize data
+if args.normalize:
+    TotalCounts = {}
+    with open(args.normalize, 'rU') as input:
+        for line in input:
+            cols = line.split('\t')
+            if cols[0] != '':
+                if not cols[0] in TotalCounts:
+                    TotalCounts[cols[0]] = int(cols[1])
+    tc = pd.Series(TotalCounts, name='Read_counts')
+    pd.to_numeric(tc)
+    data.apply(lambda x: pd.to_numeric(x, errors='ignore'))
+    normal = data.truediv(tc.iloc[0],axis='index')
+    norm_round = np.round(normal.multiply(args.normalize_counts), decimals=0)
+    norm_round = norm_round.astype(int)
+    if args.debug:
+        print tc
+        print norm_round
+else:
+    norm_round = data
+
+
+
 #run heatmap
 if args.method == 'clustermap':
-    drawClustermap(data, args.output)
+    drawClustermap(norm_round, args.output)
 else:
-    drawHeatmap(data, args.output)
+    drawHeatmap(norm_round, args.output)

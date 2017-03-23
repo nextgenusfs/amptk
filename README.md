@@ -1,17 +1,17 @@
 # AMPtk
-###NGS AMPlicon Tool Kit:###
+### NGS AMPlicon Tool Kit:###
 
 AMPtk is a series of scripts to process NGS amplicon data using USEARCH and VSEARCH, it can also be used to process any NGS amplicon data and includes databases setup for analysis of fungal ITS, fungal LSU, bacterial 16S, and insect COI amplicons.  It can handle Ion Torrent, MiSeq, and 454 data.  At least USEARCH v9.1.13 and VSEARCH v2.2.0 are required as of AMPtk v0.7.0.
 
 
-####Installation:####
+#### Installation:####
 
 * [Mac install instructions](docs/mac_install.md)
 * [Linux install instructions](docs/ubuntu_install.md)
 * [Windows install instuructions](docs/windows_install.md) - Note use on Windows is not recommended.
 
 
-####AMPtk Wrapper script####
+#### AMPtk Wrapper script####
 
 AMPtk comes with a wrapper script for ease of use.  On UNIX, you can call it by simply typing `amptk`, while on windows you may need to type `amptk.py` (not needed if you add the `.py` extension in your PATHEXT, directions [here](http://stackoverflow.com/a/13023969/4386003)).
 
@@ -74,7 +74,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              --debug             Keep intermediate files.
              -u, --usearch       USEARCH executable. Default: usearch9
 ```
-####Installing Databases:####
+#### Installing Databases:####
 AMPtk is pre-configured to deal with amplicons from fungal ITS, fungal LSU, bacterial 16S, and insect COI.  You can see how the databases were constructed [here](docs/reference_databases.md).  After installation of AMPtk, you can download and install these databases using the `amptk install` command (to overwrite existing databases, use the `--force` option.  To install all of the databases, you would type:
 
 ```
@@ -87,11 +87,11 @@ amptk install -i ITS
 
 The resulting databases are stored in the `DB` folder of the `amptk` directory.  These data are used for both Chimera reference filtering and for assigning taxonomy.
 
-####What processing script do I use??####
+#### What processing script do I use??####
 You need to be familiar with your read structure! For example, do you have barcodes at the 5' end of your amplicons?  Is the primer sequence in your reads or has it been removed by the sequencing software?  I prefer that data be minimally processed - this acts largely as a quality control filter.  For example when using Ion Torrent data (see instructions below) it is beneficial to turn off all filtering of the data on the server, by doing this you ensure that the reads are properly quality filtered and barcodes/primers are used as an additional quality filter.  If you have PE MiSeq data, typically it comes in an already demultiplexed format, i.e. a folder of PE reads for each sample (_R1.fastq.gz, _R2.fastq.gz) - these data can be used directly with the `amptk illumina` command.  A somewhat common (although I think not ideal) approach is to use a custom sequencing primer with Illumina data - and then the output from the sequencer is already demulitplexed and primers are already stripped - in this case, you can use the `amptk illumina` command, but make sure to pass the `--require_primer off` option.   However, I have seen several other formats of data as well - even with Illumina data being in a single file, where then the `amptk illumina2` script is helpful.  Bottom line is if you don't know how your data is structured in terms of barcodes, primers, reads, paired-ends, etc - you need to find out before doing anything else....
 
 
-####Processing Ion Torrent Data:####
+#### Processing Ion Torrent Data:####
 
 From the Torrent Server, analyze the data using the `--disable-all-filters` BaseCaller argument.  This will leave the adapters/key/barcode sequence intact.  You can download either the unaligned BAM file from the server or a FASTQ file. You can then de-multiplex the data as follows:
 
@@ -104,7 +104,7 @@ amptk ion -i data.bam -m mapping_file.txt -o data
 
 This will find Ion barcodes (1, 5, and 24) and relabel header with that information (barcodelabel=BC_5;). By default, it will look for all 96 Ion Xpress barcodes, specifiy the barcodes you used by a comma separated list. You can also pass in a fasta file containing your barcode sequences with properly labeled headers. Next the script will find and trim both the forward and reverse primers (default is ITS2 region: fITS7 & ITS4), and then finally will trim or pad with N's to a set length (default: 250 bp).  Trimming to the same length is critcally important for USEARCH to cluster correctly, padding with N's after finding the reverse primer keeps short ITS sequences from being discarded.  These options can be customized using: `--fwd_primer`, `--rev_primer`, `--trim_len`, etc.
 
-####Processing Roche 454 Data:####
+#### Processing Roche 454 Data:####
 Data from 454 instruments has the same read structure as Ion Torrent: <barcode><primer>Read<primer> and thus can be processed very similarly.  You just need to provide either an SFF file, FASTA + QUAL, or FASTQ files and then you need to specify a multi-fasta file containing the barcodes used in the project.  The data will be processed in the same fashion (see above) as the Ion Torrent Data. For example:
 
 ```
@@ -116,7 +116,7 @@ amptk 454 -i data.fa -q data.qual --barcode_fasta my454barcodes.fa -o 454project
 ```
 
 
-####Processing Illumina MiSeq PE Data:####
+#### Processing Illumina MiSeq PE Data:####
 
 Paired-end MiSeq data is typically delivered already de-multiplexed into separate read files, that have a defined naming structure from Illumina that looks like this: 
 
@@ -132,7 +132,7 @@ amptk illumina -i folder_name -o miseqData -m mapping_file.txt
 
 This will find all files ending with '.fastq.gz' in the input folder, gunzip the files, and then sequentially process the paired read files.  First it will run USEARCH8 `-fastq_mergepairs`, however, since some ITS sequences are too long to overlap you can rescue longer sequences by recovering the the non-merged forward reads by passing the `--rescue_forward` argument.  Alternatively, you can only utilize the forward reads (R1), by passing the `--reads forward` argument.  Next the forward and reverse primers are removed and the reads are trimmed/padded to a set length of clustering. Finally, the resulting FASTQ files for each of the processed samples are concatenated together into a file called `miseqData.demux.fq` that will be used for the next clustering step.  The script will also output a text file called `miseqData-filenames.txt` that contains a tab-delimited output of the sample name as well as [i5] and [i7] index sequences that were used.  The script will produce a folder containing the individual de-multiplexed files named from the `-o, --out` argment.
 
-####OTU Clustering:####
+#### OTU Clustering:####
 
 The next step is to run `amptk cluster`, which expects de-multiplexed FASTQ data as a single file with `;barcodelabel=Sample_name` in the FASTQ header. If your data is in some other format, you can use other UNIX/Perl/Python scripts to add the `barcodelabel=` to each read and then cluster your data using AMPtk.  Note that reads should be [globally trimmed](http://www.drive5.com/usearch/manual/global_trimming.html) and the pre-processing steps in AMPtk take steps to ensure high quality data makes it into the clustering algorithm with minimal sequence loss. Now the data from either platform (Ion, 454, or Illumina) can be clustered by running the following:
 
@@ -142,7 +142,7 @@ amptk cluster -i amptk.demux.fq -o ion_output
 
 This script wil quality filter the data based on expected errors, then remove duplicated sequences (dereplication), sort the output by abundance, and finally cluster using `usearch -cluster_otus` command.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Type `-h` for all the available options.
 
-####DADA2 "Clustering":####
+#### DADA2 "Clustering":####
 Recently there is a new "OTU picking" algorithm for amplicon based datasets called DADA2 that has sensitivity down to single base pairs, see publication [here](http://www.nature.com/nmeth/journal/v13/n7/full/nmeth.3869.html), GitHub [here](https://github.com/benjjneb/dada2).  This algorithm uses a statistical method to infer the original sequence that a read was derived from, foregoing the need to cluster at a set threshold (i.e. 97%).  I've implemented a modified DADA2 pipeline here to work with the current AMPtk data structure.  A reminder is that reads for DADA2 must have no N's and have to all length trimmed identically, thus variable length amplicons will be truncated down.  Thus this method is perhaps more suited to something like COI or 16S amplicons.  You can run it as follows:
 
 ```
@@ -150,7 +150,7 @@ amptk dada2 -i amptk.demux.fq -o dada2_output -l 200
 ```
 The script will quality filter your data, trim for use in DADA2, run DADA2 alogrithm, and then parse the results to output an OTU table and a file containing inferred sequences (OTUs) in fasta format.  These files can be used in all downstream AMPtk scripts, i.e. `amptk filter` and `amptk taxonomy`.
 
-####OTU Table Filtering####
+#### OTU Table Filtering####
 
 The data may need some additional filtering if you included a spike-in control mock community.  The advantage is that you know what should be in the spike-in control barcode sample, thus you can modify USEARCH8 clustering parameters that give you reasonable results.  If you need to trim your OTU table by some threshold, i.e. several OTUs at low abundance are showing up in your spike-in control sample that represent contamination or sequence error - you can set a threshold and filter the OTU table. This is done with the following script:
 
@@ -166,7 +166,7 @@ If you do not have a mock community spike in, you can still run the index bleed 
 amptk filter -i test.otu_table.txt -f test.final.otus.fa -p 0.005
 ```
 
-####Assign Taxonomy:####
+#### Assign Taxonomy:####
 
 You can assign taxonomy to your OTUs using AMPtk, either using UTAX from USEARCH8.1 or using usearch_global.  The databases require some initial setup before you can use the `amptk taxonomy` command.  
 
@@ -217,7 +217,7 @@ amptk taxonomy -f data.filtered.otus.fa -o output -i data.final.csv -m mapping_f
 amptk taxonomy -f data.filtered.otus.fa -o output -i data.final.csv -m mapping_file.txt --method rdp --rdp_db fungalits_unite -rdp /path/to/classifier.jar
 ```
 
-####Summarizing the Taxonomy:####
+#### Summarizing the Taxonomy:####
 
 After taxonomy is appended to your OTU table, you can then generate OTU-like tables for each of your samples at all of the levels of taxonomy (i.e. Kingdom, Phylum, Class, Order, Family, Genus).  At the same time, you can create a QIIME-like stacked bar graph from these data.
 
@@ -227,13 +227,13 @@ amptk summarize -i data.taxonomy.otu_table.txt -o data-summary
 
 The optional `--graphs` argument will create the stacked bar graphs.  You can save in a variety of formats as well as convert the result to precent of total with the `--percent` argument.
 
-####Downstream Processing:####
+#### Downstream Processing:####
 As of `amptk v0.6.0`, the output from the `amptk taxonomy` command will create a biom file that contains taxonomy compatible with QIIME, [PHINCH](www.phinch.org), [PhyloSeq](https://joey711.github.io/phyloseq/index.html), and [MetaCoMET](http://probes.pw.usda.gov/MetaCoMET/index.php). The script will also output a phylogenetic tree from your OTUs which is required for some downstream analysis.  Moreover, you can pass the `-m, --mapping_file` option to `amptk taxonomy` and all columns will be incorporated as sample metadata.  A mapping file is created automatically for you in the pre-processing steps of amptk, such as `amptk ion` and `amptk illumina`.  You can easily add your metadata to this file using something like excel, and then save as a tab delimited text file.
 
 [QIIME and PhyloSeq import instructions](docs/downstream_processing.md)
 
 
-####Dependencies####
+#### Dependencies####
 * Python 2.7
 * Biopython
 * USEARCH9

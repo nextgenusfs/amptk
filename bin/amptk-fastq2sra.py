@@ -5,6 +5,9 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
+import lib.fasta as fasta
+import lib.revcomp_lib as revcomp_lib
+import lib.primer as primer
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -30,25 +33,11 @@ parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help=
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer (ITS4)')
 parser.add_argument('-n', '--names', help='CSV mapping file BC,NewName')
 parser.add_argument('-d', '--description', help='Paragraph description for SRA metadata')
+parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')
+parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
+parser.add_argument('--require_primer', default='off', choices=['forward', 'both', 'off'], help='Require Primers to be present')
 parser.add_argument('--force', action='store_true', help='Overwrite existing directory')
 args=parser.parse_args()
-
-
-#check if name is in primer_db, else use input value
-if args.F_primer in amptklib.primer_db:
-    FwdPrimer = amptklib.primer_db.get(args.F_primer)
-else:
-    FwdPrimer = args.F_primer
-
-#check if name is in primer_db, else use input value
-if args.R_primer in amptklib.primer_db:
-    RevPrimer = amptklib.primer_db.get(args.R_primer)
-else:
-    RevPrimer = args.R_primer
-
-#add the linker for ion primers
-if args.platform == 'ion':
-    FwdPrimer = 'A' + FwdPrimer
 
 def FindBarcode(Seq):
     global Barcodes
@@ -67,31 +56,96 @@ FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
 print "-------------------------------------------------------"
-
-if args.platform != 'illumina' and not args.barcodes:
-    amptklib.log.error("For ion, 454, or illumina2 datasets you must specificy a multi-fasta file containing barcodes with -b or --barcode_fasta")
-    os._exit(1)
-
-#initialize script, log system info
-amptklib.log.info("Operating system: %s" % sys.platform)
-
+amptklib.SystemInfo()
 #create output directory
 if not os.path.exists(args.out):
     os.makedirs(args.out)
 else:
     if not args.force:
         amptklib.log.error("Directory %s exists, add --force argument to overwrite" % args.out)
-        os._exit(1)
+        sys.exit(1)
     else:
         shutil.rmtree(args.out)
         os.makedirs(args.out)
+
+#parse a mapping file or a barcode fasta file, primers, etc get setup
+#dealing with Barcodes, get ion barcodes or parse the barcode_fasta argument
+barcode_file = os.path.join(args.out, args.out + ".barcodes_used.fa")
+if os.path.isfile(barcode_file):
+    os.remove(barcode_file)
+
+#check if mapping file passed, use this if present, otherwise use command line arguments
+if args.mapping_file:
+    if not os.path.isfile(args.mapping_file):
+        amptklib.error("Mapping file is not valid: %s" % args.mapping_file)
+        sys.exit(1)
+    amptklib.log.info("Parsing mapping file: %s" % args.mapping_file)
+    mapdata = amptklib.parseMappingFile(args.mapping_file, barcode_file)
+    #forward primer in first item in tuple, reverse in second
+    FwdPrimer = mapdata[0]
+    RevPrimer = mapdata[1]
+    genericmapfile = args.mapping_file
+else:
+    if args.barcode_fasta == 'pgm_barcodes.fa':
+        #get script path and barcode file name
+        pgm_barcodes = os.path.join(parentdir, 'DB', args.barcode_fasta)
+        if args.barcodes == "all":
+            if args.multi == 'False':
+                shutil.copyfile(pgm_barcodes, barcode_file)
+            else:
+                with open(barcode_file, 'w') as barcodeout:
+                    with open(pgm_barcodes, 'rU') as input:
+                        for rec in SeqIO.parse(input, 'fasta'):
+                            outname = args.multi+'.'+rec.id
+                            barcodeout.write(">%s\n%s\n" % (outname, rec.seq))
+        else:
+            bc_list = args.barcodes.split(",")
+            inputSeqFile = open(pgm_barcodes, "rU")
+            SeqRecords = SeqIO.to_dict(SeqIO.parse(inputSeqFile, "fasta"))
+            for rec in bc_list:
+                name = "BC." + rec
+                seq = SeqRecords[name].seq
+                if args.multi != 'False':
+                    outname = args.multi+'.'+name
+                else:
+                    outname = name
+                outputSeqFile = open(barcode_file, "a")
+                outputSeqFile.write(">%s\n%s\n" % (outname, seq))
+            outputSeqFile.close()
+            inputSeqFile.close()
+    else:
+        shutil.copyfile(args.barcode_fasta, barcode_file)
+    
+    #parse primers here so doesn't conflict with mapping primers
+    #look up primer db otherwise default to entry
+    if args.F_primer in amptklib.primer_db:
+        FwdPrimer = amptklib.primer_db.get(args.F_primer)
+    else:
+        FwdPrimer = args.F_primer
+    if args.R_primer in amptklib.primer_db:
+        RevPrimer = amptklib.primer_db.get(args.R_primer)
+    else:
+        RevPrimer = args.R_primer
+
+    #because we use an 'A' linker between barcode and primer sequence, add an A if ion is chemistry
+    if args.ion:
+        FwdPrimer = 'A' + FwdPrimer
+        Adapter = 'CCATCTCATCCCTGCGTGTCTCCGACTCAG'
+    else:
+        Adapter = ''
+
+
+if args.platform != 'illumina':
+    if not args.barcodes and not args.mapping_file:
+        amptklib.log.error("For ion, 454, or illumina2 datasets you must specificy a multi-fasta file containing barcodes with -b, --barcode_fasta, or -m/--mapping_file")
+        sys.exit(1)
 
 if args.platform == 'illumina':
     #just need to get the correct .fastq.gz files into a folder by themselves
     #if illumina is selected, verify that args.fastq is a folder
     if not os.path.isdir(args.FASTQ):
         amptklib.log.error("%s is not a folder, for '--platform illumina', -i must be a folder containing raw reads" % (args.FASTQ))
-        os._exit(1)
+        sys.exit(1)
     rawlist = []
     filelist = []
     for file in os.listdir(args.FASTQ):
@@ -112,24 +166,19 @@ if args.platform == 'illumina':
 
 else:
     #count FASTQ records in input
-    amptklib.log.info("Loading FASTQ Records")
-    total = amptklib.countfastq(args.FASTQ)
-    size = amptklib.checkfastqsize(args.FASTQ)
-    readablesize = amptklib.convertSize(size)
-    amptklib.log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
+    #start here to process the reads, first reverse complement the reverse primer
+    ReverseCompRev = revcomp_lib.RevComp(RevPrimer)
 
     #if --names given, load into dictonary
     if args.names:
+        amptklib.log.info("Parsing names for output files via %s" % args.names)
         with open(args.names, 'rU') as input:
             reader = csv.reader(input)
             namesDict = {col[0]:col[1] for col in reader}
-    else:
-        amptklib.log.info("No names csv passed, using BC header names")
 
     #load barcode fasta file into dictonary
     Barcodes = {}
-    files = []
-    with open(args.barcodes, 'rU') as input:
+    with open(barcode_file, 'rU') as input:
         for line in input:
             if line.startswith('>'):
                 if args.names:
@@ -137,36 +186,66 @@ else:
                     name = name + ".fastq"          
                 else:
                     name = line[1:-1] + ".fastq"
-                files.append(os.path.join(args.out,name))
                 continue
             Barcodes[name]=line.strip()
 
-    #ensure file names are unique        
-    files = set(files)
+    #count FASTQ records in input
+    amptklib.log.info("Loading FASTQ Records")
+    total = amptklib.countfastq(args.FASTQ)
+    size = amptklib.checkfastqsize(args.FASTQ)
+    readablesize = amptklib.convertSize(size)
+    amptklib.log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
+    
+    #output message depending on primer requirement
+    if args.require_primer == 'off':   
+        amptklib.log.info("Looking for %i barcodes" % (len(Barcodes)))
+    elif args.require_primer == 'forward':
+        amptklib.log.info("Looking for %i barcodes that must have FwdPrimer: %s" % (len(Barcodes), FwdPrimer))
+    elif args.require_primer == 'both':
+        amptklib.log.info("Looking for %i barcodes that must have FwdPrimer: %s and  RevPrimer: %s" % (len(Barcodes), FwdPrimer, RevPrimer))
+    
 
-    #this way will loop through the FASTQ file many times....not really what I want but it will work...
+    #this will loop through FASTQ file once, splitting those where barcodes are found, and primers trimmed
     runningTotal = 0
-    for f in files:   
-        with open(f, 'w') as output:
-            amptklib.log.info("working on %s" % (output.name))
-            with open(args.FASTQ, 'rU') as input:
-                for title, seq, qual in FastqGeneralIterator(input):
-                    Barcode, BarcodeLabel = FindBarcode(seq)
-                    if Barcode == "": #if not found, move onto next record
+    trim = len(FwdPrimer)
+    with open(args.FASTQ, 'rU') as input:
+        for title, seq, qual in FastqGeneralIterator(input):
+            Barcode, BarcodeLabel = FindBarcode(seq)
+            if Barcode == "": #if not found, move onto next record
+                continue
+            BarcodeLength = len(Barcode)
+            seq = seq[BarcodeLength:]
+            qual = qual[BarcodeLength:]
+            #look for forward primer
+            if args.require_primer != 'off': #means we only want ones with forward primer and or reverse
+                Diffs = primer.MatchPrefix(seq, FwdPrimer)
+                if Diffs > args.primer_mismatch:
+                    continue
+                #if found, trim away primer
+                seq = seq[trim:]
+                qual = qual[trim:]
+                if args.require_primer == 'both':
+                    #look for reverse primer, strip if found
+                    BestPosRev, BestDiffsRev = primer.BestMatch2(seq, ReverseCompRev, args.primer_mismatch)
+                    if BestPosRev > 0:
+                        seq = seq[:BestPosRev]
+                        qual = qual[:BestPosRev]
+                    else:
                         continue
-                    BarcodeLength = len(Barcode)
-                    seq = seq[BarcodeLength:]
-                    qual = qual[BarcodeLength:]
-                    if len(seq) < args.min_len: #filter out sequences less than 50 bp.
-                        continue
-                    if BarcodeLabel in output.name:
-                        output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
-        Count = amptklib.countfastq(f)
-        amptklib.log.info('{0:,}'.format(Count) + ' reads contained valid barcodes')
-        runningTotal += Count
-
-    amptklib.log.info('{0:,}'.format(runningTotal) + ' total reads for sra submission')
-
+            #check size
+            if len(seq) < args.min_len: #filter out sequences less than minimum length.
+                continue
+            runningTotal += 1
+            fileout = os.path.join(args.out, BarcodeLabel)
+            with open(fileout, 'ab') as output:
+                output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
+    if args.require_primer == 'off':   
+        amptklib.log.info('{0:,}'.format(runningTotal) + ' total reads with valid barcode')
+    elif args.require_primer == 'forward':
+        amptklib.log.info('{0:,}'.format(runningTotal) + ' total reads with valid barcode and fwd primer')
+    elif args.require_primer == 'both':
+        amptklib.log.info('{0:,}'.format(runningTotal) + ' total reads with valid barcode and both primers')
+    
     amptklib.log.info("Now Gzipping files")
     gzip_list = []
     for file in os.listdir(args.out):
@@ -187,6 +266,7 @@ else:
         if file.endswith(".fastq.gz"):
             filelist.append(file)
 
+amptklib.log.info("Finished: output in %s" % args.out)
 
 #check for BioSample meta file
 if args.biosample:
@@ -222,7 +302,7 @@ if args.biosample:
         lib_layout = 'paired'
     else:
         amptklib.log.error("You specified a platform that is not supported")
-        os._exit(1)
+        sys.exit(1)
     lib_strategy = 'AMPLICON'
     lib_source = 'GENOMIC'
     lib_selection = 'RANDOM PCR'
@@ -273,6 +353,6 @@ if args.biosample:
                 line = [bioproject,sample_name,name,title,lib_strategy,lib_source,lib_selection,lib_layout,sequencer,model,description,filetype,file,file2,barcode_for,barcode_rev,FwdPrimer,RevPrimer]
 
             output.write('\t'.join(line)+'\n')
-
+    amptklib.log.info("SRA submission file created: %s" % sub_out)
 
         

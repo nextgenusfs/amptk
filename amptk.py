@@ -59,7 +59,7 @@ def download(url, name):
         sys.stdout.write(status)
     f.close()
 
-version = '0.8.8'
+version = '0.8.9'
 
 default_help = """
 Usage:       amptk <command> <arguments>
@@ -68,28 +68,29 @@ version:     %s
 Description: AMPtk is a package of scripts to process NGS amplicon data.  
              Dependencies:  USEARCH v9.1.13 and VSEARCH v2.2.0
     
-Process:     ion         pre-process Ion Torrent data (find barcodes, remove primers, trim/pad)
-             illumina    pre-process folder of de-multiplexed Illumina data (gunzip, merge PE, remove primers, trim/pad)
-             illumina2   pre-process Illumina data from a single file (read structure: <barcode><f_primer>READ<r_primer>)
-             454         pre-process Roche 454 (pyrosequencing) data (find barcodes, remove primers, trim/pad)
+Process:     ion         pre-process Ion Torrent data
+             illumina    pre-process folder of de-multiplexed Illumina data
+             illumina2   pre-process PE Illumina data from a single file
+             454         pre-process Roche 454 (pyrosequencing) data
+             SRA         pre-process singe FASTQ per sample data (i.e. SRA data)
+             
+Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
+             dada2       dada2 denoising algorithm (requires R, dada2, ShortRead)
+             unoise2     UNOISE2 denoising algorithm
+             cluster_ref closed/open reference based clustering (EXPERIMENTAL)
+
+Utilities:   filter      OTU table filtering
+             taxonomy    Assign taxonomy to OTUs
              show        show number or reads per barcode from de-multiplexed data
              select      select reads (samples) from de-multiplexed data
              remove      remove reads (samples) from de-multiplexed data
              sample      sub-sample (rarify) de-multiplexed reads per sample
-             
-Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
-             dada2       dada2 denoising algorithm, produces "inferred sequences" (requires R, dada2, ShortRead)
-             unoise2     UNOISE2 denoising algorithm
-             cluster_ref closed/open reference based clustering (EXPERIMENTAL)
-
-Utilities:   drop        Drop OTUs from dataset
-             filter      OTU table filtering
-             taxonomy    Assign taxonomy to OTUs
+             drop        Drop OTUs from dataset
              summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs)
              funguild    Run FUNGuild (annotate OTUs with ecological information) 
              meta        pivot OTU table and append to meta data
              heatmap     Create heatmap from OTU table
-             SRA         De-multiplex data and create meta data for NCBI SRA submission
+             SRA-submit  De-multiplex data and create meta data for NCBI SRA submission
 
 Setup:       install     Download/install pre-formatted taxonomy DB. Only need to run once.
              database    Format Reference Databases for Taxonomy
@@ -104,10 +105,11 @@ if len(sys.argv) > 1:
 Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script processes Ion Torrent PGM data for AMPtk clustering.  The input to this script should be a 
-             FASTQ file obtained from the Torrent Server analyzed with the `--disable-all-filters` flag to the 
-             BaseCaller.  This script does the following: 1) finds Ion barcode sequences, 2) relabels headers with
-             appropriate barcode name, 3) removes primer sequences, 4) trim/pad reads to a set length.
+Description: Script processes Ion Torrent PGM data for AMPtk clustering.  The input to this script 
+             should be a FASTQ file obtained from the Torrent Server analyzed with the 
+             `--disable-all-filters` flag to the BaseCaller.  This script does the following: 
+             1) finds Ion barcode sequences, 2) relabels headers with appropriate barcode name,
+             3) removes primer sequences, 4) trim/pad reads to a set length.
     
 Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
              -o, --out           Output base name. Default: out
@@ -142,11 +144,12 @@ Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
 Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script takes Illumina MiSeq data that is not de-multiplexed and has read structure similar to Ion/454
-             such that the reads are <barcode><fwd_primer>Read<rev_primer> for clustering using AMPtk.  The default 
-             behavior is to: 1) merge the PE reads using USEARCH, 2) find barcodes, 3)find and trim primers, 
-             3) rename reads according to sample name, 4) trim/pad reads to a set length.  This script can also handle
-             dual barcodes (3' barcodes using the --reverse_barcode option). 
+Description: Script takes Illumina MiSeq data that is not de-multiplexed and has read structure 
+             similar to Ion/454 such that the reads are <barcode><fwd_primer>Read<rev_primer> for 
+             clustering using AMPtk.  The default behavior is to: 1) merge the PE reads using USEARCH, 
+             2) find barcodes, 3)find and trim primers, 3) rename reads according to sample name, 
+             4) trim/pad reads to a set length.  This script can also handle dual barcodes 
+             (3' barcodes using the --reverse_barcode option). 
     
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              --reverse           Illumina PE reverse reads.
@@ -182,9 +185,10 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
 Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script takes a folder of Illumina MiSeq data that is already de-multiplexed and processes it for
-             clustering using AMPtk.  The default behavior is to: 1) merge the PE reads using USEARCH, 2) find and
-             trim primers, 3) rename reads according to sample name, 4) trim/pad reads to a set length.
+Description: Script takes a folder of Illumina MiSeq data that is already de-multiplexed 
+             and processes it for clustering using AMPtk.  The default behavior is to: 
+             1) merge the PE reads using USEARCH, 2) find and trim primers, 3) rename reads 
+             according to sample name, 4) trim/pad reads to a set length.
     
 Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              -o, --out           Output folder name. Default: amptk-data
@@ -220,9 +224,10 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
 Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script processes Roche 454 data for AMPtk clustering.  The input to this script should be either a 
-             SFF file, FASTA+QUAL files, or FASTQ file.  This script does the following: 1) finds barcode sequences, 
-             2) relabels headers with appropriate barcode name, 3) removes primer sequences, 4) trim/pad reads to a set length.
+Description: Script processes Roche 454 data for AMPtk clustering.  The input to this script 
+             should be either a SFF file, FASTA+QUAL files, or FASTQ file.  This script does 
+             the following: 1) finds barcode sequences, 2) relabels headers with appropriate 
+             barcode name, 3) removes primer sequences, 4) trim/pad reads to a set length.
     
 Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
              -q, --qual          QUAL file (Required if -i is FASTA).
@@ -245,6 +250,43 @@ Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
             cmd = os.path.join(script_path, 'bin', 'amptk-process_ion.py')
             arguments.insert(0, cmd)
             arguments.append('--454')
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            sys.exit(1)
+    elif sys.argv[1] == 'SRA':
+        help = """
+Usage:       amptk %s <arguments>
+version:     %s
+
+Description: Script takes a folder of FASTQ files in a format you would get from NCBI SRA, i.e.
+             there is one FASTQ file for each sample.  Reads will be named according to sample name
+             and workflow is 1) find and trim primers, 2) rename reads according to filename,
+             and 3) trim/pad reads to a set length (optional).
+    
+Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
+             -o, --out           Output folder name. Default: amptk-data
+             -m, --mapping_file  QIIME-like mapping file
+             -f, --fwd_primer    Forward primer sequence. Default: fITS7
+             -r, --rev_primer    Reverse primer sequence Default: ITS4      
+             -l, --trim_len      Length to trim/pad reads. Default: 250
+             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: on
+             --min_len           Minimum length read to keep. Default: 50
+             --full_length       Keep only full length sequences.
+             --require_primer    Require the Forward primer to be present. Default: on [on,off]
+             --primer_mismatch   Number of mismatches in primers to allow. Default: 2
+             --cpus              Number of CPUs to use. Default: all
+             --cleanup           Remove intermediate files.
+             -u, --usearch       USEARCH executable. Default: usearch9
+        """ % (sys.argv[1], version)
+        
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'bin', 'amptk-process_illumina_folder.py')
+            arguments.insert(0, cmd)
+            arguments.append('--sra')
             exe = sys.executable
             arguments.insert(0, exe)
             subprocess.call(arguments)
@@ -387,9 +429,10 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
 Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script filters OTU table generated from the `amptk cluster` command and should be run on all datasets to combat
-             barcode-switching or index-bleed (as high as 2%% in MiSeq datasets, ~ 0.3%% in Ion PGM datasets).  This script 
-             works best when a spike-in control sequence is used, e.g. Synthetic Mock, although a mock is not required.
+Description: Script filters OTU table generated from the `amptk cluster` command and should 
+             be run on all datasets to combat barcode-switching or index-bleed (as high as 
+             2%% in MiSeq datasets, ~ 0.3%% in Ion PGM datasets).  This script works best when
+             a spike-in control sequence is used, e.g. Synthetic Mock, although a mock is not required.
     
 Required:    -i, --otu_table     OTU table
              -f, --fasta         OTU fasta
@@ -428,8 +471,8 @@ Filtering    -n, --normalize     Normalize reads to number of reads per sample [
 Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script filters de-multiplexed data (.demux.fq) to select only reads from samples provided
-             in a text file, one name per line.
+Description: Script filters de-multiplexed data (.demux.fq) to select only reads from samples 
+             provided in a text file, one name per line or pass a list to keep to --list.
     
 Required:    -i, --input     Input FASTQ file (.demux.fq)
              -l, --list      List of sample (barcode) names to keep, separate by space
@@ -478,9 +521,9 @@ Required:    -i, --input     Input FASTQ file (.demux.fq)
 Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script sub-samples (rarifies) de-multiplexed data to equal number of reads per sample. For community
-             analysis, this might not be appropriate as you are ignoring a portion of your data, however, there 
-             might be some applications where it is useful.
+Description: Script sub-samples (rarifies) de-multiplexed data to equal number of reads per 
+             sample. For community analysis, this might not be appropriate as you are ignoring 
+             a portion of your data, however, there might be some applications where it is useful.
     
 Required:    -i, --input       Input FASTQ file
              -n, --num_reads   Number of reads to sub-sample to
@@ -502,9 +545,9 @@ Required:    -i, --input       Input FASTQ file
 Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script takes meta data file in CSV format (e.g. from excel) and an OTU table as input.  The first column
-             of the meta data file must match the OTU table sample headers exactly.  It then pivots the OTU table and
-             appends it to the meta data file.  
+Description: Script takes meta data file in CSV format (e.g. from excel) and an OTU table as input.  
+             The first column of the meta data file must match the OTU table sample headers exactly.  
+             It then pivots the OTU table and appends it to the meta data file.  
     
 Required:    -i, --input       Input OTU table
              -m, --meta        Meta data table (csv format)
@@ -576,8 +619,8 @@ Options:     -i, --input        Input OTU table
 Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script creates a heatmap from an OTU table.  Several settings are customizable.  Requires Matplotlib,
-             numpy, and pandas.
+Description: Script creates a heatmap from an OTU table.  Several settings are customizable.  
+             Requires Matplotlib, numpy, and pandas.
 
 Arguments:   -i, --input         Input OTU table (Required)
              -o, --output        Output file (Required)
@@ -652,10 +695,11 @@ Required:    -i, --input     Input OTU file (.cluster.otus.fa) (FASTA)
 Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
-             uses a hybrid approach, e.g. gets taxonomy information from SINTAX, UTAX, and global alignment hits from the larger
-             UNITE-INSD database, and then parses results to extract the most taxonomy information that it can at 
-             'trustable' levels. SINTAX/UTAX results are used if BLAST-like search pct identity is less than 97%%.  
+Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  
+             By default the script uses a hybrid approach, e.g. gets taxonomy information from 
+             SINTAX, UTAX, and global alignment hits from the larger UNITE-INSD database, and 
+             then parses results to extract the most taxonomy information that it can at 'trustable' 
+             levels. SINTAX/UTAX results are used if BLAST-like search pct identity is less than 97%%.  
              If %% identity is greater than 97%%, the result with most taxonomy levels is retained.
     
 Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from amptk cluster) (Required)
@@ -807,25 +851,31 @@ Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI
             else:
                 print help
                 sys.exit(1)
-    elif sys.argv[1] == 'SRA':
+    elif sys.argv[1] == 'SRA-submit':
         help = """
 Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script aids in submitted your data to NCBI Sequence Read Archive (SRA) by splitting FASTQ file from Ion, 454, 
-             or Illumina by barcode sequence into separate files for submission to SRA.  This ensures your data
-             is minimally processed as only barcodes are removed.  Additionally, you can pass the --biosample argument
-             with an NCBI biosample tab-delimited file and the script will auto-populate an SRA submission file.
+Description: Script aids in submitted your data to NCBI Sequence Read Archive (SRA) by splitting 
+             FASTQ file from Ion, 454, or Illumina by barcode sequence into separate files for 
+             submission to SRA.  This ensures your data is minimally processed as only barcodes
+             are removed.  However, you can assert that primers must be found in order for 
+             sequences to be processed.  Additionally, you can pass the --biosample argument 
+             with an NCBI biosample tab-delimited file and the script will auto-populate an 
+             SRA submission file.
     
 Arguments:   -i, --input         Input FASTQ file or folder (Required)
              -o, --out           Output base name. Default: sra
+             -m, --mapping_file  QIIME-like mapping file.
              -b, --barcode_fasta Mulit-fasta file containing barcodes used.
              -s, --biosample     BioSample worksheet from NCBI (from confirmation email)
              -p, --platform      Sequencing platform. Defalt: ion (ion, illumina, 454)
-             -f, --fwd_primer    Forward primer sequence. Default: fITS7
-             -r, --rev_primer    Reverse primer sequence Default: ITS4
              -n, --names         CSV name mapping file, e.g. BC_1,NewName
              -d, --description   Paragraph description for SRA experimental design. Use quotes to wrap paragraph.
+             -f, --fwd_primer    Forward primer sequence. Default: fITS7
+             -r, --rev_primer    Reverse primer sequence. Default: ITS4
+             --primer_mismatch   Number of mismatches allowed in primer search. Default: 2
+             --require_primer    Require primer(s) to be present for output. Default: off [off,forward,both]
              --min_len           Minimum length read to keep after trimming barcodes. Default 50
              ---force            Overwrite directory with same name
         """ % (sys.argv[1], version)
