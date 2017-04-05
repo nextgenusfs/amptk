@@ -1,4 +1,4 @@
-###AMPtk to QIIME
+### AMPtk to QIIME
 Running the ["core diversity"](http://qiime.org/scripts/core_diversity_analyses.html) script in QIIME can be accomplished like so from AMPtk output.
 ```
 #run biom summary to see find lowest number of reads
@@ -9,7 +9,7 @@ core_diversity_analyses.py -i amptk.output.biom -m amptk.mapping_file.txt -t amp
                            -c Treatment1,Treatment2 -e 90000 -o core_diversity_output
 ```
 
-###AMPtk to PhyloSeq
+### AMPtk to PhyloSeq
 It is relatively straightforward to import your data into PhyloSeq in R.
 ```
 #load packages
@@ -27,7 +27,7 @@ plot_richness(physeq, measures=c("Observed", "Chao1", "Shannon"))
 plot_richness(physeq, x=Treatment1, color=Treatment1, measures=c("Observed", "Chao1", "Shannon"))
 ```
 
-###AMPtk to Vegan
+### AMPtk to Vegan
 Here you can take adavantage of the biom package to load your data and easily convert it to a format that vegan requires (which is essentially a classic OTU table that has been transposed).
 ```
 #load packages
