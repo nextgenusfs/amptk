@@ -59,7 +59,7 @@ def download(url, name):
         sys.stdout.write(status)
     f.close()
 
-version = '0.8.9'
+version = '0.9.0'
 
 default_help = """
 Usage:       amptk <command> <arguments>
@@ -72,7 +72,7 @@ Process:     ion         pre-process Ion Torrent data
              illumina    pre-process folder of de-multiplexed Illumina data
              illumina2   pre-process PE Illumina data from a single file
              454         pre-process Roche 454 (pyrosequencing) data
-             SRA         pre-process singe FASTQ per sample data (i.e. SRA data)
+             SRA         pre-process single FASTQ per sample data (i.e. SRA data)
              
 Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
              dada2       dada2 denoising algorithm (requires R, dada2, ShortRead)
@@ -874,6 +874,7 @@ Arguments:   -i, --input         Input FASTQ file or folder (Required)
              -d, --description   Paragraph description for SRA experimental design. Use quotes to wrap paragraph.
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence. Default: ITS4
+             -a, --append        Append a name to the output of all files in run, i.e. run1 -> Sample_run1
              --primer_mismatch   Number of mismatches allowed in primer search. Default: 2
              --require_primer    Require primer(s) to be present for output. Default: off [off,forward,both]
              --min_len           Minimum length read to keep after trimming barcodes. Default 50

@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y zlib1g-dev libssl-dev \
 RUN conda config --add channels r && \
     conda config --add channels bioconda && \
     conda install --yes -p $CONDA_DIR/envs/python2 biopython natsort psutil \
-    biom-format sra-tools r-base r-curl vsearch bioconductor-phyloseq
+    biom-format sra-tools rpy2 r-base r-essentials r-curl r-irkernel vsearch bioconductor-phyloseq
 
 RUN pip2 install -U srapy
 

@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-import sys, os, re, gzip, subprocess, argparse, inspect, logging, csv, shutil
+import sys, os, re, gzip, argparse, inspect, csv, shutil
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
-import lib.fasta as fasta
 import lib.revcomp_lib as revcomp_lib
 import lib.primer as primer
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
@@ -37,12 +36,12 @@ parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can 
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--require_primer', default='off', choices=['forward', 'both', 'off'], help='Require Primers to be present')
 parser.add_argument('--force', action='store_true', help='Overwrite existing directory')
+parser.add_argument('-a','--append', help='Append a name to all sample names for a run, i.e. --append run1 would yield Sample_run1')
 args=parser.parse_args()
 
-def FindBarcode(Seq):
-    global Barcodes
-    for BarcodeLabel in Barcodes.keys():
-        Barcode = Barcodes[BarcodeLabel]
+def FindBarcode(Seq, BarcodeDict):
+    for BarcodeLabel in BarcodeDict.keys():
+        Barcode = BarcodeDict[BarcodeLabel]
         if Seq.startswith(Barcode):
             return Barcode, BarcodeLabel
     return "", ""
@@ -86,9 +85,9 @@ if args.mapping_file:
     RevPrimer = mapdata[1]
     genericmapfile = args.mapping_file
 else:
-    if args.barcode_fasta == 'pgm_barcodes.fa':
+    if args.barcodes == 'pgm_barcodes.fa':
         #get script path and barcode file name
-        pgm_barcodes = os.path.join(parentdir, 'DB', args.barcode_fasta)
+        pgm_barcodes = os.path.join(parentdir, 'DB', args.barcodes)
         if args.barcodes == "all":
             if args.multi == 'False':
                 shutil.copyfile(pgm_barcodes, barcode_file)
@@ -114,7 +113,7 @@ else:
             outputSeqFile.close()
             inputSeqFile.close()
     else:
-        shutil.copyfile(args.barcode_fasta, barcode_file)
+        shutil.copyfile(args.barcodes, barcode_file)
     
     #parse primers here so doesn't conflict with mapping primers
     #look up primer db otherwise default to entry
@@ -128,7 +127,7 @@ else:
         RevPrimer = args.R_primer
 
     #because we use an 'A' linker between barcode and primer sequence, add an A if ion is chemistry
-    if args.ion:
+    if args.platform == 'ion':
         FwdPrimer = 'A' + FwdPrimer
         Adapter = 'CCATCTCATCCCTGCGTGTCTCCGACTCAG'
     else:
@@ -208,9 +207,10 @@ else:
     #this will loop through FASTQ file once, splitting those where barcodes are found, and primers trimmed
     runningTotal = 0
     trim = len(FwdPrimer)
+    #print Barcodes
     with open(args.FASTQ, 'rU') as input:
         for title, seq, qual in FastqGeneralIterator(input):
-            Barcode, BarcodeLabel = FindBarcode(seq)
+            Barcode, BarcodeLabel = FindBarcode(seq, Barcodes)
             if Barcode == "": #if not found, move onto next record
                 continue
             BarcodeLength = len(Barcode)
@@ -277,13 +277,13 @@ if args.biosample:
         header = next(reader)
         acc = header.index('Accession')
         sample = header.index('Sample Name')
-        bio = header.index('BioProject id')     
+        bio = header.index('BioProject')     
         try:
             host = header.index('Host')
         except ValueError:
             host = header.index('Organism')
         BioDict = {col[sample]:(col[acc],col[bio],col[host]) for col in reader}
-
+    #print BioDict
     #set some defaults based on the platform
     if args.platform == 'ion':
         header = 'bioproject_accession\tsample_name\tlibrary_ID\ttitle\tlibrary_strategy\tlibrary_source\tlibrary_selection\tlibrary_layout\tplatform\tinstrument_model\tdesign_description\tfiletype\tfilename\tbarcode\tforward_primer\treverse_primer\n'
@@ -313,31 +313,45 @@ if args.biosample:
     with open(sub_out, 'w') as output:
         output.write(header)
         for file in filelist:
-            
             if not args.description:
                 description = 'Fungal ITS amplicon library was created using a barcoded fusion primer PCR protocol using Pfx50 polymerase (Thermo Fisher Scientific), size selected, and sequenced on the %s platform.  Sequence data was minimally processed, sequences were exported directly from the sequencing platform and only the barcode (index sequence) was trimmed prior to SRA submission.' % (model)
             else:
                 description = args.description
             if args.platform == 'ion' or args.platform == '454': 
                 name = file.split(".fastq")[0]
-                if not name in BioDict:
-                    continue          
-                bioproject = BioDict.get(name)[1]
-                bioproject = 'PRJNA'+bioproject
-                sample_name = BioDict.get(name)[0]
+                if not name in BioDict: #lets try to look a bit harder, i.e. split on _ and - and look again
+                    searchname = name.replace('-', '_')
+                    searchname = searchname.split('_')[0]
+                    if not searchname in BioDict: #if still not found, then skip
+                        continue
+                else:
+                    searchname = name     
+                bioproject = BioDict.get(searchname)[1]
+                if not bioproject.startswith('PRJNA'):
+                    bioproject = 'PRJNA'+bioproject
+                sample_name = BioDict.get(searchname)[0]
                 title = 'Fungal ITS amplicon sequencing of %s: sample %s' % (BioDict.get(name)[2], name)
                 bc_name = file.split(".gz")[0]
                 barcode_seq = Barcodes.get(bc_name)
-                line = [bioproject,sample_name,name,title,lib_strategy,lib_source,lib_selection,lib_layout,sequencer,model,description,filetype,file,barcode_seq,FwdPrimer,RevPrimer]
+                if args.append:
+                    finalname = name+'_'+append
+                    #also need to change the name for output files
+                    newfile = file.replace(name, finalname)
+                    os.rename(os.path.join(args.out, file), os.path.join(args.out, newfile))
+                else:
+                    finalname = name
+                    newfile = file
+                line = [bioproject,sample_name,finalname,title,lib_strategy,lib_source,lib_selection,lib_layout,sequencer,model,description,filetype,newfile,barcode_seq,FwdPrimer,RevPrimer]
             elif args.platform == 'illumina':
                 name = file.split("_")[0]
                 if not name in BioDict:
                     continue
                 bioproject = BioDict.get(name)[1]
-                bioproject = 'PRJNA'+bioproject
+                if not bioproject.startswith('PRJNA'):
+                    bioproject = 'PRJNA'+bioproject
                 sample_name = BioDict.get(name)[0]
-                title = 'Fungal ITS amplicon sequencing of %s: sample %s' % (BioDict.get(name)[2], name)  
-                file2 = file.replace('_R1', '_R2')              
+                title = 'Fungal ITS amplicon sequencing of %s: sample %s' % (BioDict.get(name)[2], name)   
+                file2 = file.replace('_R1', '_R2')             
                 #count number of _ in name, determines the dataformat
                 fields = file.count("_")
                 if fields > 3: #this is full illumina name with dual barcodes
@@ -349,9 +363,21 @@ if args.biosample:
                     barcode_rev = file.split("_")[1]
                 else:
                     barcode_for = 'missing'
-                    barcode_rev = 'missing'            
-                line = [bioproject,sample_name,name,title,lib_strategy,lib_source,lib_selection,lib_layout,sequencer,model,description,filetype,file,file2,barcode_for,barcode_rev,FwdPrimer,RevPrimer]
-
+                    barcode_rev = 'missing'
+                if args.append:
+                    finalname = name+'_'+append
+                    newfile = file.replace(name, finalname)
+                    newfile2 = file2.replace(name, finalname)
+                    #also need to change the name for output files
+                    os.rename(os.path.join(args.out, file), os.path.join(args.out, newfile1))
+                    os.rename(os.path.join(args.out, file2), os.path.join(args.out, newfile2))
+                    file = file.replace(name, finalname)
+                else:
+                    finalname = name
+                    newfile = file
+                    newfile2 = file2
+                line = [bioproject,sample_name,finalname,title,lib_strategy,lib_source,lib_selection,lib_layout,sequencer,model,description,filetype,newfile,newfile2,barcode_for,barcode_rev,FwdPrimer,RevPrimer]
+            #write output to file
             output.write('\t'.join(line)+'\n')
     amptklib.log.info("SRA submission file created: %s" % sub_out)
 

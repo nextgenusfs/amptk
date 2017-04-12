@@ -35,6 +35,8 @@ parser.add_argument('--scaling', default='None', choices= ['z_score', 'standard'
 parser.add_argument('--debug', action='store_true', help='Print the data table to terminal')
 parser.add_argument('--normalize', help='Normalize data to pct of total, tsv sample ID<tab>reads')
 parser.add_argument('--normalize_counts', default=100000, type=int, help='Value to normalize read counts to')
+parser.add_argument('--vmax', type=int, help='Max value for heatmap')
+parser.add_argument('-f,','--format', default='pdf', choices=['pdf','jpg','svg','png'], help='format to save image in')
 args=parser.parse_args()
 
 #parse the figure size and get it into a tuple
@@ -53,16 +55,22 @@ def drawHeatmap(df, output):
     fig, ax = plt.subplots(figsize=(width,height))
     cbar_ax = fig.add_axes(shrink=0.4)
     if args.annotate:
-        sns.heatmap(df,linewidths=0.5, cmap=args.color, ax=ax, fmt="d", annot_kws={"size": 4}, annot=True)
+        if args.vmax:
+            sns.heatmap(df,linewidths=0.5, cmap=args.color, ax=ax, fmt="d", annot_kws={"size": 4}, annot=True, vmax=args.vmax)
+        else:
+            sns.heatmap(df,linewidths=0.5, cmap=args.color, ax=ax, fmt="d", annot_kws={"size": 4}, annot=True)
     else:
-        sns.heatmap(df,linewidths=0.5, cmap=args.color, ax=ax, annot=False)
+        if args.vmax:
+            sns.heatmap(df,linewidths=0.5, cmap=args.color, ax=ax, annot=False, vmax=args.vmax)
+        else:
+            sns.heatmap(df,linewidths=0.5, cmap=args.color, ax=ax, annot=False)
     plt.yticks(rotation=0)
     plt.xticks(rotation=90)
     for item in ax.get_xticklabels():
         item.set_fontsize(int(args.xaxis_fontsize))
     for item in ax.get_yticklabels():
         item.set_fontsize(int(args.yaxis_fontsize))
-    fig.savefig(output, format='pdf', dpi=1000, bbox_inches='tight')
+    fig.savefig(output, format=args.format, dpi=1000, bbox_inches='tight')
     plt.close(fig)
     
 def drawClustermap(df, output):
@@ -74,7 +82,7 @@ def drawClustermap(df, output):
         g = sns.clustermap(df, method=args.cluster_method, metric=args.distance_metric, linewidths=0.5, cmap=args.color, col_cluster=cluster, figsize=figSize)
     plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0, size=int(args.yaxis_fontsize), family=args.font)
     plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90, size=int(args.xaxis_fontsize), family=args.font, weight='bold')
-    g.savefig(output, format='pdf', dpi=1000, bbox_inches='tight')
+    g.savefig(output, format=args.format, dpi=1000, bbox_inches='tight')
 
 if args.delimiter == 'csv':
     delim = ','
@@ -110,8 +118,6 @@ if args.normalize:
         print norm_round
 else:
     norm_round = data
-
-
 
 #run heatmap
 if args.method == 'clustermap':
