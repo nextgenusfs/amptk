@@ -334,7 +334,7 @@ if args.biosample:
                 bc_name = file.split(".gz")[0]
                 barcode_seq = Barcodes.get(bc_name)
                 if args.append:
-                    finalname = name+'_'+append
+                    finalname = name+'_'+args.append
                     #also need to change the name for output files
                     newfile = file.replace(name, finalname)
                     os.rename(os.path.join(args.out, file), os.path.join(args.out, newfile))
@@ -365,7 +365,7 @@ if args.biosample:
                     barcode_for = 'missing'
                     barcode_rev = 'missing'
                 if args.append:
-                    finalname = name+'_'+append
+                    finalname = name+'_'+args.append
                     newfile = file.replace(name, finalname)
                     newfile2 = file2.replace(name, finalname)
                     #also need to change the name for output files
