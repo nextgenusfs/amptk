@@ -105,19 +105,25 @@ def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue):
     runSubprocess(cmd, log)
     #now concatenate files for downstream pre-process_illumina.py script
     final_out = os.path.join(tmpdir, outname)
-    with open(final_out, 'w') as cat_file:
+    tmp_merge = os.path.join(tmpdir, outname+'.tmp')
+    with open(tmp_merge, 'w') as cat_file:
         shutil.copyfileobj(open(merge_out,'rU'), cat_file)
         if rescue == 'on':
-            shutil.copyfileobj(open(skip_for,'rU'), cat_file)    
+            shutil.copyfileobj(open(skip_for,'rU'), cat_file)
+    #run phix removal
+    log.debug("Removing phix from %s" % outname)
+    cmd = [usearch, '-filter_phix', tmp_merge, '-output', final_out]
+    runSubprocess(cmd, log)
     #count output
     origcount = countfastq(R1)
     finalcount = countfastq(final_out)
-    pct_out = finalcount / float(origcount)
+    pct_out = finalcount / float(origcount) 
     #clean and close up intermediate files
     os.remove(merge_out)
     os.remove(pretrim_R1)
     os.remove(pretrim_R2)
     os.remove(skip_for)
+    os.remove(tmp_merge)
     return log.info('{0:,}'.format(finalcount) + ' reads passed ('+'{0:.1%}'.format(pct_out)+')')
 
 def dictFlip(input):
