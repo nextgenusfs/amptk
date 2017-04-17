@@ -59,7 +59,7 @@ def download(url, name):
         sys.stdout.write(status)
     f.close()
 
-version = '0.9.0'
+version = '0.9.1'
 
 default_help = """
 Usage:       amptk <command> <arguments>
@@ -375,6 +375,7 @@ Description: Script is a "wrapper" for the DADA2 pipeline.  It will "pick OTUs" 
     
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              -o, --out           Output base name. Default: dada2
+             -m, --min_reads     Minimum number of reads per sample. Default: 10
              -l, --length        Length to trim reads.
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
@@ -658,8 +659,8 @@ Description: Script drops OTUs from dataset and outputs new OTU table
     
 Required:    -i, --input     Input OTU file (.cluster.otus.fa) (FASTA)
              -r, --reads     Demultiplexed reads (.demux.fq) (FASTQ)
-             -l, --list      List of sample (barcode) names to remove, separate by space
-             -f, --file      List of sample (barcode) names to remove in a file, one per line
+             -l, --list      List of OTU names to remove, separate by space
+             -f, --file      List of OTU names to remove in a file, one per line
              -o, --out       Output file name. Default: amptk-drop
         """ % (sys.argv[1], version)
         arguments = sys.argv[2:]

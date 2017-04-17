@@ -26,6 +26,7 @@ parser=argparse.ArgumentParser(prog='amptk-dada2.py',
 
 parser.add_argument('-i','--fastq', required=True, help='Input Demuxed containing FASTQ')
 parser.add_argument('-o','--out', default='dada2', help='Output Basename')
+parser.add_argument('-m','--min_reads', default=10, type=int, help="Minimum number of reads after Q filtering to run DADA2 on")
 parser.add_argument('-l','--length', type=int, help='Length to truncate reads')
 parser.add_argument('-e','--maxee', default='1.0', help='MaxEE quality filtering')
 parser.add_argument('-p','--pct_otu', default='97', help="Biological OTU Clustering Percent")
@@ -60,14 +61,6 @@ def splitDemux2(input, outputdir):
             if len(seq) >= int(args.length):
                 with open(os.path.join(outputdir, sample+'.fastq'), 'ab') as output:
                     output.write("@%s\n%s\n+\n%s\n" % (title, seq[:int(args.length):], qual[:int(args.length)]))
-
-def splitDemux(input, outputdir, length):
-    for title, seq, qual in FastqGeneralIterator(open(input)):
-        sample = title.split('barcodelabel=')[1]
-        sample = sample.replace(';', '')
-        if len(seq) >= int(length):
-            with open(os.path.join(outputdir, sample+'.fastq'), 'ab') as output:
-                output.write("@%s\n%s\n+\n%s\n" % (title, seq[:int(length):], qual[:int(length)]))
 
 def getAvgLength(input):
     AvgLength = []
@@ -134,25 +127,16 @@ if os.path.isdir(filtfolder):
 os.makedirs(filtfolder)
 splitDemux2(derep, filtfolder)
 
-'''
-#Get Average length without any N's
-averageLen = getAvgLength(derep)
-amptklib.log.info("DADA2 compatible read lengths, avg: %i bp, min: %i bp, max: %i bp, top 95%%: %i bp" % (averageLen[0], averageLen[1], averageLen[2], averageLen[3]))
-if averageLen[0] < int(args.length):
-    TruncLen = int(averageLen[3])
-    amptklib.log.error('Warning: Average length of reads %i bp, is less than specified truncation length %s bp' % (averageLen[0], args.length))
-    amptklib.log.error('Resetting truncation length to %i bp (keep > 95%% of data) ' % TruncLen)
-else:
-    TruncLen = int(args.length)
-
-#now split into individual files
-amptklib.log.info("Splitting FASTQ file by Sample and truncating to %i bp" % TruncLen)
-filtfolder = args.out+'_filtered'
-if os.path.isdir(filtfolder):
-    shutil.rmtree(filtfolder)
-os.makedirs(filtfolder)
-splitDemux(derep, filtfolder, TruncLen)
-'''
+#check for minimum number of reads in each sample
+remove = []
+files = [i for i in os.listdir(filtfolder) if i.endswith('.fastq')]
+for x in files:
+    if amptklib.countfastq(os.path.join(filtfolder, x)) < args.min_reads:
+        remove.append(x)
+if len(remove) > 0:
+    amptklib.log.info("Dropping %s as fewer than %i reads" % (','.join(remove), args.min_reads))
+    for y in remove:
+        os.remove(os.path.join(filtfolder, y))
 
 #now run DADA2 on filtered folder
 amptklib.log.info("Running DADA2 pipeline")
