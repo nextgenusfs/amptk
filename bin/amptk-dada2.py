@@ -237,7 +237,7 @@ ClusterComp = args.out+'.iSeqs2clusters.txt'
 
 #map reads to DADA2 OTUs
 amptklib.log.info("Mapping reads to DADA2 iSeqs")
-cmd = ['vsearch', '--fastq_filter', os.path.abspath(args.fastq),'--fastq_qmax', '55', '--fastq_maxns', '0', '--fastaout', demuxtmp]
+cmd = ['vsearch', '--fastq_filter', os.path.abspath(no_ns),'--fastq_qmax', '55', '--fastaout', demuxtmp]
 amptklib.runSubprocess(cmd, amptklib.log)
 cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', iSeqs, '--id', '0.97', '--uc', dadademux, '--strand', 'plus', '--otutabout', chimeraFreeTable ]
 amptklib.runSubprocess(cmd, amptklib.log)
