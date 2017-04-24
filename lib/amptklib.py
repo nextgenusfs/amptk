@@ -73,6 +73,17 @@ def runSubprocess(cmd, logfile):
     if stderr:
         logfile.debug(stderr)
 
+def runSubprocess2(cmd, logfile, output):
+    #function where output of cmd is STDOUT, capture STDERR in logfile
+    logfile.debug(' '.join(cmd))
+    with open(output, 'w') as out:
+        proc = subprocess.Popen(cmd, stdout=out, stderr=subprocess.PIPE)
+    stderr = proc.communicate()
+    if stderr:
+        if stderr[0] != None:
+            logfile.debug(stderr)
+
+
 def getSize(filename):
     st = os.stat(filename)
     return st.st_size
@@ -86,7 +97,14 @@ def check_valid_file(input):
             return True
     else:
         return False
-
+        
+def bam2fastq(input, output):
+    import pybam
+    with open(output, 'w') as fastqout:
+        with open(input, 'rb') as bamin:
+            for title, seq, qual in pybam.read(bamin,['sam_qname', 'sam_seq','sam_qual']):
+                fastqout.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
+                
 def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue):
     pretrim_R1 = os.path.join(tmpdir, outname + '.pretrim_R1.fq')
     pretrim_R2 = os.path.join(tmpdir, outname + '.pretrim_R2.fq')

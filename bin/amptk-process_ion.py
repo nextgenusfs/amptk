@@ -158,6 +158,12 @@ amptklib.SystemInfo()
 usearch = args.usearch
 amptklib.versionDependencyChecks(usearch)
 
+#get number of CPUs to use
+if not args.cpus:
+    cpus = multiprocessing.cpu_count()
+else:
+    cpus = args.cpus
+
 #parse a mapping file or a barcode fasta file, primers, etc get setup
 #dealing with Barcodes, get ion barcodes or parse the barcode_fasta argument
 barcode_file = args.out + ".barcodes_used.fa"
@@ -268,11 +274,19 @@ elif args.fastq.endswith(".fas") or args.fastq.endswith(".fasta") or args.fastq.
         amptklib.log.info("FASTA + QUAL detected, converting to FASTQ")
         amptklib.faqual2fastq(args.fastq, args.qual, SeqIn)
 elif args.fastq.endswith('.bam'):
-    amptklib.CheckDependencies(['bedtools'])
+    #so we can convert natively with pybam, however it is 10X slower than bedtools/samtools
+    #since samtools is fastest, lets use that if exists, if not then bedtools, else default to pybam
+    amptklib.log.info("Converting Ion Torrent BAM file to FASTQ")
     SeqIn = args.out+'.fastq'
-    amptklib.log.info("Converting Ion Torrent BAM file to FASTQ using BedTools")
-    cmd = ['bedtools', 'bamtofastq', '-i', args.fastq, '-fq', SeqIn]
-    amptklib.runSubprocess(cmd, amptklib.log)
+    if amptklib.which('samtools'):
+        cmd = ['samtools', 'fastq', '-@', str(cpus), args.fastq]]
+        amptklib.runSuprocess2(cmd, amptklib.log, SeqIn)
+    else:
+        if amptklib.which('bedtools'):
+            cmd = ['bedtools', 'bamtofastq', '-i', args.fastq, '-fq', SeqIn]
+            amptklib.runSubprocess(cmd, amptklib.log)
+        else: #default to pybam
+            amptklib.bam2fastq(args.fastq, SeqIn)
 else:        
     SeqIn = args.fastq
 
@@ -322,12 +336,6 @@ if args.reverse_barcode:
                 else:
                     amptklib.log.error("Duplicate reverse barcodes detected, exiting")
                     sys.exit(1)
-#get number of CPUs to use
-if not args.cpus:
-    cpus = multiprocessing.cpu_count()
-else:
-    cpus = args.cpus
-
 #Count FASTQ records
 amptklib.log.info("Loading FASTQ Records")
 orig_total = amptklib.countfastq(SeqIn)
