@@ -279,8 +279,8 @@ elif args.fastq.endswith('.bam'):
     amptklib.log.info("Converting Ion Torrent BAM file to FASTQ")
     SeqIn = args.out+'.fastq'
     if amptklib.which('samtools'):
-        cmd = ['samtools', 'fastq', '-@', str(cpus), args.fastq]]
-        amptklib.runSuprocess2(cmd, amptklib.log, SeqIn)
+        cmd = ['samtools', 'fastq', '-@', str(cpus), args.fastq]
+        amptklib.runSubprocess2(cmd, amptklib.log, SeqIn)
     else:
         if amptklib.which('bedtools'):
             cmd = ['bedtools', 'bamtofastq', '-i', args.fastq, '-fq', SeqIn]

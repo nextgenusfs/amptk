@@ -59,7 +59,7 @@ def download(url, name):
         sys.stdout.write(status)
     f.close()
 
-version = '0.9.2'
+version = '0.9.3'
 
 default_help = """
 Usage:       amptk <command> <arguments>
@@ -96,7 +96,7 @@ Setup:       install     Download/install pre-formatted taxonomy DB. Only need t
              database    Format Reference Databases for Taxonomy
              primers     List primers hard-coded in AMPtk. Can use in pre-processing steps.
              
-Written by Jon Palmer (2015) nextgenusfs@gmail.com
+Written by Jon Palmer (2015-2017) nextgenusfs@gmail.com
         """ % version
 
 if len(sys.argv) > 1:
