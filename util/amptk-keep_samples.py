@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, argparse, os, inspect
+import sys, argparse, os, inspect, itertools
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -18,10 +18,24 @@ parser=argparse.ArgumentParser(prog='amptk-keep_samples.py',
 
 parser.add_argument('-i','--input', required=True, help='Input AMPtk demux FASTQ')
 parser.add_argument('-l','--list', nargs='+', help='Input list of (BC) names to keep')
+parser.add_argument('-t','--threshold', type=int, help='Keep samples with more reads than threshold')
 parser.add_argument('-f','--file', help='File containing list of names to keep')
 parser.add_argument('-o','--out', required=True, help='Output name')
 parser.add_argument('--format', default='fastq', choices=['fastq','fasta'], help='format of output file')
 args=parser.parse_args()
+
+def countBarcodes(file):
+    #now loop through data and find barcoded samples, counting each.....
+    BarcodeCount = {}
+    with open(file, 'rU') as input:
+        header = itertools.islice(input, 0, None, 4)
+        for line in header:
+            ID = line.split("=")[-1].split(";")[0]
+            if ID not in BarcodeCount:
+                BarcodeCount[ID] = 1
+            else:
+                BarcodeCount[ID] += 1
+    return BarcodeCount
 
 def filter_sample(file, output):
     global keep_count, total_count
@@ -36,31 +50,30 @@ def filter_sample(file, output):
                 if args.format == 'fasta':
                     out.write(">%s\n%s\n" % (title, seq))
 
-if not args.list:
-    if not args.file:
-        print "Error, you must specifiy a list of barcodes or a file containing barcodes"
-        os._exit(1)
-if not args.file:
-    if not args.list:
-        print "Error, you must specifiy a list of barcodes or a file containing barcodes"
-        os._exit(1)
-
-if args.list and args.file:
-    print "Error, you must specifiy either list of barcodes or a file containing barcodes, not both"
-    os._exit(1)
+keepers = []
+if args.threshold:
+    print("Keeping samples with more than %i reads" % args.threshold)
+    BC_counts = countBarcodes(args.input)
+    for k,v in BC_counts.items():
+        if int(v) >= args.threshold:
+            if not k in keepers:
+                keepers.append(k)
 
 if args.file:   
     count = amptklib.line_count(args.file)
     #load in list of sample names to keep
     with open(args.file, 'rU') as input:
         lines = [line.rstrip('\n') for line in input]
-
+    keepers = keepers + lines
+    
 if args.list:
     count = len(args.list)
     lines = args.list
+    keepers = keepers + lines
 
 #make sure it is a set, faster lookup
-keep_list = set(lines)
+keep_list = set(keepers)
+print("Keeping %i samples" % len(keep_list))
 
 #now run filtering 
 keep_count = 0
