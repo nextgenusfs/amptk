@@ -36,6 +36,8 @@ parser.add_argument('--keep_all', dest='keep_all', action='store_true', help="Ke
 parser.add_argument('--derep_fulllength', action='store_true', help="De-replicate sequences. Default: off")
 parser.add_argument('--primer_mismatch', default=4, help="Max Primer Mismatch")
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: max")
+parser.add_argument('--utax_trainlevels', default='kpcofgs', help="UTAX training parameters")
+parser.add_argument('--utax_splitlevels', default='NVkpcofgs', help="UTAX training parameters")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH8 EXE')
 args=parser.parse_args()
 
@@ -348,7 +350,7 @@ def makeDB(input):
         amptklib.log.info("Creating UTAX Database, this may take awhile")
         amptklib.log.debug("%s -makeudb_utax %s -output %s -report %s -utax_trainlevels kpcofgs -utax_splitlevels NVkpcofgs -notrunclabels" % (usearch, input, usearch_db, report))
         with open(utax_log, 'w') as utaxLog:
-            subprocess.call([usearch, '-makeudb_utax', input, '-output', usearch_db, '-report', report, '-utax_trainlevels', 'kpcofgs', '-utax_splitlevels', 'NVkpcofgs', '-notrunclabels'], stdout = utaxLog, stderr = utaxLog)
+            subprocess.call([usearch, '-makeudb_utax', input, '-output', usearch_db, '-report', report, '-utax_trainlevels', args.utax_trainlevels, '-utax_splitlevels', args.utax_splitlevels, '-notrunclabels'], stdout = utaxLog, stderr = utaxLog)
 
         #check if file is actually there
         if os.path.isfile(usearch_db):
