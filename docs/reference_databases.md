@@ -1,6 +1,6 @@
-###Methods for creating Pre-packaged Databases in AMPtk
+### Methods for creating Pre-packaged Databases in AMPtk
 
-####Fungal ITS DB
+#### Fungal ITS DB
 These databases were created from Unite v7.1.2 (released November 20th, 2016), first downloading two databases from the UNITE website.  First the General FASTA release of the DB [here](https://unite.ut.ee/sh_files/sh_general_release_s_20.11.2016.zip) and secondly the Full UNITE+INSD database [here](https://unite.ut.ee/sh_files/UNITE_public_20.11.2016.fasta.zip).  The taxonomy information is then reformated and databases produced as follows:
 ```
 #Create full length ITS USEARCH Database, trim primers if found, convert taxonomy, and create USEARCH database
@@ -12,7 +12,7 @@ amptk database -i sh_general_release_dynamic_s_20.11.2016_dev.fasta -o ITS1_UTAX
 amptk database -i sh_general_release_dynamic_s_20.11.2016_dev.fasta -o ITS2_UTAX --create_db utax -f fITS7 -r ITS4
 ```
 
-####Arthropod/Chordate mtCOI DB
+#### Arthropod/Chordate mtCOI DB
 These data were pulled from the [BOLDv4 database](http://v4.boldsystems.org)  Since most studies using mtCOI regions are interested in identification of insects in the diets of animals, the BOLD database was queried as follows.  All Chordata sequences were downloaded by querying the [BIN database using the search term Chordata](http://v4.boldsystems.org/index.php/Public_BINSearch?query=Chordata&searchBIN=Search+BINs).  Similarly, the Arthropods were searched by querying the [BIN databases using the search term Arthropoda](http://v4.boldsystems.org/index.php/Public_BINSearch?query=Arthropoda&searchBIN=Search+BINs).  All data was then downloaded as TSV output.
 
 The TSV output files (~ 6GB) where then each formatted using the following method, which reformats the taxonomy information and pulls sequences that are annotated in BINS.
@@ -34,7 +34,7 @@ amptk database -i arthropods.chordates.all4usearch.fa -o COI --create_db usearch
 amptk database -i arthropods.chordates.all4utax.fa -o COI_UTAX --create_db utax --keep_all --skip_trimming --format off
 ```
 
-####LSU database
+#### LSU database
 The fungal 28S database (LSU) was downloaded from [here](http://rdp.cme.msu.edu/download/current_Fungi_unaligned.fa.gz).  The sequences were then converted into AMPtk databases as follows:
 ```
 amptk database -i fungi.unaligned.fa -o LSU --format rdp2utax --skip_trimming --create_db usearch --derep_fulllength --keep_all
@@ -45,7 +45,7 @@ amptk database -i fungi.trimmed.fa -o LSU_UTAX --format off --skip_trimming --cr
 ```
 
 
-####16S database
+#### 16S database
 This is downloaded from R. Edgar's [website](http://drive5.com/utax/data/rdp_v16.tar.gz) and then formatted for AMPtk.  Note there is room for substantial improvement here, I just don't typically work on 16S - so please let me know if you want some suggestions on what to do here.
 ```
 amptk database -i rdp_v16.fa -o 16S --format off --create_db utax --skip_trimming --keep_all
