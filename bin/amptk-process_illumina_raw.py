@@ -27,8 +27,8 @@ parser=argparse.ArgumentParser(prog='amptk-process_illumina_raw.py', usage="%(pr
 
 parser.add_argument('-f','--forward', dest='fastq', required=True, help='Illumina FASTQ R1 reads')
 parser.add_argument('-r', '--reverse', required=True, help='Illumina FASTQ R2 reads')
-parser.add_argument('-i', '--index', required=True, help='Illumina FASTQ index reads')
-parser.add_argument('-m', '--mapping_file', required=True, help='QIIME-like mapping tool')
+parser.add_argument('-i', '--index', nargs='+', required=True, help='Illumina FASTQ index reads')
+parser.add_argument('-m', '--mapping_file', required=True, help='QIIME-like mapping file')
 parser.add_argument('--read_length', type=int, help='Read length, i.e. 2 x 300 bp = 300')
 parser.add_argument('-o','--out', dest="out", default='illumina_out', help='Base name for output')
 parser.add_argument('--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer')
@@ -150,6 +150,11 @@ if not args.cpus:
 else:
     cpus = args.cpus
 
+#create tmpdir
+tmpdir = args.out.split('.')[0]+'_'+str(os.getpid())
+if not os.path.exists(tmpdir):
+    os.makedirs(tmpdir)
+
 #parse a mapping file or a barcode fasta file, primers, etc get setup
 #dealing with Barcodes, get ion barcodes or parse the barcode_fasta argument
 barcode_file = args.out + ".barcodes_used.fa"
@@ -196,7 +201,15 @@ amptklib.log.info("Loading %i samples from mapping file" % len(mapdict))
 #process the index file, lookup in mapping file sample name, return dictionary
 #will return dictionary:  readID : (SampleID, BC, mismatches) and list of reads to be discarded
 amptklib.log.info("Mapping barcodes to sample IDs")
-indexReads, discard = amptklib.barcodes2dict(args.index, mapdict, args.barcode_mismatch)
+combined_index = os.path.join(tmpdir, 'indexes.fq')
+if len(args.index) > 1:
+    with open(combined_index, 'wb') as outfile:
+        for file in args.index:
+            with open(file, 'rU') as readfile:
+                shutil.copyfileobj(readfile, outfile)
+else:
+    combined_index = args.index[0]
+indexReads, discard = amptklib.barcodes2dict(combined_index, mapdict, args.barcode_mismatch)
 
 #estimate read length
 if amptklib.check_valid_file(args.fastq):
@@ -205,11 +218,6 @@ if amptklib.check_valid_file(args.fastq):
         ReadLen = args.read_length
     else:
         ReadLen = amptklib.GuessRL(args.fastq)
-
-#create tmpdir
-tmpdir = args.out.split('.')[0]+'_'+str(os.getpid())
-if not os.path.exists(tmpdir):
-    os.makedirs(tmpdir)
 
 #Count FASTQ records
 amptklib.log.info("Loading FASTQ Records")
