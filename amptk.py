@@ -247,8 +247,7 @@ Arguments:   -i, --fastq         FASTQ R1 (forward) file (Required)
              --cpus              Number of CPUs to use. Default: all
              --cleanup           Remove intermediate files.
              -u, --usearch       USEARCH executable. Default: usearch9
-        """ % (sys.argv[1], version)
-        
+        """ % (sys.argv[1], version)  
         arguments = sys.argv[2:]
         if len(arguments) > 1:
             cmd = os.path.join(script_path, 'bin', 'amptk-process_illumina_raw.py')
