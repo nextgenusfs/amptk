@@ -71,6 +71,7 @@ Description: AMPtk is a package of scripts to process NGS amplicon data.
 Process:     ion         pre-process Ion Torrent data
              illumina    pre-process folder of de-multiplexed Illumina data
              illumina2   pre-process PE Illumina data from a single file
+             illumina3   pre-process PE Illumina + index reads (i.e. R1, R2, I)
              454         pre-process Roche 454 (pyrosequencing) data
              SRA         pre-process single FASTQ per sample data (i.e. SRA data)
              
