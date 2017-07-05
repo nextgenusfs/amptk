@@ -275,7 +275,7 @@ with open(ClusterComp, 'w') as clusters:
 amptklib.log.info("Mapping reads to OTUs")
 cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', bioSeqs, '--id', '0.97', '--uc', uctmp, '--strand', 'plus', '--otutabout', bioTable]
 amptklib.runSubprocess(cmd, amptklib.log)
-total = amptklib.line_count(uctmp)
+total = amptklib.line_count2(uctmp)
 amptklib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
 
 if not args.debug:

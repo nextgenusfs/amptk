@@ -78,7 +78,7 @@ amptklib.versionDependencyChecks(usearch)
 
 #Setup DB locations and names, etc
 DBdir = os.path.join(parentdir, 'DB')
-DataBase = { 'ITS1': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS1_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), 'ITS2': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS2_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), 'ITS': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), '16S': (None, os.path.join(DBdir, '16S.udb'), os.path.join(DBdir, '16S.extracted.fa')), 'LSU': (os.path.join(DBdir, 'LSU.udb'), os.path.join(DBdir, 'LSU_UTAX.udb'), os.path.join(DBdir, 'LSU.extracted.fa')), 'COI': (os.path.join(DBdir,'COI.udb'), os.path.join(DBdir, 'COI_UTAX.udb'), os.path.join(DBdir, 'COI.extracted.fa'))}
+DataBase = { 'ITS1': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS1_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), 'ITS2': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS2_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), 'ITS': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), '16S': (os.path.join(DBdir, '16S.udb'), os.path.join(DBdir, '16S.udb'), os.path.join(DBdir, '16S.extracted.fa')), 'LSU': (os.path.join(DBdir, 'LSU.udb'), os.path.join(DBdir, 'LSU_UTAX.udb'), os.path.join(DBdir, 'LSU.extracted.fa')), 'COI': (os.path.join(DBdir,'COI.udb'), os.path.join(DBdir, 'COI_UTAX.udb'), os.path.join(DBdir, 'COI.extracted.fa'))}
 
 #get DB names up front
 if args.db in DataBase:
@@ -222,101 +222,42 @@ if not args.taxonomy:
 
         #now process results, load into dictionary - slightly different depending on which classification was run.
         if args.method == 'hybrid' and os.path.isfile(utax_out) and os.path.isfile(usearch_out) and os.path.isfile(sintax_out): #now run hybrid approach
+            #run upgraded method, first load dictionaries with resuls
+            utaxDict = amptklib.classifier2dict(utax_out, args.utax_cutoff)
+            sintaxDict = amptklib.classifier2dict(sintax_out, args.sintax_cutoff)
+            usearchDict = amptklib.usearchglobal2dict(usearch_out)
+            otuList = natsorted(list(usearchDict.keys()))
+            #first compare classifier results, getting better of the two
+            bestClassify = amptklib.bestclassifier(utaxDict, sintaxDict, otuList)
+            #now get best taxonomy by comparing to global alignment results
+            otuDict = amptklib.bestTaxonomy(usearchDict, bestClassify)
+            
+        elif args.method == 'utax' and os.path.isfile(utax_out):
             #load results into dictionary for appending to OTU table
             amptklib.log.debug("Loading UTAX results into dictionary")
             with open(utax_out, 'rU') as infile:
                 reader = csv.reader(infile, delimiter="\t")
-                utaxDict = {rows[0]:rows[2] for rows in reader}
-            amptklib.log.debug("Loading SINTAX results into dictionary")
-            with open(sintax_out, 'rU') as infile:
-                reader = csv.reader(infile, delimiter="\t")
-                sintaxDict = {rows[0]:rows[3] for rows in reader}
-
-            amptklib.log.debug("Loading Global Alignment results into dictionary, cross-checking")
-            newTable = []
-            usearchDict = {}
-            with open(usearch_out, 'rU') as infile:
-                reader = csv.reader(infile, delimiter="\t")
-                for line in reader:
-                    usearchDict[line[0]] = line[1]+' ('+line[2]+')'
-                    if line[1] == "*":
-                        utaxLook = utaxDict.get(line[0]) or "No Hit"
-                        sintaxLook = sintaxDict.get(line[0]) or "No Hit"
-                        if utaxLook != "No Hit":
-                            utaxLook = 'UTAX;' + utaxLook
-                        if sintaxLook != "No Hit":
-                            sintaxLook = 'SINTAX;' + sintaxLook
-                        if sintaxLook.count(',') >= utaxLook.count(','):
-                            if 'No Hit' in sintaxLook:
-                                newTable.append([line[0], 'UTAX;*'])
-                            else:
-                                newTable.append([line[0], sintaxLook])
-                        else:
-                            newTable.append([line[0], utaxLook])
-                    elif float(line[2]) < 97:
-                        utaxLook = utaxDict.get(line[0]) or "No Hit"
-                        sintaxLook = sintaxDict.get(line[0]) or "No Hit"
-                        if utaxLook != "No Hit":
-                            utaxLook = 'UTAX;' + utaxLook
-                        if sintaxLook != "No Hit":
-                            sintaxLook = 'SINTAX;' + sintaxLook
-                        if sintaxLook.count(',') >= utaxLook.count(','):
-                            newTable.append([line[0], sintaxLook])
-                        else:
-                            newTable.append([line[0], utaxLook])
-                    else:
-                        #compare the levels of taxonomy, by counting tax levels
-                        utaxLook = utaxDict.get(line[0])
-                        utaxCount = utaxLook.count(',')
-                        sintaxLook = sintaxDict.get(line[0])
-                        sintaxCount = sintaxLook.count(',')
-                        usearchResult = line[1]
-                        usearchCount = usearchResult.count(',')
-                        if utaxCount == sintaxCount == usearchCount:
-                            newTable.append([line[0], re.sub("tax=", "", usearchResult)])
-                        elif utaxCount > sintaxCount and utaxCount > usearchCount:
-                            utaxLook = 'UTAX;' + utaxLook
-                            newTable.append([line[0], utaxLook])
-                        elif sintaxCount > utaxCount and sintaxCount > usearchCount:
-                            sintaxLook = 'SINTAX;' + sintaxLook
-                            newTable.append([line[0], sintaxLook])
-                        elif usearchCount > utaxCount and usearchCount > sintaxCount:
-                            newTable.append([line[0], re.sub("tax=", "", usearchResult)])
-                        elif utaxCount == sintaxCount and utaxCount > usearchCount:
-                            utaxLook = 'UTAX;' + utaxLook
-                            newTable.append([line[0], utaxLook])
-                        elif usearchCount == utaxCount or usearchCount == sintaxCount:
-                            newTable.append([line[0], re.sub("tax=", "", usearchResult)])
-                        else:
-                            print "Help, logic error"            
-            otuDict = {rows[0]:rows[1] for rows in newTable}
-    
-        elif args.method == 'utax' and os.path.isfile(utax_out):    
-            #load results into dictionary for appending to OTU table
-            amptklib.log.debug("Loading UTAX results into dictionary")
-            with open(utax_out, 'rU') as infile:
-                reader = csv.reader(infile, delimiter="\t")
-                otuDict = {rows[0]:rows[2] for rows in reader}
+                otuDict = {rows[0]:'UTAX;'+rows[2] for rows in reader}
     
         elif args.method == 'usearch' and os.path.isfile(usearch_out): 
             #load results into dictionary for appending to OTU table
             amptklib.log.debug("Loading Global Alignment results into dictionary")
-            newTable = []
-            with open(usearch_out, 'rU') as infile:
-                reader = csv.reader(infile, delimiter="\t")
-                for line in reader:
-                    if line[1] == "*":
-                        newTable.append([line[0], 'No hit'])
-                    else:
-                        newTable.append([line[0], re.sub("tax=", "", line[1])+' ('+line[2]+')'])
-            otuDict = {rows[0]:rows[1] for rows in newTable} 
+            otuDict = {}
+            usearchDict = amptklib.usearchglobal2dict(usearch_out)
+            for k,v in natsorted(usearchDict.items()):
+                pident = float(v[0]) * 100
+                pident = "{0:.1f}".format(pident)
+                ID = v[1]
+                tax = ','.join(v[-1])
+                fulltax = 'GS|'+pident+'|'+ID+';'+tax
+                otuDict[k] = fulltax
 
         elif args.method == 'sintax' and os.path.isfile(sintax_out):
             #load results into dictionary for appending to OTU table
             amptklib.log.debug("Loading SINTAX results into dictionary")
             with open(sintax_out, 'rU') as infile:
                 reader = csv.reader(infile, delimiter="\t")
-                otuDict = {rows[0]:rows[3] for rows in reader} 
+                otuDict = {rows[0]:'SINTAX;'+rows[3] for rows in reader} 
 else:
     #you have supplied a two column taxonomy file, parse and build otuDict
     amptklib.log.debug("Loading custom Taxonomy into dictionary")
@@ -400,7 +341,10 @@ if not args.taxonomy:
         if args.method == 'hybrid':
             finaltax.write('#OTUID\ttaxonomy\tUSEARCH\tSINTAX\tUTAX\n')
             for k,v in natsorted(otuDict.items()):
-                finaltax.write('%s\t%s\t%s\t%s\t%s\n' % (k,v, usearchDict.get(k), sintaxDict.get(k), utaxDict.get(k)))
+                usearchResult = usearchDict.get(k)[-1]
+                if not usearchResult == 'No hit':
+                    usearchResult = ','.join(usearchResult)
+                finaltax.write('%s\t%s\t%s\t%s\t%s\n' % (k,v, usearchResult, ','.join(sintaxDict.get(k)[-1]), ','.join(utaxDict.get(k)[-1])))
         else:
             finaltax.write('#OTUID\ttaxonomy\n')
             for k,v in natsorted(otuDict.items()):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, re, gzip, argparse, inspect, csv, shutil
+import sys, os, re, gzip, argparse, inspect, csv, shutil, edlib
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
@@ -32,6 +32,7 @@ parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help=
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer (ITS4)')
 parser.add_argument('-n', '--names', help='CSV mapping file BC,NewName')
 parser.add_argument('-d', '--description', help='Paragraph description for SRA metadata')
+parser.add_argument('-t','--title', default='Fungal ITS', help='Start of title for SRA submission, name it according to amplicon')
 parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--require_primer', default='off', choices=['forward', 'both', 'off'], help='Require Primers to be present')
@@ -56,6 +57,9 @@ cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 amptklib.SystemInfo()
+
+amptkversion = amptklib.get_version()
+
 #create output directory
 if not os.path.exists(args.out):
     os.makedirs(args.out)
@@ -171,20 +175,29 @@ else:
     #if --names given, load into dictonary
     if args.names:
         amptklib.log.info("Parsing names for output files via %s" % args.names)
+        namesDict = {}
         with open(args.names, 'rU') as input:
-            reader = csv.reader(input)
-            namesDict = {col[0]:col[1] for col in reader}
+            for line in input:
+                line = line.replace('\n', '')
+                cols = line.split(',')
+                if not cols[0] in namesDict:
+                    namesDict[cols[0]] = cols[1]
 
     #load barcode fasta file into dictonary
     Barcodes = {}
     with open(barcode_file, 'rU') as input:
         for line in input:
             if line.startswith('>'):
+                ID = line[1:-1].replace(' ', '')
                 if args.names:
-                    name = namesDict.get(line[1:-1])
-                    name = name + ".fastq"          
+                    name = namesDict.get(ID)
+                    if not name:
+                        amptklib.log.error("%s not found in --names, keeping original name" % ID)
+                        name = ID + ".fastq"
+                    else:
+                        name = name + ".fastq"          
                 else:
-                    name = line[1:-1] + ".fastq"
+                    name = ID + ".fastq"
                 continue
             Barcodes[name]=line.strip()
 
@@ -207,7 +220,6 @@ else:
     #this will loop through FASTQ file once, splitting those where barcodes are found, and primers trimmed
     runningTotal = 0
     trim = len(FwdPrimer)
-    #print Barcodes
     with open(args.FASTQ, 'rU') as input:
         for title, seq, qual in FastqGeneralIterator(input):
             Barcode, BarcodeLabel = FindBarcode(seq, Barcodes)
@@ -314,7 +326,7 @@ if args.biosample:
         output.write(header)
         for file in filelist:
             if not args.description:
-                description = 'Fungal ITS amplicon library was created using a barcoded fusion primer PCR protocol using Pfx50 polymerase (Thermo Fisher Scientific), size selected, and sequenced on the %s platform.  Sequence data was minimally processed, sequences were exported directly from the sequencing platform and only the barcode (index sequence) was trimmed prior to SRA submission.' % (model)
+                description = '%s amplicon library was created using a barcoded fusion primer PCR protocol using Pfx50 polymerase (Thermo Fisher Scientific), size selected, and sequenced on the %s platform.  Sequence data was minimally processed, sequences were exported directly from the sequencing platform and only the barcode (index sequence) was trimmed prior to SRA submission. SRA submission generated with AMPtk %s' % (args.title, model, amptkversion.split(' ')[-1])
             else:
                 description = args.description
             if args.platform == 'ion' or args.platform == '454': 
@@ -330,7 +342,7 @@ if args.biosample:
                 if not bioproject.startswith('PRJNA'):
                     bioproject = 'PRJNA'+bioproject
                 sample_name = BioDict.get(searchname)[0]
-                title = 'Fungal ITS amplicon sequencing of %s: sample %s' % (BioDict.get(name)[2], name)
+                title = '%s amplicon sequencing of %s: sample %s' % (args.title, BioDict.get(name)[2], name)
                 bc_name = file.split(".gz")[0]
                 barcode_seq = Barcodes.get(bc_name)
                 if args.append:
@@ -350,7 +362,7 @@ if args.biosample:
                 if not bioproject.startswith('PRJNA'):
                     bioproject = 'PRJNA'+bioproject
                 sample_name = BioDict.get(name)[0]
-                title = 'Fungal ITS amplicon sequencing of %s: sample %s' % (BioDict.get(name)[2], name)   
+                title = '%s amplicon sequencing of %s: sample %s' % (args.title, BioDict.get(name)[2], name)   
                 file2 = file.replace('_R1', '_R2')             
                 #count number of _ in name, determines the dataformat
                 fields = file.count("_")

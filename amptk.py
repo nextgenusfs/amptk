@@ -59,7 +59,7 @@ def download(url, name):
         sys.stdout.write(status)
     f.close()
 
-version = '0.9.3'
+version = '0.10.0'
 
 default_help = """
 Usage:       amptk <command> <arguments>
@@ -119,7 +119,7 @@ Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
              -b, --barcodes      Barcodes used (list, e.g: 1,3,4,5,20). Default: all
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -l, --trim_len      Length to trim/pad reads. Default: 250
-             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: on
+             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
              --min_len           Minimum length read to keep. Default: 50
              --full_length       Keep only full length sequences.
              --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
@@ -159,7 +159,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -r, --rev_primer    Reverse primer sequence Default: ITS4
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -l, --trim_len      Length to trim/pad reads. Default: 250
-             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: on
+             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
              --min_len           Minimum length read to keep. Default: 50
              --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
              --reverse_barcode   FASTA file containing 3' barcodes. Default: none
@@ -196,8 +196,8 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4      
              -l, --trim_len      Length to trim/pad reads. Default: 250
-             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: on
-             --min_len           Minimum length read to keep. Default: 50
+             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
+             --min_len           Minimum length read to keep. Default: 100
              --full_length       Keep only full length sequences.
              --reads             Paired-end or forward reads. Default: paired [paired, forward]
              --read_length       Illumina Read length (250 if 2 x 250 bp run). Default: auto detect
@@ -206,6 +206,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
              --cpus              Number of CPUs to use. Default: all
              --cleanup           Remove intermediate files.
+             --merge_method      Software to use for PE merging. Default: usearch [usearch,vsearch]
              -u, --usearch       USEARCH executable. Default: usearch9
         """ % (sys.argv[1], version)
         
@@ -237,7 +238,7 @@ Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
              -r, --rev_primer    Reverse primer sequence Default: ITS4
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
              -l, --trim_len      Length to trim/pad reads. Default: 250
-             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: on
+             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
              --min_len           Minimum length read to keep. Default: 50
              --barcode_fasta     FASTA file containing barcodes. (Required)
              --reverse_barcode   FASTA file containing 3' barcodes. Default: none
@@ -272,7 +273,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4      
              -l, --trim_len      Length to trim/pad reads. Default: 250
-             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: on
+             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
              --min_len           Minimum length read to keep. Default: 50
              --full_length       Keep only full length sequences.
              --require_primer    Require the Forward primer to be present. Default: on [on,off]
@@ -722,6 +723,7 @@ Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from amptk cluster)
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
              --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi to keep only fungi.
              -u, --usearch       USEARCH executable. Default: usearch9
+             --debug             Keep intermediate files
 
 Databases Configured: 
 %s 
@@ -754,8 +756,12 @@ Arguments:   -i, --fasta         Input FASTA file
              --create_db         Create a DB. Default: usearch [utax, usearch]
              --skip_trimming     Keep full length sequences. Default: off
              --derep_fulllength  Remove identical sequences.
+             --min_len           Minimum length to keep.
+             --max_len           Maximum length to keep.
              --primer_mismatch   Max Primer Mismatch. Default: 4
              --keep_all          Keep Sequence if forward primer not found.
+             --utax_trainlevels  UTAX custom parameters. Default: kpcofgs
+             --utax_splitlevels  UTAX custom parameters. Default: NVkpcofgs
              --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch9       
         """ % (sys.argv[1], version)

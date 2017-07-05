@@ -30,6 +30,8 @@ parser.add_argument('-f','--fwd_primer', dest='F_primer', default='fITS7', help=
 parser.add_argument('-r','--rev_primer', dest='R_primer', default='ITS4', help='Reverse primer (ITS4)')
 parser.add_argument('--skip_trimming', dest='trimming', action='store_true', help='Skip Primer trimming (not recommended)')
 parser.add_argument('--format', dest='utax', default='unite2utax', choices=['unite2utax', 'rdp2utax', 'off'], help='Reformat FASTA headers for UTAX')
+parser.add_argument('--min_len', default=100, type=int, help='Minimum read length to keep')
+parser.add_argument('--max_len', default=1200, type=int, help='Maximum read length to keep')
 parser.add_argument('--drop_ns', dest='drop_ns', type=int, default=8, help="Drop Seqeunces with more than X # of N's")
 parser.add_argument('--create_db', dest='create_db', choices=['utax', 'usearch'], help="Create USEARCH DB")
 parser.add_argument('--keep_all', dest='keep_all', action='store_true', help="Keep Seq if For primer not found Default: off")
@@ -269,7 +271,7 @@ def stripPrimer(records):
                     if args.drop_ns != 0 and 'N'*args.drop_ns in StrippedSeq:
                         continue
                     rec.seq = StrippedSeq
-                    if rec.id != "" and rec.seq != "" and len(rec.seq) > 50:
+                    if rec.id != "" and rec.seq != "" and len(rec.seq) >= args.min_len and len(rec.seq) <= args.max_len:
                         yield rec
             else: #if can't find forward primer, try to reverse complement and look again
                 RevSeq = revcomp_lib.RevComp(Seq)
@@ -289,7 +291,7 @@ def stripPrimer(records):
                         if args.drop_ns != 0 and 'N'*args.drop_ns in StrippedSeq:
                             continue
                         rec.seq = StrippedSeq
-                        if rec.id != "" and rec.seq != "" and len(rec.seq) > 50:
+                        if rec.id != "" and rec.seq != "" and len(rec.seq) >= args.min_len and len(rec.seq) <= args.max_len:
                             yield rec
                 else:
                     if args.keep_all:
@@ -304,14 +306,14 @@ def stripPrimer(records):
                         if args.drop_ns != 0 and 'N'*args.drop_ns in StrippedSeq:
                             continue
                         rec.seq = StrippedSeq
-                        if rec.id != "" and rec.seq != "" and len(rec.seq) > 50:
+                        if rec.id != "" and rec.seq != "" and len(rec.seq) >= args.min_len and len(rec.seq) <= args.max_len:
                             yield rec
         else:
             #check for ambig bases
             Seq = str(rec.seq)
             if args.drop_ns != 0 and 'N'*args.drop_ns in Seq:
                 continue
-            if rec.id != "" and rec.seq != "" and len(rec.seq) > 50:
+            if rec.id != "" and rec.seq != "" and len(rec.seq) >= args.min_len and len(rec.seq) <= args.max_len:
                 yield rec
 
 def makeDB(input):
@@ -465,17 +467,17 @@ if args.derep_fulllength:
     Passed = countfasta(OutName)
     amptklib.log.info('{0:,}'.format(Passed) + ' records passed (%.2f%%)' % (Passed*100.0/SeqCount))
     amptklib.log.info("Now dereplicating sequences (remove if sequence and header identical)")
-    Derep = args.out + '.derep.extracted.fa'
-    dereplicate(OutName, Derep)
-    Total = countfasta(Derep)
+    derep_tmp = args.out + '.derep.extracted.fa'
+    os.rename(OutName, derep_tmp)
+    dereplicate(derep_tmp, OutName)
+    Total = countfasta(OutName)
     amptklib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/Passed))
-    os.remove(OutName)
+    os.remove(derep_tmp)
 else:
     Total = countfasta(OutName)
     amptklib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
-    Derep = OutName
 
 if args.create_db:
-    makeDB(Derep)
+    makeDB(OutName)
 
 print "-------------------------------------------------------"
