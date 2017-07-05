@@ -220,6 +220,45 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
         else:
             print help
             sys.exit(1)
+    elif sys.argv[1] == 'illumina3':
+        help = """
+Usage:       amptk %s <arguments>
+version:     %s
+
+Description: Script takes PE Illumina reads, Index reads, mapping file and processes for 
+             clustering/denoising in AMPtk.  The default behavior is to: 
+             1) merge the PE reads using VSEARCH, 2) filter for Phix, 3) find and trim primers,
+             4) rename reads according to sample name, 4) trim/pad reads.
+    
+Arguments:   -i, --fastq         FASTQ R1 (forward) file (Required)
+             --reverse           FASTQ R2 (reverse) file (Required)
+             --index             FASTQ I3 (index) file (Required)
+             -m, --mapping_file  QIIME-like mapping file. (Required)
+             -o, --out           Output folder name. Default: amptk-data  
+             -l, --trim_len      Length to trim/pad reads. Default: 300
+             --min_len           Minimum length read to keep. Default: 100
+             --full_length       Keep only full length sequences.
+             --read_length       Illumina Read length (250 if 2 x 250 bp run). Default: auto detect
+             --rescue_forward    Rescue Forward Reads if PE do not merge, e.g. long amplicons. Default: on [on,off]
+             --require_primer    Require the Forward primer to be present. Default: off [on,off]
+             --primer_mismatch   Number of mismatches in primers to allow. Default: 2
+             --barcode_mismatch  Number of mismatches in index (barcodes) to allow. Default: 2
+             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
+             --cpus              Number of CPUs to use. Default: all
+             --cleanup           Remove intermediate files.
+             -u, --usearch       USEARCH executable. Default: usearch9
+        """ % (sys.argv[1], version)
+        
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'bin', 'amptk-process_illumina_raw.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            sys.exit(1)
     elif sys.argv[1] == '454':
         help = """
 Usage:       amptk %s <arguments>
@@ -907,7 +946,7 @@ Arguments:   -i, --input         Input FASTQ file or folder (Required)
         print "----------------------------------"
         sys.exit(1)
     elif sys.argv[1] == 'version':
-        print "amptk v.%s" % version
+        print "AMPtk v.%s" % version
     else:
         print "%s option not recognized" % sys.argv[1]
         print default_help

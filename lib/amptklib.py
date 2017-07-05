@@ -4,6 +4,7 @@ parentdir = os.path.dirname(currentdir)
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from natsort import natsorted
+import revcomp_lib
 
 ASCII = {'!':'0','"':'1','#':'2','$':'3','%':'4','&':'5',"'":'6','(':'7',')':'8','*':'9','+':'10',',':'11','-':'12','.':'13','/':'14','0':'15','1':'16','2':'17','3':'18','4':'19','5':'20','6':'21','7':'22','8':'23','9':'24',':':'25',';':'26','<':'27','=':'28','>':'29','?':'30','@':'31','A':'32','B':'33','C':'34','D':'35','E':'36','F':'37','G':'38','H':'39','I':'40','J':'41','K':'42','L':'43','M':'44','N':'45','O':'46','P':'47','Q':'48','R':'49','S':'50'}
 
@@ -387,35 +388,40 @@ def utax2qiime(input, output):
                 outfile.write('%s\t%s\n' % (OTU, ';'.join(levList)))
 
   
-def barcodes2dict(input, mapDict):
+def barcodes2dict(input, mapDict, bcmismatch):
     from Bio.SeqIO.QualityIO import FastqGeneralIterator
+    import edlib
     #here expecting the index reads from illumina, create dictionary for naming?
-    BCdict = {}
+    Results = {}
+    NoMatch = []
     for title, seq, qual in FastqGeneralIterator(open(input)):
-        readID = title.split(' ')[0]
-        if mapDict:
-            if seq in mapDict:
-                BC = mapDict.get(seq)
-            else:
-                hit = [None, None, 0, None, None]
-                for k,v in mapDict.items():
-                    alignment = fuzzymatch(k, seq, '2')
-                    if alignment:
-                        if alignment[0] > hit[2]:
-                            hit = [k, v, alignment[0], alignment[1], alignment[2]]
-                    else:
-                        continue
-                if hit[0] != None:
-                    BC = hit[1]
-                else:
+        hit = [None, None, None]
+        titlesplit = title.split(' ')
+        readID = titlesplit[0]
+        orient = titlesplit[1]
+        if orient.startswith('2:'):
+            seq = revcomp_lib.RevComp(seq)
+        if seq in mapDict:
+            BC = mapDict.get(seq)
+            hit = [BC,seq, 0]
+        else:
+            for k,v in mapDict.items():
+                alignment = edlib.align(k, seq, mode="NW", k=bcmismatch)
+                if alignment["editDistance"] < 0:
                     continue
-        else:
-            BC = seq
-        if not readID in BCdict:
-            BCdict[readID] = BC
-        else:
-            print "duplicate read ID found: %s" % readID
-    return BCdict
+                if hit[0]:
+                    oldhit = hit[2]
+                    if alignment["editDistance"] < oldhit:
+                        hit = [v, k, alignment["editDistance"]]
+                else:
+                    hit = [v, k, alignment["editDistance"]]
+
+            if not hit[0]: #no match, discard read
+                NoMatch.append(readID)
+                continue
+        if not readID in Results:
+            Results[readID] = (hit[0], hit[1], hit[2])
+    return Results, NoMatch
 
 def mapping2dict(input):
     #parse a qiime mapping file pull out seqs and ID into dictionary

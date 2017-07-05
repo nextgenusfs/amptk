@@ -72,7 +72,7 @@ def countBarcodes(file):
     with open(file, 'rU') as input:
         header = itertools.islice(input, 0, None, 4)
         for line in header:
-            ID = line.split("=")[-1].split(";")[0]
+            ID = line.split("=",1)[-1].split(";")[0]
             if ID not in BarcodeCount:
                 BarcodeCount[ID] = 1
             else:
