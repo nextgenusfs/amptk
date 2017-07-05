@@ -145,7 +145,7 @@ cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97',
 amptklib.runSubprocess(cmd, amptklib.log)
 
 #count reads mapped
-total = amptklib.line_count(uc_iSeq_out)
+total = amptklib.line_count2(uc_iSeq_out)
 amptklib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
 
 #now cluster to biological OTUs with UCLUST
