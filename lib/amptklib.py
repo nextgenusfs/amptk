@@ -7,13 +7,26 @@ from natsort import natsorted
 
 ASCII = {'!':'0','"':'1','#':'2','$':'3','%':'4','&':'5',"'":'6','(':'7',')':'8','*':'9','+':'10',',':'11','-':'12','.':'13','/':'14','0':'15','1':'16','2':'17','3':'18','4':'19','5':'20','6':'21','7':'22','8':'23','9':'24',':':'25',';':'26','<':'27','=':'28','>':'29','?':'30','@':'31','A':'32','B':'33','C':'34','D':'35','E':'36','F':'37','G':'38','H':'39','I':'40','J':'41','K':'42','L':'43','M':'44','N':'45','O':'46','P':'47','Q':'48','R':'49','S':'50'}
 
-primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC', 'ITS3_KYO2': 'GATGAAGAACGYAGYRAA', 'COI-F': 'GGTCAACAAATCATAAAGATATTGG', 'COI-R': 'GGWACTAATCAATTTCCAAATCC'}
+primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC', 'ITS3_KYO2': 'GATGAAGAACGYAGYRAA', 'COI-F': 'GGTCAACAAATCATAAAGATATTGG', 'COI-R': 'GGWACTAATCAATTTCCAAATCC', '515FB': 'GTGYCAGCMGCCGCGGTAA', '806RB': 'GGACTACNVGGGTWTCTAAT'}
 
 class colr:
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
-        
+
+def mod_versions():
+    import pkg_resources
+    modules = ['numpy', 'pandas', 'matplotlib', 'psutil', 'natsort', 'biopython', 'edlib', 'biom-format']
+    results = []
+    for x in modules:
+        try:
+            vers = pkg_resources.get_distribution(x).version
+            hit = "%s v%s" % (x, vers)
+        except pkg_resources.DistributionNotFound:
+            hit = "%s NOT installed!"
+        results.append(hit)
+    log.debug("Python Modules: %s" % ', '.join(results))
+
 def myround(x, base=10):
     return int(base * round(float(x)/base))
 
@@ -104,22 +117,91 @@ def bam2fastq(input, output):
         with open(input, 'rb') as bamin:
             for title, seq, qual in pybam.read(bamin,['sam_qname', 'sam_seq','sam_qual']):
                 fastqout.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
-                
-def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue):
+
+def scan_linepos(path):
+    """return a list of seek offsets of the beginning of each line"""
+    linepos = []
+    offset = 0
+    with open(path) as inf:     
+        # WARNING: CPython 2.7 file.tell() is not accurate on file.next()
+        for line in inf:
+            linepos.append(offset)
+            offset += len(line)
+    return linepos
+
+def return_lines(path, linepos, nstart, nstop):
+    """return nsamp lines from path where line offsets are in linepos"""
+    offsets = linepos[nstart:nstop]
+    lines = []
+    with open(path) as inf:
+        for offset in offsets:
+            inf.seek(offset)
+            lines.append(inf.readline())
+    return lines     
+
+def split_fastq(input, numseqs, outputdir, chunks):
+    #get number of sequences and then number of sequences in each chunk
+    numlines = numseqs*4
+    n = numlines / chunks
+    #make sure n is divisible by 4 (number of lines in fastq)
+    if ( n % 4 ) != 0:
+        n = ((n / 4) + 1) * 4
+    splits = []
+    count = 0
+    for i in range(chunks):
+        start = count
+        end = count+n
+        if end > numlines:
+            end = numlines
+        splits.append((start, end))
+        count += n
+    #get line positions from file
+    linepos = scan_linepos(input)
+    #make sure output directory exists
+    if not os.path.isdir(outputdir):
+        os.makedirs(outputdir)
+    #loop through the positions and write output
+    for i, x in enumerate(splits):
+        num = i+1
+        with open(os.path.join(outputdir, 'chunk_'+str(num)+'.fq'), 'w') as output:
+            lines = return_lines(input, linepos, x[0], x[1])
+            output.write('%s' % ''.join(lines))
+
+def trim3prime(input, trimlen, output):
+    with open(output, 'w') as outfile:
+        for title, seq, qual in FastqGeneralIterator(open(input)):
+            Seq = seq[:trimlen]
+            Qual = qual[:trimlen]
+            outfile.write("@%s\n%s\n+\n%s\n" % (title, Seq, Qual))
+
+def PEsanitycheck(R1, R2):
+    R1count = line_count(R1)
+    R2count = line_count(R2)
+    if R1count != R2count:
+        return False
+    else:
+        return True              
+           
+def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, method):
     pretrim_R1 = os.path.join(tmpdir, outname + '.pretrim_R1.fq')
     pretrim_R2 = os.path.join(tmpdir, outname + '.pretrim_R2.fq')
-    log.debug("Removing index 3prime bp 'A' from reads")    
-    cmd = ['vsearch', '--fastq_filter', R1, '--fastq_trunclen', str(read_length), '--fastqout', pretrim_R1]
-    runSubprocess(cmd, log)
-    cmd = ['vsearch', '--fastq_filter', R2, '--fastq_trunclen', str(read_length), '--fastqout', pretrim_R2]
-    runSubprocess(cmd, log)
-
-    #next run USEARCH mergepe
+    log.debug("Removing index 3prime bp 'A' from reads")
+    trim3prime(R1, read_length, pretrim_R1)
+    trim3prime(R2, read_length, pretrim_R2)  
+    
+    #check that num sequences is identical
+    if not PEsanitycheck(pretrim_R1, pretrim_R2):
+        log.error("%s and %s are not properly paired, exiting" % (R1, R2))
+        sys.exit(1)
+    #next run USEARCH/vsearch mergepe
     merge_out = os.path.join(tmpdir, outname + '.merged.fq')
     skip_for = os.path.join(tmpdir, outname + '.notmerged.R1.fq')
     report = os.path.join(tmpdir, outname +'.merge_report.txt')
     log.debug("Now merging PE reads")
-    cmd = [usearch, '-fastq_mergepairs', pretrim_R1, '-reverse', pretrim_R2, '-fastqout', merge_out, '-fastq_trunctail', '5', '-fastqout_notmerged_fwd', skip_for,'-minhsp', '12','-fastq_maxdiffs', '8', '-report', report, '-fastq_minmergelen', str(minlen)]
+    if method == 'usearch':
+        cmd = [usearch, '-fastq_mergepairs', pretrim_R1, '-reverse', pretrim_R2, '-fastqout', merge_out, '-fastq_trunctail', '5', '-fastqout_notmerged_fwd', skip_for,'-minhsp', '12','-fastq_maxdiffs', '8', '-report', report, '-fastq_minmergelen', str(minlen)]
+    else:
+        cmd = ['vsearch', '--fastq_mergepairs', pretrim_R1, '--reverse', pretrim_R2, '--fastqout', merge_out, '--fastq_truncqual', '5', '--fastqout_notmerged_fwd', skip_for,'--fastq_maxdiffs', '8', '--fastq_minmergelen', str(minlen), '--fastq_allowmergestagger']
     runSubprocess(cmd, log)
     #now concatenate files for downstream pre-process_illumina.py script
     final_out = os.path.join(tmpdir, outname)
@@ -179,7 +261,132 @@ def exactmatch(seq1, seq2):
     else:
         return False
 
+def classifier2dict(input, pcutoff):
+    ClassyDict = {}
+    with open(input, 'rU') as infile:
+        for line in infile:
+            cols = line.split('\t')
+            ID = cols[0]
+            tax = cols[1].split(',')
+            passtax = []
+            for level in tax:
+                score = level.split('(')[-1].replace(')', '')
+                if float(score) >= float(pcutoff):
+                    passtax.append(level.split('(')[0])
+                    oldscore = score
+                else:
+                    break
+            ClassyDict[ID] = (oldscore, passtax)
+    return ClassyDict
 
+def usearchglobal2dict(input):
+    GlobalDict = {}
+    with open(input, 'rU') as infile:
+        for line in infile:
+            line = line.replace('\n', '')
+            cols = line.split('\t')
+            ID = cols[0]
+            if cols[1] != '*':
+                tax = cols[1].split('tax=')[-1]
+                tax = tax.split(',')
+                pident = float(cols[-1]) / 100
+                besthit = cols[1].split(';tax=')[0]
+            else:
+                tax = 'No hit'
+                besthit = 'None'
+                pident = 0.0000
+            pident = "{0:.4f}".format(pident)
+            GlobalDict[ID] = (pident, besthit, tax)
+    return GlobalDict
+
+def bestclassifier(utax, sintax, otus):
+    #both are dictionaries from classifier2dict, otus is a list of OTUs in order
+    BestClassify = {}
+    for otu in otus:
+        utaxhit = utax.get(otu) #returns tuple of (score, [taxlist])
+        sintaxhit = sintax.get(otu)
+        if len(utaxhit[1]) > len(sintaxhit[1]):
+            hit = (utaxhit[0], 'U', utaxhit[1])
+        elif len(utaxhit[1]) == len(sintaxhit[1]):
+            if float(utaxhit[0]) >= float(sintaxhit[0]):
+                hit = (utaxhit[0], 'U', utaxhit[1])
+            else:
+                hit = (sintaxhit[0], 'S', sintaxhit[1])
+        else:
+            hit = (sintaxhit[0], 'S', sintaxhit[1])
+        BestClassify[otu] = hit
+    return BestClassify
+
+def bestTaxonomy(usearch, classifier):
+    Taxonomy = {}
+    for k,v in natsorted(usearch.items()):
+        globalTax = v[-1] #this should be a list
+        classiTax = classifier.get(k)[-1] #also should be list
+        pident = float(v[0])
+        besthitID = v[1]
+        discrep = 'S'
+        if pident < 0.9700: #if global alignment hit is less than 97%, then default to classifier result
+            method = classifier.get(k)[1].split()[0] #get first letter, either U or S
+            score = float(classifier.get(k)[0])
+            tax = ','.join(classiTax)
+            fulltax = method+discrep+"|{0:.4f}".format(score)+'|'+besthitID+';'+tax     
+        else: #should default to global alignment with option to update taxonomy from classifier if more information
+            method = 'G'
+            score = pident * 100
+            if len(globalTax) < len(classiTax): #iterate through and make sure all levels match else stop where no longer matches
+                tax = ','.join(classiTax)
+                for lvl in globalTax:
+                    if not lvl in classiTax: #now we have a problem
+                        error = globalTax.index(lvl) #move one position backwards and keep only that level of taxonomy
+                        discrep = 'D'
+                        tax = ','.join(globalTax[:error])
+                        break             
+            else:
+                tax = ','.join(globalTax)
+            fulltax = method+discrep+"|{0:.1f}".format(score)+'|'+besthitID+';'+tax
+        Taxonomy[k] = fulltax
+    return Taxonomy
+
+def utax2qiime(input, output):
+    with open(output, 'w') as outfile:
+        outfile.write('#OTUID\ttaxonomy\n')
+        with open(input, 'rU') as infile:
+            for line in infile:
+                if line.startswith('#'):
+                    continue
+                line = line.replace('\n', '')
+                OTU = line.split('\t')[0]
+                tax = line.split('\t')[1]
+                try:
+                    levels = tax.split(';')[1]
+                except IndexError:
+                    levels = '*'
+                levels = levels.replace(',', ';')
+                changes = ['k','p','c','o','f','g','s']
+                for i in changes:
+                    levels = levels.replace(i+':', i+'__')
+                try:
+                    levList = levels.split(';')
+                except IndexError:
+                    levList = [levels]
+                #now loop through and add empty levels
+                if not levList[0].startswith('k__'):
+                    levList = ['k__', 'p__', 'c__', 'o__', 'f__', 'g__', 's__']
+                if len(levList) < 2 and levList[0].startswith('k__'):
+                    levList.extend(['p__', 'c__', 'o__', 'f__', 'g__', 's__'])
+                if len(levList) > 2 and not levList[2].startswith('c__'):
+                    levList.insert(2,'c__')
+                if len(levList) > 3 and not levList[3].startswith('o__'):
+                    levList.insert(3,'o__')
+                if len(levList) > 4 and not levList[4].startswith('f__'):
+                    levList.insert(4,'f__')
+                if len(levList) > 5 and not levList[5].startswith('g__'):
+                    levList.insert(5,'g__')
+                if len(levList) > 6 and not levList[6].startswith('s__'):
+                    levList.insert(6,'s__')             
+                outfile.write('%s\t%s\n' % (OTU, ';'.join(levList)))
+
+  
 def barcodes2dict(input, mapDict):
     from Bio.SeqIO.QualityIO import FastqGeneralIterator
     #here expecting the index reads from illumina, create dictionary for naming?
@@ -320,7 +527,9 @@ def systemOS():
 def SystemInfo():
     system_os = systemOS()
     python_vers = str(sys.version_info[0])+'.'+str(sys.version_info[1])+'.'+str(sys.version_info[2])   
-    log.info("OS: %s, %i cores, ~ %i GB RAM. Python: %s" % (system_os, multiprocessing.cpu_count(), MemoryCheck(), python_vers))    
+    log.info("OS: %s, %i cores, ~ %i GB RAM. Python: %s" % (system_os, multiprocessing.cpu_count(), MemoryCheck(), python_vers))
+    #print python modules to logfile
+    mod_versions()    
 
 
 def batch_iterator(iterator, batch_size):
@@ -522,45 +731,6 @@ def fasta2list(input):
                 seqlist.append(rec.description)
     return seqlist
             
-def utax2qiime(input, output):
-    with open(output, 'w') as outfile:
-        outfile.write('#OTUID\ttaxonomy\n')
-        with open(input, 'rU') as infile:
-            for line in infile:
-                if line.startswith('#'):
-                    continue
-                OTU = line.split('\t')[0]
-                tax = line.split('\t')[1].replace('\n', '')
-                tax = tax.split(' (')[0]
-                ID = tax.split(';')[0].replace(':', '_')
-                try:
-                    levels = tax.split(';')[1]
-                except IndexError:
-                    levels = '*'
-                levels = levels.replace(',', ';')
-                changes = ['k','p','c','o','f','g','s']
-                for i in changes:
-                    levels = levels.replace(i+':', i+'__')
-                try:
-                    levList = levels.split(';')
-                except IndexError:
-                    levList = [levels]
-                #now loop through and add empty levels
-                if not levList[0].startswith('k__'):
-                    levList = ['k__', 'p__', 'c__', 'o__', 'f__', 'g__', 's__']
-                if len(levList) < 2 and levList[0].startswith('k__'):
-                    levList.extend(['p__', 'c__', 'o__', 'f__', 'g__', 's__'])
-                if len(levList) > 2 and not levList[2].startswith('c__'):
-                    levList.insert(2,'c__')
-                if len(levList) > 3 and not levList[3].startswith('o__'):
-                    levList.insert(3,'o__')
-                if len(levList) > 4 and not levList[4].startswith('f__'):
-                    levList.insert(4,'f__')
-                if len(levList) > 5 and not levList[5].startswith('g__'):
-                    levList.insert(5,'g__')
-                if len(levList) > 6 and not levList[6].startswith('s__'):
-                    levList.insert(6,'s__')             
-                outfile.write('%s\t%s\n' % (OTU, ';'.join(levList)))
 
 def CreateGenericMappingFile(barcode_fasta, fwd_primer, rev_primer, adapter, output, barcodes_found):
     mapDict = {}
