@@ -230,9 +230,9 @@ Description: Script takes PE Illumina reads, Index reads, mapping file and proce
              1) merge the PE reads using VSEARCH, 2) filter for Phix, 3) find and trim primers,
              4) rename reads according to sample name, 4) trim/pad reads.
     
-Arguments:   -i, --fastq         FASTQ R1 (forward) file (Required)
-             --reverse           FASTQ R2 (reverse) file (Required)
-             --index             FASTQ I3 (index) file (Required)
+Arguments:   -f, --forward       FASTQ R1 (forward) file (Required)
+             -r, --reverse       FASTQ R2 (reverse) file (Required)
+             -i, --index         FASTQ I3 (index) file (Required)
              -m, --mapping_file  QIIME-like mapping file. (Required)
              -o, --out           Output folder name. Default: amptk-data  
              -l, --trim_len      Length to trim/pad reads. Default: 300
