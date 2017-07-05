@@ -52,7 +52,7 @@ def folder2list(input, ending):
 
 def splitDemux2(input, outputdir):
     for title, seq, qual in FastqGeneralIterator(open(input)):
-        sample = title.split('barcodelabel=')[1]
+        sample = title.split('barcodelabel=')[1].split(';')[0]
         sample = sample.replace(';', '')
         if not args.length:
             with open(os.path.join(outputdir, sample+'.fastq'), 'ab') as output:
@@ -134,7 +134,7 @@ for x in files:
     if amptklib.countfastq(os.path.join(filtfolder, x)) < args.min_reads:
         remove.append(x)
 if len(remove) > 0:
-    amptklib.log.info("Dropping %s as fewer than %i reads" % (','.join(remove), args.min_reads))
+    amptklib.log.info("Dropping %s as fewer than %i reads" % (', '.join(remove), args.min_reads))
     for y in remove:
         os.remove(os.path.join(filtfolder, y))
 
@@ -241,7 +241,7 @@ cmd = ['vsearch', '--fastq_filter', os.path.abspath(no_ns),'--fastq_qmax', '55',
 amptklib.runSubprocess(cmd, amptklib.log)
 cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', iSeqs, '--id', '0.97', '--uc', dadademux, '--strand', 'plus', '--otutabout', chimeraFreeTable ]
 amptklib.runSubprocess(cmd, amptklib.log)
-total = amptklib.line_count(dadademux)
+total = amptklib.line_count2(dadademux)
 amptklib.log.info('{0:,}'.format(total) + ' reads mapped to iSeqs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
 
 #cluster
