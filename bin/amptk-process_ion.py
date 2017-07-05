@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools, re, gzip
+import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools, re, gzip, edlib
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from natsort import natsorted
@@ -31,8 +31,9 @@ parser.add_argument('-o','--out', dest="out", default='ion', help='Base name for
 parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer')
 parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')
-parser.add_argument('-p','--pad', default='on', choices=['on', 'off'], help='Pad with Ns to a set length')
+parser.add_argument('-p','--pad', default='off', choices=['on', 'off'], help='Pad with Ns to a set length')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
+parser.add_argument('--barcode_mismatch', default=0, type=int, help='Number of mis-matches in barcode')
 parser.add_argument('--barcode_fasta', default='pgm_barcodes.fa', help='FASTA file containing Barcodes (Names & Sequences)')
 parser.add_argument('--reverse_barcode', help='FASTA file containing 3 prime Barocdes')
 parser.add_argument('-b','--list_barcodes', dest="barcodes", default='all', help='Enter Barcodes used separated by commas')
@@ -55,6 +56,123 @@ def FindBarcode(Seq, BarcodeDict):
             return Barcode, BarcodeLabel
     return "", ""
 
+def AlignBarcode(Seq, BarcodeDict):
+    besthit = ('', '', '')
+    for BL in BarcodeDict.keys():
+        B = BarcodeDict[BL]
+        align = edlib.align(B, Seq, mode="SHW", k=args.barcode_mismatch+1)
+        if align["editDistance"] == 0:
+            return B, BL
+        elif args.barcode_mismatch == 0:
+            continue
+        elif align["editDistance"] > 0:
+            if align["editDistance"] < besthit[2]:
+                besthit = (B,BL,align["editDistance"])
+    if besthit[2] <= args.barcode_mismatch:
+        return besthit[0], besthit[1]
+    return "", ""
+    
+def AlignRevBarcode(Seq, BarcodeDict):
+    besthit = ('', '', '')
+    for BL in BarcodeDict.keys():
+        B = BarcodeDict[BL]
+        align = edlib.align(B, Seq, mode="HW", k=args.barcode_mismatch+1)
+        if align["editDistance"] == 0:
+            return B, BL
+        elif align["editDistance"] > 0:
+            if align["editDistance"] < besthit[2]:
+                besthit = (B,BL,align["editDistance"])
+    if besthit[2] <= args.barcode_mismatch:
+        return besthit[0], besthit[1]
+    return "", ""
+
+def processRead_edlib(input):
+    base = os.path.basename(input).split('.')[0]
+    PL = len(FwdPrimer)
+    RL = len(RevPrimer)
+    DemuxOut = os.path.join(tmpdir, base+'.demux.fq')
+    StatsOut = os.path.join(tmpdir, base+'.stats')
+    Total = 0
+    NoBarcode = 0
+    NoRevBarcode = 0
+    NoPrimer = 0
+    TooShort = 0
+    RevPrimerFound = 0
+    ValidSeqs = 0
+    with open(StatsOut, 'w') as counts:
+        with open(DemuxOut, 'w') as out:   
+            for title, seq, qual in FastqGeneralIterator(open(input)):
+                Total += 1
+                #look for barcode, trim it off
+                Barcode, BarcodeLabel = AlignBarcode(seq, Barcodes)
+                if Barcode == "":
+                    NoBarcode += 1
+                    continue
+                BarcodeLength = len(Barcode)
+                Seq = seq[BarcodeLength:]
+                Qual = qual[BarcodeLength:]
+                #now search for forward primer
+                foralign = edlib.align(FwdPrimer, Seq, mode="HW", k=args.primer_mismatch)
+                if foralign["editDistance"] < 0:
+                    NoPrimer += 1
+                    continue
+                ForTrim = foralign["locations"][0][1]+1   
+                #now search for reverse primer
+                revalign = edlib.align(RevPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch)
+                if revalign["editDistance"] >= 0:  #reverse primer was found
+                    RevPrimerFound += 1 
+                    #location to trim sequences
+                    RevTrim = revalign["locations"][0][0]                
+                    #determine reverse barcode
+                    if args.reverse_barcode:
+                        RevBCdiffs = 0
+                        BCcut = revalign["locations"][0][1]
+                        CutSeq = Seq[BCcut:]
+                        RevBarcode, RevBarcodeLabel = AlignRevBarcode(CutSeq, RevBarcodes)
+                        if RevBarcode == "":
+                            NoRevBarcode += 1
+                            continue
+                        BarcodeLabel = BarcodeLabel+'_'+RevBarcodeLabel                       
+                    #now trim record remove forward and reverse reads
+                    Seq = Seq[ForTrim:RevTrim]
+                    Qual = Qual[ForTrim:RevTrim]
+                    #since found reverse primer, now also need to pad/trim
+                    if not args.full_length:
+                        #check minimum length here or primer dimer type sequences will get padded with Ns
+                        if len(Seq) < int(args.min_len):
+                            TooShort += 1
+                            continue
+                        if len(Seq) < args.trim_len and args.pad == 'on':
+                            pad = args.trim_len - len(Seq)
+                            Seq = Seq + pad*'N'
+                            Qual = Qual +pad*'J'
+                        else: #len(Seq) > args.trim_len:
+                            Seq = Seq[:args.trim_len]
+                            Qual = Qual[:args.trim_len]
+                else:
+                    #trim record, did not find reverse primer
+                    if args.full_length: #if full length then move to next record
+                        continue
+                    #trim away forward primer
+                    Seq = Seq[ForTrim:]
+                    Qual = Qual[ForTrim:]
+                    #check length and trim, throw away if too short as it was bad read
+                    if len(Seq) < args.trim_len:
+                        TooShort += 1
+                        continue
+                    Seq = Seq[:args.trim_len]
+                    Qual = Qual[:args.trim_len]
+                #check minimum length
+                if len(Seq) < int(args.min_len):
+                    TooShort += 1
+                    continue
+                ValidSeqs += 1
+                #rename header
+                Name = 'R_'+str(ValidSeqs)+';barcodelabel='+BarcodeLabel+';'
+                out.write("@%s\n%s\n+\n%s\n" % (Name, Seq, Qual))
+            counts.write('%i,%i,%i,%i,%i,%i,%i\n' % (Total, NoBarcode, NoPrimer, RevPrimerFound, NoRevBarcode, TooShort, ValidSeqs))        
+
+    
 def processRead(input):
     base = os.path.basename(input).split('.')[0]
     PL = len(FwdPrimer)
@@ -347,17 +465,9 @@ amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 tmpdir = args.out.split('.')[0]+'_'+str(os.getpid())
 if not os.path.exists(tmpdir):
     os.makedirs(tmpdir)
-#split the input FASTQ file into chunks to process
-with open(SeqIn, 'rU') as input:
-    SeqRecords = SeqIO.parse(SeqIn, 'fastq')
-    chunks = orig_total / (2*cpus)+1
-    #divide into chunks, store in tmp file
-    for i, batch in enumerate(amptklib.batch_iterator(SeqRecords, chunks)) :
-        filename = "chunk_%i.fq" % (i+1)
-        tmpout = os.path.join(tmpdir, filename)
-        handle = open(tmpout, "w")
-        count = SeqIO.write(batch, handle, "fastq")
-        handle.close()
+
+#split fastq file
+amptklib.split_fastq(SeqIn, orig_total, tmpdir, cpus*2)    
 
 #now get file list from tmp folder
 file_list = []
@@ -367,7 +477,7 @@ for file in os.listdir(tmpdir):
         file_list.append(file)
 
 #finally process reads over number of cpus
-amptklib.runMultiProgress(processRead, file_list, cpus)
+amptklib.runMultiProgress(processRead_edlib, file_list, cpus)
 
 print "-------------------------------------------------------"
 #Now concatenate all of the demuxed files together
