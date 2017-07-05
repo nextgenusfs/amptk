@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect, multiprocessing, itertools, re
+import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect, multiprocessing, itertools, re, edlib
 from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -34,11 +34,12 @@ parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='
 parser.add_argument('--require_primer', dest="primer", default='on', choices=['on', 'off'], help='Require Fwd primer to be present')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--rescue_forward', default='on', choices=['on', 'off'], help='Rescue Not-merged forward reads')
-parser.add_argument('--min_len', default=50, type=int, help='Minimum read length to keep')
+parser.add_argument('--min_len', default=100, type=int, help='Minimum read length to keep')
+parser.add_argument('--merge_method', default='usearch', choices=['usearch', 'vsearch'], help='Software to use for PE read merging')
 parser.add_argument('-l','--trim_len', default=250, type=int, help='Trim length for reads')
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
-parser.add_argument('-p','--pad', default='on', choices=['on', 'off'], help='Pad with Ns to a set length')
+parser.add_argument('-p','--pad', default='off', choices=['on', 'off'], help='Pad with Ns to a set length')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH executable')
 parser.add_argument('--sra', action='store_true', help='Input files are from NCBI SRA not direct from illumina')
 parser.add_argument('--cleanup', action='store_true', help='Delete all intermediate files')
@@ -56,38 +57,40 @@ def processRead(input):
     TooShort = 0
     RevPrimerFound = 0
     ValidSeqs = 0
-    PL = len(FwdPrimer)
     with open(StatsOut, 'w') as counts:
         with open(DemuxOut, 'w') as out:
             for title, seq, qual in FastqGeneralIterator(open(input)):
                 Total += 1
                 #first thing is look for forward primer, if found trim it off
-                Diffs = primer.MatchPrefix(seq, FwdPrimer)
+                foralign = edlib.align(FwdPrimer, seq, mode="HW", k=args.primer_mismatch)
                 #if require primer is on make finding primer in amplicon required if amplicon is larger than read length
                 #if less than read length, can't enforce primer because could have been trimmed via staggered trim in fastq_mergepairs
                 if args.primer == 'on' and len(seq) > ReadLen:
-                    if Diffs > args.primer_mismatch:
+                    if foralign["editDistance"] < 0:
                         NoPrimer += 1
                         continue
-                    Seq = seq[PL:]
-                    Qual = qual[PL:]
+                    ForCutPos = foralign["locations"][0][1]+1
+                    Seq = seq[ForCutPos:]
+                    Qual = qual[ForCutPos:]
                 else:
-                    if Diffs <= args.primer_mismatch:
-                        Seq = seq[PL:]
-                        Qual = qual[PL:]
+                    if foralign["editDistance"] >= 0:
+                        ForCutPos = foralign["locations"][0][1]+1
+                        Seq = seq[ForCutPos:]
+                        Qual = qual[ForCutPos:]
                     else:
                         NoPrimer += 1
                         Seq = seq
                         Qual = qual
                 #now look for reverse primer
-                BestPosRev, BestDiffsRev = primer.BestMatch2(Seq, RevPrimer, args.primer_mismatch)
-                if BestPosRev > 0:  #reverse primer was found
+                revalign = edlib.align(RevPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch)
+                if revalign["editDistance"] >= 0:
                     RevPrimerFound += 1
+                    RevCutPos = revalign["locations"][0][0]
                     #location to trim sequences, trim seqs
-                    Seq = Seq[:BestPosRev]
-                    Qual = Qual[:BestPosRev]
+                    Seq = Seq[:RevCutPos]
+                    Qual = Qual[:RevCutPos]
                 else:
-                    if args.full_length and len(Seq) > ReadLen: #if full length and no primer found, exit, except when length is less than read length
+                    if args.full_length and len(Seq) > ReadLen: #if full length and no primer found, exit, except if len is less than read length
                         continue
                 #if full_length is passed, then only trim primers
                 if not args.full_length:
@@ -99,7 +102,7 @@ def processRead(input):
                     if len(Seq) < args.trim_len and args.pad == 'on':
                         pad = args.trim_len - len(Seq)
                         Seq = Seq + pad*'N'
-                        Qual = Qual +pad*'J'
+                        Qual = Qual + pad*'J'
                     else: #len(Seq) > args.trim_len:
                         Seq = Seq[:args.trim_len]
                         Qual = Qual[:args.trim_len]
@@ -112,8 +115,8 @@ def processRead(input):
                 Title = 'R_'+str(ValidSeqs)+';barcodelabel='+Sample+';'
                 #now write to file
                 out.write("@%s\n%s\n+\n%s\n" % (Title, Seq, Qual))
-            counts.write('%i,%i,%i,%i,%i\n' % (Total, NoPrimer, RevPrimerFound, TooShort, ValidSeqs))
-             
+            counts.write("%i,%i,%i,%i,%i\n" % (Total, NoPrimer, RevPrimerFound, TooShort, ValidSeqs))
+        
 #sometimes people add slashes in the output directory, this could be bad, try to fix it
 args.out = re.sub(r'\W+', '', args.out)
             
@@ -277,7 +280,7 @@ else:
                 continue
             #if PE reads, then need to merge them
             if args.reads == 'paired' and amptklib.check_valid_file(rev_reads):                
-                amptklib.MergeReads(for_reads, rev_reads, args.out, name+'.fq', read_length, args.min_len, args.usearch, args.rescue_forward)
+                amptklib.MergeReads(for_reads, rev_reads, args.out, name+'.fq', read_length, args.min_len, args.usearch, args.rescue_forward, args.merge_method)
             else:
                 shutil.copy(for_reads, os.path.join(args.out, outname))
         else:
@@ -304,7 +307,10 @@ for file in os.listdir(args.out):
             else:
                 amptklib.log.debug("ERROR: %s demuxed file is empty, skipping" % file)
 if not args.full_length:
-    amptklib.log.info("Stripping primers and trim/pad to %s bp" % (args.trim_len))
+    if args.pad == 'off':
+        amptklib.log.info("Stripping primers and trim to %s bp" % (args.trim_len))
+    else:
+        amptklib.log.info("Stripping primers and trim/pad to %s bp" % (args.trim_len))
 else:
     amptklib.log.info("Stripping primers and keeping only full length sequences")
 amptklib.log.info("splitting the job over %i cpus, but this may still take awhile" % (cpus))
