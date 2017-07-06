@@ -212,9 +212,32 @@ def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, me
         if rescue == 'on':
             shutil.copyfileobj(open(skip_for,'rU'), cat_file)
     #run phix removal
+    #since most users have 32 bit usearch, check size of file, if > 3 GB, split into parts
     log.debug("Removing phix from %s" % outname)
-    cmd = [usearch, '-filter_phix', tmp_merge, '-output', final_out]
-    runSubprocess(cmd, log)
+    phixsize = getSize(tmp_merge)
+    phixcount = countfastq(tmp_merge)
+    log.debug('File Size: %i bytes' % phixsize)
+    if phixsize > 3e9:
+        log.debug('FASTQ > 3 GB, splitting FASTQ file into chunks to avoid potential memory problems with 32 bit usearch')
+        phixdir = os.path.join(tmpdir, 'phix_'+str(os.getpid()))
+        os.makedirs(phixdir)
+        num = round(int((phixsize / 3e9))) + 1
+        split_fastq(tmp_merge, phixcount, phixdir, int(num))
+        for file in os.listdir(phixdir):
+            if file.endswith(".fq"):
+                output = os.path.join(phixdir, file+'.phix')
+                file = os.path.join(phixdir, file)
+                cmd = [usearch, '-filter_phix', file, '-output', output]
+                runSubprocess(cmd, log)
+        with open(final_out, 'wb') as finalout:
+            for file in os.listdir(phixdir):
+                if file.endswith('.phix'):
+                    with open(os.path.join(phixdir, file), 'rU') as infile:
+                        shutil.copyfileobj(infile, finalout)
+        shutil.rmtree(phixdir)
+    else:
+        cmd = [usearch, '-filter_phix', tmp_merge, '-output', final_out]
+        runSubprocess(cmd, log)
     #count output
     origcount = countfastq(R1)
     finalcount = countfastq(final_out)
