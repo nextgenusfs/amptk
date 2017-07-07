@@ -18,7 +18,7 @@ AMPtk comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ amptk
 Usage:       amptk <command> <arguments>
-version:     0.8.9
+version:     0.9.0
 
 Description: AMPtk is a package of scripts to process NGS amplicon data.  
              Dependencies:  USEARCH v9.1.13 and VSEARCH v2.2.0
