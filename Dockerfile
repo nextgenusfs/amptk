@@ -29,7 +29,6 @@ RUN rm ~/work/dada2_install.R
 
 RUN git clone git://github.com/nextgenusfs/amptk.git && \
     cd amptk && \
-    git checkout 45064ac3c54918410bc18a0a8c9fe3b234fc832d && \
     make && \
     cd ..
 
