@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, argparse, os, inspect, shutil, glob, multiprocessing, edlib
+import sys, argparse, os, inspect, shutil, glob, multiprocessing
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from Bio.SeqIO.FastaIO import FastaIterator
 from Bio import SeqIO
@@ -10,6 +10,7 @@ sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
 import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
+import lib.edlib as edlib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):

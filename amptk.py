@@ -480,7 +480,8 @@ Required:    -i, --otu_table     OTU table
              
 Optional:    -o, --out           Base name for output files. Default: use input basename
              -b, --mock_barcode  Name of barcode of mock community (Recommended)
-             -m, --mc            Mock community FASTA file. Required if -b passed.
+             -m, --mc            Mock community FASTA file. Required if -b passed. [synmock,mock1,mock2,mock3,etc]
+             -d, --drop          Sample names to drop from OTU table (done after index-bleed filtering)
              -c, --calculate     Calculate index-bleed options. Default: all [in,all]
              --negatives         Negative sample names. (list, separate by space)
              
@@ -488,7 +489,7 @@ Filtering    -n, --normalize     Normalize reads to number of reads per sample [
              -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.005
              -t, --threshold     Number to use for establishing read count threshold. Default: max [max,sum,top5,top10,top25]
              -s, --subtract      Threshold to subtract from all OTUs (any number or auto). Default: 0
-             -d, --delimiter     Delimiter of OTU tables. Default: tsv  [csv, tsv]
+             --delimiter         Delimiter of OTU tables. Default: tsv  [csv, tsv]
              --min_reads_otu     Minimum number of reads for valid OTU from whole experiment. Default: 2
              --col_order         Column order (comma separated list). Default: sort naturally
              --keep_mock         Keep Spike-in mock community. Default: False

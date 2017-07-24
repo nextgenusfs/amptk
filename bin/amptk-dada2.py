@@ -104,12 +104,15 @@ amptklib.log.info("R v%s; DADA2 v%s" % (Rversions[0], Rversions[1]))
 
 #Count FASTQ records and remove 3' N's as dada2 can't handle them
 amptklib.log.info("Loading FASTQ Records")
-orig_total = amptklib.countfastq(args.fastq)
-size = amptklib.checkfastqsize(args.fastq)
-readablesize = amptklib.convertSize(size)
-amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 no_ns = args.out+'.cleaned_input.fq'
 amptklib.fastq_strip_padding(args.fastq, no_ns)
+demuxtmp = args.out+'.original.fa'
+cmd = ['vsearch', '--fastq_filter', os.path.abspath(no_ns),'--fastq_qmax', '55', '--fastaout', demuxtmp]
+amptklib.runSubprocess(cmd, amptklib.log)
+orig_total = amptklib.countfasta(demuxtmp)
+size = amptklib.checkfastqsize(no_ns)
+readablesize = amptklib.convertSize(size)
+amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 
 #quality filter
 amptklib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
@@ -231,14 +234,11 @@ else:
 dadademux = args.out+'.dada2.map.uc'
 bioSeqs = args.out+'.cluster.otus.fa'
 bioTable = args.out+'.cluster.otu_table.txt'
-demuxtmp = args.out+'.original.fa'
 uctmp = args.out+'.map.uc'
 ClusterComp = args.out+'.iSeqs2clusters.txt'
 
 #map reads to DADA2 OTUs
 amptklib.log.info("Mapping reads to DADA2 iSeqs")
-cmd = ['vsearch', '--fastq_filter', os.path.abspath(no_ns),'--fastq_qmax', '55', '--fastaout', demuxtmp]
-amptklib.runSubprocess(cmd, amptklib.log)
 cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', iSeqs, '--id', '0.97', '--uc', dadademux, '--strand', 'plus', '--otutabout', chimeraFreeTable ]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.line_count2(dadademux)

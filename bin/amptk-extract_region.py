@@ -85,22 +85,21 @@ def invert_dict(d):
 
 def dereplicate(input, output):
     seqs = {}
-    in_file = open(input, 'rU')
-    for rec in SeqIO.parse(in_file, 'fasta'):
-        rec.id = rec.description
-        sequence = str(rec.seq)
-        if sequence not in seqs:
-            seqs[sequence] = [rec.id]
-        else:
-            new = rec.id.split(";")[1]
-            hit = seqs.get(sequence)
-            hit_string = " ".join(hit)
-            if not new in hit_string:
-                hit.append(new)
-    seqs_inv = invert_dict(seqs)
-    with open(output, 'w') as out:
-        for key,value in seqs_inv.iteritems():
-            out.write('>'+key+'\n'+value+'\n')
+    with open(input, 'rU') as in_file:
+        for rec in SeqIO.parse(in_file, 'fasta'):
+            sequence = str(rec.seq)
+            if not sequence in seqs:
+                seqs[sequence] = rec.description
+            else:
+                #check length of taxonomy string, keep one with more tax info
+                newTaxLen = rec.description.count(',')
+                oldTaxLen = seqs.get(sequence).count(',')
+                if newtaxLen > oldTaxLen:
+                    seqs[sequence] = rec.description
+        seqs_inv = invert_dict(seqs)
+        with open(output, 'w') as out:
+            for key,value in seqs_inv.iteritems():
+                out.write('>'+key+'\n'+value+'\n')
 
 def countfasta(input):
     count = 0

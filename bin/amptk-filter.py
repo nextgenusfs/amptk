@@ -38,7 +38,8 @@ parser.add_argument('-c','--calculate', default='all', choices=['all', 'in'], he
 parser.add_argument('-s','--subtract', default=0, help='Threshold to subtract')
 parser.add_argument('-n','--normalize', default='y', choices=['y','n'], help='Normalize OTU table prior to filtering')
 parser.add_argument('-m','--mc', help='Multi-FASTA mock community')
-parser.add_argument('-d','--delimiter', default='tsv', choices=['csv','tsv'], help='Delimiter')
+parser.add_argument('-d','--drop', nargs='+', help='samples to drop from table after index-bleed filtering')
+parser.add_argument('--delimiter', default='tsv', choices=['csv','tsv'], help='Delimiter')
 parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
 parser.add_argument('--keep_mock', action='store_true', help='Keep mock sample in OTU table (Default: False)')
 parser.add_argument('--show_stats', action='store_true', help='Show stats datatable STDOUT')
@@ -109,12 +110,25 @@ if headers[-1] == 'taxonomy' or headers[-1] == 'Taxonomy':
     del df[headers[-1]]
 else:
     otuDict = False
+
+#parse OTU table to get count data for each OTU
+AddCounts = {}
+OTUcounts = df.sum(1)
+for x in OTUcounts.index:
+    AddCounts[x] = int(OTUcounts[x])
+
+#now add counts to fasta header
+FastaCounts = base+'.otus.counts.fa'
+with open(FastaCounts, 'w') as outfile:
+    with open(args.fasta, 'rU') as infile:
+        for rec in SeqIO.parse(infile, 'fasta'):
+            count = AddCounts.get(rec.id)
+            outfile.write('>%s;size=%i\n%s\n' % (rec.id, count, rec.seq))
     
-amptklib.log.info("OTU table contains %i OTUs" % len(df.index))
+amptklib.log.info('OTU table contains {0:,}'.format(len(df.index)) + ' OTUs and {0:,}'.format(int(df.values.sum())) + ' read counts')
 
 #setup output files/variables
-mock_out = base + '.mockmap.uc'
-mock_sort = base + '.mockmap.sort.uc'
+mock_out = base + '.mockmap.txt'
 
 if args.mock_barcode: #if user passes a column name for mock
     #check if mock barcode is valid
@@ -142,49 +156,87 @@ if args.mock_barcode: #if user passes a column name for mock
     #open mock community fasta and count records
     mock_ref_count = amptklib.countfasta(mock)
     
+    #load OTU lengths into dictionary
+    SeqLength = amptklib.fastalen2dict(args.fasta)
+    
     #map OTUs to mock community
     amptklib.log.info("Mapping OTUs to Mock Community (USEARCH)")
-    cmd = [usearch, '-usearch_global', mock, '-strand', 'plus', '-id', '0.95', '-db', args.fasta, '-uc', mock_out, '-maxaccepts', '3']
+    cmd = [usearch, '-usearch_global', mock, '-strand', 'plus', '-id', '0.65', '-db', FastaCounts, '-userout', mock_out, '-userfields', 'query+target+id+ql+tl+alnlen+caln+mism+diffs', '-maxaccepts', '0', '-maxrejects', '0']
     amptklib.runSubprocess(cmd, amptklib.log)
-    #sort the output to avoid problems
-    with open(mock_sort, 'w') as output:
-        subprocess.call(['sort', '-k4,4nr', mock_out], stdout = output)
 
     #generate dictionary for name change
-    found_dict = {}
-    missing = []
-    chimeras = []
-    seen = []
-    with open(mock_sort, 'rU') as map:
-        map_csv = csv.reader(map, delimiter='\t')
-        for line in map_csv:
-            if line[-1] != "*":
-                if not line[-2] in found_dict:
-                    found_dict[line[-2]] = (line[-1], float(line[3]))
-                    seen.append(line[-1])
-                else:
-                    oldpident = found_dict.get(line[-2])[1]
-                    oldid = found_dict.get(line[-2])[0]
-                    if float(line[3]) > oldpident:
-                        found_dict[line[-2]] = (line[-1], float(line[3]))
-                        if not oldid in seen:
-                            chimeras.append(oldid)
-                    else:
-                        if not line[-1] in seen:
-                            chimeras.append(line[-1])        
+    '''
+    If args.calculate is set to all, that means the script is trying to measure a synthetic
+    mock of some kind.  if that is the case, then chimeras are < 95% identical to mock members
+    and variants would be hits in between, i.e 95% > but not the best hit.
+    '''
+    Results = {}
+    errorrate = {}
+    with open(mock_out, 'rU') as map:
+        for line in map:
+            line = line.replace('\n', '')
+            cols = line.split('\t')
+            MockID = cols[0]
+            hit = cols[1].split(';size=')
+            otuID = hit[0]
+            abundance = int(hit[1])
+            pident = float(cols[2])
+            length = int(cols[4])
+            mism = int(cols[7])
+            diffs = int(cols[8])
+            score = abundance * pident
+            if not otuID in errorrate:
+                errorrate[otuID] = [MockID,diffs]
             else:
-                missing.append(line[-2].split(' ')[0])
+                olderror = errorrate.get(otuID)
+                if diffs < olderror[1]:
+                    errorrate[otuID] = [MockID,diffs]
+            if not MockID in Results:
+                Results[MockID] = [(otuID,abundance,pident,length,mism,diffs,score)]
+            else:
+                Results[MockID].append((otuID,abundance,pident,length,mism,diffs,score))
+    
+    found_dict = {}
+    chimeras = []
+    variants = []
+    missing = []
+    for k,v in natsorted(Results.items()):
+        besthit = []
+        #v is a list of tuples of results, parse through to get best hit
+        for y in v:
+            if y[2] >= 97.0:
+                besthit.append(y)
+        if len(besthit) > 0:
+            besthit.sort(key=lambda x: x[1], reverse=True)
+            best = sorted(besthit[:3], key=lambda x: x[6], reverse=True)
+            found_dict[k] = best[0]
+        else:
+            missing.append(k)
+        for i in v:
+            if i[2] >= 95.0:
+                if not i[0] in variants:
+                    variants.append(i[0])
+            else:
+                if not i[0] in chimeras:
+                    chimeras.append(i[0])
 
-    if missing:
-        amptklib.log.info("Mock members not found: %s" % ', '.join(missing))
     #make name change dict
     annotate_dict = {}
+    seen = []
     for k,v in found_dict.items():
         ID = v[0].replace('_chimera', '')
-        newID = k+'_pident='+str(v[1])+'_'+v[0]
+        newID = k+'_pident='+str(v[2])+'_'+v[0]
         annotate_dict[ID] = newID
+        if not v[0] in seen:
+            seen.append(v[0])
     for i in chimeras:
-        annotate_dict[i] = i+'_suspect_mock_chimera'
+        if not i in seen:
+            annotate_dict[i] = i+'_suspect_mock_chimera'
+    for x in variants:
+        if not x in seen:
+            annotate_dict[i] = i+'_suspect_mock_variant'
+    if len(missing) > 0:
+        amptklib.log.info("%i mock missing: %s" % (len(missing), ', '.join(missing)))
 else:
     otu_new = args.fasta
 
@@ -251,7 +303,7 @@ if args.mock_barcode:
     sample = []
     #get names from mapping
     for k,v in annotate_dict.items():
-        if not '_suspect_mock_chimera' in v:
+        if not '_suspect_mock_' in v:
             mock.append(v)
     for i in norm_round.index:
         if not i in mock:
@@ -339,8 +391,21 @@ for row in norm_round.itertuples():
 header = [OTUhead]
 for i in norm_round.columns:
     header.append(i)
+
+#create data frame of index bleed filtered results       
 final = pd.DataFrame(cleaned, columns=header)
 final.set_index(OTUhead, inplace=True)
+    
+if args.drop: #if user has passed samples to drop, do it here, subtract drop list from Header
+    amptklib.log.info("Dropping %i samples from table: %s" % (len(args.drop), ', '.join(args.drop)))
+    
+    colsdrop = []
+    for x in args.drop:
+        if x in header:
+            colsdrop.append(x)
+    #now drop those columns
+    final.drop(colsdrop, axis=1, inplace=True)
+
 if args.subtract != 'auto':
     subtract_num = int(args.subtract)
 else:
@@ -377,11 +442,42 @@ stats = stats.astype(int)
 if args.show_stats:
     print stats.to_string()
 stats.to_csv(stats_table, sep=delim)
+#after all filtering, get list of OTUs in mock barcode
+if args.mock_barcode:
+    mocks = final[args.mock_barcode]
+    mocks = mocks.loc[~(mocks==0)].astype(int)
+    totalmismatches = 0
+    totallength = 0
+    chimera_count = 0
+    variant_count = 0
+    for otu in mocks.index:
+        count = mocks[otu]
+        if 'suspect_mock' in otu:
+            if 'chimera' in otu:
+                chimera_count += 1
+            if 'variant' in otu:
+                variant_count += 1
+            otu = otu.split('_',1)[0]
+        else:
+            otu = otu.split('_',-1)[-1]
+        otu_length = SeqLength.get(otu)
+        countlen = otu_length * count
+        totallength += countlen
+        if otu in errorrate:
+            otu_diffs = errorrate.get(otu)[1]
+            totaldiffs = otu_diffs * count
+            totalmismatches += totaldiffs
+        else:
+            totalmismatches += countlen
+    e_rate = totalmismatches / float(totallength) * 100
+    amptklib.log.info(args.mock_barcode + ' sample has '+'{0:,}'.format(len(mocks))+' OTUS out of '+'{0:,}'.format(mock_ref_count)+ ' expected; '+'{0:,}'.format(variant_count)+ ' mock variants; '+ '{0:,}'.format(chimera_count)+ ' mock chimeras; Error rate: '+'{0:.3f}%'.format(e_rate))
+
 if not args.keep_mock:
     try:
         final.drop(args.mock_barcode, axis=1, inplace=True)
     except:
         pass
+        
 #drop OTUs that are now zeros through whole table
 final = final.loc[~(final==0).all(axis=1)]
 final = final.astype(int)
@@ -476,15 +572,15 @@ else: #proceed with rest of script
         del FiltTable['Taxonomy']
     else:
         FiltTable.to_csv(final_table, sep=delim)
-
+        
+    amptklib.log.info('Filtering OTU table down to {0:,}'.format(len(FiltTable.index)) + ' OTUs and {0:,}'.format(FiltTable.values.sum()) + ' read counts')
+    
     #output binary table
     if otuDict:
         final['Taxonomy'] = pd.Series(otuDict)
         final.to_csv(final_binary_table, sep=delim)
     else:
         final.to_csv(final_binary_table, sep=delim)
-
-    amptklib.log.info("Filtering OTU table down to %i OTUs" % (len(final.index)))
 
     #generate final OTU list for taxonomy
     amptklib.log.info("Filtering valid OTUs")
@@ -508,7 +604,7 @@ else: #proceed with rest of script
     print "OTU Table Stats:      %s" % stats_table
     print "Sorted OTU table:     %s" % sorted_table
     if not args.debug:
-        for i in [normal_table_pct, normal_table_nums, subtract_table, mock_out, mock_sort]:
+        for i in [normal_table_pct, normal_table_nums, subtract_table, mock_out]:
             amptklib.removefile(i)
     else:   
         print "Normalized (pct):     %s" % normal_table_pct

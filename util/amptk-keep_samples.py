@@ -40,7 +40,7 @@ def countBarcodes(file):
 def filter_sample(file, output):
     global keep_count, total_count
     with open(output, 'w') as out:
-        for title, seq, qual in FastqGeneralIterator(open(file)):
+        for title, seq, qual in FastqGeneralIterator(amptklib.gzopen(file)):
             total_count += 1
             sample = title.split('=',1)[1].split(';')[0]
             if sample in keep_list:
@@ -79,6 +79,8 @@ print("Keeping %i samples" % len(keep_list))
 keep_count = 0
 total_count = 0
 filter_sample(args.input, args.out)
+if args.out.endswith('.gz'): #compress in place
+    amptklib.Fzip_inplace(args.out)
       
 print("Kept %i reads out of %i total reads" % (keep_count, total_count))
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools, re, gzip, edlib
+import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools, re, gzip
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from natsort import natsorted
@@ -8,9 +8,9 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
 import lib.fasta as fasta
-import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
 import lib.amptklib as amptklib
+import lib.edlib as edlib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -261,6 +261,7 @@ else:
     else:
         Adapter = ''
 
+
 #check if input is compressed
 gzip_list = []
 if args.fastq.endswith('.gz'):
@@ -271,19 +272,12 @@ if args.reverse:
 if gzip_list:
     amptklib.log.info("Gzipped input files detected, uncompressing")
     for file in gzip_list:
-        amptklib.log.debug("Uncompressing %s" % file)
-        OutName = os.path.splitext(file)[0]
-        InFile = gzip.open(file, 'rU')
-        ReadFile = InFile.read()
-        OutFile = open(OutName, 'w')
-        OutFile.write(ReadFile)
-        OutFile.close()
-        InFile.close()
-        os.remove(file) #remove .gz file  
+        file_out = file.replace('.gz', '')
+        amptklib.Funzip(file, file_out, args.cpus)
     args.fastq = args.fastq.replace('.gz', '')
     if args.reverse:
         args.reverse = args.reverse.replace('.gz', '')
-        
+     
 #if SFF file passed, convert to FASTQ with biopython
 if args.fastq.endswith(".sff"):
     if args.barcode_fasta == 'pgm_barcodes.fa':
@@ -457,14 +451,23 @@ if not args.mapping_file:
     genericmapfile = args.out + '.mapping_file.txt'
     amptklib.CreateGenericMappingFile(barcode_file, FwdPrimer, revcomp_lib.RevComp(RevPrimer), Adapter, genericmapfile, barcodes_found)
 
+#compress the output to save space
+FinalDemux = catDemux+'.gz'
+amptklib.Fzip(catDemux, FinalDemux, args.cpus)
+amptklib.removefile(catDemux)
+if gzip_list:
+    for file in gzip_list:
+        file = file.replace('.gz', '')
+        amptklib.removefile(file)
+
 #get file size
-filesize = os.path.getsize(catDemux)
+filesize = os.path.getsize(FinalDemux)
 readablesize = amptklib.convertSize(filesize)
-amptklib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
+amptklib.log.info("Output file:  %s (%s)" % (FinalDemux, readablesize))
 amptklib.log.info("Mapping file: %s" % genericmapfile)
 
 print "-------------------------------------------------------"
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk cluster -i %s -o out\n" % (catDemux)
+    print "\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux)
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (catDemux)
+    print col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux)

@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
-import sys, os, itertools, multiprocessing, glob, shutil, argparse
+import sys, os, itertools, multiprocessing, glob, shutil, argparse, inspect
 from natsort import natsorted
 from Bio import SeqIO
-
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir)
+import lib.amptklib as amptklib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -21,11 +24,6 @@ parser.add_argument('-l','--trunclen', default=250, type=int, help='Read truncat
 parser.add_argument('-o','--out', help='Output for quality trimmed data')
 args=parser.parse_args()
 
-
-def countfastq(input):
-    lines = sum(1 for line in open(input))
-    count = int(lines) / 4
-    return count
 
 def batch_iterator(iterator, batch_size):
     entry = True #Make sure we loop once
@@ -45,14 +43,12 @@ def batch_iterator(iterator, batch_size):
 
 def MaxEEFilter(records):
     for rec in records:
-        trunclen = args.trunclen
-        maxee = args.maxee
-        rec = rec[:trunclen]
+        rec = rec[:args.trunclen]
         ee = 0
         for bp, Q in enumerate(rec.letter_annotations["phred_quality"]):
             P = 10**(float(-Q)/10)
             ee += P
-        if ee <= maxee:
+        if ee <= args.maxee:
             rec.name = ""
             rec.description = ""
             yield rec
@@ -109,44 +105,36 @@ def getSeqLength(file):
         
     
 def filterSeqs(file, lst):
-    with open(file, 'rU') as input:
+    with amptklib.gzopen(file, 'rU') as input:
         SeqRecords = SeqIO.parse(input, 'fastq')
         for rec in SeqRecords:
             bc = rec.id.split("=")[-1].split(";")[0]
             if bc in lst:
                 yield rec
 
-if args.quality_trim and not args.output:
+if args.quality_trim and not args.out:
     print "Error, to run quality trimming you must provide -o, --output"
-    os._exit(1)
+    sys.exit(1)
 
 #main start here
 cpus = multiprocessing.cpu_count()
 print "----------------------------------"
-countBarcodes(args.input)
+tmpinput = 'amptk_show.tmp'
+if args.input.endswith('.gz'):
+    amptklib.Funzip(args.input, tmpinput, cpus)
+else:
+    tmpinput = args.input
+countBarcodes(tmpinput)
 print "----------------------------------"
-getSeqLength(args.input)
+getSeqLength(tmpinput)
 print "----------------------------------"
 if args.quality_trim:
     #split the input FASTQ file into chunks to process
-    with open(args.input, 'rU') as input:
-        SeqCount = countfastq(args.input)
-        print('{0:,}'.format(SeqCount) + ' records loaded')
-        SeqRecords = SeqIO.parse(input, 'fastq')
-        chunks = SeqCount / cpus + 1
-        print("Using %i cpus to process data" % cpus)
-        #divide into chunks, store in tmp file
-        pid = os.getpid()
-        folder = 'amptk_tmp_' + str(pid)
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-        for i, batch in enumerate(batch_iterator(SeqRecords, chunks)) :
-            filename = "chunk_%i.fq" % (i+1)
-            tmpout = os.path.join(folder, filename)
-            handle = open(tmpout, "w")
-            count = SeqIO.write(batch, handle, "fastq")
-            handle.close()
-
+    #split fastq file
+    SeqCount = amptklib.countfastq(tmpinput)
+    pid = os.getpid()
+    folder = 'amptk_tmp_' + str(pid)
+    amptklib.split_fastq(tmpinput, SeqCount, folder, cpus*2)    
     #now get file list from tmp folder
     file_list = []
     for file in os.listdir(folder):
@@ -162,17 +150,19 @@ if args.quality_trim:
     p.join()
 
     #get filtered results
-    catDemux = args.output
+    catDemux = args.out
     with open(catDemux, 'w') as outfile:
         for filename in glob.glob(os.path.join(folder,'*.filter.fq')):
             if filename == catDemux:
                 continue
             with open(filename, 'rU') as readfile:
                 shutil.copyfileobj(readfile, outfile)
+    if catDemux.endswith('.gz'):
+        amptklib.Fzip_inplace(catDemux)
     shutil.rmtree(folder)
     print "----------------------------------"
-    countBarcodes(args.output)
+    countBarcodes(args.out)
     print "----------------------------------"
-    print "Script finished, output in %s" % args.output
+    print "Script finished, output in %s" % args.out
 
-
+amptklib.removefile(tmpinput)

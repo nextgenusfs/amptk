@@ -64,19 +64,20 @@ if not os.path.exists(tmp):
 
 #Count FASTQ records
 amptklib.log.info("Loading FASTQ Records")
-orig_total = amptklib.countfastq(args.FASTQ)
+#convert to FASTA for mapping
+orig_fasta = os.path.join(tmp, args.out+'.orig.fa')
+cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '55']
+amptklib.runSubprocess(cmd, amptklib.log)
+orig_total = amptklib.countfasta(orig_fasta)
 size = amptklib.checkfastqsize(args.FASTQ)
 readablesize = amptklib.convertSize(size)
 amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 
-#Expected Errors filtering step and convert to fasta
+#Expected Errors filtering step
 filter_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fq')
 filter_fasta = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fa')
-orig_fasta = os.path.join(tmp, args.out+'.orig.fa')
 amptklib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
 cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '55']
-amptklib.runSubprocess(cmd, amptklib.log)
-cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '55']
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfastq(filter_out)
 amptklib.log.info('{0:,}'.format(total) + ' reads passed')

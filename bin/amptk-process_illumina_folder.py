@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect, multiprocessing, itertools, re, edlib
+import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect, multiprocessing, itertools, re
 from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
-import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
+import lib.edlib as edlib
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
@@ -33,6 +33,7 @@ parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help=
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer (ITS4)')
 parser.add_argument('--require_primer', dest="primer", default='on', choices=['on', 'off'], help='Require Fwd primer to be present')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
+parser.add_argument('--barcode_mismatch', default=1, type=int, help='Number of mis-matches allowed in index')
 parser.add_argument('--rescue_forward', default='on', choices=['on', 'off'], help='Rescue Not-merged forward reads')
 parser.add_argument('--min_len', default=100, type=int, help='Minimum read length to keep')
 parser.add_argument('--merge_method', default='usearch', choices=['usearch', 'vsearch'], help='Software to use for PE read merging')
@@ -151,13 +152,7 @@ if gzip_list:
     for file in gzip_list:
         amptklib.log.debug("Uncompressing %s" % file)
         OutName = os.path.join(args.input, os.path.splitext(file)[0])
-        InFile = gzip.open(os.path.join(args.input, file), 'rU')
-        ReadFile = InFile.read()
-        OutFile = open(OutName, 'w')
-        OutFile.write(ReadFile)
-        OutFile.close()
-        InFile.close()
-        os.remove(os.path.join(args.input, file)) #remove .gz file  
+        amptklib.Funzip(os.path.join(args.input, file), OutName, args.cpus) 
 
 #check for mapping file, if exists, then use names from first column only for filenames
 if args.mapping_file:
@@ -279,8 +274,9 @@ else:
                 amptklib.log.info("Output for %s detected, skipping files" % outname)
                 continue
             #if PE reads, then need to merge them
-            if args.reads == 'paired' and amptklib.check_valid_file(rev_reads):                
-                amptklib.MergeReads(for_reads, rev_reads, args.out, name+'.fq', read_length, args.min_len, args.usearch, args.rescue_forward, args.merge_method)
+            if args.reads == 'paired' and amptklib.check_valid_file(rev_reads):
+                Index = sampleDict.get(name).replace('-', '')
+                amptklib.MergeReads(for_reads, rev_reads, args.out, name+'.fq', read_length, args.min_len, args.usearch, args.rescue_forward, args.merge_method, Index, args.barcode_mismatch)
             else:
                 shutil.copy(for_reads, os.path.join(args.out, outname))
         else:
@@ -374,16 +370,24 @@ if not args.mapping_file:
     genericmapfile = args.out + '.mapping_file.txt'
     amptklib.CreateGenericMappingFileIllumina(sampleDict, FwdPrimer, revcomp_lib.RevComp(RevPrimer), genericmapfile)
 
+#compress the output to save space
+FinalDemux = catDemux+'.gz'
+amptklib.Fzip(catDemux, FinalDemux, args.cpus)
+amptklib.removefile(catDemux)
+if gzip_list:
+    for file in gzip_list:
+        file = file.replace('.gz', '')
+        amptklib.removefile(os.path.join(args.input, file))
 
 #get file size
-filesize = os.path.getsize(catDemux)
+filesize = os.path.getsize(FinalDemux)
 readablesize = amptklib.convertSize(filesize)
-amptklib.log.info("Output file:  %s (%s)" % (catDemux, readablesize))
+amptklib.log.info("Output file:  %s (%s)" % (FinalDemux, readablesize))
 amptklib.log.info("Mapping file: %s" % genericmapfile)
 if args.cleanup:
     shutil.rmtree(args.out)
 print "-------------------------------------------------------"
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk cluster -i %s -o out\n" % (catDemux)
+    print "\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux)
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (catDemux)
+    print col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux)

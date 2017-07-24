@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, re, argparse, subprocess, csv, inspect, multiprocessing
+import sys, os, re, argparse, subprocess, csv, inspect, multiprocessing, shutil
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -36,6 +36,7 @@ parser.add_argument('--method', default='hybrid',choices=['utax', 'usearch', 'si
 parser.add_argument('-d','--db', help='Pre-installed Databases: [ITS,ITS1,ITS2,16S,LSU,COI]')
 parser.add_argument('-t','--taxonomy', help='Incorporate taxonomy calculated elsewhere, 2 column file')
 parser.add_argument('--fasta_db', help='Alternative database of fasta sequences')
+parser.add_argument('--add2db', help='Custom FASTA database to add to DB on the fly')
 parser.add_argument('--utax_db', help='UTAX Reference Database')
 parser.add_argument('--utax_cutoff', default=0.8, type=restricted_float, help='UTAX confidence value threshold.')
 parser.add_argument('--usearch_db', help='USEARCH Reference Database')
@@ -97,6 +98,20 @@ if args.method in ['hybrid', 'usearch', 'utax']:
     if not utax_db and not usearch_db and not args.fasta_db:
         amptklib.log.error("You have not selected a database, need either --db, --utax_db, --usearch_db, or --fasta_db")
         sys.exit(1)
+
+custom_db = None
+if args.add2db: #means user wants to add sequences to the usearch database on the fly, so we will grab sintax DB here, as not preformatted
+    amptklib.log.info("Adding %s to database" % args.add2db)
+    custom_db = base + '.custom_database.fa'
+    if args.db: #this means that the fasta files are in sintax_db option
+        current_db = sintax_db
+    elif args.fasta_db:
+        current_db = args.fasta_db
+    with open(custom_db, 'wb') as outfile:
+        with open(current_db, 'rU') as infile:
+            shutil.copyfileobj(infile, outfile)
+        with open(args.add2db, 'rU') as infile:
+            shutil.copyfileobj(infile, outfile)
 
 #Count records
 amptklib.log.info("Loading FASTA Records")
@@ -191,6 +206,11 @@ if not args.taxonomy:
                 #now run through usearch global
                 amptklib.log.info("Global alignment OTUs with usearch_global (VSEARCH)")
                 cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(args.fasta_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels']
+                amptklib.runSubprocess(cmd, amptklib.log)
+            elif custom_db:
+                #now run through usearch global
+                amptklib.log.info("Global alignment OTUs with usearch_global (VSEARCH) using custom DB")
+                cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(custom_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels']
                 amptklib.runSubprocess(cmd, amptklib.log)
             else:
                 if usearch_db:

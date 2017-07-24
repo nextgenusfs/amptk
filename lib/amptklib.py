@@ -1,4 +1,4 @@
-import sys, logging, csv, os, subprocess, multiprocessing, platform, time, shutil, inspect
+import sys, logging, csv, os, subprocess, multiprocessing, platform, time, shutil, inspect, gzip
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 from Bio import SeqIO
@@ -14,6 +14,93 @@ class colr:
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
+    
+class gzopen(object):
+   """Generic opener that decompresses gzipped files
+   if needed. Encapsulates an open file or a GzipFile.
+   Use the same way you would use 'open()'.
+   """
+   def __init__(self, fname):
+      f = open(fname)
+      # Read magic number (the first 2 bytes) and rewind.
+      magic_number = f.read(2)
+      f.seek(0)
+      # Encapsulated 'self.f' is a file or a GzipFile.
+      if magic_number == '\x1f\x8b':
+         self.f = gzip.GzipFile(fileobj=f)
+      else:
+         self.f = f
+
+   # Define '__enter__' and '__exit__' to use in
+   # 'with' blocks. Always close the file and the
+   # GzipFile if applicable.
+   def __enter__(self):
+      return self
+   def __exit__(self, type, value, traceback):
+      try:
+         self.f.fileobj.close()
+      except AttributeError:
+         pass
+      finally:
+         self.f.close()
+
+   # Reproduce the interface of an open file
+   # by encapsulation.
+   def __getattr__(self, name):
+      return getattr(self.f, name)
+   def __iter__(self):
+      return iter(self.f)
+   def next(self):
+      return next(self.f)
+      
+def Funzip(input, output, cpus):
+    '''
+    function to unzip as fast as it can, pigz -> bgzip -> gzip
+    '''
+    if which('pigz'):
+        cmd = ['pigz', '--decompress', '-c', '-p', str(cpus), input]
+    elif which('bgzip'):
+        cmd = ['bgzip', '--decompress', '-c', '-@', str(cpus), input]
+    else:
+        cmd = ['gzip', '--decompress', '-c', input]
+    try:
+        runSubprocess2(cmd, log, output)
+    except NameError:
+        with open(output, 'w') as outfile:
+            subprocess.call(cmd, stdout=outfile)
+
+def Fzip(input, output, cpus):
+    '''
+    function to zip as fast as it can, pigz -> bgzip -> gzip
+    '''
+    if which('pigz'):
+        cmd = ['pigz', '-c', '-p', str(cpus), input]
+    elif which('bgzip'):
+        cmd = ['bgzip', '-c', '-@', str(cpus), input]
+    else:
+        cmd = ['gzip', '-c', input]
+    try:
+        runSubprocess2(cmd, log, output)
+    except NameError:
+        with open(output, 'w') as outfile:
+            subprocess.call(cmd, stdout=outfile)
+
+def Fzip_inplace(input):
+    '''
+    function to zip as fast as it can, pigz -> bgzip -> gzip
+    '''
+    cpus = multiprocessing.cpu_count()
+    if which('pigz'):
+        cmd = ['pigz', '-f', '-p', str(cpus), input]
+    elif which('bgzip'):
+        cmd = ['bgzip', '-f', '-@', str(cpus), input]
+    else:
+        cmd = ['gzip', '-f', input]
+    try:
+        runSubprocess(cmd, log)
+    except NameError:
+        subprocess.call(cmd)
+
 
 def mod_versions():
     import pkg_resources
@@ -24,9 +111,17 @@ def mod_versions():
             vers = pkg_resources.get_distribution(x).version
             hit = "%s v%s" % (x, vers)
         except pkg_resources.DistributionNotFound:
-            hit = "%s NOT installed!"
+            hit = "%s NOT installed!" % x
         results.append(hit)
     log.debug("Python Modules: %s" % ', '.join(results))
+
+def fastalen2dict(input):
+    Lengths = {}
+    with open(input, 'rU') as infile:
+        for rec in SeqIO.parse(infile, 'fasta'):
+            if not rec.id in Lengths:
+                Lengths[rec.id] = len(rec.seq)
+    return Lengths
 
 def myround(x, base=10):
     return int(base * round(float(x)/base))
@@ -34,7 +129,7 @@ def myround(x, base=10):
 def GuessRL(input):
     #read first 50 records, get length then exit
     lengths = []
-    for title, seq, qual in FastqGeneralIterator(open(input)):
+    for title, seq, qual in FastqGeneralIterator(gzopen(input)):
         if len(lengths) < 50:
             lengths.append(len(seq))
         else:
@@ -50,7 +145,7 @@ def countfasta(input):
     return count
     
 def countfastq(input):
-    lines = sum(1 for line in open(input))
+    lines = sum(1 for line in gzopen(input))
     count = int(lines) / 4
     return count
 
@@ -70,7 +165,7 @@ def line_count2(fname):
     return count
     
 def getreadlength(input):
-    with open(input) as fp:
+    with gzopen(input) as fp:
         for i, line in enumerate(fp):
             if i == 1:
                 read_length = len(line) - 1 #offset to switch to 1 based counts
@@ -123,7 +218,7 @@ def scan_linepos(path):
     """return a list of seek offsets of the beginning of each line"""
     linepos = []
     offset = 0
-    with open(path) as inf:     
+    with gzopen(path) as inf:     
         # WARNING: CPython 2.7 file.tell() is not accurate on file.next()
         for line in inf:
             linepos.append(offset)
@@ -134,7 +229,7 @@ def return_lines(path, linepos, nstart, nstop):
     """return nsamp lines from path where line offsets are in linepos"""
     offsets = linepos[nstart:nstop]
     lines = []
-    with open(path) as inf:
+    with gzopen(path) as inf:
         for offset in offsets:
             inf.seek(offset)
             lines.append(inf.readline())
@@ -168,12 +263,13 @@ def split_fastq(input, numseqs, outputdir, chunks):
             lines = return_lines(input, linepos, x[0], x[1])
             output.write('%s' % ''.join(lines))
 
-def trim3prime(input, trimlen, output):
+def trim3prime(input, trimlen, output, removelist):
     with open(output, 'w') as outfile:
-        for title, seq, qual in FastqGeneralIterator(open(input)):
-            Seq = seq[:trimlen]
-            Qual = qual[:trimlen]
-            outfile.write("@%s\n%s\n+\n%s\n" % (title, Seq, Qual))
+        for title, seq, qual in FastqGeneralIterator(gzopen(input)):
+            if not title.split(' ')[0] in removelist:
+                Seq = seq[:trimlen]
+                Qual = qual[:trimlen]
+                outfile.write("@%s\n%s\n+\n%s\n" % (title, Seq, Qual))
 
 def PEsanitycheck(R1, R2):
     R1count = line_count(R1)
@@ -181,19 +277,48 @@ def PEsanitycheck(R1, R2):
     if R1count != R2count:
         return False
     else:
-        return True              
+        return True
+
+def checkBCinHeader(input):
+    #read first header
+    for title, seq, qual in FastqGeneralIterator(open(input)):
+        header = title.split(' ')
+        info = header[-1]
+        if info.split(':')[-1].isdigit():
+            return False
+        else:
+            return True
+        break
+
+def illuminaBCmismatch(R1, R2, index):
+    remove = []
+    for file in [R1,R2]:
+        for title, seq, qual in FastqGeneralIterator(open(file)):
+            ID = title.split(' ')[0]
+            BC = title.split(':')[-1]
+            if BC != index:
+                remove.append(ID)
+    remove = set(remove)
+    return remove             
            
-def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, method):
+def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, method, index, mismatch):
+    removelist = []
+    if mismatch == 0:
+        if checkBCinHeader(R1):
+            log.debug("Searching for index mismatches > 0: %s" % index) 
+            removelist = illuminaBCmismatch(R1, R2, index)
+            log.debug("Removing %i reads with index mismatch > 0" % len(removelist))  
     pretrim_R1 = os.path.join(tmpdir, outname + '.pretrim_R1.fq')
     pretrim_R2 = os.path.join(tmpdir, outname + '.pretrim_R2.fq')
     log.debug("Removing index 3prime bp 'A' from reads")
-    trim3prime(R1, read_length, pretrim_R1)
-    trim3prime(R2, read_length, pretrim_R2)  
+    trim3prime(R1, read_length, pretrim_R1, removelist)
+    trim3prime(R2, read_length, pretrim_R2, removelist)  
     
     #check that num sequences is identical
     if not PEsanitycheck(pretrim_R1, pretrim_R2):
         log.error("%s and %s are not properly paired, exiting" % (R1, R2))
         sys.exit(1)
+        
     #next run USEARCH/vsearch mergepe
     merge_out = os.path.join(tmpdir, outname + '.merged.fq')
     skip_for = os.path.join(tmpdir, outname + '.notmerged.R1.fq')
@@ -241,6 +366,7 @@ def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, me
     #count output
     origcount = countfastq(R1)
     finalcount = countfastq(final_out)
+    log.debug("Removed %i reads that were phiX" % (origcount - finalcount - len(removelist)))
     pct_out = finalcount / float(origcount) 
     #clean and close up intermediate files
     os.remove(merge_out)
@@ -417,7 +543,7 @@ def barcodes2dict(input, mapDict, bcmismatch):
     #here expecting the index reads from illumina, create dictionary for naming?
     Results = {}
     NoMatch = []
-    for title, seq, qual in FastqGeneralIterator(open(input)):
+    for title, seq, qual in FastqGeneralIterator(gzopen(input)):
         hit = [None, None, None]
         titlesplit = title.split(' ')
         readID = titlesplit[0]
@@ -449,6 +575,7 @@ def barcodes2dict(input, mapDict, bcmismatch):
 def mapping2dict(input):
     #parse a qiime mapping file pull out seqs and ID into dictionary
     MapDict = {}
+    IDs = []
     with open(input, 'rU') as inputfile:
         for line in inputfile:
             if line.startswith('#'):
@@ -459,7 +586,12 @@ def mapping2dict(input):
             if not Seq in MapDict:
                 MapDict[Seq] = ID
             else:
-                print "duplicate BC seq found %s: %s" % (Seq, ID)
+                log.error("duplicate BC seq found %s: %s" % (Seq, ID))
+            if not ID in IDs:
+                IDs.append(ID)
+            else:
+                log.error("duplicate ID in mapping file: %s, exiting" (ID))
+                sys.exit(1)
     return MapDict
 
 def get_version():
@@ -711,14 +843,14 @@ def fastarename(input, relabel, output):
 def fasta_strip_padding(file, output):
     from Bio.SeqIO.FastaIO import FastaIterator
     with open(output, 'w') as outputfile:
-        for record in FastaIterator(open(file)):
+        for record in FastaIterator(gzopen(file)):
             Seq = record.seq.rstrip('N')   
             outputfile.write(">%s\n%s\n" % (record.id, Seq))
 
 def fastq_strip_padding(file, output):
     from Bio.SeqIO.QualityIO import FastqGeneralIterator
     with open(output, 'w') as outputfile:
-        for title, seq, qual in FastqGeneralIterator(open(file)):
+        for title, seq, qual in FastqGeneralIterator(gzopen(file)):
             Seq = seq.rstrip('N')
             Qual = qual[:len(Seq)]
             assert len(Seq) == len(Qual)    

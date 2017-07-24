@@ -1,16 +1,15 @@
 #!/usr/bin/env python
 
-import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools, re, edlib
+import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools, re
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
-import lib.fasta as fasta
-import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
 import lib.amptklib as amptklib
+import lib.edlib as edlib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -205,7 +204,7 @@ combined_index = os.path.join(tmpdir, 'indexes.fq')
 if len(args.index) > 1:
     with open(combined_index, 'wb') as outfile:
         for file in args.index:
-            with open(file, 'rU') as readfile:
+            with amptklib.gzopen(file, 'rU') as readfile:
                 shutil.copyfileobj(readfile, outfile)
 else:
     combined_index = args.index[0]
@@ -229,7 +228,7 @@ amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 #now we can merge the reads
 mergedReads = args.out+'.merged.fastq'
 amptklib.log.info("Merging PE reads using VSEARCH and filtering for phiX")
-amptklib.MergeReads(args.fastq, args.reverse, tmpdir, mergedReads, ReadLen, args.min_len, args.usearch, args.rescue_forward, 'vsearch')
+amptklib.MergeReads(args.fastq, args.reverse, tmpdir, mergedReads, ReadLen, args.min_len, args.usearch, args.rescue_forward, 'vsearch', '', args.barcode_mismatch)
 
 if not args.full_length:
     if args.pad == 'off':
@@ -315,13 +314,19 @@ for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
     barcode_counts += "\n%30s:  %s" % (k, str(BarcodeCount[k]))
 amptklib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
+#compress the output to save space
+FinalDemux = Demux+'.gz'
+amptklib.Fzip(Demux, FinalDemux, cpus)
+amptklib.removefile(Demux)
+
+
 #get file size
-filesize = os.path.getsize(Demux)
+filesize = os.path.getsize(FinalDemux)
 readablesize = amptklib.convertSize(filesize)
-amptklib.log.info("Output file:  %s (%s)" % (Demux, readablesize))
+amptklib.log.info("Output file:  %s (%s)" % (FinalDemux, readablesize))
 amptklib.log.info("Mapping file: %s" % args.mapping_file)
 print "-------------------------------------------------------"
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk cluster -i %s -o out\n" % (Demux)
+    print "\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux)
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (Demux)
+    print col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux)
