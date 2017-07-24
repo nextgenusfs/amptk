@@ -141,6 +141,12 @@ amptklib.SystemInfo()
 usearch = args.usearch
 amptklib.versionDependencyChecks(usearch)
 
+#Now all the data is in folder args.out that needs to be de-multiplexed
+if not args.cpus:
+    cpus = multiprocessing.cpu_count()
+else:
+    cpus = args.cpus
+
 #check folder if files are gzipped, then gunzip them
 #try to gunzip files
 gzip_list = []
@@ -152,7 +158,7 @@ if gzip_list:
     for file in gzip_list:
         amptklib.log.debug("Uncompressing %s" % file)
         OutName = os.path.join(args.input, os.path.splitext(file)[0])
-        amptklib.Funzip(os.path.join(args.input, file), OutName, args.cpus) 
+        amptklib.Funzip(os.path.join(args.input, file), OutName, cpus) 
 
 #check for mapping file, if exists, then use names from first column only for filenames
 if args.mapping_file:
@@ -285,12 +291,6 @@ else:
     #get read lengths for process read function
     ReadLen = max(set(ReadLengths))
 
-#Now all the data is in folder args.out that needs to be de-multiplexed
-if not args.cpus:
-    cpus = multiprocessing.cpu_count()
-else:
-    cpus = args.cpus
-
 #get list of files to demux
 file_list = []
 for file in os.listdir(args.out):
@@ -372,7 +372,7 @@ if not args.mapping_file:
 
 #compress the output to save space
 FinalDemux = catDemux+'.gz'
-amptklib.Fzip(catDemux, FinalDemux, args.cpus)
+amptklib.Fzip(catDemux, FinalDemux, cpus)
 amptklib.removefile(catDemux)
 if gzip_list:
     for file in gzip_list:

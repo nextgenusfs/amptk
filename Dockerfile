@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y zlib1g-dev libssl-dev \
 
 RUN conda config --add channels r && \
     conda config --add channels bioconda && \
-    conda install --yes -p $CONDA_DIR/envs/python2 biopython natsort psutil \
+    conda install --yes -p $CONDA_DIR/envs/python2 cython biopython natsort psutil \
     biom-format sra-tools rpy2 r-base r-essentials r-curl r-irkernel vsearch bioconductor-phyloseq
 
 RUN pip2 install -U srapy
@@ -29,7 +29,8 @@ RUN rm ~/work/dada2_install.R
 
 RUN git clone git://github.com/nextgenusfs/amptk.git && \
     cd amptk && \
-    git checkout ed3c5f3c0cf93ed7b68b6bce7eae5924b0c790f2 && \
+    git checkout 45064ac3c54918410bc18a0a8c9fe3b234fc832d && \
+    make && \
     cd ..
 
 ENV PATH=/work:~/work/amptk:$PATH

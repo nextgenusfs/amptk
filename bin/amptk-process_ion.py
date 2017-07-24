@@ -273,7 +273,7 @@ if gzip_list:
     amptklib.log.info("Gzipped input files detected, uncompressing")
     for file in gzip_list:
         file_out = file.replace('.gz', '')
-        amptklib.Funzip(file, file_out, args.cpus)
+        amptklib.Funzip(file, file_out, cpus)
     args.fastq = args.fastq.replace('.gz', '')
     if args.reverse:
         args.reverse = args.reverse.replace('.gz', '')
@@ -453,7 +453,7 @@ if not args.mapping_file:
 
 #compress the output to save space
 FinalDemux = catDemux+'.gz'
-amptklib.Fzip(catDemux, FinalDemux, args.cpus)
+amptklib.Fzip(catDemux, FinalDemux, cpus)
 amptklib.removefile(catDemux)
 if gzip_list:
     for file in gzip_list:
