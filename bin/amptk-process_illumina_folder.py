@@ -7,7 +7,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
 import lib.revcomp_lib as revcomp_lib
-import lib.edlib as edlib
+import edlib
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 

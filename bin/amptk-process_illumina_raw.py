@@ -9,7 +9,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
 import lib.revcomp_lib as revcomp_lib
 import lib.amptklib as amptklib
-import lib.edlib as edlib
+import edlib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):

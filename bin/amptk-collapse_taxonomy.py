@@ -4,7 +4,6 @@ import sys, os, argparse
 import pandas as pd
 from natsort import natsorted
 
-
 class colr:
     GRN = '\033[92m'
     END = '\033[0m'
