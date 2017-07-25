@@ -1,4 +1,5 @@
-FROM amptk
+#dockerfile for adding usearch9 to base-amptk and downloading databases
+FROM nextgenusfs/base-amptk
 MAINTAINER Jon Palmer <nextgenusfs@gmail.com>
 
 WORKDIR /amptk

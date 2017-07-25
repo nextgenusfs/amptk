@@ -166,6 +166,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              --reverse_barcode   FASTA file containing 3' barcodes. Default: none
              --full_length       Keep only full length sequences.
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
+             --merge_method      Software to use for PE merging. Default: usearch [usearch,vsearch]
              --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch9
         """ % (sys.argv[1], version)
