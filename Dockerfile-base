@@ -1,4 +1,4 @@
-#docker config for AMPtk installation 
+#docker config for base-AMPtk installation 
 FROM continuumio/miniconda
 MAINTAINER Jon Palmer <nextgenusfs@gmail.com>
 

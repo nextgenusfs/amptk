@@ -188,30 +188,30 @@ version:     0.10.0
 Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  
              By default the script uses a hybrid approach, e.g. gets taxonomy information from 
              SINTAX, UTAX, and global alignment hits from the larger UNITE-INSD database, and 
-             then parses results to extract the most taxonomy information that it can.
-             SINTAX/UTAX results are used if BLAST-like search pct identity is less than 97%.  
+             then parses results to extract the most taxonomy information that it can at 'trustable' 
+             levels. SINTAX/UTAX results are used if BLAST-like search pct identity is less than 97%.  
              If % identity is greater than 97%, the result with most taxonomy levels is retained.
     
 Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from amptk cluster) (Required)
              -i, --otu_table     Input OTU table file (i.e. otu_table from amptk cluster)
              -o, --out           Base name for output file. Default: amptk-taxonomy.<method>.txt
-             -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. 								Default: ITS2
+             -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: ITS2
              -m, --mapping_file  QIIME-like mapping file
              -t, --taxonomy      Taxonomy calculated elsewhere. 2 Column file.
-             --method            Taxonomy method. Default: hybrid [utax, sintax, usearch, hybrid,   							   rdp, blast]
-             --fasta_db          Alternative database of fasta sequenes to use for global 									   alignment.
-             --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's 							    below]
+             --method            Taxonomy method. Default: hybrid [utax, sintax, usearch, hybrid, rdp, blast]
+             --fasta_db          Alternative database of fasta sequenes to use for global alignment.
+             --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --usearch_db        USEARCH formatted database. Default: USEARCH.udb
              --usearch_cutoff    USEARCH threshold percent identity. Default 0.7
              --sintax_cutoff     SINTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              -r, --rdp           Path to RDP Classifier. Required if --method rdp
-             --rdp_db            RDP Classifer DB set. [fungalits_unite, fungalits_warcup. 									   fungallsu, 16srrna]  
+             --rdp_db            RDP Classifer DB set. [fungalits_unite, fungalits_warcup. fungallsu, 16srrna]  
              --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
-             --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi 							    to keep only fungi.
+             --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi to keep only fungi.
              -u, --usearch       USEARCH executable. Default: usearch9
-             --debug             Keep intermediate files  
+             --debug             Keep intermediate files
 ```
 
 And then you can use the `amptk taxonomy` command to assign taxonomy to your OTUs as well as append them to your OTU table as follows:

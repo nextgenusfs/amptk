@@ -2,8 +2,12 @@
 from __future__ import division
 import matplotlib
 matplotlib.use('agg')
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter('ignore')
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+    import seaborn as sns
 import pandas as pd
 import numpy as np
 import csv, argparse, re, os, sys, inspect
@@ -12,10 +16,6 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
 import lib.amptklib as amptklib
 from lib.stackedBarGraph import StackedBarGrapher as StackedBarGrapher
-try:
-    import seaborn as sns
-except:
-    pass
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -185,7 +185,6 @@ def processTax(uniq, L, name):
 
         #setup the plot
         fig.subplots_adjust(bottom=0.4)
-        fig.set_tight_layout(True) 
         fig.savefig(out, format=args.format, bbox_extra_artists=(lgd,), bbox_inches='tight')
         plt.close(fig)
 
