@@ -4,15 +4,25 @@ MAINTAINER Jon Palmer <nextgenusfs@gmail.com>
 
 USER root
 
-RUN apt-get update && apt-get install -y zlib1g-dev libssl-dev \
-    libcurl4-gnutls-dev libxml2-dev libxslt1-dev build-essential
+RUN apt-get update && apt-get install -y zlib1g-dev libssl-dev libbz2-dev libgl1-mesa-glx \
+    libcurl4-gnutls-dev libxml2-dev libxslt1-dev build-essential pigz wget autoconf
 
 RUN conda config --add channels r && \
     conda config --add channels bioconda && \
-    conda install --yes cython biopython natsort pandas psutil matplotlib \
-    biom-format sra-tools r-base vsearch bioconductor-dada2 bioconductor-phyloseq
+    conda install --yes cython biopython natsort pandas psutil matplotlib seaborn \
+    biom-format sra-tools r-base htslib samtools bioconductor-dada2 bioconductor-phyloseq
 
 RUN pip install -U srapy
+
+RUN wget https://github.com/torognes/vsearch/archive/v2.4.3.tar.gz && \
+    tar xzf v2.4.3.tar.gz && \
+    mv vsearch-2.4.3 vsearch && \
+    cd vsearch && \
+    ./autogen.sh && \
+    ./configure && \
+    make && \
+    make install && \
+    cd ..
 
 RUN git clone git://github.com/nextgenusfs/amptk.git && \
     cd amptk && \

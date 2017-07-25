@@ -143,8 +143,8 @@ filter_fasta = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fa')
 amptklib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
 cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '55']
 amptklib.runSubprocess(cmd, amptklib.log)
-total = amptklib.countfastq(filter_out)
-amptklib.log.info('{0:,}'.format(total) + ' reads passed')
+qtrimtotal = amptklib.countfastq(filter_out)
+amptklib.log.info('{0:,}'.format(qtrimtotal) + ' reads passed')
 #now run full length dereplication
 derep_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.derep.fa')
 amptklib.log.info("De-replication (remove duplicate reads)")

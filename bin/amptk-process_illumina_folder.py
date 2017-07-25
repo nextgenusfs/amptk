@@ -37,7 +37,7 @@ parser.add_argument('--barcode_mismatch', default=1, type=int, help='Number of m
 parser.add_argument('--rescue_forward', default='on', choices=['on', 'off'], help='Rescue Not-merged forward reads')
 parser.add_argument('--min_len', default=100, type=int, help='Minimum read length to keep')
 parser.add_argument('--merge_method', default='usearch', choices=['usearch', 'vsearch'], help='Software to use for PE read merging')
-parser.add_argument('-l','--trim_len', default=250, type=int, help='Trim length for reads')
+parser.add_argument('-l','--trim_len', default=300, type=int, help='Trim length for reads')
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
 parser.add_argument('-p','--pad', default='off', choices=['on', 'off'], help='Pad with Ns to a set length')

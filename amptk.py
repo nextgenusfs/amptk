@@ -119,9 +119,9 @@ Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
              -r, --rev_primer    Reverse primer sequence Default: ITS4
              -b, --barcodes      Barcodes used (list, e.g: 1,3,4,5,20). Default: all
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
-             -l, --trim_len      Length to trim/pad reads. Default: 250
+             -l, --trim_len      Length to trim/pad reads. Default: 300
              -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
-             --min_len           Minimum length read to keep. Default: 50
+             --min_len           Minimum length read to keep. Default: 100
              --full_length       Keep only full length sequences.
              --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
@@ -159,9 +159,9 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4
              -n, --name_prefix   Prefix for re-naming reads. Default: R_
-             -l, --trim_len      Length to trim/pad reads. Default: 250
+             -l, --trim_len      Length to trim/pad reads. Default: 300
              -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
-             --min_len           Minimum length read to keep. Default: 50
+             --min_len           Minimum length read to keep. Default: 100
              --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
              --reverse_barcode   FASTA file containing 3' barcodes. Default: none
              --full_length       Keep only full length sequences.
@@ -196,7 +196,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              -m, --mapping_file  QIIME-like mapping file
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4      
-             -l, --trim_len      Length to trim/pad reads. Default: 250
+             -l, --trim_len      Length to trim/pad reads. Default: 300
              -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
              --min_len           Minimum length read to keep. Default: 100
              --full_length       Keep only full length sequences.

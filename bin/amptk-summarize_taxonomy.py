@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 from __future__ import division
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import pandas as pd
