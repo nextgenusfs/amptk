@@ -2,6 +2,8 @@
 
 #script to draw a heatmap from counts data, i.e. PFAM, InterPro, or even OTU table
 import sys, warnings, argparse
+import matplotlib
+matplotlib.use('agg')
 import pandas as pd
 import numpy as np
 with warnings.catch_warnings():

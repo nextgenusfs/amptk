@@ -18,7 +18,7 @@ AMPtk comes with a wrapper script for ease of use.  On UNIX, you can call it by 
 ```
 $ amptk
 Usage:       amptk <command> <arguments>
-version:     0.8.9
+version:     0.10.0
 
 Description: AMPtk is a package of scripts to process NGS amplicon data.  
              Dependencies:  USEARCH v9.1.13 and VSEARCH v2.2.0
@@ -26,8 +26,9 @@ Description: AMPtk is a package of scripts to process NGS amplicon data.
 Process:     ion         pre-process Ion Torrent data
              illumina    pre-process folder of de-multiplexed Illumina data
              illumina2   pre-process PE Illumina data from a single file
+             illumina3   pre-process PE Illumina + index reads (i.e. R1, R2, I)
              454         pre-process Roche 454 (pyrosequencing) data
-             SRA         pre-process singe FASTQ per sample data (i.e. SRA data)
+             SRA         pre-process single FASTQ per sample data (i.e. SRA data)
              
 Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
              dada2       dada2 denoising algorithm (requires R, dada2, ShortRead)
@@ -57,7 +58,7 @@ And then by calling one of the commands, you get a help menu for each:
 ```
 $ amptk cluster
 Usage:       amptk cluster <arguments>
-version:     0.8.0
+version:     0.10.0
 
 Description: Script is a "wrapper" for the UPARSE algorithm. FASTQ quality trimming via expected 
              errors and Dereplication are run in vsearch if installed otherwise defaults to Python 
@@ -98,7 +99,7 @@ From the Torrent Server, analyze the data using the `--disable-all-filters` Base
 
 ```
 amptk ion -i data.bam -o data -f fITS7 -r ITS4
-amptk ion --barcodes 1,5,24 -i data.fastq -o data -f ITS1-F -r ITS2
+amptk ion --barcodes 1,5,24 -i data.fastq.gz -o data -f ITS1-F -r ITS2
 amptk ion --barcode_fasta my_barcodes.fa -i data.fastq -o data -f ITS1 -r ITS2
 amptk ion -i data.bam -m mapping_file.txt -o data
 ```
@@ -131,29 +132,35 @@ amptk illumina -i folder_name -o miseqData -f fITS7 -r ITS4
 amptk illumina -i folder_name -o miseqData -m mapping_file.txt
 ```
 
-This will find all files ending with '.fastq.gz' in the input folder, gunzip the files, and then sequentially process the paired read files.  First it will run USEARCH8 `-fastq_mergepairs`, however, since some ITS sequences are too long to overlap you can rescue longer sequences by recovering the the non-merged forward reads by passing the `--rescue_forward` argument.  Alternatively, you can only utilize the forward reads (R1), by passing the `--reads forward` argument.  Next the forward and reverse primers are removed and the reads are trimmed/padded to a set length of clustering. Finally, the resulting FASTQ files for each of the processed samples are concatenated together into a file called `miseqData.demux.fq` that will be used for the next clustering step.  The script will also output a text file called `miseqData-filenames.txt` that contains a tab-delimited output of the sample name as well as [i5] and [i7] index sequences that were used.  The script will produce a folder containing the individual de-multiplexed files named from the `-o, --out` argment.
+This will find all files ending with '.fastq.gz' in the input folder, gunzip the files, and then sequentially process the paired read files.  The script will run `-fastq_mergepairs` from USEARCH9 or VSEARCH (dependent on `--merge_method`) , however, since some ITS sequences are too long to overlap, the default setting is to rescue longer sequences by recovering the the non-merged forward reads. (to turn off use  `--rescue_forward off` ).  Alternatively, you can only utilize the forward reads (R1), by passing the `--reads forward` argument.  Next the forward and reverse primers are removed and the reads are trimmed/padded to a set length of clustering (controlled by the `--pad` option). Finally, the resulting FASTQ files for each of the processed samples are concatenated together into a file called `miseqData.demux.fq.gz` that will be used for the next clustering step.  The script will also output a text file called `miseqData-filenames.txt` that contains a tab-delimited output of the sample name as well as [i5] and [i7] index sequences that were used.  The script will produce a folder containing the individual de-multiplexed files named from the `-o, --out` argment.
 
-#### OTU Clustering:
+#### OTU Picking:
 
-The next step is to run `amptk cluster`, which expects de-multiplexed FASTQ data as a single file with `;barcodelabel=Sample_name` in the FASTQ header. If your data is in some other format, you can use other UNIX/Perl/Python scripts to add the `barcodelabel=` to each read and then cluster your data using AMPtk.  Note that reads should be [globally trimmed](http://www.drive5.com/usearch/manual/global_trimming.html) and the pre-processing steps in AMPtk take steps to ensure high quality data makes it into the clustering algorithm with minimal sequence loss. Now the data from either platform (Ion, 454, or Illumina) can be clustered by running the following:
+After samples are pre-processed, the next step is to pick OTUs from the data. AMPtk can do this by using UPARSE, UNOISE2, DADA2, or reference based clustering.  UPARSE is run using the  `amptk cluster` command, which expects de-multiplexed FASTQ (or GZIPPED FASTQ) data as a single file with `;barcodelabel=Sample_name` in the FASTQ header. If your data is in some other format, you can use other UNIX/Perl/Python scripts to add the `barcodelabel=` to each read and then cluster your data using AMPtk.  Note that reads should have primers trimmed from them and can optionally be [globally trimmed](http://www.drive5.com/usearch/manual/global_trimming.html) by padding with N's to a set length.  For variable length amplicons, you should NOT discard short sequences that contain both a forward and reverse primer. AMPtk take steps to ensure high quality data makes it into the clustering algorithm with minimal sequence loss via the pre-processing steps. Now the data from either platform (Ion, 454, or Illumina) can be clustered by running the following:
 
 ```
 amptk cluster -i amptk.demux.fq -o ion_output
 ```
 
-This script wil quality filter the data based on expected errors, then remove duplicated sequences (dereplication), sort the output by abundance, and finally cluster using `usearch -cluster_otus` command.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS` option or change the default clustering radius (97%) by passing the `--pct_otu` option. Type `-h` for all the available options.
+This script wil quality filter the data based on expected errors, then remove duplicated sequences (dereplication), sort the output by abundance, and finally cluster using `usearch -cluster_otus` command.  You can also optionally run UCHIME Reference filtering by adding the `--uchime_ref ITS` option. Type `-h` for all the available options.
 
-#### DADA2 "Clustering":
-Recently there is a new "OTU picking" algorithm for amplicon based datasets called DADA2 that has sensitivity down to single base pairs, see publication [here](http://www.nature.com/nmeth/journal/v13/n7/full/nmeth.3869.html), GitHub [here](https://github.com/benjjneb/dada2).  This algorithm uses a statistical method to infer the original sequence that a read was derived from, foregoing the need to cluster at a set threshold (i.e. 97%).  I've implemented a modified DADA2 pipeline here to work with the current AMPtk data structure.  A reminder is that reads for DADA2 must have no N's and have to all length trimmed identically, thus variable length amplicons will be truncated down.  Thus this method is perhaps more suited to something like COI or 16S amplicons.  You can run it as follows:
+#### DADA2 and UNOISE2 "denoising":
+Recently there is a new "OTU picking" algorithm for amplicon based datasets called DADA2 that has sensitivity down to single base pairs, see publication [here](http://www.nature.com/nmeth/journal/v13/n7/full/nmeth.3869.html), GitHub [here](https://github.com/benjjneb/dada2).  This algorithm uses a statistical method to infer the original sequence that a read was derived from, foregoing the need to cluster at a set threshold (i.e. 97%).  Instead of clustering into OTUs, the algorithm finds "exact sequence variants" or "inferred sequences" (iSeqs).  I've implemented a modified DADA2 pipeline here to work with the current AMPtk data structure.  A reminder is that reads for DADA2 must have no N's.  DADA2 v1.4 and greater support variable length amplicons.  You can run it as follows:
 
 ```
-amptk dada2 -i amptk.demux.fq -o dada2_output -l 200
+amptk dada2 -i amptk.demux.fq.gz -o dada2_output
 ```
-The script will quality filter your data, trim for use in DADA2, run DADA2 alogrithm, and then parse the results to output an OTU table and a file containing inferred sequences (OTUs) in fasta format.  These files can be used in all downstream AMPtk scripts, i.e. `amptk filter` and `amptk taxonomy`.
+The script will quality filter your data, trim for use in DADA2, run DADA2 alogrithm, and then parse the results to output an OTU table and a file containing inferred sequences (OTUs) in fasta format.  These files can be used in all downstream AMPtk scripts, i.e. `amptk filter` and `amptk taxonomy`.  A similar algorithm has been employed in USEARCH called UNOISE2, you can run that as follows:
+
+```
+amptk unoise2 -i amptk.demux.fq.gz -o unoise2_output
+```
+
+
 
 #### OTU Table Filtering
 
-The data may need some additional filtering if you included a spike-in control mock community.  The advantage is that you know what should be in the spike-in control barcode sample, thus you can modify USEARCH8 clustering parameters that give you reasonable results.  If you need to trim your OTU table by some threshold, i.e. several OTUs at low abundance are showing up in your spike-in control sample that represent contamination or sequence error - you can set a threshold and filter the OTU table. This is done with the following script:
+The data may need some additional filtering if you included a spike-in control mock community.  The advantage is that you know what should be in the spike-in control barcode sample, thus you can modify USEARCH9 clustering parameters that give you reasonable results.  If you need to trim your OTU table by some threshold, i.e. several OTUs at low abundance are showing up in your spike-in control sample that represent contamination or sequence error - you can set a threshold and filter the OTU table. This is done with the following script:
 
 ```
 amptk filter -i test.otu_table.txt -f test.final.otus.fa -b mock3 --mc my_mock_seqs.fa
@@ -169,40 +176,42 @@ amptk filter -i test.otu_table.txt -f test.final.otus.fa -p 0.005
 
 #### Assign Taxonomy:
 
-You can assign taxonomy to your OTUs using AMPtk, either using UTAX from USEARCH8.1 or using usearch_global.  The databases require some initial setup before you can use the `amptk taxonomy` command.  
+You can assign taxonomy to your OTUs using AMPtk, either using UTAX from USEARCH9 or using usearch_global.  The databases require some initial setup before you can use the `amptk taxonomy` command.  
 
 Issuing the `amptk taxonomy` command will inform you which databases have been properly configured as well as usage instructions:
 
 ```
 $ amptk taxonomy
 Usage:       amptk taxonomy <arguments>
-version:     0.8.0
+version:     0.10.0
 
-Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  By default the script
-             uses a hybrid approach, e.g. gets taxonomy information from SINTAX, UTAX, and global alignment hits from the larger
-             UNITE-INSD database, and then parses results to extract the most taxonomy information that it can at 
-             'trustable' levels. SINTAX/UTAX results are used if BLAST-like search pct identity is less than 97%.  
+Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  
+             By default the script uses a hybrid approach, e.g. gets taxonomy information from 
+             SINTAX, UTAX, and global alignment hits from the larger UNITE-INSD database, and 
+             then parses results to extract the most taxonomy information that it can.
+             SINTAX/UTAX results are used if BLAST-like search pct identity is less than 97%.  
              If % identity is greater than 97%, the result with most taxonomy levels is retained.
     
 Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from amptk cluster) (Required)
              -i, --otu_table     Input OTU table file (i.e. otu_table from amptk cluster)
              -o, --out           Base name for output file. Default: amptk-taxonomy.<method>.txt
-             -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: ITS2
+             -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. 								Default: ITS2
              -m, --mapping_file  QIIME-like mapping file
              -t, --taxonomy      Taxonomy calculated elsewhere. 2 Column file.
-             --method            Taxonomy method. Default: hybrid [utax, sintax, usearch, hybrid, rdp, blast]
-             --fasta_db          Alternative database of fasta sequenes to use for global alignment.
-             --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
+             --method            Taxonomy method. Default: hybrid [utax, sintax, usearch, hybrid,   							   rdp, blast]
+             --fasta_db          Alternative database of fasta sequenes to use for global 									   alignment.
+             --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's 							    below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --usearch_db        USEARCH formatted database. Default: USEARCH.udb
              --usearch_cutoff    USEARCH threshold percent identity. Default 0.7
              --sintax_cutoff     SINTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              -r, --rdp           Path to RDP Classifier. Required if --method rdp
-             --rdp_db            RDP Classifer DB set. [fungalits_unite, fungalits_warcup. fungallsu, 16srrna]  
+             --rdp_db            RDP Classifer DB set. [fungalits_unite, fungalits_warcup. 									   fungallsu, 16srrna]  
              --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
-             --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi to keep only fungi.
+             --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi 							    to keep only fungi.
              -u, --usearch       USEARCH executable. Default: usearch9
+             --debug             Keep intermediate files  
 ```
 
 And then you can use the `amptk taxonomy` command to assign taxonomy to your OTUs as well as append them to your OTU table as follows:
@@ -244,12 +253,12 @@ As of `amptk v0.6.0`, the output from the `amptk taxonomy` command will create a
 * matplotlib
 * psutil
 * bedtools (only needed if using Ion Torrent BAM file as input)
-* vsearch (version > 1.9.0, this is optional but will increase speed of AMPtk and is required for very large datasets) installed via homebrew installation by default.  Newer tools require vsearch.
+* vsearch (version > 2.2.0)
 * biom-format (to create biom OTU table)
 * h5py (for biom)
 * R (dada2)
 * dada2, ShortRead (these will be automatically installed on first usage of `amptk dada2`
 
-Python and USEARCH need to accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch8` to scripts requiring USEARCH8.  
+Python and USEARCH need to accessible in PATH; alternatively you can pass in the variable `-u /path/to/usearch9` to scripts requiring USEARCH9. 
 
-In order to draw a heatmap or stacked bar graph using `amptk.py heatmap` or `amptk summarize` you will need to have the following python libraries installed: `matplotlib, pandas, numpy`.  They can be installed with pip, i.e. `pip install matplotlib pandas numpy`.
+In order to draw a heatmap or stacked bar graph using `amptk.py heatmap` or `amptk summarize` you will need to have the following python libraries installed: `matplotlib, pandas, numpy`.  They can be installed with pip, i.e. `pip install matplotlib pandas numpy` or conda, `conda install matplotlib pandas numpy`.

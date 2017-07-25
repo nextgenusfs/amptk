@@ -122,8 +122,9 @@ FastaCounts = base+'.otus.counts.fa'
 with open(FastaCounts, 'w') as outfile:
     with open(args.fasta, 'rU') as infile:
         for rec in SeqIO.parse(infile, 'fasta'):
-            count = AddCounts.get(rec.id)
-            outfile.write('>%s;size=%i\n%s\n' % (rec.id, count, rec.seq))
+            if rec.id in AddCounts:
+                count = AddCounts.get(rec.id)
+                outfile.write('>%s;size=%i\n%s\n' % (rec.id, count, rec.seq))
     
 amptklib.log.info('OTU table contains {0:,}'.format(len(df.index)) + ' OTUs and {0:,}'.format(int(df.values.sum())) + ' read counts')
 
