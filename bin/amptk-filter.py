@@ -119,13 +119,20 @@ for x in OTUcounts.index:
 
 #now add counts to fasta header
 FastaCounts = base+'.otus.counts.fa'
+OTU_tax = {}
 with open(FastaCounts, 'w') as outfile:
     with open(args.fasta, 'rU') as infile:
         for rec in SeqIO.parse(infile, 'fasta'):
-            if rec.id in AddCounts:
-                count = AddCounts.get(rec.id)
+            if ';' in rec.id: #this should mean there is taxonomy, so split it
+                ID = rec.id.split(';',1)[0]
+                tax = rec.id.split(';',1)[-1]
+                OTU_tax[ID] = tax
+                count = AddCounts.get(ID)
+                outfile.write('>%s;size=%i\n%s\n' % (ID, count, rec.seq))
+            else: #no tax, just process
+                count = AddCounts.get(rec.id) 
                 outfile.write('>%s;size=%i\n%s\n' % (rec.id, count, rec.seq))
-    
+
 amptklib.log.info('OTU table contains {0:,}'.format(len(df.index)) + ' OTUs and {0:,}'.format(int(df.values.sum())) + ' read counts')
 
 #setup output files/variables
@@ -589,6 +596,8 @@ else: #proceed with rest of script
     with open(otu_new, 'w') as otu_update:
         with open(args.fasta, "rU") as myfasta:
             for rec in SeqIO.parse(myfasta, 'fasta'):
+                if ';' in rec.id:
+                    rec.id = rec.id.split(';',1)[0]
                 if args.mock_barcode:
                     #map new names of mock
                     if rec.id in annotate_dict:
@@ -596,7 +605,11 @@ else: #proceed with rest of script
                         rec.id = newname
                         rec.description = ''
                 if rec.id in final.index:
-                    SeqIO.write(rec, otu_update, 'fasta')
+                    if rec.id in OTU_tax:
+                        otu_update.write('>%s;%s\n%s\n' % (rec.id, OTU_tax.get(rec.id), rec.seq))
+                    else:
+                        otu_update.write('>%s\n%s\n' % (rec.id, rec.seq))
+
                 
     #tell user what output files are
     print "-------------------------------------------------------"

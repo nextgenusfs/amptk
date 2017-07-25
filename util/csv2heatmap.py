@@ -1,16 +1,13 @@
 #!/usr/bin/env python
 
 #script to draw a heatmap from counts data, i.e. PFAM, InterPro, or even OTU table
-import sys, warnings, argparse
 import matplotlib
 matplotlib.use('agg')
+import matplotlib.pyplot as plt
+import seaborn as sns
+import sys, argparse
 import pandas as pd
 import numpy as np
-with warnings.catch_warnings():
-    warnings.simplefilter('ignore')
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    
 
 #setup menu with argparse
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
