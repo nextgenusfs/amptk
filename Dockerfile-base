@@ -1,0 +1,27 @@
+#docker config for AMPtk installation 
+FROM continuumio/miniconda
+MAINTAINER Jon Palmer <nextgenusfs@gmail.com>
+
+USER root
+
+RUN apt-get update && apt-get install -y zlib1g-dev libssl-dev \
+    libcurl4-gnutls-dev libxml2-dev libxslt1-dev build-essential
+
+RUN conda config --add channels r && \
+    conda config --add channels bioconda && \
+    conda install --yes cython biopython natsort pandas psutil matplotlib \
+    biom-format sra-tools r-base vsearch bioconductor-dada2 bioconductor-phyloseq
+
+RUN pip install -U srapy
+
+RUN git clone git://github.com/nextgenusfs/amptk.git && \
+    cd amptk && \
+    make && \
+    cd ..
+
+ENV PATH=/work:/amptk:$PATH \
+    SHELL=/bin/bash
+
+RUN mkdir /work
+
+WORKDIR /work

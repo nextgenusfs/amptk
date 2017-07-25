@@ -41,6 +41,7 @@ parser.add_argument('--min_len', default=50, type=int, help='Minimum read length
 parser.add_argument('-l','--trim_len', default=250, type=int, help='Trim length for reads')
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
 parser.add_argument('--mult_samples', dest="multi", default='False', help='Combine multiple samples (i.e. FACE1)')
+parser.add_argument('--merge_method', default='usearch', choices=['usearch', 'vsearch'], help='Software to use for PE read merging')
 parser.add_argument('--illumina', action='store_true', help='Input data is single file Illumina')
 parser.add_argument('--ion', action='store_true', help='Input data is Ion Torrent')
 parser.add_argument('--454', action='store_true', help='Input data is 454')
@@ -329,7 +330,7 @@ if args.illumina:
         #merge reads
         amptklib.log.info("Merging Illumina reads")
         SeqIn = args.out + '.merged.fq'
-        amptklib.MergeReads(args.fastq, args.reverse, '.', SeqIn, RL, args.min_len, usearch, 'on')
+        amptklib.MergeReads(args.fastq, args.reverse, '.', SeqIn, RL, args.min_len, usearch, 'on', args.merge_method, '', args.barcode_mismatch)
     else:
         amptklib.log.info("Running AMPtk on forward Illumina reads")
         SeqIn = args.fastq 
