@@ -50,43 +50,6 @@ parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH EXE')
 args=parser.parse_args()
 
-def FindBarcode(Seq, BarcodeDict):
-    for BarcodeLabel in BarcodeDict.keys():
-        Barcode = BarcodeDict[BarcodeLabel]
-        if Seq.startswith(Barcode):
-            return Barcode, BarcodeLabel
-    return "", ""
-
-def AlignBarcode(Seq, BarcodeDict):
-    besthit = ('', '', '')
-    for BL in BarcodeDict.keys():
-        B = BarcodeDict[BL]
-        align = edlib.align(B, Seq, mode="SHW", k=args.barcode_mismatch+1)
-        if align["editDistance"] == 0:
-            return B, BL
-        elif args.barcode_mismatch == 0:
-            continue
-        elif align["editDistance"] > 0:
-            if align["editDistance"] < besthit[2]:
-                besthit = (B,BL,align["editDistance"])
-    if besthit[2] <= args.barcode_mismatch:
-        return besthit[0], besthit[1]
-    return "", ""
-    
-def AlignRevBarcode(Seq, BarcodeDict):
-    besthit = ('', '', '')
-    for BL in BarcodeDict.keys():
-        B = BarcodeDict[BL]
-        align = edlib.align(B, Seq, mode="HW", k=args.barcode_mismatch+1)
-        if align["editDistance"] == 0:
-            return B, BL
-        elif align["editDistance"] > 0:
-            if align["editDistance"] < besthit[2]:
-                besthit = (B,BL,align["editDistance"])
-    if besthit[2] <= args.barcode_mismatch:
-        return besthit[0], besthit[1]
-    return "", ""
-
 def processRead(input):
     base = os.path.basename(input).split('.')[0]
     PL = len(FwdPrimer)
@@ -105,7 +68,7 @@ def processRead(input):
             for title, seq, qual in FastqGeneralIterator(open(input)):
                 Total += 1
                 #look for barcode, trim it off
-                Barcode, BarcodeLabel = AlignBarcode(seq, Barcodes)
+                Barcode, BarcodeLabel = amptklib.AlignBarcode(seq, Barcodes, args.barcode_mismatch)
                 if Barcode == "":
                     NoBarcode += 1
                     continue
@@ -129,7 +92,7 @@ def processRead(input):
                         RevBCdiffs = 0
                         BCcut = revalign["locations"][0][1]
                         CutSeq = Seq[BCcut:]
-                        RevBarcode, RevBarcodeLabel = AlignRevBarcode(CutSeq, RevBarcodes)
+                        RevBarcode, RevBarcodeLabel = amptklib.AlignRevBarcode(CutSeq, RevBarcodes, args.barcode_mismatch)
                         if RevBarcode == "":
                             NoRevBarcode += 1
                             continue

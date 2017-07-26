@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, re, gzip, argparse, inspect, csv, shutil, edlib
+import sys, os, re, gzip, argparse, inspect, csv, shutil, edlib, multiprocessing
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
@@ -35,6 +35,7 @@ parser.add_argument('-d', '--description', help='Paragraph description for SRA m
 parser.add_argument('-t','--title', default='Fungal ITS', help='Start of title for SRA submission, name it according to amplicon')
 parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
+parser.add_argument('--barcode_mismatch', default=0, type=int, help='Number of mis-matches in barcode')
 parser.add_argument('--require_primer', default='off', choices=['forward', 'both', 'off'], help='Require Primers to be present')
 parser.add_argument('--force', action='store_true', help='Overwrite existing directory')
 parser.add_argument('-a','--append', help='Append a name to all sample names for a run, i.e. --append run1 would yield Sample_run1')
@@ -168,7 +169,6 @@ if args.platform == 'illumina':
                     filelist.append(file)
 
 else:
-    #count FASTQ records in input
     #start here to process the reads, first reverse complement the reverse primer
     ReverseCompRev = revcomp_lib.RevComp(RevPrimer)
 
@@ -200,10 +200,18 @@ else:
                     name = ID + ".fastq"
                 continue
             Barcodes[name]=line.strip()
-
+    
+    #check for compressed input file
+    if args.FASTQ.endswith('.gz'):
+        amptklib.log.info("Gzipped input files detected, uncompressing")
+        FASTQ_IN = args.FASTQ.replace('.gz', '')
+        amptklib.Funzip(args.FASTQ, FASTQ_IN, multiprocessing.cpu_count())
+    else:
+        FASTQ_IN = args.FASTQ
+   
     #count FASTQ records in input
     amptklib.log.info("Loading FASTQ Records")
-    total = amptklib.countfastq(args.FASTQ)
+    total = amptklib.countfastq(FASTQ_IN)
     size = amptklib.checkfastqsize(args.FASTQ)
     readablesize = amptklib.convertSize(size)
     amptklib.log.info('{0:,}'.format(total) + ' reads (' + readablesize + ')')
@@ -216,34 +224,28 @@ else:
     elif args.require_primer == 'both':
         amptklib.log.info("Looking for %i barcodes that must have FwdPrimer: %s and  RevPrimer: %s" % (len(Barcodes), FwdPrimer, RevPrimer))
     
-
     #this will loop through FASTQ file once, splitting those where barcodes are found, and primers trimmed
     runningTotal = 0
-    trim = len(FwdPrimer)
-    with open(args.FASTQ, 'rU') as input:
+    with open(FASTQ_IN, 'rU') as input:
         for title, seq, qual in FastqGeneralIterator(input):
-            Barcode, BarcodeLabel = FindBarcode(seq, Barcodes)
-            if Barcode == "": #if not found, move onto next record
+            Barcode, BarcodeLabel = amptklib.AlignBarcode(seq, Barcodes, args.barcode_mismatch)
+            if Barcode == "":
                 continue
+            #trim barcode from sequence
             BarcodeLength = len(Barcode)
             seq = seq[BarcodeLength:]
             qual = qual[BarcodeLength:]
             #look for forward primer
-            if args.require_primer != 'off': #means we only want ones with forward primer and or reverse
-                Diffs = primer.MatchPrefix(seq, FwdPrimer)
-                if Diffs > args.primer_mismatch:
+            if args.require_primer != 'off': #means we only want ones with forward primer and or reverse, but don't remove them             
+                #now search for forward primer
+                foralign = edlib.align(FwdPrimer, seq, mode="HW", k=args.primer_mismatch)
+                if foralign["editDistance"] < 0:
                     continue
-                #if found, trim away primer
-                seq = seq[trim:]
-                qual = qual[trim:]
-                if args.require_primer == 'both':
-                    #look for reverse primer, strip if found
-                    BestPosRev, BestDiffsRev = primer.BestMatch2(seq, ReverseCompRev, args.primer_mismatch)
-                    if BestPosRev > 0:
-                        seq = seq[:BestPosRev]
-                        qual = qual[:BestPosRev]
-                    else:
-                        continue
+                if args.require_primer == 'both': 
+                    #now search for reverse primer
+                    revalign = edlib.align(ReverseCompRev, seq, mode="HW", task="locations", k=args.primer_mismatch)
+                    if revalign["editDistance"] < 0:  #reverse primer was not found
+                        continue         
             #check size
             if len(seq) < args.min_len: #filter out sequences less than minimum length.
                 continue
@@ -251,6 +253,7 @@ else:
             fileout = os.path.join(args.out, BarcodeLabel)
             with open(fileout, 'ab') as output:
                 output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
+                
     if args.require_primer == 'off':   
         amptklib.log.info('{0:,}'.format(runningTotal) + ' total reads with valid barcode')
     elif args.require_primer == 'forward':
@@ -259,18 +262,10 @@ else:
         amptklib.log.info('{0:,}'.format(runningTotal) + ' total reads with valid barcode and both primers')
     
     amptklib.log.info("Now Gzipping files")
-    gzip_list = []
     for file in os.listdir(args.out):
         if file.endswith(".fastq"):
-            gzip_list.append(file)
-
-    for file in gzip_list:
         file_path = os.path.join(args.out, file)
-        new_path = file_path + '.gz'
-        with open(file_path, 'rU') as orig_file:
-            with gzip.open(new_path, 'w') as zipped_file:
-                zipped_file.writelines(orig_file)
-        os.remove(file_path)
+        amptklib.Fzip_inplace(file_path)
     
     #after all files demuxed into output folder, loop through and create SRA metadata file
     filelist = []
@@ -279,6 +274,9 @@ else:
             filelist.append(file)
 
 amptklib.log.info("Finished: output in %s" % args.out)
+#clean up if gzipped
+if args.FASTQ.endswith('.gz'):
+    amptklib.removefile(FASTQ_IN)
 
 #check for BioSample meta file
 if args.biosample:

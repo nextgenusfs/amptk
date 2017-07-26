@@ -1,4 +1,4 @@
-import sys, logging, csv, os, subprocess, multiprocessing, platform, time, shutil, inspect, gzip
+import sys, logging, csv, os, subprocess, multiprocessing, platform, time, shutil, inspect, gzip, edlib
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 from Bio import SeqIO
@@ -299,7 +299,38 @@ def illuminaBCmismatch(R1, R2, index):
             if BC != index:
                 remove.append(ID)
     remove = set(remove)
-    return remove             
+    return remove
+
+def AlignBarcode(Seq, BarcodeDict, mismatch):
+    besthit = ('', '', '')
+    for BL in BarcodeDict.keys():
+        B = BarcodeDict[BL]
+        align = edlib.align(B, Seq, mode="SHW", k=int(mismatch))
+        if align["editDistance"] == 0:
+            return B, BL
+        elif int(mismatch) == 0:
+            continue
+        elif align["editDistance"] > 0:
+            if align["editDistance"] < besthit[2]:
+                besthit = (B,BL,align["editDistance"])
+    if besthit[2] <= int(mismatch):
+        return besthit[0], besthit[1]
+    return "", ""
+    
+def AlignRevBarcode(Seq, BarcodeDict, mismatch):
+    besthit = ('', '', '')
+    for BL in BarcodeDict.keys():
+        B = BarcodeDict[BL]
+        align = edlib.align(B, Seq, mode="HW", k=int(mismatch))
+        if align["editDistance"] == 0:
+            return B, BL
+        elif align["editDistance"] > 0:
+            if align["editDistance"] < besthit[2]:
+                besthit = (B,BL,align["editDistance"])
+    if besthit[2] <= int(mismatch):
+        return besthit[0], besthit[1]
+    return "", ""
+          
            
 def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, method, index, mismatch):
     removelist = []

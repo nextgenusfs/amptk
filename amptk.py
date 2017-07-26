@@ -124,6 +124,7 @@ Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
              --min_len           Minimum length read to keep. Default: 100
              --full_length       Keep only full length sequences.
              --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
+             --barcode_mismatch   Number of mismatches in barcode to allow. Default: 0
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
              --cpus              Number of CPUs to use. Default: all
              --mult_samples      Combine multiple chip runs, name prefix for chip
@@ -163,6 +164,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
              --min_len           Minimum length read to keep. Default: 100
              --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
+             --barcode_mismatch   Number of mismatches in barcode to allow. Default: 0
              --reverse_barcode   FASTA file containing 3' barcodes. Default: none
              --full_length       Keep only full length sequences.
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
@@ -206,6 +208,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
              --rescue_forward    Rescue Forward Reads if PE do not merge, e.g. long amplicons. Default: on [on,off]
              --require_primer    Require the Forward primer to be present. Default: on [on,off]
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
+             --barcode_mismatch   Number of mismatches in barcode to allow. Default: 1
              --cpus              Number of CPUs to use. Default: all
              --cleanup           Remove intermediate files.
              --merge_method      Software to use for PE merging. Default: usearch [usearch,vsearch]
@@ -282,6 +285,7 @@ Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
              --min_len           Minimum length read to keep. Default: 50
              --barcode_fasta     FASTA file containing barcodes. (Required)
              --reverse_barcode   FASTA file containing 3' barcodes. Default: none
+             --barcode_mismatch  Number of mismatches in barcode to allow. Default: 0
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
              --cpus              Number of CPUs to use. Default: all
         """ % (sys.argv[1], version)
@@ -671,6 +675,7 @@ Arguments:   -i, --input         Input OTU table (Required)
              -o, --output        Output file (Required)
              -m, --method        Type of heatmap. Default: clustermap [clustermap,heatmap]
              -d, --delimiter     Delimiter of OTU table. Default: tsv [tsv,csv]
+             -f, --format        Figure format. Default: pdf [pdf,jpg,svg,png]
              --font              Font set. Default: arial
              --color             Color Palette. Default: gist_gray_r
              --figsize           Figure size. Default: 2x8
@@ -680,7 +685,10 @@ Arguments:   -i, --input         Input OTU table (Required)
              --cluster_method    Clustering method for clustermap. Default: single [single,complete,average,weighted]
              --scaling           Scale the data by row. Default: None [None, z_score, standard]
              --yaxis_fontsize    Y-Axis Font Size. Default: 6
-             --xaxis_fontsize    X-Axis Font Size. Default: 6             
+             --xaxis_fontsize    X-Axis Font Size. Default: 6
+             --normalize         Normalize data based total, tsv file ID<tab>count
+             --normalize_counts  Value to normalize counts to, i.e. 100000
+             --vmax              Maximum value for heatmap coloration.
              --debug             Print pandas table on import to terminal
         """ % (sys.argv[1], version)
         
@@ -926,6 +934,7 @@ Arguments:   -i, --input         Input FASTQ file or folder (Required)
              -r, --rev_primer    Reverse primer sequence. Default: ITS4
              -a, --append        Append a name to the output of all files in run, i.e. run1 -> Sample_run1
              --primer_mismatch   Number of mismatches allowed in primer search. Default: 2
+             --barcode_mismatch  Number of mismatches in barcode to allow. Default: 0
              --require_primer    Require primer(s) to be present for output. Default: off [off,forward,both]
              --min_len           Minimum length read to keep after trimming barcodes. Default 50
              ---force            Overwrite directory with same name
