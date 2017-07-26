@@ -192,7 +192,7 @@ if args.mock_barcode: #if user passes a column name for mock
             length = int(cols[4])
             mism = int(cols[7])
             diffs = int(cols[8])
-            score = abundance * pident
+            score = diffs * abundance #total number of diffs, can use to sort hits
             if not otuID in errorrate:
                 errorrate[otuID] = [MockID,diffs]
             else:
@@ -214,35 +214,34 @@ if args.mock_barcode: #if user passes a column name for mock
         for y in v:
             if y[2] >= 97.0:
                 besthit.append(y)
+            elif y[2] >= 95.0 and y[2] < 97.0:
+                if not y[0] in variants:
+                    variants.append(y[0])
+            else:
+                if not y[0] in chimeras:
+                    chimeras.append(y[0])
         if len(besthit) > 0:
             besthit.sort(key=lambda x: x[1], reverse=True)
-            best = sorted(besthit[:3], key=lambda x: x[6], reverse=True)
+            best = sorted(besthit[:3], key=lambda x: x[6])
             found_dict[k] = best[0]
         else:
             missing.append(k)
-        for i in v:
-            if i[2] >= 95.0:
-                if not i[0] in variants:
-                    variants.append(i[0])
-            else:
-                if not i[0] in chimeras:
-                    chimeras.append(i[0])
-
+            
     #make name change dict
     annotate_dict = {}
     seen = []
-    for k,v in found_dict.items():
+    for k,v in natsorted(found_dict.items()):
         ID = v[0].replace('_chimera', '')
         newID = k+'_pident='+str(v[2])+'_'+v[0]
         annotate_dict[ID] = newID
         if not v[0] in seen:
             seen.append(v[0])
+    chimeras = [x for x in chimeras if x not in seen]
+    variants = [x for x in variants if x not in seen]
     for i in chimeras:
-        if not i in seen:
-            annotate_dict[i] = i+'_suspect_mock_chimera'
+        annotate_dict[i] = i+'_suspect_mock_chimera'
     for x in variants:
-        if not x in seen:
-            annotate_dict[i] = i+'_suspect_mock_variant'
+        annotate_dict[x] = x+'_suspect_mock_variant'
     if len(missing) > 0:
         amptklib.log.info("%i mock missing: %s" % (len(missing), ', '.join(missing)))
 else:

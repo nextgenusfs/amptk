@@ -517,11 +517,12 @@ version:     %s
 Description: Script filters de-multiplexed data (.demux.fq) to select only reads from samples 
              provided in a text file, one name per line or pass a list to keep to --list.
     
-Required:    -i, --input     Input FASTQ file (.demux.fq)
-             -l, --list      List of sample (barcode) names to keep, separate by space
-             -f, --file      List of sample (barcode) names to keep in a file, one per line
-             -o, --out       Output file name
-             --format        File format for output file. Default: fastq [fastq, fasta]  
+Required:    -i, --input      Input FASTQ file (.demux.fq)
+             -t, --threshold  Keep samples with read count greater than -t
+             -l, --list       List of sample (barcode) names to keep, separate by space
+             -f, --file       List of sample (barcode) names to keep in a file, one per line
+             -o, --out        Output file name
+             --format         File format for output file. Default: fastq [fastq, fasta]  
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -542,11 +543,12 @@ version:     %s
 Description: Script filters de-multiplexed data (.demux.fq) to remove only reads from samples provided
              in a text file, one name per line.
     
-Required:    -i, --input     Input FASTQ file (.demux.fq)
-             -l, --list      List of sample (barcode) names to remove, separate by space
-             -f, --file      List of sample (barcode) names to remove in a file, one per line
-             -o, --out       Output file name
-             --format        File format for output file. Default: fastq [fastq, fasta]
+Required:    -i, --input      Input FASTQ file (.demux.fq)
+             -t, --threshold  Keep samples with read count greater than -t
+             -l, --list       List of sample (barcode) names to remove, separate by space
+             -f, --file       List of sample (barcode) names to remove in a file, one per line
+             -o, --out        Output file name
+             --format         File format for output file. Default: fastq [fastq, fasta]
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
