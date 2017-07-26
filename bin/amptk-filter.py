@@ -167,7 +167,7 @@ if args.mock_barcode: #if user passes a column name for mock
     #load OTU lengths into dictionary
     SeqLength = amptklib.fastalen2dict(args.fasta)
     
-    #map OTUs to mock community
+    #map OTUs to mock community, this is fast enough, but running twice, first to get only top hit, then
     amptklib.log.info("Mapping OTUs to Mock Community (USEARCH)")
     cmd = [usearch, '-usearch_global', mock, '-strand', 'plus', '-id', '0.65', '-db', FastaCounts, '-userout', mock_out, '-userfields', 'query+target+id+ql+tl+alnlen+caln+mism+diffs', '-maxaccepts', '0', '-maxrejects', '0']
     amptklib.runSubprocess(cmd, amptklib.log)
@@ -192,7 +192,7 @@ if args.mock_barcode: #if user passes a column name for mock
             length = int(cols[4])
             mism = int(cols[7])
             diffs = int(cols[8])
-            score = diffs * abundance #total number of diffs, can use to sort hits
+            score = abundance * pident * length
             if not otuID in errorrate:
                 errorrate[otuID] = [MockID,diffs]
             else:
@@ -222,7 +222,7 @@ if args.mock_barcode: #if user passes a column name for mock
                     chimeras.append(y[0])
         if len(besthit) > 0:
             besthit.sort(key=lambda x: x[1], reverse=True)
-            best = sorted(besthit[:3], key=lambda x: x[6])
+            best = sorted(besthit[:3], key=lambda x: x[6], reverse=True)
             found_dict[k] = best[0]
         else:
             missing.append(k)
@@ -617,7 +617,7 @@ else: #proceed with rest of script
     print "OTU Table Stats:      %s" % stats_table
     print "Sorted OTU table:     %s" % sorted_table
     if not args.debug:
-        for i in [normal_table_pct, normal_table_nums, subtract_table, mock_out]:
+        for i in [normal_table_pct, normal_table_nums, subtract_table, mock_out, FastaCounts]:
             amptklib.removefile(i)
     else:   
         print "Normalized (pct):     %s" % normal_table_pct
