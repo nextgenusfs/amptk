@@ -59,7 +59,7 @@ def download(url, name):
         sys.stdout.write(status)
     f.close()
 
-version = '0.10.1'
+version = '0.10.2'
 
 default_help = """
 Usage:       amptk <command> <arguments>
@@ -762,6 +762,7 @@ Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from amptk cluster)
              -m, --mapping_file  QIIME-like mapping file
              -t, --taxonomy      Taxonomy calculated elsewhere. 2 Column file.
              --method            Taxonomy method. Default: hybrid [utax, sintax, usearch, hybrid, rdp, blast]
+             --add2db            Add FASTA files to DB on the fly.
              --fasta_db          Alternative database of fasta sequenes to use for global alignment.
              --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]

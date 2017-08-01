@@ -9,6 +9,7 @@ import lib.primer as primer
 import lib.revcomp_lib as revcomp_lib
 import lib.amptklib as amptklib
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
+import edlib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):

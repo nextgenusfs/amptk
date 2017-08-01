@@ -24,7 +24,9 @@ RUN wget https://github.com/torognes/vsearch/archive/v2.4.3.tar.gz && \
     make install && \
     cd ..
 
-RUN git clone git://github.com/nextgenusfs/amptk.git && \
+RUN wget https://github.com/nextgenusfs/amptk/archive/0.10.2.tar.gz && \
+    tar xzf 0.10.2.tar.gz && \
+    mv amptk-0.10.2 amptk && \
     cd amptk && \
     make && \
     cd ..

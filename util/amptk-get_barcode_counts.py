@@ -76,9 +76,9 @@ def countBarcodes(file):
             
 
     #now let's count the barcodes found and count the number of times they are found.
-    barcode_counts = "%20s:  %s" % ('Sample', 'Count')
+    barcode_counts = "%10s:  %s" % ('Sample', 'Count')
     for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
-        barcode_counts += "\n%20s:  %s" % (k, str(BarcodeCount[k]))
+        barcode_counts += "\n%10s:  %s" % (k, str(BarcodeCount[k]))
     print("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
 def getSeqLength(file):

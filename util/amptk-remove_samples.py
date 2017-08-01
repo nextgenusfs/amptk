@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, argparse, os, inspect, itertools
+import sys, argparse, os, inspect, itertools, multiprocessing
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -40,7 +40,7 @@ def countBarcodes(file):
 def filter_sample(file, output):
     global keep_count, total_count
     with open(output, 'w') as out:
-        for title, seq, qual in FastqGeneralIterator(amptklib.gzopen(file)):
+        for title, seq, qual in FastqGeneralIterator(open(file)):
             total_count += 1
             sample = title.split('=',1)[1].split(';')[0]
             if not sample in keep_list:
@@ -50,10 +50,17 @@ def filter_sample(file, output):
                 elif args.format == 'fasta':
                     out.write(">%s\n%s\n" % (title, seq))
 
+#check if input compressed, incompress if it is
+if args.input.endswith('.gz'):
+    SeqIn = args.input.replace('.gz', '')
+    amptklib.Funzip(args.input, SeqIn, multiprocessing.cpu_count())
+else:
+    SeqIn = args.input
+
 remove = []
 if args.threshold:
     print("Removing samples with less than %i reads" % args.threshold)
-    BC_counts = countBarcodes(args.input)
+    BC_counts = countBarcodes(SeqIn)
     for k,v in BC_counts.items():
         if int(v) <= args.threshold:
             if not k in remove:
@@ -76,10 +83,21 @@ count = len(keep_list)
 #now run filtering 
 keep_count = 0
 total_count = 0
-filter_sample(args.input, args.out)
+
+#rename to base
+if args.out.endswith('.gz'):
+    outfile = args.out.replace('.gz', '')
+else:
+    outfile = args.out
+#run filtering
+filter_sample(SeqIn, outfile)
+#compress and clean
 if args.out.endswith('.gz'): #compress in place
-    amptklib.Fzip_inplace(args.out)
-      
+    amptklib.Fzip_inplace(outfile)
+if args.input.endswith('.gz'):
+    amptklib.removefile(SeqIn)
+
+   
 print("Removed %i samples" % count)
 print("Kept %i reads out of %i total reads" % (keep_count, total_count))
 

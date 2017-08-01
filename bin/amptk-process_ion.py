@@ -76,13 +76,13 @@ def processRead(input):
                 Seq = seq[BarcodeLength:]
                 Qual = qual[BarcodeLength:]
                 #now search for forward primer
-                foralign = edlib.align(FwdPrimer, Seq, mode="HW", k=args.primer_mismatch)
+                foralign = edlib.align(FwdPrimer, Seq, mode="HW", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                 if foralign["editDistance"] < 0:
                     NoPrimer += 1
                     continue
                 ForTrim = foralign["locations"][0][1]+1   
                 #now search for reverse primer
-                revalign = edlib.align(RevPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch)
+                revalign = edlib.align(RevPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                 if revalign["editDistance"] >= 0:  #reverse primer was found
                     RevPrimerFound += 1 
                     #location to trim sequences
@@ -169,7 +169,7 @@ if os.path.isfile(barcode_file):
 #check if mapping file passed, use this if present, otherwise use command line arguments
 if args.mapping_file:
     if not os.path.isfile(args.mapping_file):
-        amptklib.error("Mapping file is not valid: %s" % args.mapping_file)
+        amptklib.log.error("Mapping file is not valid: %s" % args.mapping_file)
         sys.exit(1)
     mapdata = amptklib.parseMappingFile(args.mapping_file, barcode_file)
     #forward primer in first item in tuple, reverse in second

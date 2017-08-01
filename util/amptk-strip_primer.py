@@ -36,13 +36,13 @@ def primerStrip(file):
     with open(goodseq, 'w') as good:
         with open(badseq, 'w') as bad:
             for title, seq, qual in FastqGeneralIterator(open(file)):
-                foralign = edlib.align(args.fwd_primer, seq, mode="HW", k=args.primer_mismatch)
+                foralign = edlib.align(args.fwd_primer, seq, mode="HW", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                 if foralign["editDistance"] >= 0:
                     ForCutPos = foralign["locations"][0][1]+1
                     Seq = seq[ForCutPos:]
                     Qual = qual[ForCutPos:]
                     #align reverse
-                    revalign = edlib.align(RevPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch)
+                    revalign = edlib.align(RevPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                     if revalign["editDistance"] >= 0:
                         RevCutPos = revalign["locations"][0][0]
                         Seq = Seq[:RevCutPos]
@@ -58,13 +58,13 @@ def revprimerStrip(file):
     with open(goodseq, 'w') as good:
         with open(badseq, 'w') as bad:
             for title, seq, qual in FastqGeneralIterator(open(file)):
-                foralign = edlib.align(args.rev_primer, seq, mode="HW", k=args.primer_mismatch)
+                foralign = edlib.align(args.rev_primer, seq, mode="HW", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                 if foralign["editDistance"] >= 0:
                     ForCutPos = foralign["locations"][0][1]+1
                     Seq = seq[ForCutPos:]
                     Qual = qual[ForCutPos:]
                     #align reverse
-                    revalign = edlib.align(RevForPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch)
+                    revalign = edlib.align(RevForPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                     if revalign["editDistance"] >= 0:
                         RevCutPos = revalign["locations"][0][0]
                         Seq = Seq[:RevCutPos]

@@ -10,11 +10,132 @@ ASCII = {'!':'0','"':'1','#':'2','$':'3','%':'4','&':'5',"'":'6','(':'7',')':'8'
 
 primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC', 'ITS3_KYO2': 'GATGAAGAACGYAGYRAA', 'COI-F': 'GGTCAACAAATCATAAAGATATTGG', 'COI-R': 'GGWACTAATCAATTTCCAAATCC', '515FB': 'GTGYCAGCMGCCGCGGTAA', '806RB': 'GGACTACNVGGGTWTCTAAT'}
 
+
+degenNuc = [("R", "A"), ("R", "G"), 
+            ("M", "A"), ("M", "C"),
+            ("W", "A"), ("W", "T"),
+            ("S", "C"), ("S", "G"),
+            ("Y", "C"), ("Y", "T"),
+            ("K", "G"), ("K", "T"),
+            ("V", "A"), ("V", "C"), ("V", "G"),
+            ("H", "A"), ("H", "C"), ("H", "T"),
+            ("D", "A"), ("D", "G"), ("D", "T"),
+            ("B", "C"), ("B", "G"), ("B", "T"),
+            ("N", "G"), ("N", "A"), ("N", "T"), ("N", "C"),
+            ("X", "G"), ("X", "A"), ("X", "T"), ("X", "C")]
+
 class colr:
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
     
+#functions for system checks, etc
+def get_version():
+    version = subprocess.Popen(['amptk', 'version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
+    return version
+
+def get_usearch_version(usearch):
+    try:
+        version = subprocess.Popen([usearch, '-version'], stderr=subprocess.PIPE, stdout=subprocess.PIPE).communicate()
+    except OSError:
+        log.error("%s not found in your PATH, exiting." % usearch)
+        sys.exit(1)
+    vers = version[0].replace('usearch v', '')
+    vers2 = vers.split('_')[0]
+    return vers2
+
+def get_vsearch_version():
+    version = subprocess.Popen(['vsearch', '--version'], stderr=subprocess.PIPE, stdout=subprocess.PIPE).communicate()
+    for v in version:
+        if v.startswith('vsearch'):
+            vers = v.replace('vsearch v', '')
+            vers2 = vers.split('_')[0]
+            return vers2
+
+def versiontuple(v):
+    return tuple(map(int, (v.split("."))))
+
+def gvc(input, check):
+    if versiontuple(input) >= versiontuple(check):
+        return True
+    else:
+        return False
+
+def versionDependencyChecks(usearch):
+    #to run amptk need usearch > 9.0.2132 and vsearch > 2.2.0
+    amptk_version = get_version()
+    usearch_version = get_usearch_version(usearch)
+    vsearch_version = get_vsearch_version()
+    usearch_pass = '9.0.2132'
+    vsearch_pass = '2.2.0'
+    if not gvc(usearch_version, usearch_pass):
+        log.error("USEARCH v%s detected, needs to be atleast v%s" % (usearch_version, usearch_pass))
+        sys.exit(1)
+    if not gvc(vsearch_version, vsearch_pass):
+        log.error("VSEARCH v%s detected, needs to be atleast v%s" % (vsearch_version, vsearch_pass))
+        sys.exit(1)
+    log.info("%s, USEARCH v%s, VSEARCH v%s" % (amptk_version, usearch_version, vsearch_version))
+
+def checkRversion():
+    #need to have R version > 3.2
+    cmd = ['Rscript', '--vanilla', os.path.join(parentdir, 'util', 'check_version.R')]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = proc.communicate()
+    versions = stdout.replace(' \n', '')
+    Rvers = versions.split(',')[0]
+    dada2 = versions.split(',')[1]
+    return (Rvers, dada2)
+
+def checkfastqsize(input):
+    filesize = os.path.getsize(input)
+    return filesize
+
+def getCPUS():
+    cores = multiprocessing.cpu_count()
+    return cores
+
+def MemoryCheck():
+    import psutil
+    mem = psutil.virtual_memory()
+    RAM = int(mem.total)
+    return round(RAM / 1024000000)
+                   
+def systemOS():
+    if sys.platform == 'darwin':
+        system_os = 'MacOSX '+ platform.mac_ver()[0]
+    elif sys.platform == 'linux':
+        linux_version = platform.linux_distribution()
+        system_os = linux_version[0]+ ' '+linux_version[1]
+    else:
+        system_os = sys.platform
+    return system_os
+
+def SystemInfo():
+    system_os = systemOS()
+    python_vers = str(sys.version_info[0])+'.'+str(sys.version_info[1])+'.'+str(sys.version_info[2])   
+    log.info("OS: %s, %i cores, ~ %i GB RAM. Python: %s" % (system_os, multiprocessing.cpu_count(), MemoryCheck(), python_vers))
+    #print python modules to logfile
+    mod_versions()
+    
+def mod_versions():
+    import pkg_resources
+    modules = ['numpy', 'pandas', 'matplotlib', 'psutil', 'natsort', 'biopython', 'edlib', 'biom-format']
+    results = []
+    for x in modules:
+        try:
+            vers = pkg_resources.get_distribution(x).version
+            hit = "%s v%s" % (x, vers)
+        except pkg_resources.DistributionNotFound:
+            hit = "%s NOT installed!" % x
+        results.append(hit)
+        if x == 'edlib':
+            vers = vers.replace('.post2', '')
+            if not gvc(vers, '1.2.0'):
+                log.error("Edlib v%s detected, at least v1.2.0 required for degenerate nucleotide search, please upgrade.  e.g. pip install -U edlib" % vers)
+                sys.exit(1)
+    log.debug("Python Modules: %s" % ', '.join(results))
+ 
+  
 class gzopen(object):
    """Generic opener that decompresses gzipped files
    if needed. Encapsulates an open file or a GzipFile.
@@ -100,20 +221,6 @@ def Fzip_inplace(input):
         runSubprocess(cmd, log)
     except NameError:
         subprocess.call(cmd)
-
-
-def mod_versions():
-    import pkg_resources
-    modules = ['numpy', 'pandas', 'matplotlib', 'psutil', 'natsort', 'biopython', 'edlib', 'biom-format']
-    results = []
-    for x in modules:
-        try:
-            vers = pkg_resources.get_distribution(x).version
-            hit = "%s v%s" % (x, vers)
-        except pkg_resources.DistributionNotFound:
-            hit = "%s NOT installed!" % x
-        results.append(hit)
-    log.debug("Python Modules: %s" % ', '.join(results))
 
 def fastalen2dict(input):
     Lengths = {}
@@ -330,8 +437,13 @@ def AlignRevBarcode(Seq, BarcodeDict, mismatch):
     if besthit[2] <= int(mismatch):
         return besthit[0], besthit[1]
     return "", ""
-          
-           
+
+def findFwdPrimer(primer, sequence, mismatch):
+    return edlib.align(primer, sequence, mode="HW", k=mismatch, additionalEqualities=degenNuc)
+
+def findRevPrimer(primer, sequence, mismatch, degen):
+    return edlib.align(primer, sequence, mode="HW", task="locations", k=mismatch, additionalEqualities=degenNuc) 
+      
 def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, method, index, mismatch):
     removelist = []
     if mismatch == 0:
@@ -418,30 +530,6 @@ def dictFlip(input):
                 print "duplicate ID found: %s" % i
     return outDict
     
-def fuzzymatch(seq1, seq2, num_errors):
-    from Bio import pairwise2
-    seq1_a, seq2_a, score, start, end = pairwise2.align.localms(seq1, seq2, 5.0, -4.0, -9.0, -0.5, one_alignment_only=True, gap_char='-')[0]
-    if start < 2: #align needs to start in first 2 bp
-        if end < len(seq1)+2:
-            match_region = seq2_a[start:end]
-            seq_region = seq1_a[start:end]
-            matches = sum((1 if s == match_region[i] else 0) for i, s in enumerate(seq_region))
-            # too many errors -- no trimming
-            if (len(seq1) - matches) <= int(num_errors):
-                return (score, start, end)
-
-def exactmatch(seq1, seq2):
-    from Bio import pairwise2
-    seq1_a, seq2_a, score, start, end = pairwise2.align.localms(seq1, seq2, 5.0, -4.0, -9.0, -0.5, one_alignment_only=True, gap_char='-')[0]
-    match_region = seq2_a[start:end]
-    seq_region = seq1_a[start:end]
-    matches = sum((1 if s == match_region[i] else 0) for i, s in enumerate(seq_region))
-    # too many errors -- no trimming
-    if (len(seq1) - matches) <= 0:
-        return (score, start, end)
-    else:
-        return False
-
 def classifier2dict(input, pcutoff):
     ClassyDict = {}
     with open(input, 'rU') as infile:
@@ -625,62 +713,6 @@ def mapping2dict(input):
                 sys.exit(1)
     return MapDict
 
-def get_version():
-    version = subprocess.Popen(['amptk', 'version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
-    return version
-
-def get_usearch_version(usearch):
-    try:
-        version = subprocess.Popen([usearch, '-version'], stderr=subprocess.PIPE, stdout=subprocess.PIPE).communicate()
-    except OSError:
-        log.error("%s not found in your PATH, exiting." % usearch)
-        sys.exit(1)
-    vers = version[0].replace('usearch v', '')
-    vers2 = vers.split('_')[0]
-    return vers2
-
-def get_vsearch_version():
-    version = subprocess.Popen(['vsearch', '--version'], stderr=subprocess.PIPE, stdout=subprocess.PIPE).communicate()
-    for v in version:
-        if v.startswith('vsearch'):
-            vers = v.replace('vsearch v', '')
-            vers2 = vers.split('_')[0]
-            return vers2
-
-def versiontuple(v):
-    return tuple(map(int, (v.split("."))))
-
-def gvc(input, check):
-    if versiontuple(input) >= versiontuple(check):
-        return True
-    else:
-        return False
-
-def versionDependencyChecks(usearch):
-    #to run amptk need usearch > 9.0.2132 and vsearch > 2.2.0
-    amptk_version = get_version()
-    usearch_version = get_usearch_version(usearch)
-    vsearch_version = get_vsearch_version()
-    usearch_pass = '9.0.2132'
-    vsearch_pass = '2.2.0'
-    if not gvc(usearch_version, usearch_pass):
-        log.error("USEARCH v%s detected, needs to be atleast v%s" % (usearch_version, usearch_pass))
-        sys.exit(1)
-    if not gvc(vsearch_version, vsearch_pass):
-        log.error("VSEARCH v%s detected, needs to be atleast v%s" % (vsearch_version, vsearch_pass))
-        sys.exit(1)
-    log.info("%s, USEARCH v%s, VSEARCH v%s" % (amptk_version, usearch_version, vsearch_version))
-
-def checkRversion():
-    #need to have R version > 3.2
-    cmd = ['Rscript', '--vanilla', os.path.join(parentdir, 'util', 'check_version.R')]
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = proc.communicate()
-    versions = stdout.replace(' \n', '')
-    Rvers = versions.split(',')[0]
-    dada2 = versions.split(',')[1]
-    return (Rvers, dada2)
-
 def runMultiProgress(function, inputList, cpus):
     #setup pool
     p = multiprocessing.Pool(cpus)
@@ -699,29 +731,6 @@ def runMultiProgress(function, inputList, cpus):
         time.sleep(1)
     p.close()
     p.join()
-
-def MemoryCheck():
-    import psutil
-    mem = psutil.virtual_memory()
-    RAM = int(mem.total)
-    return round(RAM / 1024000000)
-                   
-def systemOS():
-    if sys.platform == 'darwin':
-        system_os = 'MacOSX '+ platform.mac_ver()[0]
-    elif sys.platform == 'linux':
-        linux_version = platform.linux_distribution()
-        system_os = linux_version[0]+ ' '+linux_version[1]
-    else:
-        system_os = sys.platform
-    return system_os
-
-def SystemInfo():
-    system_os = systemOS()
-    python_vers = str(sys.version_info[0])+'.'+str(sys.version_info[1])+'.'+str(sys.version_info[2])   
-    log.info("OS: %s, %i cores, ~ %i GB RAM. Python: %s" % (system_os, multiprocessing.cpu_count(), MemoryCheck(), python_vers))
-    #print python modules to logfile
-    mod_versions()    
 
 
 def batch_iterator(iterator, batch_size):
@@ -907,13 +916,6 @@ def guess_csv_dialect(header):
     dialect = csv.Sniffer().sniff(header, delimiters=possible_delims)
     return dialect
 
-def checkfastqsize(input):
-    filesize = os.path.getsize(input)
-    return filesize
-
-def getCPUS():
-    cores = multiprocessing.cpu_count()
-    return cores
     
 def fasta2list(input):
     seqlist = []
@@ -953,10 +955,11 @@ def parseMappingFile(input, output):
                     continue
                 cols = line.split('\t')
                 outfile.write('>%s\n%s\n' % (cols[0], cols[1]))
-                match = exactmatch(cols[1], cols[2])
-                if match:
+                match = edlib.align(cols[1], cols[2], mode="HW", k=0)
+                if match["editDistance"] == 0:
+                    Trim = match["locations"][0][1]+1
                     if fwdprimer == '':
-                        fwdprimer = cols[2][int(match[2]):]
+                        fwdprimer = cols[2][Trim:]
                         revprimer = cols[3]
                 else:
                     print "%s: barcode sequence not in LinkerPrimerSequence" % cols[0]
@@ -974,10 +977,11 @@ def parseMappingFileIllumina(input):
             cols = line.split('\t')
             if not cols[0] in samples:
                 samples.append(cols[0])
-            match = exactmatch(cols[1], cols[2])
-            if match:
+            match = edlib.align(cols[1], cols[2], mode="HW", k=0)
+            if match["editDistance"] == 0:
+                Trim = match["locations"][0][1]+1
                 if fwdprimer == '':
-                    fwdprimer = cols[2][int(match[2]):]
+                    fwdprimer = cols[2][Trim:]
                     revprimer = cols[3]
             else:
                 fwdprimer = cols[2]

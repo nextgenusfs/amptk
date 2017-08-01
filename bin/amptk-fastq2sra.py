@@ -41,13 +41,6 @@ parser.add_argument('--force', action='store_true', help='Overwrite existing dir
 parser.add_argument('-a','--append', help='Append a name to all sample names for a run, i.e. --append run1 would yield Sample_run1')
 args=parser.parse_args()
 
-def FindBarcode(Seq, BarcodeDict):
-    for BarcodeLabel in BarcodeDict.keys():
-        Barcode = BarcodeDict[BarcodeLabel]
-        if Seq.startswith(Barcode):
-            return Barcode, BarcodeLabel
-    return "", ""
-
 log_name = args.out + '.amptk-sra.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
@@ -238,12 +231,12 @@ else:
             #look for forward primer
             if args.require_primer != 'off': #means we only want ones with forward primer and or reverse, but don't remove them             
                 #now search for forward primer
-                foralign = edlib.align(FwdPrimer, seq, mode="HW", k=args.primer_mismatch)
+                foralign = edlib.align(FwdPrimer, seq, mode="HW", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                 if foralign["editDistance"] < 0:
                     continue
                 if args.require_primer == 'both': 
                     #now search for reverse primer
-                    revalign = edlib.align(ReverseCompRev, seq, mode="HW", task="locations", k=args.primer_mismatch)
+                    revalign = edlib.align(ReverseCompRev, seq, mode="HW", task="locations", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                     if revalign["editDistance"] < 0:  #reverse primer was not found
                         continue         
             #check size

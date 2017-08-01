@@ -68,7 +68,7 @@ def processRead(input):
                     NoBC += 1
                     continue
                 #first thing is look for forward primer, if found trim it off
-                foralign = edlib.align(FwdPrimer, seq, mode="HW", k=args.primer_mismatch)
+                foralign = edlib.align(FwdPrimer, seq, mode="HW", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                 #if require primer is on make finding primer in amplicon required if amplicon is larger than read length
                 #if less than read length, can't enforce primer because could have been trimmed via staggered trim in fastq_mergepairs
                 if args.primer == 'on' and len(seq) > ReadLen:
@@ -88,7 +88,7 @@ def processRead(input):
                         Seq = seq
                         Qual = qual
                 #now look for reverse primer
-                revalign = edlib.align(RevPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch)
+                revalign = edlib.align(RevPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                 if revalign["editDistance"] >= 0:
                     RevPrimerFound += 1
                     RevCutPos = revalign["locations"][0][0]
