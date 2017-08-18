@@ -94,7 +94,7 @@ def dereplicate(input, output):
                 #check length of taxonomy string, keep one with more tax info
                 newTaxLen = rec.description.count(',')
                 oldTaxLen = seqs.get(sequence).count(',')
-                if newtaxLen > oldTaxLen:
+                if newTaxLen > oldTaxLen:
                     seqs[sequence] = rec.description
         seqs_inv = invert_dict(seqs)
         with open(output, 'w') as out:
