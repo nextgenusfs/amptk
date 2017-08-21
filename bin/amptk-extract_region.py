@@ -80,26 +80,37 @@ def latin2ascii(error):
     return latin_dict[error.object[error.start]], error.start+1
 codecs.register_error('latin2ascii', latin2ascii)
 
-def invert_dict(d):
-    return dict((v, k) for k in d for v in d[k])
-
 def dereplicate(input, output):
     seqs = {}
-    with open(input, 'rU') as in_file:
-        for rec in SeqIO.parse(in_file, 'fasta'):
-            sequence = str(rec.seq)
-            if not sequence in seqs:
-                seqs[sequence] = rec.description
-            else:
-                #check length of taxonomy string, keep one with more tax info
-                newTaxLen = rec.description.count(',')
-                oldTaxLen = seqs.get(sequence).count(',')
-                if newTaxLen > oldTaxLen:
+    with open(output, 'w') as out:
+        with open(input, 'rU') as in_file:
+            for rec in SeqIO.parse(in_file, 'fasta'):
+                sequence = str(rec.seq)
+                if not sequence in seqs:
                     seqs[sequence] = rec.description
-        seqs_inv = invert_dict(seqs)
-        with open(output, 'w') as out:
-            for key,value in seqs_inv.iteritems():
-                out.write('>'+key+'\n'+value+'\n')
+                else:
+                    #check length of taxonomy string, keep one with more tax info
+                    newTax = rec.description
+                    oldTax = seqs.get(sequence)
+                    newTaxLen = newTax.count(',')
+                    oldTaxLen = oldTax.count(',')
+                    if newTaxLen > oldTaxLen:
+                        seqs[sequence] = rec.description
+                    elif newTaxLen == oldTaxLen:
+                        if newTaxLen == 0:
+                            continue
+                        newLastLevel = newTax.split(',')
+                        oldLastLevel = oldTax.split(',')
+                        if newLastLevel[-1] == oldLastLevel[-1]:
+                            continue
+                        else: #move up one tax level and move on
+                            consensusTax = ','.join(oldLastLevel[:-1])
+                            seqs[sequence] = consensusTax
+                    else:
+                        continue
+        #now write to file     
+        for key,value in seqs.iteritems():
+            out.write('>'+value+'\n'+key+'\n')
 
 def countfasta(input):
     count = 0
@@ -470,7 +481,7 @@ if args.derep_fulllength:
     os.rename(OutName, derep_tmp)
     dereplicate(derep_tmp, OutName)
     Total = countfasta(OutName)
-    amptklib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/Passed))
+    amptklib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
     os.remove(derep_tmp)
 else:
     Total = countfasta(OutName)
