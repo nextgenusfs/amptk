@@ -12,8 +12,6 @@ RUN conda config --add channels r && \
     conda install --yes cython biopython natsort pandas psutil matplotlib seaborn \
     biom-format sra-tools r-base htslib samtools bioconductor-dada2 bioconductor-phyloseq
 
-RUN pip install -U srapy edlib
-
 RUN wget https://github.com/torognes/vsearch/archive/v2.4.3.tar.gz && \
     tar xzf v2.4.3.tar.gz && \
     mv vsearch-2.4.3 vsearch && \
@@ -23,6 +21,8 @@ RUN wget https://github.com/torognes/vsearch/archive/v2.4.3.tar.gz && \
     make && \
     make install && \
     cd ..
+
+RUN pip install -U srapy edlib
 
 RUN wget https://github.com/nextgenusfs/amptk/archive/0.10.2.tar.gz && \
     tar xzf 0.10.2.tar.gz && \

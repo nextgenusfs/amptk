@@ -90,24 +90,28 @@ def dereplicate(input, output):
                     seqs[sequence] = rec.description
                 else:
                     #check length of taxonomy string, keep one with more tax info
-                    newTax = rec.description
-                    oldTax = seqs.get(sequence)
-                    newTaxLen = newTax.count(',')
-                    oldTaxLen = oldTax.count(',')
+                    newTax = rec.description.split(',')
+                    oldTax = seqs.get(sequence).split(',')
+                    newTaxLen = len(newTax)
+                    oldTaxLen = len(oldTax)
                     if newTaxLen > oldTaxLen:
                         seqs[sequence] = rec.description
                     elif newTaxLen == oldTaxLen:
-                        if newTaxLen == 0:
+                        if newTaxLen == 1: #this means we have only a single level of taxonomy, so just move to next record
                             continue
-                        newLastLevel = newTax.split(',')
-                        oldLastLevel = oldTax.split(',')
-                        if newLastLevel[-1] == oldLastLevel[-1]:
+                        if newTax[-1] == oldTax[-1]: #so taxonomy is the same, keep current value in dict and move to next record
                             continue
-                        else: #move up one tax level and move on
-                            consensusTax = ','.join(oldLastLevel[:-1])
+                        else: #loop backwards through tax string find last common ancestor
+                            amptklib.log.debug("ERROR: %s and %s have identical sequences, but taxonomy doesn't agree" % (','.join(oldTax), ','.join(newTax)))
+                            lca = 0
+                            for num in range(1,newTaxLen+1):
+                                if newTax[-num] == oldTax[-num]:
+                                    lca = num-1
+                                    break
+                            consensusTax = ','.join(oldTax[:-lca])
+                            amptklib.log.debug("setting taxonomy to %s" % (consensusTax))
                             seqs[sequence] = consensusTax
-                    else:
-                        continue
+
         #now write to file     
         for key,value in seqs.iteritems():
             out.write('>'+value+'\n'+key+'\n')
@@ -418,6 +422,7 @@ FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
 print "-------------------------------------------------------"
+amptklib.SystemInfo()
 
 FileName = args.fasta
 fwdLen = len(FwdPrimer)

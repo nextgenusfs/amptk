@@ -59,7 +59,7 @@ def download(url, name):
         sys.stdout.write(status)
     f.close()
 
-version = '0.10.2'
+version = '0.10.3'
 
 default_help = """
 Usage:       amptk <command> <arguments>
