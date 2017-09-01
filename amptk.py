@@ -8,10 +8,10 @@ sys.path.insert(0,script_path)
 import lib.amptklib as amptklib
 from natsort import natsorted
 
-URL = { 'ITS': 'https://uwmadison.box.com/shared/static/wft8j518ryvvcaenrzkilvbp7zwfwbrm.gz', 
-        '16S': 'https://uwmadison.box.com/shared/static/a77ld44jmt82jtssnad3l6qnqocgm5jk.gz', 
-        'LSU': 'https://uwmadison.box.com/shared/static/kvuxyngnpvh8942zzno7ijsfkkvpdhef.gz', 
-        'COI': 'https://uwmadison.box.com/shared/static/cptpdyp2i5olvoue6yr3kjf6o0ffhmx4.gz' }
+URL = { 'ITS': 'https://osf.io/pbtyh/download?version=1', 
+        '16S': 'https://osf.io/m7v5q/download?version=1', 
+        'LSU': 'https://osf.io/sqn5r/download?version=1', 
+        'COI': 'https://osf.io/pax79/download?version=1' }
 
 def flatten(l):
     flatList = []
@@ -808,6 +808,7 @@ Arguments:   -i, --fasta         Input FASTA file
              --create_db         Create a DB. Default: usearch [utax, usearch]
              --skip_trimming     Keep full length sequences. Default: off
              --derep_fulllength  Remove identical sequences.
+             --lca               Run LCA (last common ancestor) on taxonomy if dereplicating sequences.
              --min_len           Minimum length to keep.
              --max_len           Maximum length to keep.
              --primer_mismatch   Max Primer Mismatch. Default: 4

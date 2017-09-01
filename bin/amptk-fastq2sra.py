@@ -111,7 +111,8 @@ else:
             outputSeqFile.close()
             inputSeqFile.close()
     else:
-        shutil.copyfile(args.barcodes, barcode_file)
+        if args.barcodes:
+            shutil.copyfile(args.barcodes, barcode_file)
     
     #parse primers here so doesn't conflict with mapping primers
     #look up primer db otherwise default to entry
@@ -257,8 +258,8 @@ else:
     amptklib.log.info("Now Gzipping files")
     for file in os.listdir(args.out):
         if file.endswith(".fastq"):
-        file_path = os.path.join(args.out, file)
-        amptklib.Fzip_inplace(file_path)
+            file_path = os.path.join(args.out, file)
+            amptklib.Fzip_inplace(file_path)
     
     #after all files demuxed into output folder, loop through and create SRA metadata file
     filelist = []

@@ -30,6 +30,7 @@ parser.add_argument('-f','--fwd_primer', dest='F_primer', default='fITS7', help=
 parser.add_argument('-r','--rev_primer', dest='R_primer', default='ITS4', help='Reverse primer (ITS4)')
 parser.add_argument('--skip_trimming', dest='trimming', action='store_true', help='Skip Primer trimming (not recommended)')
 parser.add_argument('--format', dest='utax', default='unite2utax', choices=['unite2utax', 'rdp2utax', 'off'], help='Reformat FASTA headers for UTAX')
+parser.add_argument('--lca', action='store_true', help='Run LCA (last common ancestor) for dereplicating taxonomy')
 parser.add_argument('--min_len', default=100, type=int, help='Minimum read length to keep')
 parser.add_argument('--max_len', default=1200, type=int, help='Maximum read length to keep')
 parser.add_argument('--drop_ns', dest='drop_ns', type=int, default=8, help="Drop Seqeunces with more than X # of N's")
@@ -40,19 +41,9 @@ parser.add_argument('--primer_mismatch', default=4, help="Max Primer Mismatch")
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: max")
 parser.add_argument('--utax_trainlevels', default='kpcofgs', help="UTAX training parameters")
 parser.add_argument('--utax_splitlevels', default='NVkpcofgs', help="UTAX training parameters")
-parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH8 EXE')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
+parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
-
-#look up primer db otherwise default to entry
-primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC'}
-if args.F_primer in primer_db:
-    FwdPrimer = primer_db.get(args.F_primer)
-else:
-    FwdPrimer = args.F_primer
-if args.R_primer in primer_db:
-    RevPrimer = primer_db.get(args.R_primer)
-else:
-    RevPrimer = args.R_primer
 
 latin_dict = {
 u"¡": u"!", u"¢": u"c", u"£": u"L", u"¤": u"o", u"¥": u"Y",
@@ -78,6 +69,8 @@ u"’":u"'", u"×":u"x"}
 
 def latin2ascii(error):
     return latin_dict[error.object[error.start]], error.start+1
+
+#register codecs for latin conversion for strange characters
 codecs.register_error('latin2ascii', latin2ascii)
 
 def dereplicate(input, output):
@@ -97,32 +90,24 @@ def dereplicate(input, output):
                     if newTaxLen > oldTaxLen:
                         seqs[sequence] = rec.description
                     elif newTaxLen == oldTaxLen:
-                        if newTaxLen == 1: #this means we have only a single level of taxonomy, so just move to next record
-                            continue
-                        if newTax[-1] == oldTax[-1]: #so taxonomy is the same, keep current value in dict and move to next record
-                            continue
-                        else: #loop backwards through tax string find last common ancestor
-                            amptklib.log.debug("ERROR: %s and %s have identical sequences, but taxonomy doesn't agree" % (','.join(oldTax), ','.join(newTax)))
-                            lca = 0
-                            for num in range(1,newTaxLen+1):
-                                if newTax[-num] == oldTax[-num]:
-                                    lca = num-1
-                                    break
-                            consensusTax = ','.join(oldTax[:-lca])
-                            amptklib.log.debug("setting taxonomy to %s" % (consensusTax))
-                            seqs[sequence] = consensusTax
-
+                        if args.lca:
+                            if newTaxLen == 1: #this means we have only a single level of taxonomy, so just move to next record
+                                continue
+                            if newTax[-1] == oldTax[-1]: #so taxonomy is the same, keep current value in dict and move to next record
+                                continue
+                            else: #loop backwards through tax string find last common ancestor
+                                amptklib.log.debug("ERROR: %s and %s have identical sequences, but taxonomy doesn't agree" % (','.join(oldTax), ','.join(newTax)))
+                                lca = 0
+                                for num in range(1,newTaxLen+1):
+                                    if newTax[-num] == oldTax[-num]:
+                                        lca = num-1
+                                        break
+                                consensusTax = ','.join(oldTax[:-lca])
+                                amptklib.log.debug("setting taxonomy to %s" % (consensusTax))
+                                seqs[sequence] = consensusTax
         #now write to file     
         for key,value in seqs.iteritems():
             out.write('>'+value+'\n'+key+'\n')
-
-def countfasta(input):
-    count = 0
-    with open(input, 'rU') as f:
-        for line in f:
-            if line.startswith (">"):
-                count += 1
-    return count
 
 def stripPrimer(records):
     for rec in records:
@@ -164,17 +149,17 @@ def stripPrimer(records):
             reformat_tax = []
             removal = ("unidentified", "Incertae", "uncultured", "Group", "incertae")
             sp_removal = (" sp", "_sp", "uncultured", "isolate", "mycorrhizae", "vouchered", "fungal", "basidiomycete", "ascomycete", "fungus", "symbiont")
-            if not any(x in k for x in removal):
+            if not any(x in k for x in removal) and not amptklib.number_present(k):
                 reformat_tax.append(k)
-            if not any(x in p for x in removal):
+            if not any(x in p for x in removal) and not amptklib.number_present(p):
                 reformat_tax.append(p)
-            if not any(x in c for x in removal):
+            if not any(x in c for x in removal) and not amptklib.number_present(c):
                 reformat_tax.append(c)
-            if not any(x in o for x in removal):
+            if not any(x in o for x in removal) and not amptklib.number_present(o):
                 reformat_tax.append(o)
-            if not any(x in f for x in removal):
+            if not any(x in f for x in removal) and not amptklib.number_present(f):
                 reformat_tax.append(f)
-            if not any(x in g for x in removal):
+            if not any(x in g for x in removal) and not amptklib.number_present(g):
                 reformat_tax.append(g)
             if not any(x in s for x in sp_removal):
                 reformat_tax.append(s)
@@ -245,17 +230,17 @@ def stripPrimer(records):
             reformat_tax = []
             removal = ("unidentified", "Incertae", "uncultured", "Group", "incertae", "Chloroplast", "unclassified", "Family")
             sp_removal = (" sp", "_sp", "uncultured", "isolate", "mycorrhizae", "vouchered", "fungal", "basidiomycete", "ascomycete", "fungus", "symbiont", "unclassified", "unidentified", "bacterium", "phytoplasma")
-            if not any(x in k for x in removal) and k != "":
+            if not any(x in k for x in removal) and k != "" and not amptklib.number_present(k):
                 reformat_tax.append(k)
-            if not any(x in p for x in removal) and p != "":
+            if not any(x in p for x in removal) and p != "" and not amptklib.number_present(p):
                 reformat_tax.append(p)
-            if not any(x in c for x in removal) and c != "":
+            if not any(x in c for x in removal) and c != "" and not amptklib.number_present(c):
                 reformat_tax.append(c)
-            if not any(x in o for x in removal) and o != "":
+            if not any(x in o for x in removal) and o != "" and not amptklib.number_present(o):
                 reformat_tax.append(o)
-            if not any(x in f for x in removal) and f != "":
+            if not any(x in f for x in removal) and f != "" and not amptklib.number_present(f):
                 reformat_tax.append(f)
-            if not any(x in g for x in removal) and g != "":
+            if not any(x in g for x in removal) and g != "" and not amptklib.number_present(g):
                 reformat_tax.append(g)
             if not any(x in s for x in sp_removal):
                 reformat_tax.append(s)
@@ -267,17 +252,15 @@ def stripPrimer(records):
             rec.description = ""
         if not args.trimming:
             Seq = rec.seq
-            MAX_PRIMER_MISMATCHES = int(args.primer_mismatch)
-            revPrimer = revcomp_lib.RevComp(RevPrimer)
-            BestPosFor, BestDiffsFor = primer.BestMatch2(Seq, FwdPrimer, MAX_PRIMER_MISMATCHES)
-            if BestDiffsFor < MAX_PRIMER_MISMATCHES:
+            BestPosFor, BestDiffsFor = primer.BestMatch2(Seq, FwdPrimer, args.primer_mismatch)
+            if BestDiffsFor < args.primer_mismatch:
                 if BestPosFor > 0:
                     stripfwdlen = fwdLen + BestPosFor
                     StripSeq = Seq[stripfwdlen:]
 
                     #now look for reverse
-                    BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, revPrimer, MAX_PRIMER_MISMATCHES)
-                    if BestDiffsRev < MAX_PRIMER_MISMATCHES:
+                    BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, RevPrimer, args.primer_mismatch)
+                    if BestDiffsRev < args.primer_mismatch:
                         StrippedSeq = StripSeq[:BestPosRev]
                     else:
                         StrippedSeq = StripSeq
@@ -289,15 +272,15 @@ def stripPrimer(records):
                         yield rec
             else: #if can't find forward primer, try to reverse complement and look again
                 RevSeq = revcomp_lib.RevComp(Seq)
-                BestPosFor, BestDiffsFor = primer.BestMatch2(RevSeq, FwdPrimer, MAX_PRIMER_MISMATCHES)
-                if BestDiffsFor < MAX_PRIMER_MISMATCHES:
+                BestPosFor, BestDiffsFor = primer.BestMatch2(RevSeq, FwdPrimer, args.primer_mismatch)
+                if BestDiffsFor < args.primer_mismatch:
                     if BestPosFor > 0:
                         stripfwdlen = fwdLen + BestPosFor
                         StripSeq = Seq[stripfwdlen:]
 
                         #now look for reverse
-                        BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, revPrimer, MAX_PRIMER_MISMATCHES)
-                        if BestDiffsRev < MAX_PRIMER_MISMATCHES:
+                        BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, RevPrimer, args.primer_mismatch)
+                        if BestDiffsRev < args.primer_mismatch:
                             StrippedSeq = StripSeq[:BestPosRev]
                         else:
                             StrippedSeq = StripSeq
@@ -311,8 +294,8 @@ def stripPrimer(records):
                     if args.keep_all:
                         StripSeq = Seq
                         #now look for reverse
-                        BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, revPrimer, MAX_PRIMER_MISMATCHES)
-                        if BestDiffsRev < MAX_PRIMER_MISMATCHES:
+                        BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, RevPrimer, args.primer_mismatch)
+                        if BestDiffsRev < args.primer_mismatch:
                             StrippedSeq = StripSeq[:BestPosRev]
                         else:
                             StrippedSeq = StripSeq
@@ -388,29 +371,12 @@ def makeDB(input):
         else:
             amptklib.log.error("There was a problem creating the DB, check the log file %s" % utax_log)
 
-def batch_iterator(iterator, batch_size):
-    entry = True #Make sure we loop once
-    while entry :
-        batch = []
-        while len(batch) < batch_size :
-            try :
-                entry = iterator.next()
-            except StopIteration :
-                entry = None
-            if entry is None :
-                #End of file
-                break
-            batch.append(entry)
-        if batch :
-            yield batch
-
 def worker(input):
     output = input.split(".",-1)[0] + '.extracted.fa'
     with open(output, 'w') as o:
         with open(input, 'rU') as i:
             SeqRecords = SeqIO.parse(i, 'fasta')
             SeqIO.write(stripPrimer(SeqRecords), o, 'fasta')
-
 
 #remove logfile if exists
 log_name = args.out + '.log'
@@ -424,48 +390,64 @@ amptklib.log.debug(cmd_args)
 print "-------------------------------------------------------"
 amptklib.SystemInfo()
 
-FileName = args.fasta
+#Do a version check
+usearch = args.usearch
+amptklib.versionDependencyChecks(usearch)
+
+#look up primer db otherwise default to entry
+if args.F_primer in amptklib.primer_db:
+    FwdPrimer = amptklib.primer_db.get(args.F_primer)
+else:
+    FwdPrimer = args.F_primer
+if args.R_primer in amptklib.primer_db:
+    RevPrimer = amptklib.primer_db.get(args.R_primer)
+else:
+    RevPrimer = args.R_primer
+
+#reverse complement the reverse primer and get forward length for trim function
+RevPrimer = revcomp_lib.RevComp(RevPrimer)
 fwdLen = len(FwdPrimer)
 
 if not args.trimming:
-    amptklib.log.info("Searching for primers, this may take awhile: Fwd: %s  Rev: %s" % (args.F_primer, args.R_primer))
+    amptklib.log.info("Searching for primers, this may take awhile: Fwd: %s  Rev: %s" % (FwdPrimer, RevPrimer))
 else:
-    amptklib.log.info("Working on file: %s" % FileName)
+    amptklib.log.info("Working on file: %s" % args.fasta)
 
 if not args.cpus:
     cpus = multiprocessing.cpu_count()
 else:
     cpus = args.cpus
 
-with open(FileName, 'rU') as input:
-    SeqCount = countfasta(FileName)
-    amptklib.log.info('{0:,}'.format(SeqCount) + ' records loaded')
-    SeqRecords = SeqIO.parse(FileName, 'fasta')
-    chunks = SeqCount / cpus + 1
+#create temp directory
+pid = os.getpid()
+folder = 'amptk_tmp_' + str(pid)
+if not os.path.exists(folder):
+    os.makedirs(folder)
+
+SeqCount = amptklib.countfasta(args.fasta)
+amptklib.log.info('{0:,}'.format(SeqCount) + ' records loaded')
+#if only 1 cpu just process data
+if cpus == 1:
+    stripPrimer(args.fasta)
+else:
     amptklib.log.info("Using %i cpus to process data" % cpus)
-    #divide into chunks, store in tmp file
-    pid = os.getpid()
-    folder = 'amptk_tmp_' + str(pid)
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    for i, batch in enumerate(batch_iterator(SeqRecords, chunks)) :
-        filename = "chunk_%i.fa" % (i+1)
-        tmpout = os.path.join(folder, filename)
-        handle = open(tmpout, "w")
-        count = SeqIO.write(batch, handle, "fasta")
-        handle.close()
 
-file_list = []
-for file in os.listdir(folder):
-    if file.endswith(".fa"):
-        file = os.path.join(folder, file)
-        file_list.append(file)
+    #now split it into chunks (as many cpus as are queried)
+    amptklib.split_fasta(args.fasta, folder, cpus*2)
 
-p = multiprocessing.Pool(cpus)
-for f in file_list:
-    p.apply_async(worker, [f])
-p.close()
-p.join()
+    #get list of files
+    file_list = []
+    for file in os.listdir(folder):
+        if file.endswith(".fasta"):
+            file = os.path.join(folder, file)
+            file_list.append(file)
+
+    #finally process reads over number of cpus
+    p = multiprocessing.Pool(cpus)
+    for f in file_list:
+        p.apply_async(worker, [f])
+    p.close()
+    p.join()
 
 #now concatenate outputs together
 OutName = args.out + '.extracted.fa'
@@ -475,21 +457,23 @@ with open(OutName, 'w') as outfile:
             continue
         with open(filename, 'rU') as readfile:
             shutil.copyfileobj(readfile, outfile)
-#clean up tmp folder
-shutil.rmtree(folder)
+
+if not args.debug:
+    #clean up tmp folder
+    shutil.rmtree(folder)
 
 if args.derep_fulllength:
-    Passed = countfasta(OutName)
+    Passed = amptklib.countfasta(OutName)
     amptklib.log.info('{0:,}'.format(Passed) + ' records passed (%.2f%%)' % (Passed*100.0/SeqCount))
     amptklib.log.info("Now dereplicating sequences (remove if sequence and header identical)")
     derep_tmp = args.out + '.derep.extracted.fa'
     os.rename(OutName, derep_tmp)
     dereplicate(derep_tmp, OutName)
-    Total = countfasta(OutName)
+    Total = amptklib.countfasta(OutName)
     amptklib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
     os.remove(derep_tmp)
 else:
-    Total = countfasta(OutName)
+    Total = amptklib.countfasta(OutName)
     amptklib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
 
 if args.create_db:

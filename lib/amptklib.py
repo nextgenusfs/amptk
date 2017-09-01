@@ -1,4 +1,4 @@
-import sys, logging, csv, os, subprocess, multiprocessing, platform, time, shutil, inspect, gzip, edlib
+import sys, logging, csv, os, subprocess, multiprocessing, platform, time, shutil, inspect, gzip, edlib, ast
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 from Bio import SeqIO
@@ -24,12 +24,26 @@ degenNuc = [("R", "A"), ("R", "G"),
             ("N", "G"), ("N", "A"), ("N", "T"), ("N", "C"),
             ("X", "G"), ("X", "A"), ("X", "T"), ("X", "C")]
 
+degenNucSimple = [("R", "A"), ("R", "G"), 
+            ("M", "A"), ("M", "C"),
+            ("W", "A"), ("W", "T"),
+            ("S", "C"), ("S", "G"),
+            ("Y", "C"), ("Y", "T"),
+            ("K", "G"), ("K", "T"),
+            ("V", "A"), ("V", "C"), ("V", "G"),
+            ("H", "A"), ("H", "C"), ("H", "T"),
+            ("D", "A"), ("D", "G"), ("D", "T"),
+            ("B", "C"), ("B", "G"), ("B", "T")]
+
 class colr:
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
     
 #functions for system checks, etc
+def number_present(s):
+    return any(i.isdigit() for i in s)
+    
 def get_version():
     version = subprocess.Popen(['amptk', 'version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
     return version
@@ -131,7 +145,7 @@ def mod_versions():
         if x == 'edlib':
             vers = vers.replace('.post2', '')
             if not gvc(vers, '1.2.0'):
-                log.error("Edlib v%s detected, at least v1.2.0 required for degenerate nucleotide search, please upgrade.  e.g. pip install -U edlib" % vers)
+                log.error("Edlib v%s detected, at least v1.2.0 required for degenerate nucleotide search, please upgrade.  e.g. pip install -U edlib or conda install edlib" % vers)
                 sys.exit(1)
     log.debug("Python Modules: %s" % ', '.join(results))
  
@@ -299,7 +313,6 @@ def runSubprocess2(cmd, logfile, output):
         if stderr[0] != None:
             logfile.debug(stderr)
 
-
 def getSize(filename):
     st = os.stat(filename)
     return st.st_size
@@ -367,6 +380,45 @@ def split_fastq(input, numseqs, outputdir, chunks):
     for i, x in enumerate(splits):
         num = i+1
         with open(os.path.join(outputdir, 'chunk_'+str(num)+'.fq'), 'w') as output:
+            lines = return_lines(input, linepos, x[0], x[1])
+            output.write('%s' % ''.join(lines))
+
+def split_fasta(input, outputdir, chunks):
+    #function to return line positions of fasta files for chunking
+    fastapos = []
+    position = 0
+    numseqs = 0
+    with open(input, 'rU') as infile:
+        for line in infile:
+            if line.startswith('>'):
+                numseqs += 1
+                fastapos.append(position)
+            position += 1
+    splits = []
+    n = numseqs / chunks
+    num = 0
+    for i in range(chunks):
+        if i == 0:
+            start = 0
+            num = n
+            lastpos = fastapos[n+1]
+        else:
+            start = lastpos
+            num = num + n
+            try:
+                lastpos = fastapos[num+1] #find the n+1 seq
+            except IndexError:
+                lastpos = fastapos[-1]
+        splits.append((start, lastpos))
+    #check if output folder exists, if not create it
+    if not os.path.isdir(outputdir):
+        os.makedirs(outputdir)
+    #get line positions from file
+    linepos = scan_linepos(input)
+    #loop through the positions and write output
+    for i, x in enumerate(splits):
+        num = i+1
+        with open(os.path.join(outputdir, 'chunk_'+str(num)+'.fasta'), 'w') as output:
             lines = return_lines(input, linepos, x[0], x[1])
             output.write('%s' % ''.join(lines))
 
@@ -438,12 +490,72 @@ def AlignRevBarcode(Seq, BarcodeDict, mismatch):
         return besthit[0], besthit[1]
     return "", ""
 
-def findFwdPrimer(primer, sequence, mismatch):
-    return edlib.align(primer, sequence, mode="HW", k=mismatch, additionalEqualities=degenNuc)
+def findFwdPrimer(primer, sequence, mismatch, equalities, que):
+    que.put(edlib.align(primer, sequence, mode="HW", k=mismatch, additionalEqualities=equalities))
 
-def findRevPrimer(primer, sequence, mismatch, degen):
-    return edlib.align(primer, sequence, mode="HW", task="locations", k=mismatch, additionalEqualities=degenNuc) 
-      
+def findRevPrimer(primer, sequence, mismatch, equalities, que):
+    que.put(edlib.align(primer, sequence, mode="HW", task="locations", k=mismatch, additionalEqualities=equalities))
+
+def edlib_subproc(func, primer, sequence, mismatch, equalities):
+    #create empty result in case it fails?
+    result = {'editDistance': -1, 'cigar': None, 'locations': [], 'alphabetLength': 5}
+    q = multiprocessing.Queue()
+    try:
+        p = multiprocessing.Process(target=func, args=(primer,sequence,mismatch,equalities,q))
+        p.start()
+        result = q.get()
+        p.join()
+    except Exception:
+        pass
+    return result
+
+def alignPrimer(primer, sequence):
+    cmd = [os.path.join(parentdir, 'findPrimer'), primer, sequence]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = proc.communicate()
+    if stdout:
+        result = stdout.replace('\n', '')
+        result = ast.literal_eval(result)
+        return result
+    else:
+        return None
+        
+def stripPrimersDB(for_primer, rev_primer, sequence, mismatch, equalities, keep):
+    '''
+    function to run edlib and return trimmed sequence
+    reverse primer should already be reverse_complemented
+    function returns trimmed sequence
+    '''
+    #make sure sequence is a string
+    sequence = str(sequence)
+    #look for forward primer
+    foralign = edlib.align(for_primer, sequence, mode="HW", k=mismatch, additionalEqualities=equalities)
+    if foralign:
+        if foralign["editDistance"] >= 0: #forward found
+            ForCutPos = foralign["locations"][0][1]+1
+            Seq = sequence[ForCutPos:]
+            #now look for reverse
+            try:
+                revalign = edlib.align(rev_primer, Seq, mode="HW", task="locations", k=mismatch, additionalEqualities=equalities)
+            except Exception:
+                pass
+            if revalign:
+                if revalign["editDistance"] >= 0:
+                    RevCutPos = revalign["locations"][0][0]
+                    Seq = Seq[:RevCutPos]
+            return Seq
+        else: #alignment ran okay, but forward not found, look for reverse
+            revalign = edlib.align(rev_primer, sequence, mode="HW", task="locations", k=mismatch, additionalEqualities=equalities)
+            if revalign:
+                if revalign["editDistance"] >= 0:
+                    RevCutPos = revalign["locations"][0][0]
+                    Seq = sequence[:RevCutPos]
+                    return Seq
+            else:
+                return None
+    else:
+        return None            
+    
 def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, method, index, mismatch):
     removelist = []
     if mismatch == 0:
