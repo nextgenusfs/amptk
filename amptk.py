@@ -8,7 +8,7 @@ sys.path.insert(0,script_path)
 import lib.amptklib as amptklib
 from natsort import natsorted
 
-URL = { 'ITS': 'https://osf.io/pbtyh/download?version=1', 
+URL = { 'ITS': 'https://osf.io/pbtyh/download?version=2',
         '16S': 'https://osf.io/m7v5q/download?version=1', 
         'LSU': 'https://osf.io/sqn5r/download?version=1', 
         'COI': 'https://osf.io/pax79/download?version=1' }
