@@ -318,6 +318,9 @@ if args.mock_barcode:
     #first calculate bleed out of mock community
     #slice normalized dataframe to get only mock OTUs from table
     mock_df = pd.DataFrame(norm_round, index=mock)
+    #if there are samples to drop, make sure they aren't being used in this calculation
+    if args.drop:
+        mock_df.drop(args.drop, axis=1, inplace=True)
     #get total number of reads from mock OTUs from entire table
     total = np.sum(np.sum(mock_df,axis=None))
     #now drop the mock barcode sample

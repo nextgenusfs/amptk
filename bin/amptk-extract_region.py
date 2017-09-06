@@ -83,8 +83,12 @@ def dereplicate(input, output):
                     seqs[sequence] = rec.description
                 else:
                     #check length of taxonomy string, keep one with more tax info
-                    newTax = rec.description.split(',')
-                    oldTax = seqs.get(sequence).split(',')
+                    newHeader = rec.description.split(';tax=')
+                    oldHeader = seqs.get(sequence).split(';tax=')
+                    newTax = newHeader[-1].split(',')
+                    oldTax = oldHeader[-1].split(',')
+                    newID = newHeader[0]
+                    oldID = oldHeader[0]
                     newTaxLen = len(newTax)
                     oldTaxLen = len(oldTax)
                     if newTaxLen > oldTaxLen:
@@ -102,7 +106,7 @@ def dereplicate(input, output):
                                     if newTax[-num] == oldTax[-num]:
                                         lca = num-1
                                         break
-                                consensusTax = ','.join(oldTax[:-lca])
+                                consensusTax = oldID+';tax='+','.join(oldTax[:-lca])
                                 amptklib.log.debug("setting taxonomy to %s" % (consensusTax))
                                 seqs[sequence] = consensusTax
         #now write to file     
@@ -314,22 +318,6 @@ def stripPrimer(records):
                 yield rec
 
 def makeDB(input):
-    #need usearch for this, test to make sure version is ok with utax
-    usearch = args.usearch
-    try:
-        usearch_test = subprocess.Popen([usearch, '-version'], stdout=subprocess.PIPE).communicate()[0].rstrip()
-    except OSError:
-        amptklib.log.error("%s not found in your PATH, exiting." % usearch)
-        os._exit(1)
-    version = usearch_test.split(" v")[1]
-    majorV = version.split(".")[0]
-    minorV = version.split(".")[1]
-    if int(majorV) < 8 or (int(majorV) >= 8 and int(minorV) < 1):
-        amptklib.log.warning("USEARCH version: %s detected you need v8.1.1756 or above" % usearch_test)
-        os._exit(1)
-    else:
-        amptklib.log.info("USEARCH version: %s" % usearch_test)
-
     db_details = args.out + '.udb.txt'
     usearch_db = args.out + '.udb'
     if args.trimming:
@@ -339,7 +327,6 @@ def makeDB(input):
     with open(db_details, 'w') as details:
         details.write(db_string)
     report = args.out + '.report.txt'
-
 
     if args.create_db == 'utax':
         #create log file for this to troubleshoot
@@ -465,7 +452,7 @@ if not args.debug:
 if args.derep_fulllength:
     Passed = amptklib.countfasta(OutName)
     amptklib.log.info('{0:,}'.format(Passed) + ' records passed (%.2f%%)' % (Passed*100.0/SeqCount))
-    amptklib.log.info("Now dereplicating sequences (remove if sequence and header identical)")
+    amptklib.log.info("Now dereplicating sequences (collapsing identical sequences)")
     derep_tmp = args.out + '.derep.extracted.fa'
     os.rename(OutName, derep_tmp)
     dereplicate(derep_tmp, OutName)

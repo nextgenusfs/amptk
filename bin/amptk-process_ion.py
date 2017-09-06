@@ -205,7 +205,15 @@ else:
             outputSeqFile.close()
             inputSeqFile.close()
     else:
-        shutil.copyfile(args.barcode_fasta, barcode_file)
+        #check for multi_samples and add if necessary
+        if args.multi == 'False':
+            shutil.copyfile(args.barcode_fasta, barcode_file)
+        else:
+            with open(barcode_file, 'w') as barcodeout:
+                with open(args.barcode_fasta, 'rU') as input:
+                    for rec in SeqIO.parse(input, 'fasta'):
+                        outname = args.multi+'.'+rec.id
+                        barcodeout.write(">%s\n%s\n" % (outname, rec.seq))         
     
     #parse primers here so doesn't conflict with mapping primers
     #look up primer db otherwise default to entry
