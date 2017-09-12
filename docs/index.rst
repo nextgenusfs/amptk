@@ -24,21 +24,25 @@ But the easiest way to install AMPtk and its dependencies is with `HomeBrew <htt
 ::
     #install homebrew
     /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+    
     #setup homebrew and link repositories
     brew doctor; brew tap homebrew/science; brew tap nextgenusfs/tap
+    
     #install python dependencies
     pip install -U biopython natsort pandas numpy matplotlib edlib biom-format psutil
-    #install AMPtk
+    
+    #install AMPtk and dependencies
     brew install amptk
 
-AMPtk utilizes USEARCH9 which must be installed manually from the developer `here <http://www.drive5.com/usearch/download.html>_.  Obtain the proper version of USEARCH v9.2.64 and softlink into the PATH:
+AMPtk utilizes USEARCH9 which must be installed manually from the developer `here <http://www.drive5.com/usearch/download.html>`_.  Obtain the proper version of USEARCH v9.2.64 and softlink into the PATH:
 ::
     #make executable
     sudo chmod +x /path/to/usearch9.2.64_i86osx32
+    
     #create softlink
     sudo ln -s /path/to/usearch9.2.64_i86osx32 /usr/local/bin/usearch9
 
-AMPtk also requires VSEARCH, which you can install from `here <>_. Note, if you use homebrew recipe it will be install automatically.
+AMPtk also requires VSEARCH, which you can install from `here <https://github.com/torognes/vsearch>`_. Note, if you use homebrew recipe it will be install automatically.
 
 More Information
 ==================
