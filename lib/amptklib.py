@@ -144,8 +144,8 @@ def mod_versions():
         results.append(hit)
         if x == 'edlib':
             vers = vers.replace('.post2', '')
-            if not gvc(vers, '1.2.0'):
-                log.error("Edlib v%s detected, at least v1.2.0 required for degenerate nucleotide search, please upgrade.  e.g. pip install -U edlib or conda install edlib" % vers)
+            if not gvc(vers, '1.2.1'):
+                log.error("Edlib v%s detected, at least v1.2.1 required for degenerate nucleotide search, please upgrade.  e.g. pip install -U edlib or conda install edlib" % vers)
                 sys.exit(1)
     log.debug("Python Modules: %s" % ', '.join(results))
  
@@ -438,6 +438,59 @@ def PEsanitycheck(R1, R2):
     else:
         return True
 
+def PEandIndexCheck(R1, R2, R3):
+    R1count = countfastq(R1)
+    R2count = countfastq(R2)
+    R3count = countfastq(R3)
+    if R1count == R2count == R3count:
+        return True
+    else:
+        return False
+
+def mapIndex(seq, mapDict, bcmismatch):
+    BC = (None, None)
+    if seq in mapDict:
+        BC = (mapDict.get(seq), 0)
+    else:
+        if bcmismatch > 0:
+            hit = [None, None, None]
+            for k,v in mapDict.items():
+                alignment = edlib.align(k, seq, mode="NW", k=bcmismatch, additionalEqualities=degenNuc)
+                if alignment["editDistance"] >= 0:
+                    if hit[0]:
+                        oldhit = hit[2]
+                        if alignment["editDistance"] < oldhit:
+                            hit = [v, k, alignment["editDistance"]]
+                    else:
+                        hit = [v, k, alignment["editDistance"]]
+            if hit[0]: #found a match
+                BC = (hit[0], hit[2])
+    return BC
+   
+    
+def DemuxIllumina(R1, R2, I1, mapDict, mismatch, outR1, outR2):
+    from itertools import izip, izip_longest
+    #function to loop through PE reads, renaming according to index
+    file1 = FastqGeneralIterator(gzopen(R1))
+    file2 = FastqGeneralIterator(gzopen(R2))
+    file3 = FastqGeneralIterator(gzopen(I1))
+    counter = 1
+    with open(outR1, 'w') as outfile1:
+        with open(outR2, 'w') as outfile2:
+            for read1, read2, index in izip(file1, file2, file3):
+                #see if index is valid
+                if index[0].split(' ')[1].startswith('2'):
+                    Seq = revcomp_lib.RevComp(index[1])
+                else:
+                    Seq = index[1]
+                Name,Diffs = mapIndex(Seq, mapDict, mismatch)
+                if Name:
+                    header = 'Read_'+str(counter)+';barcodelabel='+Name+';bcseq='+index[1]+';bcdiffs='+str(Diffs)+';'
+                    outfile1.write('@%s\n%s\n+\n%s\n' % (header, read1[1], read1[2]))
+                    outfile2.write('@%s\n%s\n+\n%s\n' % (header, read2[1], read2[2]))
+                    counter += 1
+
+
 def checkBCinHeader(input):
     #read first header
     for title, seq, qual in FastqGeneralIterator(open(input)):
@@ -489,72 +542,26 @@ def AlignRevBarcode(Seq, BarcodeDict, mismatch):
     if besthit[2] <= int(mismatch):
         return besthit[0], besthit[1]
     return "", ""
+    
+def findFwdPrimer(primer, sequence, mismatch, equalities):
+    #trim position
+    TrimPos = None
+    #search for match
+    align = edlib.align(primer, sequence, mode="HW", k=mismatch, additionalEqualities=equalities)
+    if align["editDistance"] >= 0: #we found a hit
+        TrimPos = align["locations"][0][1]+1
+    #return position will be None if not found
+    return TrimPos
 
-def findFwdPrimer(primer, sequence, mismatch, equalities, que):
-    que.put(edlib.align(primer, sequence, mode="HW", k=mismatch, additionalEqualities=equalities))
-
-def findRevPrimer(primer, sequence, mismatch, equalities, que):
-    que.put(edlib.align(primer, sequence, mode="HW", task="locations", k=mismatch, additionalEqualities=equalities))
-
-def edlib_subproc(func, primer, sequence, mismatch, equalities):
-    #create empty result in case it fails?
-    result = {'editDistance': -1, 'cigar': None, 'locations': [], 'alphabetLength': 5}
-    q = multiprocessing.Queue()
-    try:
-        p = multiprocessing.Process(target=func, args=(primer,sequence,mismatch,equalities,q))
-        p.start()
-        result = q.get()
-        p.join()
-    except Exception:
-        pass
-    return result
-
-def alignPrimer(primer, sequence):
-    cmd = [os.path.join(parentdir, 'findPrimer'), primer, sequence]
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = proc.communicate()
-    if stdout:
-        result = stdout.replace('\n', '')
-        result = ast.literal_eval(result)
-        return result
-    else:
-        return None
-        
-def stripPrimersDB(for_primer, rev_primer, sequence, mismatch, equalities, keep):
-    '''
-    function to run edlib and return trimmed sequence
-    reverse primer should already be reverse_complemented
-    function returns trimmed sequence
-    '''
-    #make sure sequence is a string
-    sequence = str(sequence)
-    #look for forward primer
-    foralign = edlib.align(for_primer, sequence, mode="HW", k=mismatch, additionalEqualities=equalities)
-    if foralign:
-        if foralign["editDistance"] >= 0: #forward found
-            ForCutPos = foralign["locations"][0][1]+1
-            Seq = sequence[ForCutPos:]
-            #now look for reverse
-            try:
-                revalign = edlib.align(rev_primer, Seq, mode="HW", task="locations", k=mismatch, additionalEqualities=equalities)
-            except Exception:
-                pass
-            if revalign:
-                if revalign["editDistance"] >= 0:
-                    RevCutPos = revalign["locations"][0][0]
-                    Seq = Seq[:RevCutPos]
-            return Seq
-        else: #alignment ran okay, but forward not found, look for reverse
-            revalign = edlib.align(rev_primer, sequence, mode="HW", task="locations", k=mismatch, additionalEqualities=equalities)
-            if revalign:
-                if revalign["editDistance"] >= 0:
-                    RevCutPos = revalign["locations"][0][0]
-                    Seq = sequence[:RevCutPos]
-                    return Seq
-            else:
-                return None
-    else:
-        return None            
+def findRevPrimer(primer, sequence, mismatch, equalities):
+    #trim position
+    TrimPos = None
+    #search for match
+    align = edlib.align(primer, sequence, mode="HW", task="locations", k=mismatch, additionalEqualities=equalities)
+    if align["editDistance"] >= 0: #we found a hit
+        TrimPos = align["locations"][0][0] 
+    #return position will be None if not found
+    return TrimPos
     
 def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, method, index, mismatch):
     removelist = []
@@ -673,12 +680,43 @@ def usearchglobal2dict(input):
                 pident = float(cols[-1]) / 100
                 besthit = cols[1].split(';tax=')[0]
             else:
-                tax = 'No hit'
+                tax = ['No hit']
                 besthit = 'None'
                 pident = 0.0000
             pident = "{0:.4f}".format(pident)
-            GlobalDict[ID] = (pident, besthit, tax)
-    return GlobalDict
+            #since we can have multiple hits with same pident, need to get best taxonomy
+            if not ID in GlobalDict:
+                GlobalDict[ID] = [(pident, besthit, '', tax,)]
+            else:
+                GlobalDict[ID].append((pident, besthit, '', tax))
+    Results = {}
+    for k,v in natsorted(GlobalDict.items()):
+        mostTax = []
+        lcaTax = []
+        mt = 0
+        for hit in v:
+            if len(hit[-1]) > mt:
+                mt = len(hit[-1])
+        #loop through getting the ones with most tax info
+        for x in v:
+            if len(x[-1]) == mt:
+                mostTax.append(x)
+                lcaTax.append(x[-1])
+        #now if mostTax has more than 1 hit, need to do LCA
+        if len(mostTax) <= 1:
+            Results[k] = mostTax[0]
+        else:
+            lcaResult = lcaTax[0]
+            lcaFinal = []
+            for x in lcaTax[1:]:
+                s = set(x)
+                lcaFinal = [z for z in lcaResult if z in s]
+                lcaResult = lcaFinal
+            if len(lcaResult) < mt:
+                Results[k] = (mostTax[0][0], mostTax[0][1], 'LCA', lcaResult)
+            else:
+                Results[k] = (mostTax[0][0], mostTax[0][1], '',lcaResult)
+    return Results
 
 def bestclassifier(utax, sintax, otus):
     #both are dictionaries from classifier2dict, otus is a list of OTUs in order
@@ -705,6 +743,7 @@ def bestTaxonomy(usearch, classifier):
         classiTax = classifier.get(k)[-1] #also should be list
         pident = float(v[0])
         besthitID = v[1]
+        LCA = v[2]
         discrep = 'S'
         if pident < 0.9700: #if global alignment hit is less than 97%, then default to classifier result
             method = classifier.get(k)[1].split()[0] #get first letter, either U or S
@@ -724,7 +763,10 @@ def bestTaxonomy(usearch, classifier):
                         break             
             else:
                 tax = ','.join(globalTax)
-            fulltax = method+discrep+"|{0:.1f}".format(score)+'|'+besthitID+';'+tax
+            if discrep == 'S' and LCA == '':
+                fulltax = method+discrep+"|{0:.1f}".format(score)+'|'+besthitID+';'+tax
+            else:
+                fulltax = method+discrep+"L|{0:.1f}".format(score)+'|'+besthitID+';'+tax
         Taxonomy[k] = fulltax
     return Taxonomy
 
@@ -769,8 +811,6 @@ def utax2qiime(input, output):
 
   
 def barcodes2dict(input, mapDict, bcmismatch):
-    from Bio.SeqIO.QualityIO import FastqGeneralIterator
-    import edlib
     #here expecting the index reads from illumina, create dictionary for naming?
     Results = {}
     NoMatch = []
@@ -1074,7 +1114,9 @@ def parseMappingFile(input, output):
                         fwdprimer = cols[2][Trim:]
                         revprimer = cols[3]
                 else:
-                    print "%s: barcode sequence not in LinkerPrimerSequence" % cols[0]
+                    log.debug("%s: barcode sequence not in LinkerPrimerSequence" % cols[0])
+    if fwdprimer == '' or revprimer == '':
+        log.info("Barcode sequences not found in LinkerPrimerSequence, perhaps they are indexed on 3' end?")
     return (fwdprimer, revprimer)
 
 def parseMappingFileIllumina(input):

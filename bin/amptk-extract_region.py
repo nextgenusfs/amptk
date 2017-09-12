@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys, os, re, argparse, logging, subprocess, inspect, codecs, unicodedata, shutil, glob, multiprocessing
+import sys, os, re, argparse, logging, subprocess, inspect, codecs, unicodedata, shutil, multiprocessing
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -21,7 +21,7 @@ class col:
 
 parser=argparse.ArgumentParser(prog='amptk-extract_region.py', usage="%(prog)s [options] -f <FASTA File>",
     description='''Script searches for primers and removes them if found.  Useful for trimming a reference dataset for assigning taxonomy after OTU clustering.  It is also capable of reformatting UNITE taxonomy fasta headers to be compatible with UTAX and creating USEARCH/UTAX UBD databases for assigning taxonomy.''',
-    epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
+    epilog="""Written by Jon Palmer (2015-2017) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--fasta', dest='fasta', required=True, help='FASTA input')
@@ -37,8 +37,8 @@ parser.add_argument('--drop_ns', dest='drop_ns', type=int, default=8, help="Drop
 parser.add_argument('--create_db', dest='create_db', choices=['utax', 'usearch'], help="Create USEARCH DB")
 parser.add_argument('--keep_all', dest='keep_all', action='store_true', help="Keep Seq if For primer not found Default: off")
 parser.add_argument('--derep_fulllength', action='store_true', help="De-replicate sequences. Default: off")
-parser.add_argument('--primer_mismatch', default=4, help="Max Primer Mismatch")
-parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: max")
+parser.add_argument('--primer_mismatch', default=2, help="Max Primer Mismatch")
+parser.add_argument('--cpus', type=int, default=1, help="Number of CPUs. Default: 1")
 parser.add_argument('--utax_trainlevels', default='kpcofgs', help="UTAX training parameters")
 parser.add_argument('--utax_splitlevels', default='NVkpcofgs', help="UTAX training parameters")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
@@ -112,214 +112,211 @@ def dereplicate(input, output):
         #now write to file     
         for key,value in seqs.iteritems():
             out.write('>'+value+'\n'+key+'\n')
-
-def stripPrimer(records):
-    for rec in records:
-        if args.utax == 'unite2utax':
-            latin = unicode(rec.description, 'utf-8')
-            test = latin.encode('ascii', 'latin2ascii')
-            fields = test.split("|")
-            for i in fields:
-                if i.startswith("k__"):
-                    tax = i
-                elif i.startswith("SH"):
-                    unite = i
-                elif i.startswith("re"):
-                    reps = i
-                else:
-                    gbID = i
-            taxonomy = re.sub(";", ",", tax)
-            taxonomy = re.sub("__", ":", taxonomy)
-            tf = taxonomy.split(",")
-            k = tf[0]
-            k = re.sub('_', ' ', k)
-            p = tf[1]
-            p = re.sub('_', ' ', p)
-            c = tf[2]
-            c = re.sub('_', ' ', c)
-            o = tf[3]
-            o = re.sub('_', ' ', o)
-            f = tf[4]
-            f = re.sub('_', ' ', f)
-            g = tf[5]
-            g = re.sub('_', ' ', g)
-            s = tf[6]
-            s = re.sub('[(].*$','',s)
-            s = re.sub('_', ' ', s)
-            s = re.sub('\.', '', s)
-            test_species = s.split(' ')
-            if len(test_species) < 2:
-                s = 's:'
-            reformat_tax = []
-            removal = ("unidentified", "Incertae", "uncultured", "Group", "incertae")
-            sp_removal = (" sp", "_sp", "uncultured", "isolate", "mycorrhizae", "vouchered", "fungal", "basidiomycete", "ascomycete", "fungus", "symbiont")
-            if not any(x in k for x in removal) and not amptklib.number_present(k):
-                reformat_tax.append(k)
-            if not any(x in p for x in removal) and not amptklib.number_present(p):
-                reformat_tax.append(p)
-            if not any(x in c for x in removal) and not amptklib.number_present(c):
-                reformat_tax.append(c)
-            if not any(x in o for x in removal) and not amptklib.number_present(o):
-                reformat_tax.append(o)
-            if not any(x in f for x in removal) and not amptklib.number_present(f):
-                reformat_tax.append(f)
-            if not any(x in g for x in removal) and not amptklib.number_present(g):
-                reformat_tax.append(g)
-            if not any(x in s for x in sp_removal):
-                reformat_tax.append(s)
-            rec.id = gbID+";tax="+",".join(reformat_tax)
-            rec.id = re.sub(",s:$", "", rec.id)
-            rec.id = re.sub("=s:$", "=", rec.id)
-            if rec.id.endswith(";tax="): #if there is no taxonomy, get rid of it
-                rec.id = ""
-            rec.name = ""
-            rec.description = ""
-        elif args.utax == 'rdp2utax':
-            latin = unicode(rec.description, 'utf-8')
-            test = latin.encode('ascii', 'latin2ascii')
-            temp = test.split("\t")
-            taxLevels = temp[-1]
-            split_temp = temp[0].split(";")
-            ID = split_temp[0].split(" ")[0]
-            s = "s:" + split_temp[0].split(" ", 1)[-1]
-            s = re.sub('[(].*$','',s)
-            s = re.sub(',', '_', s)
-            s = re.sub('\.', '', s)
-            test_species = s.split(' ')
-            if len(test_species) < 2:
-                s = 's:'
-            split_tax = taxLevels.split(";")
-            if "domain" in split_tax:
-                ki = split_tax.index("domain") -1
-                k = "k:" + split_tax[ki]
-                k = k.replace('"','')
-                k = k.split(" ")[0]
-            else:
-                k = ""
-            if "phylum" in split_tax:
-                pi = split_tax.index("phylum") -1
-                p = "p:" + split_tax[pi]
-                p = p.replace('"','')
-                p = p.split(" ")[0]
-            else:
-                p = ""
-            if "class" in split_tax:
-                ci = split_tax.index("class") -1
-                c = "c:" + split_tax[ci]
-                c = c.replace('"','')
-                c = c.split(" ")[0]
-            else:
-                c = ""
-            if "order" in split_tax:
-                oi = split_tax.index("order") -1
-                o = "o:" + split_tax[oi]
-                o = o.replace('"','')
-                o = o.split(" ")[0]
-            else:
-                o = ""
-            if "family" in split_tax:
-                fi = split_tax.index("family") -1
-                f = "f:" + split_tax[fi]
-                f = f.replace('"','')
-                f = f.split(" ")[0]
-            else:
-                f = ""
-            if "genus" in split_tax:
-                gi = split_tax.index("genus") -1
-                g = "g:" + split_tax[gi]
-                g = g.replace('"','')
-                g = g.split(" ")[0]
-            else:
-                g = ""
-            reformat_tax = []
-            removal = ("unidentified", "Incertae", "uncultured", "Group", "incertae", "Chloroplast", "unclassified", "Family")
-            sp_removal = (" sp", "_sp", "uncultured", "isolate", "mycorrhizae", "vouchered", "fungal", "basidiomycete", "ascomycete", "fungus", "symbiont", "unclassified", "unidentified", "bacterium", "phytoplasma")
-            if not any(x in k for x in removal) and k != "" and not amptklib.number_present(k):
-                reformat_tax.append(k)
-            if not any(x in p for x in removal) and p != "" and not amptklib.number_present(p):
-                reformat_tax.append(p)
-            if not any(x in c for x in removal) and c != "" and not amptklib.number_present(c):
-                reformat_tax.append(c)
-            if not any(x in o for x in removal) and o != "" and not amptklib.number_present(o):
-                reformat_tax.append(o)
-            if not any(x in f for x in removal) and f != "" and not amptklib.number_present(f):
-                reformat_tax.append(f)
-            if not any(x in g for x in removal) and g != "" and not amptklib.number_present(g):
-                reformat_tax.append(g)
-            if not any(x in s for x in sp_removal):
-                reformat_tax.append(s)
-            rec.id = ID+";tax="+",".join(reformat_tax)
-            rec.id = re.sub(",s:$", "", rec.id)
-            if rec.id.endswith(";tax="): #if there is no taxonomy, get rid of it
-                rec.id = ""
-            rec.name = ""
-            rec.description = ""
-        if not args.trimming:
-            Seq = rec.seq
-            BestPosFor, BestDiffsFor = primer.BestMatch2(Seq, FwdPrimer, args.primer_mismatch)
-            if BestDiffsFor < args.primer_mismatch:
-                if BestPosFor > 0:
-                    stripfwdlen = fwdLen + BestPosFor
-                    StripSeq = Seq[stripfwdlen:]
-
-                    #now look for reverse
-                    BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, RevPrimer, args.primer_mismatch)
-                    if BestDiffsRev < args.primer_mismatch:
-                        StrippedSeq = StripSeq[:BestPosRev]
-                    else:
-                        StrippedSeq = StripSeq
-                    #after stripping primers, check for ambig bases
-                    if args.drop_ns != 0 and 'N'*args.drop_ns in StrippedSeq:
+        
+def stripPrimer(input):
+    base = os.path.basename(input).split('.')[0]
+    StripOut = os.path.join(folder, base+'.extracted.fa')
+    ErrorOut = os.path.join(folder, base+'.errors.fa')
+    with open(StripOut, 'w') as outputfile:
+        with open(ErrorOut, 'w') as errorfile:
+            with open(input, 'rU') as infile:
+                for rec in SeqIO.parse(infile, 'fasta'):
+                    orig_id = rec.description
+                    if args.utax == 'unite2utax':
+                        latin = unicode(rec.description, 'utf-8')
+                        test = latin.encode('ascii', 'latin2ascii')
+                        fields = test.split("|")
+                        for i in fields:
+                            if i.startswith("k__"):
+                                tax = i
+                            elif i.startswith("SH"):
+                                unite = i
+                            elif i.startswith("re"):
+                                reps = i
+                            else:
+                                gbID = i
+                        taxonomy = re.sub(";", ",", tax)
+                        taxonomy = re.sub("__", ":", taxonomy)
+                        tf = taxonomy.split(",")
+                        k = tf[0]
+                        k = re.sub('_', ' ', k)
+                        p = tf[1]
+                        p = re.sub('_', ' ', p)
+                        c = tf[2]
+                        c = re.sub('_', ' ', c)
+                        o = tf[3]
+                        o = re.sub('_', ' ', o)
+                        f = tf[4]
+                        f = re.sub('_', ' ', f)
+                        g = tf[5]
+                        g = re.sub('_', ' ', g)
+                        s = tf[6]
+                        s = re.sub('[(].*$','',s)
+                        s = re.sub('_', ' ', s)
+                        s = re.sub('\.', '', s)
+                        test_species = s.split(' ')
+                        if len(test_species) < 2:
+                            s = 's:'
+                        reformat_tax = []
+                        removal = ("unidentified", "Incertae", "uncultured", "Group", "incertae")
+                        sp_removal = (" sp", "_sp", "uncultured", "isolate", "mycorrhizae", "vouchered", "fungal", "basidiomycete", "ascomycete", "fungus", "symbiont")
+                        if not any(x in k for x in removal) and not amptklib.number_present(k):
+                            reformat_tax.append(k)
+                        if not any(x in p for x in removal) and not amptklib.number_present(p):
+                            reformat_tax.append(p)
+                        if not any(x in c for x in removal) and not amptklib.number_present(c):
+                            reformat_tax.append(c)
+                        if not any(x in o for x in removal) and not amptklib.number_present(o):
+                            reformat_tax.append(o)
+                        if not any(x in f for x in removal) and not amptklib.number_present(f):
+                            reformat_tax.append(f)
+                        if not any(x in g for x in removal) and not amptklib.number_present(g):
+                            reformat_tax.append(g)
+                        if not any(x in s for x in sp_removal):
+                            reformat_tax.append(s)
+                        rec.id = gbID+";tax="+",".join(reformat_tax)
+                        rec.id = re.sub(",s:$", "", rec.id)
+                        rec.id = re.sub("=s:$", "=", rec.id)
+                        if rec.id.endswith(";tax="): #if there is no taxonomy, get rid of it
+                            rec.id = ""
+                        rec.name = ""
+                        rec.description = ""
+                    elif args.utax == 'rdp2utax':
+                        latin = unicode(rec.description, 'utf-8')
+                        test = latin.encode('ascii', 'latin2ascii')
+                        temp = test.split("\t")
+                        taxLevels = temp[-1]
+                        split_temp = temp[0].split(";")
+                        ID = split_temp[0].split(" ")[0]
+                        s = "s:" + split_temp[0].split(" ", 1)[-1]
+                        s = re.sub('[(].*$','',s)
+                        s = re.sub(',', '_', s)
+                        s = re.sub('\.', '', s)
+                        test_species = s.split(' ')
+                        if len(test_species) < 2:
+                            s = 's:'
+                        split_tax = taxLevels.split(";")
+                        if "domain" in split_tax:
+                            ki = split_tax.index("domain") -1
+                            k = "k:" + split_tax[ki]
+                            k = k.replace('"','')
+                            k = k.split(" ")[0]
+                        else:
+                            k = ""
+                        if "phylum" in split_tax:
+                            pi = split_tax.index("phylum") -1
+                            p = "p:" + split_tax[pi]
+                            p = p.replace('"','')
+                            p = p.split(" ")[0]
+                        else:
+                            p = ""
+                        if "class" in split_tax:
+                            ci = split_tax.index("class") -1
+                            c = "c:" + split_tax[ci]
+                            c = c.replace('"','')
+                            c = c.split(" ")[0]
+                        else:
+                            c = ""
+                        if "order" in split_tax:
+                            oi = split_tax.index("order") -1
+                            o = "o:" + split_tax[oi]
+                            o = o.replace('"','')
+                            o = o.split(" ")[0]
+                        else:
+                            o = ""
+                        if "family" in split_tax:
+                            fi = split_tax.index("family") -1
+                            f = "f:" + split_tax[fi]
+                            f = f.replace('"','')
+                            f = f.split(" ")[0]
+                        else:
+                            f = ""
+                        if "genus" in split_tax:
+                            gi = split_tax.index("genus") -1
+                            g = "g:" + split_tax[gi]
+                            g = g.replace('"','')
+                            g = g.split(" ")[0]
+                        else:
+                            g = ""
+                        reformat_tax = []
+                        removal = ("unidentified", "Incertae", "uncultured", "Group", "incertae", "Chloroplast", "unclassified", "Family")
+                        sp_removal = (" sp", "_sp", "uncultured", "isolate", "mycorrhizae", "vouchered", "fungal", "basidiomycete", "ascomycete", "fungus", "symbiont", "unclassified", "unidentified", "bacterium", "phytoplasma")
+                        if not any(x in k for x in removal) and k != "" and not amptklib.number_present(k):
+                            reformat_tax.append(k)
+                        if not any(x in p for x in removal) and p != "" and not amptklib.number_present(p):
+                            reformat_tax.append(p)
+                        if not any(x in c for x in removal) and c != "" and not amptklib.number_present(c):
+                            reformat_tax.append(c)
+                        if not any(x in o for x in removal) and o != "" and not amptklib.number_present(o):
+                            reformat_tax.append(o)
+                        if not any(x in f for x in removal) and f != "" and not amptklib.number_present(f):
+                            reformat_tax.append(f)
+                        if not any(x in g for x in removal) and g != "" and not amptklib.number_present(g):
+                            reformat_tax.append(g)
+                        if not any(x in s for x in sp_removal):
+                            reformat_tax.append(s)
+                        rec.id = ID+";tax="+",".join(reformat_tax)
+                        rec.id = re.sub(",s:$", "", rec.id)
+                        if rec.id.endswith(";tax="): #if there is no taxonomy, get rid of it
+                            rec.id = ""
+                        rec.name = ""
+                        rec.description = ""                
+                    if rec.id == "":
+                        errorfile.write('>ERROR:NO_ID|%s\n%s\n' % (orig_id, str(rec.seq)))
                         continue
-                    rec.seq = StrippedSeq
-                    if rec.id != "" and rec.seq != "" and len(rec.seq) >= args.min_len and len(rec.seq) <= args.max_len:
-                        yield rec
-            else: #if can't find forward primer, try to reverse complement and look again
-                RevSeq = revcomp_lib.RevComp(Seq)
-                BestPosFor, BestDiffsFor = primer.BestMatch2(RevSeq, FwdPrimer, args.primer_mismatch)
-                if BestDiffsFor < args.primer_mismatch:
-                    if BestPosFor > 0:
-                        stripfwdlen = fwdLen + BestPosFor
-                        StripSeq = Seq[stripfwdlen:]
-
-                        #now look for reverse
-                        BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, RevPrimer, args.primer_mismatch)
-                        if BestDiffsRev < args.primer_mismatch:
-                            StrippedSeq = StripSeq[:BestPosRev]
-                        else:
-                            StrippedSeq = StripSeq
-                        #after stripping primers, check for ambig bases
-                        if args.drop_ns != 0 and 'N'*args.drop_ns in StrippedSeq:
-                            continue
-                        rec.seq = StrippedSeq
-                        if rec.id != "" and rec.seq != "" and len(rec.seq) >= args.min_len and len(rec.seq) <= args.max_len:
-                            yield rec
-                else:
-                    if args.keep_all:
-                        StripSeq = Seq
-                        #now look for reverse
-                        BestPosRev, BestDiffsRev = primer.BestMatch2(StripSeq, RevPrimer, args.primer_mismatch)
-                        if BestDiffsRev < args.primer_mismatch:
-                            StrippedSeq = StripSeq[:BestPosRev]
-                        else:
-                            StrippedSeq = StripSeq
-                        #after stripping primers, check for ambig bases
-                        if args.drop_ns != 0 and 'N'*args.drop_ns in StrippedSeq:
-                            continue
-                        rec.seq = StrippedSeq
-                        if rec.id != "" and rec.seq != "" and len(rec.seq) >= args.min_len and len(rec.seq) <= args.max_len:
-                            yield rec
-        else:
-            #check for ambig bases
-            Seq = str(rec.seq)
-            if args.drop_ns != 0 and 'N'*args.drop_ns in Seq:
-                continue
-            if rec.id != "" and rec.seq != "" and len(rec.seq) >= args.min_len and len(rec.seq) <= args.max_len:
-                yield rec
+                    #make sequence a string for processing
+                    Seq = str(rec.seq)
+                    #remove any terminal N's
+                    Seq = Seq.strip('N')       
+                    #make sure alignments are resetting
+                    StripSeq, ForCutPos, RevCutPos, ForCutPos1, RevCutPos1 = (None,)*5
+                    if not args.trimming:
+                        #look for forward primer
+                        ForCutPos = amptklib.findFwdPrimer(FwdPrimer, Seq, args.primer_mismatch, amptklib.degenNucSimple)
+                        #align reverse primer, trim if found
+                        RevCutPos = amptklib.findRevPrimer(RevPrimer, Seq, args.primer_mismatch, amptklib.degenNucSimple)            
+                        #now check if either were found
+                        if ForCutPos and RevCutPos: #both were found, then trim and move on
+                            StripSeq = Seq[ForCutPos:RevCutPos]
+                        elif ForCutPos and not RevCutPos:
+                            StripSeq = Seq[ForCutPos:]
+                        elif not ForCutPos and RevCutPos:
+                            StripSeq = Seq[:RevCutPos]
+                        elif not ForCutPos and not RevCutPos:
+                            #neither is found, try reverse complementing
+                            RevSeq = revcomp_lib.RevComp(Seq)
+                            ForCutPos1 = amptklib.findFwdPrimer(FwdPrimer, RevSeq, args.primer_mismatch, amptklib.degenNucSimple)
+                            RevCutPos1 = amptklib.findRevPrimer(RevPrimer, RevSeq, args.primer_mismatch, amptklib.degenNucSimple)
+                            #now check if either were found
+                            if ForCutPos1 and RevCutPos1: #both were found, then trim and move on
+                                StripSeq = RevSeq[ForCutPos1:RevCutPos1]
+                            elif ForCutPos1 and not RevCutPos1:
+                                StripSeq = RevSeq[ForCutPos1:]
+                            elif not ForCutPos1 and RevCutPos1:
+                                StripSeq = RevSeq[:RevCutPos1]
+                            elif not ForCutPos1 and not RevCutPos1: #neither is found, if keep all then return original sequence
+                                if args.keep_all:
+                                    StripSeq = Seq
+                                else:
+                                    errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, str(rec.seq)))
+                                    continue 
+                    else:
+                        StripSeq = Seq                             
+                    #check for ambiguous bases
+                    if args.drop_ns != 0 and 'N'*args.drop_ns in StripSeq:
+                        errorfile.write('>ERROR:AMBIGUOUS|%s\n%s\n' % (orig_id, str(rec.seq)))
+                        continue
+                    #check length
+                    SeqLength = len(StripSeq)
+                    if SeqLength >= args.min_len:
+                        outputfile.write('>%s\n%s\n' % (rec.id, StripSeq))
+                    else:
+                        errorfile.write('>ERROR:LENGTH=%i|%s\n%s\n' % (SeqLength, orig_id, str(rec.seq)))
 
 def makeDB(input):
     db_details = args.out + '.udb.txt'
     usearch_db = args.out + '.udb'
+    Total = amptklib.countfasta(input)
     if args.trimming:
         args.F_primer = 'None'
         args.R_primer = 'None'
@@ -357,13 +354,6 @@ def makeDB(input):
             amptklib.log.info("Database %s created successfully" % usearch_db)
         else:
             amptklib.log.error("There was a problem creating the DB, check the log file %s" % utax_log)
-
-def worker(input):
-    output = input.split(".",-1)[0] + '.extracted.fa'
-    with open(output, 'w') as o:
-        with open(input, 'rU') as i:
-            SeqRecords = SeqIO.parse(i, 'fasta')
-            SeqIO.write(stripPrimer(SeqRecords), o, 'fasta')
 
 #remove logfile if exists
 log_name = args.out + '.log'
@@ -430,28 +420,55 @@ else:
             file_list.append(file)
 
     #finally process reads over number of cpus
-    p = multiprocessing.Pool(cpus)
-    for f in file_list:
-        p.apply_async(worker, [f])
-    p.close()
-    p.join()
+    amptklib.runMultiProgress(stripPrimer, file_list, cpus)
 
 #now concatenate outputs together
 OutName = args.out + '.extracted.fa'
+ErrorName = args.out + '.errors.fa'
 with open(OutName, 'w') as outfile:
-    for filename in glob.glob(os.path.join(folder,'*.extracted.fa')):
-        if filename == OutName:
-            continue
-        with open(filename, 'rU') as readfile:
-            shutil.copyfileobj(readfile, outfile)
+    with open(ErrorName, 'w') as outfile2:
+        for filename in os.listdir(os.path.join(folder)):
+            if filename.endswith('.extracted.fa'):
+                if filename == OutName:
+                    continue
+                with open(os.path.join(folder, filename), 'rU') as readfile:
+                    shutil.copyfileobj(readfile, outfile)
+            if filename.endswith('.errors.fa'):
+                if filename == ErrorName:
+                    continue
+                with open(os.path.join(folder, filename), 'rU') as readfile:
+                    shutil.copyfileobj(readfile, outfile2)
 
 if not args.debug:
     #clean up tmp folder
     shutil.rmtree(folder)
 
+#parse stats from the error fasta file
+noID = 0
+ambig = 0
+tooShort = 0
+noPrimer = 0
+with open(ErrorName, 'rU') as infile:
+    for line in infile:
+        if line.startswith('>'):
+            Err = line.split('|')[0]
+            Err = Err.replace('>ERROR:', '')
+            if Err == 'NO_ID':
+                noID += 1
+            elif Err == 'AMBIGUOUS':
+                ambig += 1
+            elif 'LENGTH' in Err:
+                tooShort += 1
+            elif Err == 'NO_PRIMER_MATCH':
+                noPrimer += 1
+
+Passed = amptklib.countfasta(OutName)
+amptklib.log.info('{0:,}'.format(Passed) + ' records passed (%.2f%%)' % (Passed*100.0/SeqCount))
+amptklib.log.info('Errors: {0:,}'.format(noID) + ' no taxonomy info, ' + 
+                  '{0:,}'.format(tooShort) + ' too short, ' +
+                  '{0:,}'.format(ambig) + ' too many ambiguous bases, ' +
+                  '{0:,}'.format(noPrimer) + ' no primers found')
 if args.derep_fulllength:
-    Passed = amptklib.countfasta(OutName)
-    amptklib.log.info('{0:,}'.format(Passed) + ' records passed (%.2f%%)' % (Passed*100.0/SeqCount))
     amptklib.log.info("Now dereplicating sequences (collapsing identical sequences)")
     derep_tmp = args.out + '.derep.extracted.fa'
     os.rename(OutName, derep_tmp)
@@ -459,9 +476,6 @@ if args.derep_fulllength:
     Total = amptklib.countfasta(OutName)
     amptklib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
     os.remove(derep_tmp)
-else:
-    Total = amptklib.countfasta(OutName)
-    amptklib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
 
 if args.create_db:
     makeDB(OutName)

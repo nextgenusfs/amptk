@@ -18,105 +18,6 @@ parser.add_argument('-o','--out', required=True, help='UTAX formated FASTA outpu
 parser.add_argument('--require_genbank', action='store_true', help='Require output to have GenBank Accessions')
 args=parser.parse_args()
 
-LetterToSet = {}
-LetterToSet['A'] = "A"
-LetterToSet['C'] = "C"
-LetterToSet['G'] = "G"
-LetterToSet['T'] = "T"
-LetterToSet['M'] = "AC"
-LetterToSet['R'] = "AG"
-LetterToSet['W'] = "AT"
-LetterToSet['S'] = "CG"
-LetterToSet['Y'] = "CT"
-LetterToSet['K'] = "GT"
-LetterToSet['V'] = "ACG"
-LetterToSet['H'] = "ACT"
-LetterToSet['D'] = "AGT"
-LetterToSet['B'] = "CGT"
-LetterToSet['X'] = "GATC"
-LetterToSet['N'] = "GATC"
-
-def MatchLetter(a, b):
-	global LetterToSet
-	try:
-		sa = LetterToSet[a.upper()]
-	except:
-		return False
-	try:
-		sb = LetterToSet[b.upper()]
-	except:
-		return False
-	for ca in sa:
-		if ca in sb:
-			return True
-	return False
-
-def MatchPrefix(Seq, Primer):
-	L = len(Seq)
-	PrimerLength = len(Primer)
-	n = PrimerLength
-	if L < n:
-		n = L
-	Diffs = 0
-	for i in range(0, n):
-		if not MatchLetter(Seq[i], Primer[i]):
-			Diffs += 1
-	return Diffs
-
-def BestMatch(Seq, Primer):
-	L = len(Seq)
-	PrimerLength = len(Primer)
-	BestDiffs = PrimerLength
-	BestPos = -1
-	for Pos in range(0, L-PrimerLength+1):
-		d = MatchPrefix(Seq[Pos:], Primer)
-		if d < BestDiffs:
-			BestDiffs = d
-			BestPos = Pos
-	return BestPos, BestDiffs
-
-def TrimPrimer(Sequence, primer, mismatch):
-    #find primer location
-    Diffs = BestMatch(Sequence, primer)
-    if Diffs[1] > int(mismatch):
-        #assume that primer was trimmed off
-        Seq = Sequence
-    else:
-        Seq = Sequence[Diffs[0]+len(primer):]
-    return Seq
-
-def align_sequences(sequence_A, sequence_B, **kwargs):
-    """
-    Performs a global pairwise alignment between two sequences
-    using the BLOSUM62 matrix and the Needleman-Wunsch algorithm
-    as implemented in Biopython. Returns the alignment, the sequence
-    identity and the residue mapping between both original sequences.
-    """
-    def _calculate_identity(sequenceA, sequenceB):
-        """
-        Returns the percentage of identical characters between two sequences.
-        Assumes the sequences are aligned.
-        """
-        sa, sb, sl = sequenceA, sequenceB, len(sequenceA)
-        matches = [sa[i] == sb[i] for i in xrange(sl)]
-        seq_id = (100 * sum(matches)) / sl
-
-        gapless_sl = sum([1 for i in xrange(sl) if (sa[i] != '-' and sb[i] != '-')])
-        gap_id = (100 * sum(matches)) / gapless_sl
-        return (seq_id, gap_id)
-
-    gap_open = kwargs.get('gap_open', -10.0)
-    gap_extend = kwargs.get('gap_extend', -0.5)
-    alns = pairwise2.align.globalxs(sequence_A, sequence_B,
-                                    gap_open, gap_extend)
-    #get best alignment
-    best_aln = alns[0]
-    aligned_A, aligned_B, score, begin, end = best_aln
-    # Calculate sequence identity
-    seq_id, g_seq_id = _calculate_identity(aligned_A, aligned_B)
-    return ((aligned_A, aligned_B), seq_id, g_seq_id)
-
-
 Total = -1
 nonCOI = 0
 noBIN = 0
@@ -199,8 +100,7 @@ with open(args.input, 'rU') as input:
                 continue
         #clean up sequence, remove any gaps, remove terminal N's
         Seq = col[seqid].replace('-', '')
-        Seq = Seq.rstrip('N')
-        Seq = Seq.lstrip('N')
+        Seq = Seq.strip('N')
         #if still N's in sequence, just drop it
         if 'N' in Seq:
             continue
@@ -234,12 +134,12 @@ print "%i total records processed" % Total
 print "%i non COI records dropped" % nonCOI
 print "%i records without a BIN dropped" % noBIN
 print "%i records written to BINs" % count
-print "Now looping through BINs and clustering with VSEARCH"
+print "Now looping through BINs and clustering with VSEARCH @ 99%"
 FNULL = open(os.devnull, 'w')
 for file in os.listdir(tmp):
     base = file.replace('.fa', '')
     cluster_out = os.path.join(tmp, base+'.centroids.fa')
-    subprocess.call(['vsearch', '--cluster_fast', os.path.join(tmp, file), '--id', '0.97', '--consout', cluster_out, '--notrunclabels'], stdout = FNULL, stderr = FNULL)
+    subprocess.call(['vsearch', '--cluster_fast', os.path.join(tmp, file), '--id', '0.99', '--consout', cluster_out, '--notrunclabels'], stdout = FNULL, stderr = FNULL)
 print "Combining consensus for each BIN"
 #now grab all the centroids and combine
 with open(args.out+'.tmp', 'w') as tmpout:

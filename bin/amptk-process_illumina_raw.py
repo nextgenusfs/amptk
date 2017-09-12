@@ -30,10 +30,10 @@ parser.add_argument('-i', '--index', nargs='+', required=True, help='Illumina FA
 parser.add_argument('-m', '--mapping_file', required=True, help='QIIME-like mapping file')
 parser.add_argument('--read_length', type=int, help='Read length, i.e. 2 x 300 bp = 300')
 parser.add_argument('-o','--out', dest="out", default='illumina_out', help='Base name for output')
-parser.add_argument('--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer')
-parser.add_argument('--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer')
+parser.add_argument('--fwd_primer', dest="F_primer", help='Forward Primer')
+parser.add_argument('--rev_primer', dest="R_primer", help='Reverse Primer')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
-parser.add_argument('--barcode_mismatch', default=2, type=int, help='Number of mis-matches in barcode')
+parser.add_argument('--barcode_mismatch', default=0, type=int, help='Number of mis-matches in barcode')
 parser.add_argument('--barcode_fasta', default='pgm_barcodes.fa', help='FASTA file containing Barcodes (Names & Sequences)')
 parser.add_argument('--require_primer', dest="primer", default='off', choices=['on', 'off'], help='Require Fwd primer to be present')
 parser.add_argument('--rescue_forward', default='on', choices=['on', 'off'], help='Rescue Not-merged forward reads')
@@ -62,25 +62,20 @@ def processRead(input):
         with open(DemuxOut, 'w') as out:
             for title, seq, qual in FastqGeneralIterator(open(input)):
                 Total += 1
-                #check if in discard
-                readID = title.split(' ')[0]
-                if readID in discard:
-                    NoBC += 1
-                    continue
+                #set postions to zero
+                ForCutPos, RevCutPos = (None,)*2
                 #first thing is look for forward primer, if found trim it off
-                foralign = edlib.align(FwdPrimer, seq, mode="HW", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
+                ForCutPos = amptklib.findFwdPrimer(FwdPrimer, seq, args.primer_mismatch, amptklib.degenNuc)
                 #if require primer is on make finding primer in amplicon required if amplicon is larger than read length
                 #if less than read length, can't enforce primer because could have been trimmed via staggered trim in fastq_mergepairs
                 if args.primer == 'on' and len(seq) > ReadLen:
-                    if foralign["editDistance"] < 0:
+                    if not ForCutPos:
                         NoPrimer += 1
                         continue
-                    ForCutPos = foralign["locations"][0][1]+1
                     Seq = seq[ForCutPos:]
                     Qual = qual[ForCutPos:]
                 else:
-                    if foralign["editDistance"] >= 0:
-                        ForCutPos = foralign["locations"][0][1]+1
+                    if ForCutPos:
                         Seq = seq[ForCutPos:]
                         Qual = qual[ForCutPos:]
                     else:
@@ -88,11 +83,9 @@ def processRead(input):
                         Seq = seq
                         Qual = qual
                 #now look for reverse primer
-                revalign = edlib.align(RevPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
-                if revalign["editDistance"] >= 0:
+                RevCutPos = amptklib.findRevPrimer(RevPrimer, Seq, args.primer_mismatch, amptklib.degenNuc)
+                if RevCutPos:
                     RevPrimerFound += 1
-                    RevCutPos = revalign["locations"][0][0]
-                    #location to trim sequences, trim seqs
                     Seq = Seq[:RevCutPos]
                     Qual = Qual[:RevCutPos]
                 else:
@@ -117,11 +110,8 @@ def processRead(input):
                     TooShort += 1
                     continue
                 ValidSeqs += 1     
-                #now fix header
-                header = indexReads.get(readID)
-                Title = 'R_'+str(ValidSeqs)+';barcodelabel='+header[0]+';bcseq='+header[1]+';bcdiffs='+str(header[2])+';'
                 #now write to file
-                out.write("@%s\n%s\n+\n%s\n" % (Title, Seq, Qual))
+                out.write("@%s\n%s\n+\n%s\n" % (title, Seq, Qual))
             counts.write("%i,%i,%i,%i,%i,%i\n" % (Total, NoBC, NoPrimer, RevPrimerFound, TooShort, ValidSeqs))
 
 
@@ -163,7 +153,7 @@ if os.path.isfile(barcode_file):
 #check if mapping file passed, use this if present, otherwise use command line arguments
 if args.mapping_file:
     if not os.path.isfile(args.mapping_file):
-        amptklib.error("Mapping file is not valid: %s" % args.mapping_file)
+        amptklib.log.error("Mapping file is not valid: %s" % args.mapping_file)
         sys.exit(1)
     mapdata = amptklib.parseMappingFile(args.mapping_file, barcode_file)
     #forward primer in first item in tuple, reverse in second
@@ -173,11 +163,12 @@ if args.mapping_file:
 else:
     if args.barcode_fasta:
         if not os.path.isfile(args.barcode_fasta):
-            amptklib.error("Mapping file or barcode_fasta is required")
+            amptklib.log.error("Mapping file or barcode_fasta is required")
             sys.exit(1)
         else:
             shutil.copyfile(args.barcode_fasta, barcode_file)
-    
+
+if not FwdPrimer or not RevPrimer:
     #parse primers here so doesn't conflict with mapping primers
     #look up primer db otherwise default to entry
     if args.F_primer in amptklib.primer_db:
@@ -189,46 +180,47 @@ else:
     else:
         RevPrimer = args.R_primer
 
+#if still no primers set, then exit
+if not FwdPrimer or not RevPrimer:
+    amptklib.log.error("Please provide primer sequences via --fwd_primer and --rev_primer")
+    sys.exit(1)
+
 #setup 
 if args.mapping_file:
     mapdict = amptklib.mapping2dict(args.mapping_file)
 else:
     mapdict = False
 
-amptklib.log.info("Loading %i samples from mapping file" % len(mapdict))
+amptklib.log.info("Loading %i samples from mapping file, checking FASTQ input" % len(mapdict))
 
-#process the index file, lookup in mapping file sample name, return dictionary
-#will return dictionary:  readID : (SampleID, BC, mismatches) and list of reads to be discarded
-amptklib.log.info("Mapping barcodes to sample IDs")
-combined_index = os.path.join(tmpdir, 'indexes.fq')
-if len(args.index) > 1:
-    with open(combined_index, 'wb') as outfile:
-        for file in args.index:
-            with amptklib.gzopen(file, 'rU') as readfile:
-                shutil.copyfileobj(readfile, outfile)
-else:
-    combined_index = args.index[0]
-indexReads, discard = amptklib.barcodes2dict(combined_index, mapdict, args.barcode_mismatch)
+#rename reads according to indexes
+if not amptklib.PEandIndexCheck(args.fastq, args.reverse, args.index[0]): #check they are all same length
+    amptklib.log.error("FASTQ input malformed, read numbers do not match")
+    sys.exit(1)
+amptklib.log.info("Mapping indexes to reads and renaming PE reads")
+cleanR1 = os.path.join(tmpdir, 'renamedR1.fastq')
+cleanR2 = os.path.join(tmpdir, 'renamedR2.fastq')
+amptklib.DemuxIllumina(args.fastq, args.reverse, args.index[0], mapdict, args.barcode_mismatch, cleanR1, cleanR2)
 
 #estimate read length
-if amptklib.check_valid_file(args.fastq):
+if amptklib.check_valid_file(cleanR1):
     #if read length explicity passed use it otherwise measure it
     if args.read_length:
         ReadLen = args.read_length
     else:
-        ReadLen = amptklib.GuessRL(args.fastq)
+        ReadLen = amptklib.GuessRL(cleanR1)
 
 #Count FASTQ records
 amptklib.log.info("Loading FASTQ Records")
-orig_total = amptklib.countfastq(args.fastq)
-size = amptklib.checkfastqsize(args.fastq)
+orig_total = amptklib.countfastq(cleanR1)
+size = amptklib.checkfastqsize(cleanR1)
 readablesize = amptklib.convertSize(size)
 amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 
 #now we can merge the reads
 mergedReads = args.out+'.merged.fastq'
 amptklib.log.info("Merging PE reads using VSEARCH and filtering for phiX")
-amptklib.MergeReads(args.fastq, args.reverse, tmpdir, mergedReads, ReadLen, args.min_len, args.usearch, args.rescue_forward, 'vsearch', '', args.barcode_mismatch)
+amptklib.MergeReads(os.path.abspath(cleanR1), os.path.abspath(cleanR2), tmpdir, mergedReads, ReadLen, args.min_len, args.usearch, args.rescue_forward, 'vsearch', '', 1)
 
 if not args.full_length:
     if args.pad == 'off':
@@ -241,7 +233,8 @@ amptklib.log.info("splitting the job over %i cpus, but this may still take awhil
 
 #now process the reads, have single file, so split like ion and run over multiple cores
 #split fastq file
-amptklib.split_fastq(os.path.join(tmpdir, mergedReads), orig_total, tmpdir, cpus*2)    
+mergedTotal = amptklib.countfastq(os.path.join(tmpdir, mergedReads))
+amptklib.split_fastq(os.path.join(tmpdir, mergedReads), mergedTotal, tmpdir, cpus*2)    
 
 
 #start here to process the reads, first reverse complement the reverse primer

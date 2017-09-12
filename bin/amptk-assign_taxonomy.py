@@ -216,7 +216,7 @@ if not args.taxonomy:
                 if usearch_db:
                     #run through USEARCH
                     amptklib.log.info("Global alignment OTUs with usearch_global (USEARCH)")
-                    cmd = [usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-top_hit_only', '-userfields', 'query+target+id']
+                    cmd = [usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-maxaccepts', '0', '-top_hits_only', '-userfields', 'query+target+id']
                     amptklib.runSubprocess(cmd, amptklib.log)
                 else:
                     amptklib.log.error("USEARCH DB %s not found, skipping" % usearch_db)
@@ -269,7 +269,11 @@ if not args.taxonomy:
                 pident = "{0:.1f}".format(pident)
                 ID = v[1]
                 tax = ','.join(v[-1])
-                fulltax = 'GS|'+pident+'|'+ID+';'+tax
+                LCA = v[2]
+                if LCA == '':
+                    fulltax = 'GS|'+pident+'|'+ID+';'+tax
+                else:
+                    fulltax = 'GSL|'+pident+'|'+ID+';'+tax
                 otuDict[k] = fulltax
 
         elif args.method == 'sintax' and os.path.isfile(sintax_out):
