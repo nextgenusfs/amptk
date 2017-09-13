@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#This script runs USEARCH UNOISE2 denoising
+#This script runs USEARCH UNOISE3 denoising
 #written by Jon Palmer nextgenusfs@gmail.com
 
 import sys, os, argparse, subprocess, inspect, csv, re, logging, shutil, multiprocessing
@@ -34,7 +34,7 @@ parser.add_argument('-i','--fastq', dest="FASTQ", required=True, help='FASTQ fil
 parser.add_argument('-o','--out', default='out', help='Base output name')
 parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
 parser.add_argument('-m','--minsize', default='8', help='Min size to keep for denoising')
-parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch10', help='USEARCH10 EXE')
 parser.add_argument('-p','--pct_otu', default='97', help="Biological OTU Clustering Percent")
 parser.add_argument('--uchime_ref', help='Run UCHIME2 REF [ITS,16S,LSU,COI,custom]')
 parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
@@ -46,7 +46,7 @@ def checkfastqsize(input):
     return filesize
 
 #remove logfile if exists
-log_name = args.out + '.amptk-unoise2.log'
+log_name = args.out + '.amptk-unoise3.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
@@ -60,7 +60,7 @@ print "-------------------------------------------------------"
 amptklib.SystemInfo()
 #Do a version check
 usearch = args.usearch
-amptklib.versionDependencyChecks(usearch)
+amptklib.checkusearch10(usearch)
 
 #make tmp folder
 tmp = args.out + '_tmp'
@@ -95,10 +95,10 @@ amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfasta(derep_out)
 amptklib.log.info('{0:,}'.format(total) + ' reads passed')
 
-#now run de-noiser UNOISE2
-amptklib.log.info("Denoising reads with UNOISE2")
+#now run de-noiser UNOISE3
+amptklib.log.info("Denoising reads with UNOISE3")
 unoise_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.unoise.fa')
-cmd = [usearch, '-unoise2', derep_out, '-fastaout', unoise_out, '-minampsize', args.minsize]
+cmd = [usearch, '-unoise3', derep_out, '-zotus', unoise_out, '-minsize', args.minsize]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfasta(unoise_out)
 amptklib.log.info('{0:,}'.format(total) + ' denoised sequences')

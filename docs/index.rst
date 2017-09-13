@@ -49,6 +49,14 @@ Dependencies
     #create softlink
     sudo ln -s /path/to/usearch9.2.64_i86osx32 /usr/local/bin/usearch9
 
+1b) (optional) One script also requires USEARCH10, so you can download usearch10 and put into your path as follows:
+::
+    #make executable
+    sudo chmod +x /path/to/usearch10.0.240_i86osx32
+    
+    #create softlink
+    sudo ln -s /path/to/usearch10.0.240_i86osx32 /usr/local/bin/usearch10
+
 2) AMPtk requires VSEARCH, which you can install from `here <https://github.com/torognes/vsearch>`_. Note, if you use homebrew recipe it will be install automatically.
 ::
     #install vsearch with homebrew
@@ -61,16 +69,22 @@ Dependencies
 3) Several Python modules are also required, they can be installed with pip or conda:
 ::
     #install with pip
-    pip install -U biopython natsort pandas numpy matplotlib edlib biom-format psutil
+    pip install -U biopython natsort pandas numpy matplotlib seaborn edlib biom-format psutil
     
     #install with conda
-    conda install biopython natsort pandas numpy matplotlib edlib biom-format psutil
+    conda install biopython natsort pandas numpy matplotlib seaborn edlib biom-format psutil
 
-4) DADA2 denoising algorithm requires installation of R and DADA2.  Instructions are located `here <http://benjjneb.github.io/dada2/>`_.
+4) (optional)  DADA2 denoising algorithm requires installation of R and DADA2.  Instructions are located `here <http://benjjneb.github.io/dada2/>`_.
 ::
     #install with conda/bioconda
     conda config --add channels r
-    conda install --yes bioconductor-dada2
+    conda install --yes r-base bioconductor-dada2
+
+5) (optional) To run some preliminary community ecology stats via ``amptk stats`` you will also need the R package `Phyloseq <https://joey711.github.io/phyloseq/>`_.  One way to install with conda:
+::
+    #install with conda/bioconda
+    conda config --add channels r
+    conda install --yes r-base bioconductor-phyloseq
     
 More Information
 ==================

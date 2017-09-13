@@ -90,6 +90,21 @@ def versionDependencyChecks(usearch):
         sys.exit(1)
     log.info("%s, USEARCH v%s, VSEARCH v%s" % (amptk_version, usearch_version, vsearch_version))
 
+def checkusearch10(usearch):
+    #to run amptk need usearch > 10.0.2132 and vsearch > 2.2.0
+    amptk_version = get_version()
+    usearch_version = get_usearch_version(usearch)
+    vsearch_version = get_vsearch_version()
+    usearch_pass = '10.0.240'
+    vsearch_pass = '2.2.0'
+    if not gvc(usearch_version, usearch_pass):
+        log.error("USEARCH v%s detected, needs to be atleast v%s" % (usearch_version, usearch_pass))
+        sys.exit(1)
+    if not gvc(vsearch_version, vsearch_pass):
+        log.error("VSEARCH v%s detected, needs to be atleast v%s" % (vsearch_version, vsearch_pass))
+        sys.exit(1)
+    log.info("%s, USEARCH v%s, VSEARCH v%s" % (amptk_version, usearch_version, vsearch_version))
+
 def checkRversion():
     #need to have R version > 3.2
     cmd = ['Rscript', '--vanilla', os.path.join(parentdir, 'util', 'check_version.R')]
@@ -98,7 +113,8 @@ def checkRversion():
     versions = stdout.replace(' \n', '')
     Rvers = versions.split(',')[0]
     dada2 = versions.split(',')[1]
-    return (Rvers, dada2)
+    phyloseq = versions.split(',')[2]
+    return (Rvers, dada2, phyloseq)
 
 def checkfastqsize(input):
     filesize = os.path.getsize(input)
@@ -308,6 +324,16 @@ def runSubprocess2(cmd, logfile, output):
     logfile.debug(' '.join(cmd))
     with open(output, 'w') as out:
         proc = subprocess.Popen(cmd, stdout=out, stderr=subprocess.PIPE)
+    stderr = proc.communicate()
+    if stderr:
+        if stderr[0] != None:
+            logfile.debug(stderr)
+
+def runSubprocess3(cmd, logfile, folder, output):
+    #function where output of cmd is STDOUT, capture STDERR in logfile
+    logfile.debug(' '.join(cmd))
+    with open(output, 'w') as out:
+        proc = subprocess.Popen(cmd, stdout=out, stderr=out, cwd=folder)
     stderr = proc.communicate()
     if stderr:
         if stderr[0] != None:

@@ -14,7 +14,7 @@ All AMPtk commands show a help menu when they are run without any parameters, fo
     $ amptk
 
     Usage:       amptk <command> <arguments>
-    version:     0.10.4
+    version:     1.0.0
 
     Description: AMPtk is a package of scripts to process NGS amplicon data.  
                  Dependencies:  USEARCH v9.1.13 and VSEARCH v2.2.0
@@ -29,6 +29,7 @@ All AMPtk commands show a help menu when they are run without any parameters, fo
     Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
                  dada2       dada2 denoising algorithm (requires R, dada2, ShortRead)
                  unoise2     UNOISE2 denoising algorithm
+                 unoise3     UNOISE3 denoising algorithm
                  cluster_ref closed/open reference based clustering (EXPERIMENTAL)
 
     Utilities:   filter      OTU table filtering
@@ -38,6 +39,7 @@ All AMPtk commands show a help menu when they are run without any parameters, fo
                  remove      remove reads (samples) from de-multiplexed data
                  sample      sub-sample (rarify) de-multiplexed reads per sample
                  drop        Drop OTUs from dataset
+                 stats       Hypothesis test and NMDS graphs (EXPERIMENTAL)
                  summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs)
                  funguild    Run FUNGuild (annotate OTUs with ecological information) 
                  meta        pivot OTU table and append to meta data
@@ -47,6 +49,7 @@ All AMPtk commands show a help menu when they are run without any parameters, fo
     Setup:       install     Download/install pre-formatted taxonomy DB. Only need to run once.
                  database    Format Reference Databases for Taxonomy
                  primers     List primers hard-coded in AMPtk. Can use in pre-processing steps.
+
 
 
 AMPtk comes with some very small test datasets, here we will go through a standard MiSeq Illumina test run. The data is located in the ``test_data`` folder of the amptk installation directory.  Move to that folder to begin.

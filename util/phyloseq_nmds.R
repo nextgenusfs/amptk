@@ -132,7 +132,7 @@ for (y in 1:length(treatments)) {
         print("Distance not supported")
         
     #setup output stats file
-    statsout <- paste(paste(dirname(args[1]),args[3], sep='/'),'.', treatments[y],'.adonis-', args[4], '.txt', sep='')
+    statsout <- paste(paste(dirname(args[1]), args[3], args[3], sep='/'),'.', treatments[y],'.adonis-', args[4], '.txt', sep='')
     
     #hypothesis test for significance
     testA <- adonis(dist~metadata[[treatments[y]]], permutations=9999)
@@ -155,12 +155,12 @@ for (y in 1:length(treatments)) {
     ord <- ordinate(PhyRaup, method="NMDS", distance=dist)
     capture.output(ord, file=statsout, append=TRUE)
     p <- nmds_pretty(PhyRaup, ord, metadata, treatments[y], colors, args[4], t1)
-    ggsave(paste(paste(dirname(args[1]),args[3], sep='/'),'.', treatments[y],'.',args[4],'.ordination.pdf', sep=''), plot=p)
+    ggsave(paste(paste(dirname(args[1]),args[3], args[3], sep='/'),'.', treatments[y],'.',args[4],'.ordination.pdf', sep=''), plot=p)
     
     #alpha diversity
     pr <- plot_richness(PhyBray, x=treatments[y], color=treatments[y], measures=c("Observed", "Chao1", "Shannon"))
     pr = pr + geom_point(size=3, alpha=0.4)
     pr = pr + scale_color_manual(values=colors)
-    ggsave(paste(paste(dirname(args[1]),args[3], sep='/'),'.', treatments[y],'.alpha_diversity.pdf', sep=''), plot=pr)
+    ggsave(paste(paste(dirname(args[1]),args[3], args[3], sep='/'),'.', treatments[y],'.alpha_diversity.pdf', sep=''), plot=pr)
             
 }

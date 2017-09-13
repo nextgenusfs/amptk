@@ -8,10 +8,10 @@ sys.path.insert(0,script_path)
 import lib.amptklib as amptklib
 from natsort import natsorted
 
-URL = { 'ITS': 'https://osf.io/pbtyh/download?version=2',
+URL = { 'ITS': 'https://osf.io/pbtyh/download?version=3',
         '16S': 'https://osf.io/m7v5q/download?version=1', 
         'LSU': 'https://osf.io/sqn5r/download?version=1', 
-        'COI': 'https://osf.io/pax79/download?version=1' }
+        'COI': 'https://osf.io/pax79/download?version=2' }
 
 def flatten(l):
     flatList = []
@@ -78,6 +78,7 @@ Process:     ion         pre-process Ion Torrent data
 Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
              dada2       dada2 denoising algorithm (requires R, dada2, ShortRead)
              unoise2     UNOISE2 denoising algorithm
+             unoise3     UNOISE3 denoising algorithm
              cluster_ref closed/open reference based clustering (EXPERIMENTAL)
 
 Utilities:   filter      OTU table filtering
@@ -87,6 +88,7 @@ Utilities:   filter      OTU table filtering
              remove      remove reads (samples) from de-multiplexed data
              sample      sub-sample (rarify) de-multiplexed reads per sample
              drop        Drop OTUs from dataset
+             stats       Hypothesis test and NMDS graphs (EXPERIMENTAL)
              summarize   Summarize Taxonomy (create OTU-like tables and/or stacked bar graphs)
              funguild    Run FUNGuild (annotate OTUs with ecological information) 
              meta        pivot OTU table and append to meta data
@@ -409,6 +411,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
         else:
             print help
             sys.exit(1)            
+    
     elif sys.argv[1] == 'dada2':
         help = """
 Usage:       amptk %s <arguments>
@@ -455,7 +458,7 @@ Description: Script will run the UNOISE2 denoising algorithm followed by cluster
 Arguments:   -i, --fastq         Input FASTQ file (Required)
              -o, --out           Output base name. Default: out
              -e, --maxee         Expected error quality trimming. Default: 1.0
-             -m, --minampout     Minimum size to keep for denoising. Default: 4
+             -m, --minsize       Minimum size to keep for denoising. Default: 8
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -u, --usearch       Path to USEARCH9. Default: usearch9
              --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
@@ -464,6 +467,35 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
         arguments = sys.argv[2:]
         if len(arguments) > 1:
             cmd = os.path.join(script_path, 'bin', 'amptk-unoise2.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            sys.exit(1) 
+
+    elif sys.argv[1] == 'unoise3':
+        help = """
+Usage:       amptk %s <arguments>
+version:     %s
+
+Description: Script will run the UNOISE3 denoising algorithm followed by clustering with
+             UCLUST to generate OTUs. OTU table is then constructed by mapping reads to 
+             the OTUs.  Requires USEARCH v10.0.240 or greater.
+    
+Arguments:   -i, --fastq         Input FASTQ file (Required)
+             -o, --out           Output base name. Default: out
+             -e, --maxee         Expected error quality trimming. Default: 1.0
+             -m, --minsize       Minimum size to keep for denoising. Default: 8
+             -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
+             -u, --usearch       Path to USEARCH9. Default: usearch9
+             --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
+             --debug             Keep intermediate files.
+        """ % (sys.argv[1], version)
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'bin', 'amptk-unoise3.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -954,6 +986,31 @@ Arguments:   -i, --input         Input FASTQ file or folder (Required)
         else:
             print help
             sys.exit(1)
+    elif sys.argv[1] == 'stats':
+        help = """
+Usage:       amptk %s <arguments>
+version:     %s
+
+Description: A wrapper script for Phyloseq and Vegan R packages that draws NMDS of all 
+             treatments in a BIOM file (output from amptk taxonomy). The script also runs 
+             hypothesis tests (Adonis and Betadispersion) for each treatment.
+    
+Arguments:   -i, --biom          Input BIOM file with taxonomy and metadata (Required)
+             -t, --tree          Phylogeny of OTUs (from amptk taxonomy) (Required)
+             -d, --distance      Distance metric. Default: raupcrick [raupcrick,jaccard,bray,unifrac,wunifrac]
+             -o, --out           Output base name. Default: amptk_stats
+        """ % (sys.argv[1], version)
+   
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'util', 'amptk-stats.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            sys.exit(1)            
     elif sys.argv[1] == 'primers':
         print "----------------------------------"
         print "Primers hard-coded into AMPtk:"
@@ -963,7 +1020,7 @@ Arguments:   -i, --input         Input FASTQ file or folder (Required)
         print "----------------------------------"
         sys.exit(1)
     elif sys.argv[1] == 'version':
-        print "AMPtk v.%s" % version
+        print "AMPtk v%s" % version
     else:
         print "%s option not recognized" % sys.argv[1]
         print default_help
