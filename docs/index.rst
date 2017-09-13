@@ -10,6 +10,11 @@ AMPtk documentation
    :hidden:
    
    quick-start
+   overview
+   pre-processing
+   clustering
+   filtering
+   taxonomy
 
 AMPtk is a series of scripts to process NGS amplicon data using USEARCH and VSEARCH, it can also be used to process any NGS amplicon data and includes databases setup for analysis of fungal ITS, fungal LSU, bacterial 16S, and insect COI amplicons. It can handle Ion Torrent, MiSeq, and 454 data. At least USEARCH v9.1.13 and VSEARCH v2.2.0 are required as of AMPtk v0.7.0.
 
@@ -33,8 +38,10 @@ But the easiest way to install AMPtk and its dependencies is with `HomeBrew <htt
     
     #install AMPtk and dependencies
     brew install amptk
-
-AMPtk utilizes USEARCH9 which must be installed manually from the developer `here <http://www.drive5.com/usearch/download.html>`_.  Obtain the proper version of USEARCH v9.2.64 and softlink into the PATH:
+    
+Dependencies
+==================
+1) AMPtk utilizes USEARCH9 which must be installed manually from the developer `here <http://www.drive5.com/usearch/download.html>`_.  Obtain the proper version of USEARCH v9.2.64 and softlink into the PATH:
 ::
     #make executable
     sudo chmod +x /path/to/usearch9.2.64_i86osx32
@@ -42,14 +49,35 @@ AMPtk utilizes USEARCH9 which must be installed manually from the developer `her
     #create softlink
     sudo ln -s /path/to/usearch9.2.64_i86osx32 /usr/local/bin/usearch9
 
-AMPtk also requires VSEARCH, which you can install from `here <https://github.com/torognes/vsearch>`_. Note, if you use homebrew recipe it will be install automatically.
+2) AMPtk requires VSEARCH, which you can install from `here <https://github.com/torognes/vsearch>`_. Note, if you use homebrew recipe it will be install automatically.
+::
+    #install vsearch with homebrew
+    brew install vsearch
+    
+    #or with bioconda
+    conda config --add channels bioconda
+    conda install --yes vsearch
 
+3) Several Python modules are also required, they can be installed with pip or conda:
+::
+    #install with pip
+    pip install -U biopython natsort pandas numpy matplotlib edlib biom-format psutil
+    
+    #install with conda
+    conda install biopython natsort pandas numpy matplotlib edlib biom-format psutil
+
+4) DADA2 denoising algorithm requires installation of R and DADA2.  Instructions are located `here <http://benjjneb.github.io/dada2/>`_.
+::
+    #install with conda/bioconda
+    conda config --add channels r
+    conda install --yes bioconductor-dada2
+    
 More Information
 ==================
 
-* :ref:`quick-start`
-* :ref:`overview`
-* :ref:`pre-processing`
-* :ref:`clustering`
-* :ref:`filtering`
-* :ref:`taxonomy`
+* :ref:`AMPtk Quick Start <quick-start>` - walkthrough of test data.
+* :ref:`AMPtk Overview <overview>` - an overview of the steps in AMPtk.
+* :ref:`AMPtk Pre-Processing <pre-processing>` - details of the critical pre-processing steps.
+* :ref:`AMPtk Clustering <clustering>` - overview of clustering/denoising algorithms in AMPtk
+* :ref:`AMPtk OTU Table Filtering <filtering>` - OTU table filtering based on Mock community
+* :ref:`AMPtk Taxonomy <taxonomy>` - assigning taxonomy in AMPtk

@@ -59,7 +59,7 @@ def download(url, name):
         sys.stdout.write(status)
     f.close()
 
-version = '0.10.4'
+version = '1.0.0'
 
 default_help = """
 Usage:       amptk <command> <arguments>
@@ -241,6 +241,8 @@ Arguments:   -f, --forward       FASTQ R1 (forward) file (Required)
              -m, --mapping_file  QIIME-like mapping file. (Required)
              -o, --out           Output folder name. Default: amptk-data  
              -l, --trim_len      Length to trim/pad reads. Default: 300
+             --fwd_primer        Forward primer sequence
+             --rev_primer        Reverse primer sequence
              --min_len           Minimum length read to keep. Default: 100
              --full_length       Keep only full length sequences.
              --read_length       Illumina Read length (250 if 2 x 250 bp run). Default: auto detect
@@ -338,7 +340,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
         else:
             print help
             sys.exit(1)
-    elif sys.argv[1] == 'cluster':
+    elif sys.argv[1] == 'cluster' or sys.argv[1] == 'uparse':
         help = """
 Usage:       amptk %s <arguments>
 version:     %s
