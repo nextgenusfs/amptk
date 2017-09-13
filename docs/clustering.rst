@@ -10,7 +10,9 @@ All clustering scripts in AMPtk take the output of pre-processing (amptk ion, am
 UPARSE clustering
 -------------------------------------
 The most commonly used method in OTU generation pipelines is UPARSE.  You can run UPARSE clustering in AMPtk as follows:
-::
+
+.. code-block:: none
+
     #run default settings
     amptk cluster -i mydata.demux.fq.gz -o mydata 
     
@@ -22,7 +24,9 @@ This script will generated a log file as well as OTUs named ``mydata.cluster.otu
 DADA2 denoising
 -------------------------------------
 DADA2 can also be run from AMPtk, which utilizes a slightly modified version of DADA2 to retain the AMPtk data structure.
-::
+
+.. code-block:: none
+
     #run DADA2 on illumina dataset
     amptk dada2 -i mydata.demux.fq.gz --platform illumina -o mydata
     
@@ -34,13 +38,17 @@ You will notice that the output of DADA2 results in 2 sets of output, the first 
 UNOISE2 denoising
 -------------------------------------
 UNOISE2 is a denoising algorithm run in USEARCH9, which is similar in idea to DADA2. Likewise, the output data from UNOISE2 is the same as DADA2 -> where you get both multi-fasta and OTU tables for the iSeqs as well as clustered iSeqs.
-::
+
+.. code-block:: none
+
     #run UNOISE2
     amptk unoise2 -i mydata.demux.fq.gz -o mydata
     
 UNOISE3 denoising
 -------------------------------------
 UNOISE3 is the denoising algorithm run in USEARCH10 (apparently the successor of UNOISE2). Likewise, the output data from UNOISE3 is the same as DADA2 and UNOISE2, although "it works better".... Note, for unoise3 you must have USEARCH10 installed.
-::
+
+.. code-block:: none
+
     #run UNOISE3
     amptk unoise3 -i mydata.demux.fq.gz -o mydata

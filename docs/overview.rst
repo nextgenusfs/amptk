@@ -3,6 +3,5 @@
 
 AMPtk Overview
 ================
-
 .. image:: amptk.pdf
     :align: center

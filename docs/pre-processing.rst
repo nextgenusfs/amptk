@@ -9,11 +9,15 @@ One of the most critical steps in analyzing amplicon NGS data is in the initial 
 Processing Ion Torrent and 454 Data
 -------------------------------------
 Roche 454 and Ion Torrent PGM machines are flowgram based sequencers that have similar experimental setup but differ in their nucleotide detection mechanisms. In terms of processing data from these platforms, the pre-processing steps are similar. Flowgram based sequencers sequence the amplicon in one direction, thus generate single-ended (SE) reads. Multiplexing on these instruments is done through incorporation of a unique barcode sequence in-between the system specific adapter sequences and the amplicon-specific primer.  Therefore, reads have the following structure:
-::
+
+.. code-block:: none
+
     5' - Barcode:For_Primer:amplicon:Rev_primer:adapter - 3'
 
 Typically these read structure is produced via fusion primers that generally look like the following:
-::
+
+.. code-block:: none
+
     #Ion Torrent Forward primer (Primer A:Key Sequence (TCAG)):
     5'-CCATCTCATCCCTGCGTGTCTCCGACTCAG-[Barcode]--template-specific-primer-3'
     
@@ -37,7 +41,9 @@ The next step in many amplicon pipelines is to truncate the reads to a set lengt
     5) if sequence is longer than ``--trim_len``, truncate sequence
 
 These steps are executed with the following commands:
-::
+
+.. code-block:: none
+
     #process Ion Torrent Data directly from unaligned BAM file
     amptk ion -i mydata.bam -o mydata -f fITS7 -r ITS4 --barcode_fasta barcodes.fa
     
@@ -55,7 +61,9 @@ These steps are executed with the following commands:
 Processing Illumina Data
 ------------------------------------- 
 In contrast to SE reads generated from 454 and Ion Torrent, Illumina data has the added benefit of being able to generated paired-end (PE) reads.  Initially (ca 2013), Illumina data was limited to short read lengths (< 150 bp), however, starting with the Illumina MiSeq platform read lengths quickly increased and currently Illumina can deliver 2 x 300 bp reads, which offers a combined read length longer than Ion Torrent (400-500 bp).  One way to generate illumina compatible amplicons is through a two-step PCR reaction, where you use your primer of interest fused to a general Illumina adapter, a second barcoding reaction then attaches an barcode sequence and an additional adapter.
-::
+
+.. code-block:: none
+
     Forward Nested Primer Sequence
     5'- ACACTCTTTCCCTACACGACGCTCTTCCGATCT-template-specific-primer -3'
 
@@ -63,15 +71,21 @@ In contrast to SE reads generated from 454 and Ion Torrent, Illumina data has th
     5'- GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT-template-specific-primer -3'
 
 The second barcoding reaction then adds a unique barcode [i5] to the 5' adapter and a barcode [i7] to the 3' adapter sequence.  Thus the final construct schematically looks like this:
-::
+
+.. code-block:: none
+
     5' - Adapter1-[i5]-Adapter2-For_Primer:amplicon:Rev_Primer-Adapter3-[i7]-Adapter4 - 3'
 
 The machine then does 4 different sequencing reactions: 1) Read 1 (sequence from Adapter2 for 300 bp), 2) Index Read 1 (sequences the i5 barcode), 3) Read 2 (sequence in reverse direction from Adapter3, 4) Index Read 2 (sequences the i7 barcode).  The software then strips the adapter sequences, and the reads will then look like this:
-::
+
+.. code-block:: none
+
     5' -  For_Primer:amplicon:Rev_Primer - 3'
 
 Illumina software then de-multiplexes the reads based on the index sequences and splits each sample into two files that are named as such: ``<sample name>_<barcode>_L<lane number>_R<read number>_<set number>.fastq.gz``
-::
+
+.. code-block:: none
+
     #Example naming after bcl2fastq
     Sample1_ATCCTTG_L001_R1_001.fastq.gz
     Sample1_TCTGGTA_L001_R2_001.fastq.gz
@@ -93,7 +107,9 @@ AMPtk pre-processing of Illumina runs the same steps as in 454/Ion Torrent with 
     6) if sequence is longer than ``--trim_len``, truncate sequence
 
 Some examples of how to issue these commands:
-::
+
+.. code-block:: none
+
     #simple folder of PE MiSeq data
     amptk illumina -i miseq_folder/ -o mydata -f ITS1-F -r ITS2 
     
@@ -106,4 +122,23 @@ Some examples of how to issue these commands:
     #data is in R1, R2, I1 format
     amptk illumina3 --forward data_R1.fastq.gz --reverse data_R2.fastq.gz --index data_I1.fastq.gz \
         -m mapping_file.txt -o mydata --fwd_primer ITS1-F --rev_primer ITS2
+
+Processing SRA Data
+------------------------------------- 
+Amplicon data from the NCBI Small Read Archive (SRA) is typically provided in a single FASTQ file per sample, i.e. an experiment with 48 samples will have 48 SRA archives, which could be composed of PE reads or SE reads depending on the platform.  For example, `BioProject PRJNA400449 <https://www.ncbi.nlm.nih.gov/bioproject/PRJNA400449>`_ is composed of 24 samples.  To download this project using `SRApy <https://github.com/kdmurray91/SRApy>`_ you could run the following:
+
+.. code-block:: none
+    
+    #download all SRA runs from the BioProject PRJNA400449
+    get-project-sras.py -e myemail@address.edu -d output_folder -p 400449 -F {name}.sra
+    
+    #then convert SRA to FASTQ using sra-tools fastq-dump
+    cd output_folder; for file in *.sra; do fastq-dump -F --split-files $file; done; cd ..
+
+Now the files are in FASTQ format and they are named according to their sample name, you can run ``amptk SRA``:
+
+.. code-block:: none
+
+    amptk SRA -i output_folder -f ITS1-F -r ITS4 --require_primer off -o mydata
+
 
