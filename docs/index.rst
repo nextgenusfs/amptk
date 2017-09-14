@@ -11,11 +11,13 @@ AMPtk documentation
   
    overview
    quick-start
+   file-formats
    pre-processing
    clustering
    filtering
    taxonomy
    commands
+   downstream
 
 
 AMPtk is a series of scripts to process NGS amplicon data using USEARCH and VSEARCH, it can also be used to process any NGS amplicon data and includes databases setup for analysis of fungal ITS, fungal LSU, bacterial 16S, and insect COI amplicons. It can handle Ion Torrent, MiSeq, and 454 data. At least USEARCH v9.1.13 and VSEARCH v2.2.0 are required as of AMPtk v0.7.0.
@@ -40,7 +42,7 @@ But the easiest way to install AMPtk and its dependencies is with `HomeBrew <htt
     brew doctor; brew tap homebrew/science; brew tap nextgenusfs/tap
     
     #install python dependencies
-    pip install -U biopython natsort pandas numpy matplotlib edlib biom-format psutil
+    pip install -U biopython natsort pandas numpy matplotlib seaborn edlib biom-format psutil
     
     #install AMPtk and dependencies
     brew install amptk

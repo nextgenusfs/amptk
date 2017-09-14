@@ -63,9 +63,22 @@ def dereplicate(input, output):
                             consensusTax = oldID+';tax='+','.join(oldTax[:-lca])
                             #amptklib.log.debug("setting taxonomy to %s" % (consensusTax))
                             seqs[sequence] = consensusTax
-        #now write to file     
+        #now write to file
+        seenID = []
+        seenTax = []
         for key,value in seqs.iteritems():
+            ID = value.split(';tax=')[0]
+            tax = value.split(';tax=')[-1]
+            taxCount = tax.count(',')
+            if ID in seenID: #don't do duplicate IDs
+                continue
+            if taxCount > 5: #species level, not have more than 1 seq per "species"
+                if ID in seenTax:
+                    continue
             out.write('>'+value+'\n'+key+'\n')
+            seenTax.append(tax)
+            seenID.append(ID)
+                
 
 FNULL = open(os.devnull, 'w')
 pid = os.getpid()

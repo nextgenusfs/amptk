@@ -520,7 +520,7 @@ Required:    -i, --otu_table     OTU table
 Optional:    -o, --out           Base name for output files. Default: use input basename
              -b, --mock_barcode  Name of barcode of mock community (Recommended)
              -m, --mc            Mock community FASTA file. Required if -b passed. [synmock,mock1,mock2,mock3,etc]
-             -d, --drop          Sample names to drop from OTU table (done after index-bleed filtering)
+             -d, --drop          Sample names to drop from OTU table.
              -c, --calculate     Calculate index-bleed options. Default: all [in,all]
              --negatives         Negative sample names. (list, separate by space)
              
@@ -703,7 +703,7 @@ Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script creates a heatmap from an OTU table.  Several settings are customizable.  
-             Requires Matplotlib, numpy, and pandas.
+             Requires Seaborn, matplotlib, numpy, and pandas.
 
 Arguments:   -i, --input         Input OTU table (Required)
              -o, --output        Output file (Required)

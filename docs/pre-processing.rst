@@ -125,7 +125,9 @@ Some examples of how to issue these commands:
 
 Processing SRA Data
 ------------------------------------- 
-Amplicon data from the NCBI Small Read Archive (SRA) is typically provided in a single FASTQ file per sample, i.e. an experiment with 48 samples will have 48 SRA archives, which could be composed of PE reads or SE reads depending on the platform.  For example, `BioProject PRJNA400449 <https://www.ncbi.nlm.nih.gov/bioproject/PRJNA400449>`_ is composed of 24 samples.  To download this project using `SRApy <https://github.com/kdmurray91/SRApy>`_ you could run the following:
+Amplicon data from the NCBI Small Read Archive (SRA) is typically provided in a single FASTQ file per sample, i.e. an experiment with 48 samples will have 48 SRA archives, which could be composed of PE reads or SE reads depending on the platform.  Extracting PE Illumina data for such a project could be done like this:  
+
+For example, `BioProject PRJNA400449 <https://www.ncbi.nlm.nih.gov/bioproject/PRJNA400449>`_ is composed of 24 samples.  To download this project using `SRApy <https://github.com/kdmurray91/SRApy>`_ you could run the following:
 
 .. code-block:: none
     
@@ -135,10 +137,26 @@ Amplicon data from the NCBI Small Read Archive (SRA) is typically provided in a 
     #then convert SRA to FASTQ using sra-tools fastq-dump
     cd output_folder; for file in *.sra; do fastq-dump -F --split-files $file; done; cd ..
 
-Now the files are in FASTQ format and they are named according to their sample name, you can run ``amptk SRA``:
+Since these files are PE Illumina format, you can use the standard ``amptk illumina`` command:
 
 .. code-block:: none
 
-    amptk SRA -i output_folder -f ITS1-F -r ITS4 --require_primer off -o mydata
+    amptk illumina -i output_folder -f ITS1-F -r ITS4 --require_primer off -o mydata
+
+On the other hand, Roche 454 data and Ion Torrent data are contained in a single FASTQ file -> notably different than their raw data which is located in a single file with barcode sequences intact.  Typically in SRA downloaded files, the unique barcode sequence is missing, therefore you can get these data into AMPtk using the ``amptk SRA`` command which takes a folder of single FASTQ files as input.  For example:
+
+.. code-block:: none
+    
+    #download all SRA runs from the BioProject PRJNA305905 (Ion Torrent Run)
+    get-project-sras.py -e myemail@address.edu -d output_folder -p 305905 -F {name}.sra
+    
+    #then convert SRA to FASTQ using sra-tools fastq-dump
+    cd output_folder; for file in *.sra; do fastq-dump -F $file; done; cd ..
+
+Now you can demultiplex using the ``amptk SRA`` command:
+
+.. code-block:: none
+
+    amptk SRA -i output_folder -f AGGGTGCTCCTCACAGCCCTGTG -r TGTCCCCGCRGCRMATTTCCTG -o mydata
 
 

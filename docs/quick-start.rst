@@ -21,9 +21,166 @@ The first step is to pre-process or demultiplex your reads.  In this example, th
 
     #run the pre-processing script, specifying primers used
     amptk illumina -i illumina_test_data -o miseq -f fITS7 -r ITS4
+    
+    -------------------------------------------------------
+    [03:53:16 PM]: OS: MacOSX 10.12.6, 8 cores, ~ 16 GB RAM. Python: 2.7.12
+    [03:53:16 PM]: AMPtk v1.0.0, USEARCH v9.2.64, VSEARCH v2.4.4
+    [03:53:16 PM]: Gzipped files detected, uncompressing
+    [03:53:16 PM]: Merging Overlaping Pairs using USEARCH
+    [03:53:16 PM]: working on sample 301-1 (Read Length: 300)
+    [03:53:17 PM]: 100 reads passed (100.0%)
+    [03:53:17 PM]: working on sample 301-2 (Read Length: 300)
+    [03:53:17 PM]: 100 reads passed (100.0%)
+    [03:53:17 PM]: working on sample spike (Read Length: 300)
+    [03:53:17 PM]: 400 reads passed (100.0%)
+    [03:53:17 PM]: Stripping primers and trim to 300 bp
+    [03:53:17 PM]: splitting the job over 8 cpus, but this may still take awhile
+    [03:53:17 PM]: Foward primer: GTGARTCATCGAATCTTTG,  Rev comp'd rev primer: GCATATCAATAAGCGGAGGA
+    -------------------------------------------------------
+    [03:53:18 PM]: Concatenating Demuxed Files
+    [03:53:18 PM]: 600 total reads
+    [03:53:18 PM]: 600 Fwd Primer found, 426 Rev Primer found
+    [03:53:18 PM]: 0 discarded too short (< 100 bp)
+    [03:53:18 PM]: 600 valid output reads
+    [03:53:18 PM]: Found 3 barcoded samples
+                            Sample:  Count
+                             spike:  400
+                             301-1:  100
+                             301-2:  100
+    [03:53:18 PM]: Output file:  miseq.demux.fq.gz (53.1 KB)
+    [03:53:18 PM]: Mapping file: miseq.mapping_file.txt
+    -------------------------------------------------------
+
 
 You should see that script found 600 valid reads, and output them into a file called ``miseq.demux.fq.gz`` and you'll note that it also output a QIIME-like mapping file ``miseq.mapping_file.txt`` which can be used later on to add meta data to and generate a BIOM file (during assigning taxonomy step).  You can find a detailed log file in ``miseq.amptk-demux.log``.  The script has merged the PE reads using usearch, removed phiX spike-in, removed the forward and reverse primers, relabeled the FASTQ headers, and then concatenated all samples together.  Note that the default settings require that reads have a valid forward primer, if you used a custom sequencing primer then you will need to turn this setting off with ``--require_primer off``.
 
 Clustering Data
 -------------------------------------
+We can now take the output here and run the UPARSE clustering algorithm.  The steps of UPARSE are to quality filter with expected errors, dereplicate, sort by abundance, cluster using 97% identity to create OTUs, map original reads back to OTUs to make OTU table.
 
+.. code-block:: none
+
+    amptk cluster -i miseq.demux.fq.gz -o miseq
+    
+    -------------------------------------------------------
+    [03:54:29 PM]: OS: MacOSX 10.12.6, 8 cores, ~ 16 GB RAM. Python: 2.7.12
+    [03:54:29 PM]: AMPtk v1.0.0, USEARCH v9.2.64, VSEARCH v2.4.4
+    [03:54:29 PM]: Loading FASTQ Records
+    [03:54:29 PM]: 600 reads (53.1 KB)
+    [03:54:29 PM]: Quality Filtering, expected errors < 1.0
+    [03:54:29 PM]: 394 reads passed
+    [03:54:29 PM]: De-replication (remove duplicate reads)
+    [03:54:29 PM]: 112 reads passed
+    [03:54:29 PM]: Clustering OTUs (UPARSE)
+    [03:54:29 PM]: 32 OTUs
+    [03:54:29 PM]: Cleaning up padding from OTUs
+    [03:54:29 PM]: Mapping Reads to OTUs and Building OTU table
+    [03:54:30 PM]: 429 reads mapped to OTUs (72%)
+    -------------------------------------------------------
+    OTU Clustering Script has Finished Successfully
+    -------------------------------------------------------
+    Clustered OTUs: /Users/jon/amptk/test_data/miseq.cluster.otus.fa
+    OTU Table: /Users/jon/amptk/test_data/miseq.otu_table.txt
+    -------------------------------------------------------
+
+Filtering Data
+-------------------------------------
+Since we included a mock community in our sample, we will filter for index-bleed. Note in this toy example there is no index-bleed.
+
+.. code-block:: none
+
+    amptk filter -i miseq.otu_table.txt -f miseq.cluster.otus.fa -b spike -m mock2
+    
+    -------------------------------------------------------
+    [03:56:53 PM]: OS: MacOSX 10.12.6, 8 cores, ~ 16 GB RAM. Python: 2.7.12
+    [03:56:54 PM]: AMPtk v1.0.0, USEARCH v9.2.64, VSEARCH v2.4.4
+    [03:56:54 PM]: Loading OTU table: miseq.otu_table.txt
+    [03:56:54 PM]: OTU table contains 32 OTUs and 429 read counts
+    [03:56:54 PM]: Mapping OTUs to Mock Community (USEARCH)
+    [03:56:54 PM]: Sorting OTU table naturally
+    [03:56:54 PM]: Removing OTUs according to --min_reads_otu: (OTUs with less than 2 reads from all samples)
+    [03:56:54 PM]: Normalizing OTU table to number of reads per sample
+    [03:56:54 PM]: Index bleed, mock into samples: 0.000000%.  Index bleed, samples into mock: 0.000000%.
+    [03:56:54 PM]: No spike-in mock (-b) or index-bleed (-p) specified, thus not running index-bleed filtering
+    [03:56:54 PM]: spike sample has 24 OTUS out of 26 expected; 0 mock variants; 0 mock chimeras; Error rate: 0.040%
+    [03:56:54 PM]: Filtering OTU table down to 8 OTUs and 136 read counts
+    [03:56:54 PM]: Filtering valid OTUs
+    -------------------------------------------------------
+    OTU Table filtering finished
+    -------------------------------------------------------
+    OTU Table Stats:      miseq.stats.txt
+    Sorted OTU table:     miseq.sorted.txt
+    Normalized/filter:    miseq.normalized.txt
+    Final Binary table:   miseq.final.binary.txt
+    Final OTU table:      miseq.final.txt
+    Filtered OTUs:        miseq.filtered.otus.fa
+    -------------------------------------------------------
+
+Assign Taxonomy
+-------------------------------------
+We can now assign taxonomy to our OTUs and create the final BIOM output file.
+
+.. code-block:: none
+
+    amptk taxonomy -f miseq.cluster.otus.fa -i miseq.otu_table.txt -m miseq.mapping_file.txt -d ITS2 -o miseq
+    
+    -------------------------------------------------------
+    [03:59:33 PM]: OS: MacOSX 10.12.6, 8 cores, ~ 16 GB RAM. Python: 2.7.12
+    [03:59:34 PM]: AMPtk v1.0.0, USEARCH v9.2.64, VSEARCH v2.4.4
+    [03:59:34 PM]: Loading FASTA Records
+    [03:59:34 PM]: 32 OTUs
+    [03:59:34 PM]: Global alignment OTUs with usearch_global (USEARCH)
+    [03:59:38 PM]: Classifying OTUs with UTAX (USEARCH)
+    [03:59:38 PM]: Classifying OTUs with SINTAX (USEARCH)
+    [04:00:24 PM]: Appending taxonomy to OTU table and OTUs
+    [04:00:24 PM]: Generating phylogenetic tree
+    [04:00:24 PM]: Taxonomy finished: miseq.taxonomy.txt
+    [04:00:24 PM]: Classic OTU table with taxonomy: miseq.otu_table.taxonomy.txt
+    [04:00:25 PM]: BIOM OTU table created: miseq.biom
+    [04:00:25 PM]: OTUs with taxonomy: miseq.otus.taxonomy.fa
+    [04:00:25 PM]: OTU phylogeny: miseq.tree.phy
+    -------------------------------------------------------
+
+And we now have an OTU table complete with taxonomy:
+
+.. code-block:: none
+
+    #OTU ID	301-1	301-2	spike	Taxonomy
+    OTU1	0	57	0	GSL|100.0|KX857803;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Hymenochaetales,f:Schizoporaceae
+    OTU10	0	0	16	GSL|100.0|KF169595;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales,f:Fomitopsidaceae,g:Fomitopsis
+    OTU11	0	0	14	GS|100.0|KP055600;k:Fungi,p:Ascomycota,c:Leotiomycetes,o:Helotiales,f:Vibrisseaceae,g:Phialocephala,s:Phialocephala lagerbergii
+    OTU12	0	0	14	GS|100.0|KU668958;k:Fungi,p:Ascomycota
+    OTU13	0	0	10	GS|99.7|EU402583;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales,f:Polyporaceae,g:Leptoporus,s:Leptoporus mollis
+    OTU14	0	0	10	GSL|100.0|KP135060;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales
+    OTU15	0	0	10	GS|100.0|KU668956;k:Fungi,p:Ascomycota,c:Eurotiomycetes,o:Eurotiales,f:Trichocomaceae,g:Penicillium,s:Penicillium nothofagi
+    OTU16	0	0	13	GS|100.0|KM493837;k:Fungi
+    OTU17	0	0	10	GS|100.0|KU668960;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales,f:Fomitopsidaceae,g:Laetiporus,s:Laetiporus caribensis
+    OTU18	0	0	11	GS|100.0|KY886708;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales,f:Fomitopsidaceae,g:Laetiporus,s:Laetiporus cremeiporus
+    OTU19	0	0	10	GS|100.0|KU668959;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales,f:Polyporaceae,g:Wolfiporia,s:Wolfiporia dilatohypha
+    OTU2	36	0	0	GSL|100.0|HQ222028;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Agaricales,f:Strophariaceae,g:Pholiota
+    OTU20	7	3	0	GS|100.0|AY465463;k:Fungi,p:Ascomycota,c:Eurotiomycetes,o:Chaetothyriales,f:Herpotrichiellaceae,g:Phialophora
+    OTU21	0	0	10	GS|100.0|KU668966;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales,f:Phanerochaetaceae,g:Antrodiella,s:Antrodiella semisupina
+    OTU22	0	0	9	GSL|100.0|AY340039;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Hymenochaetales,f:Hymenochaetaceae,g:Phellinus,s:Phellinus cinereus
+    OTU23	0	0	9	GS|100.0|KM373239;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales,f:Polyporaceae,g:Trametes,s:Trametes gibbosa
+    OTU24	0	0	6	GS|100.0|EU402560;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales,f:Fomitopsidaceae,g:Laetiporus,s:Laetiporus sulphureus
+    OTU25	0	0	8	GS|100.0|KU668954;k:Fungi,p:Mortierellomycota
+    OTU26	0	0	9	GS|100.0|DQ398958;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Corticiales,f:Punctulariaceae,g:Punctularia,s:Punctularia strigosozonata
+    OTU27	19	0	0	GS|100.0|DQ647503;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Hymenochaetales,g:Peniophorella,s:Peniophorella pubera
+    OTU28	0	0	10	GS|100.0|KU668961;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales,f:Fomitopsidaceae,g:Laetiporus,s:Laetiporus persicinus
+    OTU29	0	4	0	US|0.8150|LN827700;k:Fungi,p:Ascomycota,c:Sordariomycetes,o:Sordariales
+    OTU3	0	0	21	GS|100.0|KU668970;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales,f:Meruliaceae,g:Bjerkandera,s:Bjerkandera adusta
+    OTU30	0	5	0	GSL|100.0|KF928438;k:Fungi,p:Ascomycota,c:Eurotiomycetes,o:Chaetothyriales,f:Herpotrichiellaceae,g:Exophiala,s:Exophiala cancerae
+    OTU31	2	0	0	GS|100.0|KX221389;k:Fungi
+    OTU32	1	2	0	GS|100.0|JX946684;k:Fungi,p:Ascomycota,c:Dothideomycetes,o:Venturiales,f:Venturiaceae,g:Protoventuria,s:Protoventuria alpina
+    OTU4	0	0	14	GS|100.0|KU668955;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Hymenochaetales,f:Schizoporaceae,g:Schizopora
+    OTU5	0	0	15	GS|100.0|KU668973;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales,f:Phanerochaetaceae,g:Phanerochaete,s:Phanerochaete laevis
+    OTU6	0	0	17	GS|100.0|KU668975;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales,f:Polyporaceae,g:Leptoporus,s:Leptoporus mollis
+    OTU7	0	0	17	GS|100.0|KU668968;k:Fungi,p:Ascomycota,c:Leotiomycetes,o:Helotiales
+    OTU8	0	0	17	GSL|100.0|KP216946;k:Fungi,p:Ascomycota,c:Eurotiomycetes,o:Eurotiales,f:Trichocomaceae,g:Aspergillus
+    OTU9	0	0	13	GS|100.0|EU402553;k:Fungi,p:Basidiomycota,c:Agaricomycetes,o:Polyporales,f:Fomitopsidaceae,g:Laetiporus,s:Laetiporus gilbertsonii
+
+We then also have a BIOM file complete with any metadata and taxonomy:
+
+.. code-block:: none
+
+    {"id": "None","format": "Biological Observation Matrix 1.0.0","format_url": "http://biom-format.org","matrix_type": "sparse","generated_by": "BIOM-Format 2.1.5","date": "2017-09-14T16:04:01.068491","type": "OTU table","matrix_element_type": "float","shape": [32, 3],"data": [[0,1,57.0],[1,2,16.0],[2,2,14.0],[3,2,14.0],[4,2,10.0],[5,2,10.0],[6,2,10.0],[7,2,13.0],[8,2,10.0],[9,2,11.0],[10,2,10.0],[11,0,36.0],[12,0,7.0],[12,1,3.0],[13,2,10.0],[14,2,9.0],[15,2,9.0],[16,2,6.0],[17,2,8.0],[18,2,9.0],[19,0,19.0],[20,2,10.0],[21,1,4.0],[22,2,21.0],[23,1,5.0],[24,0,2.0],[25,0,1.0],[25,1,2.0],[26,2,14.0],[27,2,15.0],[28,2,17.0],[29,2,17.0],[30,2,17.0],[31,2,13.0]],"rows": [{"id": "OTU1", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Hymenochaetales", "f__Schizoporaceae"]}},{"id": "OTU10", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales", "f__Fomitopsidaceae", "g__Fomitopsis"]}},{"id": "OTU11", "metadata": {"taxonomy": ["k__Fungi", "p__Ascomycota", "c__Leotiomycetes", "o__Helotiales", "f__Vibrisseaceae", "g__Phialocephala", "s__Phialocephala lagerbergii"]}},{"id": "OTU12", "metadata": {"taxonomy": ["k__Fungi", "p__Ascomycota"]}},{"id": "OTU13", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales", "f__Polyporaceae", "g__Leptoporus", "s__Leptoporus mollis"]}},{"id": "OTU14", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales"]}},{"id": "OTU15", "metadata": {"taxonomy": ["k__Fungi", "p__Ascomycota", "c__Eurotiomycetes", "o__Eurotiales", "f__Trichocomaceae", "g__Penicillium", "s__Penicillium nothofagi"]}},{"id": "OTU16", "metadata": {"taxonomy": ["k__Fungi", "p__", "c__", "o__", "f__", "g__", "s__"]}},{"id": "OTU17", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales", "f__Fomitopsidaceae", "g__Laetiporus", "s__Laetiporus caribensis"]}},{"id": "OTU18", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales", "f__Fomitopsidaceae", "g__Laetiporus", "s__Laetiporus cremeiporus"]}},{"id": "OTU19", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales", "f__Polyporaceae", "g__Wolfiporia", "s__Wolfiporia dilatohypha"]}},{"id": "OTU2", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Agaricales", "f__Strophariaceae", "g__Pholiota"]}},{"id": "OTU20", "metadata": {"taxonomy": ["k__Fungi", "p__Ascomycota", "c__Eurotiomycetes", "o__Chaetothyriales", "f__Herpotrichiellaceae", "g__Phialophora"]}},{"id": "OTU21", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales", "f__Phanerochaetaceae", "g__Antrodiella", "s__Antrodiella semisupina"]}},{"id": "OTU22", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Hymenochaetales", "f__Hymenochaetaceae", "g__Phellinus", "s__Phellinus cinereus"]}},{"id": "OTU23", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales", "f__Polyporaceae", "g__Trametes", "s__Trametes gibbosa"]}},{"id": "OTU24", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales", "f__Fomitopsidaceae", "g__Laetiporus", "s__Laetiporus sulphureus"]}},{"id": "OTU25", "metadata": {"taxonomy": ["k__Fungi", "p__Mortierellomycota"]}},{"id": "OTU26", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Corticiales", "f__Punctulariaceae", "g__Punctularia", "s__Punctularia strigosozonata"]}},{"id": "OTU27", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Hymenochaetales", "f__", "g__Peniophorella", "s__Peniophorella pubera"]}},{"id": "OTU28", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales", "f__Fomitopsidaceae", "g__Laetiporus", "s__Laetiporus persicinus"]}},{"id": "OTU29", "metadata": {"taxonomy": ["k__Fungi", "p__Ascomycota", "c__Sordariomycetes", "o__Sordariales"]}},{"id": "OTU3", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales", "f__Meruliaceae", "g__Bjerkandera", "s__Bjerkandera adusta"]}},{"id": "OTU30", "metadata": {"taxonomy": ["k__Fungi", "p__Ascomycota", "c__Eurotiomycetes", "o__Chaetothyriales", "f__Herpotrichiellaceae", "g__Exophiala", "s__Exophiala cancerae"]}},{"id": "OTU31", "metadata": {"taxonomy": ["k__Fungi", "p__", "c__", "o__", "f__", "g__", "s__"]}},{"id": "OTU32", "metadata": {"taxonomy": ["k__Fungi", "p__Ascomycota", "c__Dothideomycetes", "o__Venturiales", "f__Venturiaceae", "g__Protoventuria", "s__Protoventuria alpina"]}},{"id": "OTU4", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Hymenochaetales", "f__Schizoporaceae", "g__Schizopora"]}},{"id": "OTU5", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales", "f__Phanerochaetaceae", "g__Phanerochaete", "s__Phanerochaete laevis"]}},{"id": "OTU6", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales", "f__Polyporaceae", "g__Leptoporus", "s__Leptoporus mollis"]}},{"id": "OTU7", "metadata": {"taxonomy": ["k__Fungi", "p__Ascomycota", "c__Leotiomycetes", "o__Helotiales"]}},{"id": "OTU8", "metadata": {"taxonomy": ["k__Fungi", "p__Ascomycota", "c__Eurotiomycetes", "o__Eurotiales", "f__Trichocomaceae", "g__Aspergillus"]}},{"id": "OTU9", "metadata": {"taxonomy": ["k__Fungi", "p__Basidiomycota", "c__Agaricomycetes", "o__Polyporales", "f__Fomitopsidaceae", "g__Laetiporus", "s__Laetiporus gilbertsonii"]}}],"columns": [{"id": "301-1", "metadata": {"ReversePrimer": "TCCTCCGCTTATTGATATGC", "phinchID": "301-1", "BarcodeSequence": "TCCGGAGA-CCTATCCT", "LinkerPrimerSequence": "GTGARTCATCGAATCTTTG", "Treatment": "no_data"}},{"id": "301-2", "metadata": {"ReversePrimer": "TCCTCCGCTTATTGATATGC", "phinchID": "301-2", "BarcodeSequence": "TCCGGAGA-GGCTCTGA", "LinkerPrimerSequence": "GTGARTCATCGAATCTTTG", "Treatment": "no_data"}},{"id": "spike", "metadata": {"ReversePrimer": "TCCTCCGCTTATTGATATGC", "phinchID": "spike", "BarcodeSequence": "CGCTCATT-GGCTCTGA", "LinkerPrimerSequence": "GTGARTCATCGAATCTTTG", "Treatment": "no_data"}}]}

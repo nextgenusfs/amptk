@@ -54,6 +54,8 @@ AMPtk Pre-Processing
 -------------------------------------
 amptk ion
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Script that demulitplexes Ion Torrent data.  Input can be either an unaligned BAM file or FASTQ file. The IonXpress 1-96 barcodes are hard-coded into AMPtk and is the default setting for providing barcode sequences to the script.  Alternatively, you can provide a ``--barcode_fasta`` file containing barcodes used or a QIIME like mapping file.  For file formats see :ref:`here <file-formats>`, and for more information see :ref:`here <pre-processing>`.
+
 .. code-block:: none
 
     Usage:       amptk ion <arguments>
@@ -84,6 +86,8 @@ amptk ion
 
 amptk illumina
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Script for demultiplexing Illumina PE data that has been delivered from sequencing center in a folder of PE FASTQ files, one set for each sample. More information is :ref:`here <pre-processing>`.
+
 .. code-block:: none
 
     Usage:       amptk illumina <arguments>
@@ -117,6 +121,8 @@ amptk illumina
 
 amptk illumina2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This script is for demultiplexing Illumina data that is delivered as either a single FASTQ file or PE FASTQ files where the read layout contains unique barcode sequences at the 5' or the 3' end of the amplicons. More information is :ref:`here <pre-processing>`.
+
 .. code-block:: none
 
     Usage:       amptk illumina2 <arguments>
@@ -151,6 +157,8 @@ amptk illumina2
 
 amptk illumina3
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This script demultiplexes Illumina PE data that is delivered as 3 files: forward reads (R1), reverse reads (R2), and then index reads (I3). More information is :ref:`here <pre-processing>`.
+
 .. code-block:: none
 
     Usage:       amptk illumina3 <arguments>
@@ -184,6 +192,8 @@ amptk illumina3
 
 amptk 454
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Script for demultiplexing Roche 454 data.  Input requirements are a 454 run in SFF, FASTQ, or FASTA+QUAL format as well as a multi-FASTA file containing barcodes used. More information is :ref:`here <pre-processing>`.
+
 .. code-block:: none
 
     Usage:       amptk 454 <arguments>
@@ -213,6 +223,8 @@ amptk 454
 
 amptk SRA
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This script is useful for pre-processing data from the NCBI SRA or data that is located in a folder where each sample is contained in a single FASTQ file.  Note if you have PE Illumina data that was downloaded from SRA, you can use the ``amptk illumina`` script. More information is :ref:`here <pre-processing>`.
+
 .. code-block:: none
 
     Usage:       amptk SRA <arguments>
@@ -243,6 +255,8 @@ AMPtk Clustering
 -------------------------------------
 amptk cluster
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UPARSE clustering in AMPtk is completed with this command.  There is optional reference based chimera filtering. More information is :ref:`here <clustering>`.
+
 .. code-block:: none
 
     Usage:       amptk cluster <arguments>
@@ -267,6 +281,8 @@ amptk cluster
 
 amptk dada2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+DADA2 infers exact sequence variants (ESVs or iSeqs) by using a statistical error model to correct sequencing errors. AMPtk employs a modified DADA2 workflow that also clusters the iSeqs into biological meaningful OTUs.  More information is :ref:`here <clustering>`.
+
 .. code-block:: none
 
     Usage:       amptk dada2 <arguments>
@@ -292,6 +308,8 @@ amptk dada2
 
 amptk unoise2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UNOISE2 is a denoising algorithm in USEARCH9 that was built to work in a similar fashion to DADA2, correcting reads instead of clustering them. More information is :ref:`here <clustering>`.
+
 .. code-block:: none
 
     Usage:       amptk unoise2 <arguments>
@@ -313,6 +331,8 @@ amptk unoise2
 
 amptk unoise3
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UNOISE3 is the successor to UNOISE2 and is a denoising algorithm built from the Illumina platform.  The author suggests that 454 and Ion Torrent data do not work well with this method. More information is :ref:`here <clustering>`.
+
 .. code-block:: none
 
     Usage:       amptk unoise3 <arguments>
@@ -334,6 +354,8 @@ amptk unoise3
 
 amptk cluster_ref
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This script runs reference based clustering or rather maps each unique sequence to a reference database using global alignment. If a sequence has no match greather than ``--id``, the remaining sequences are classified using UTAX.
+
 .. code-block:: none
 
     Usage:       amptk cluster_ref <arguments>
@@ -365,6 +387,8 @@ AMPtk Utilities
 -------------------------------------
 amptk filter
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Removing index-bleed or sample cross-over from datasets is important for downstream community ecology analysis. AMPtk utilizes a mock community as reference point for calculating the rate of index-bleed between samples.  It than uses that value to remove read counts from an OTU table that fall below the index-bleed threshold. Each OTU is calculated separately, so that low-abundance OTUs are not indiscriminately removed. More information can be found :ref:`here <filtering>`.
+
 .. code-block:: none
 
     Usage:       amptk filter <arguments>
@@ -381,7 +405,7 @@ amptk filter
     Optional:    -o, --out           Base name for output files. Default: use input basename
                  -b, --mock_barcode  Name of barcode of mock community (Recommended)
                  -m, --mc            Mock community FASTA file. Required if -b passed. [synmock,mock1,mock2,mock3,etc]
-                 -d, --drop          Sample names to drop from OTU table (done after index-bleed filtering)
+                 -d, --drop          Sample names to drop from OTU table
                  -c, --calculate     Calculate index-bleed options. Default: all [in,all]
                  --negatives         Negative sample names. (list, separate by space)
              
@@ -399,6 +423,8 @@ amptk filter
 
 amptk taxonomy
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This script assigns taxonomy to OTUs and an OTU table. A variety of methods are available, more details are located :ref:`here <taxonomy>`. 
+
 .. code-block:: none
 
     Usage:       amptk taxonomy <arguments>
@@ -437,6 +463,8 @@ amptk taxonomy
 
 amptk show
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This utility will count the number of reads for each sample from a demultiplexed FASTQ sample.  Additionally it measures read length for the entire dataset and allows you to quality trim using expected errors.  Note quality trimming is slow in this script and isn't intended to be used for normal amplicon dataset processing.
+
 .. code-block:: none
 
     Usage:       amptk show <arguments>
@@ -453,6 +481,8 @@ amptk show
 
 amptk select
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This script allows you to keep samples from a demultiplexed FASTQ sample, useful for keeping samples that have higher than a ``--threshold`` number of reads.
+
 .. code-block:: none
 
     Usage:       amptk select <arguments>
@@ -471,6 +501,8 @@ amptk select
 
 amptk remove
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This script allows you to drop samples from a demultiplexed FASTQ sample, useful for removing samples that have low read counts or are from potentially a different project. 
+
 .. code-block:: none
 
     Usage:       amptk remove <arguments>
@@ -489,6 +521,8 @@ amptk remove
 
 amptk sample
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This script will sub-sample or pseudo-rarefy a dataset to an equal number of reads per sample.  Note, this should not be used during standard amplicon community analysis, however, there are some fringe use cases where it is appropriate.
+
 .. code-block:: none
 
     Usage:       amptk sample <arguments>
@@ -505,6 +539,8 @@ amptk sample
 
 amptk drop
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This script allows you to drop OTUs from an OTU table.  Usage example would be that you identify OTUs that are from contamination and you want to remove them from the OTU table.  
+
 .. code-block:: none
 
     Usage:       amptk drop <arguments>
@@ -521,6 +557,8 @@ amptk drop
 
 amptk stats
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This script is a wrapper for Vegan/Phyloseq and is meant as a first pass overview of your community ecology data.  The script takes a BIOM file containing OTU table, taxonomy, and metadata (output of ``amptk taxonomy``). The script than loops through all metadata and returns a hypothesis test (Adonis and Betadisper), an NMDS graph of the data, and an alpha diversity graph. This script requires R, Vegan, and Phyloseq.  Script is considered beta as it is new.
+
 .. code-block:: none
 
     Usage:       amptk stats <arguments>
@@ -534,10 +572,31 @@ amptk stats
                  -t, --tree          Phylogeny of OTUs (from amptk taxonomy) (Required)
                  -d, --distance      Distance metric. Default: raupcrick [raupcrick,jaccard,bray,unifrac,wunifrac]
                  -o, --out           Output base name. Default: amptk_stats
-        
+
+**Example 1**:
+
+.. code-block:: none
+
+    amptk stats -i test.biom -t test.tree.phy -o test_stats
+    -------------------------------------------------------
+    [06:37:40 PM]: OS: MacOSX 10.12.6, 8 cores, ~ 16 GB RAM. Python: 2.7.12
+    [06:37:40 PM]: R v3.3.1; Phyloseq v1.19.1
+    [06:37:40 PM]: Running hypothesis test using raupcrick distance metric on all treatments, drawing NMDS for each.
+    [06:39:43 PM]: Parsing p-values from hyopthesis tests generated in R
+                                     Location  Treatment
+    test_stats raupcrick Adonis        0.0003     0.0001
+                         Betadisper    0.0176     0.0001
+    -------------------------------------------------------
+
+
+.. image:: stats.pdf
+    :align: center 
+
 
 amptk summarize
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This script will traverse the taxonomy tree from an OTU table that is appended with taxonomy information, i.e. the output of ``amptk taxonomy``.  It can optionally produce stacked bar graphs of taxonomy for each level of taxonomy.
+ 
 .. code-block:: none
 
     Usage:       amptk summarize <arguments>
@@ -554,10 +613,30 @@ amptk summarize
                  --format        Image output format. Default: eps [eps, svg, png, pdf]
                  --percent       Convert numbers to Percent for Graphs. Default: off
                  --font_size     Adjust font size for X-axis sample lables. Default: 8
-        
+                 
+**Example 1**:
+
+.. code-block:: none
+
+    amptk summarize -i test.otu_table.taxonomy.txt --graphs -o test --font_size 6 --format pdf
+
+.. image:: summarize.pdf
+    :align: center 
+
+**Example 2**:
+
+.. code-block:: none
+
+    amptk summarize -i test.otu_table.taxonomy.txt --graphs -o test --font_size 6 --format pdf --percent
+
+.. image:: summarize-percent.pdf
+    :align: center 
+
 
 amptk funguild
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+`FunGuild <http://www.stbates.org/guilds/app.php>`_ is a tool for assigning functional information to OTUs.  You use this script by simply providing an OTU table that has been appended with taxonomy, i.e. the ``otu_table.taxonomy.txt`` from ``amptk taxonomy``. 
+
 .. code-block:: none
 
     Usage:       amptk funguild <arguments>
@@ -573,6 +652,8 @@ amptk funguild
 
 amptk meta
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This script is an alternative to using BIOM file format for downstream processing.  It takes a metadata file in CSV format with the first column having sample IDs that match sample IDs in an OTU table.  The script than pivots the OTU table and appends it to the metadata, which can be imported into something like Vegan in R.
+
 .. code-block:: none
 
     Usage:       amptk meta <arguments>
@@ -590,13 +671,15 @@ amptk meta
 
 amptk heatmap
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Transform your OTU table into a heatmap using Seaborn and Matplotlib. 
+
 .. code-block:: none
 
     Usage:       amptk heatmap <arguments>
     version:     1.0.0
 
     Description: Script creates a heatmap from an OTU table.  Several settings are customizable.  
-                 Requires Matplotlib, numpy, and pandas.
+                 Requires Seaborn, matplotlib, numpy, and pandas.
 
     Arguments:   -i, --input         Input OTU table (Required)
                  -o, --output        Output file (Required)
@@ -619,8 +702,11 @@ amptk heatmap
                  --debug             Print pandas table on import to terminal
 
 
+
 amptk SRA-submit
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Submitting your data to NCBI SRA can be a real pain, this script tries to make it easier to make that happen.  Data submitted to SRA needs to be split up by sample, however it should also be minimally processed -> what I mean by that is that Illumina data should be raw (output of bcl2fastq for example) and 454/Ion Torrent data should be demultiplexed based on sample, but otherwise should not be trimmed.  This is where ``amptk SRA-submit`` can help.  The script takes the raw input and outputs gzipped FASTQ files that are minimally processed for SRA.  Moreover, if you create a BioProject and BioSamples for each of your samples prior to running the script, you can bass the BioSample worksheet from NCBI to the script and it will automatically generate an SRA submission file.  You can customize some of the text in that file, i.e. via the ``--description`` argument. 
+
 .. code-block:: none
 
     Usage:       amptk SRA-submit <arguments>
@@ -656,6 +742,8 @@ AMPtk Setup
 -------------------------------------
 amptk install
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This simple script will download and unpack the pre-build reference databases.
+
 .. code-block:: none
 
     Usage:       amptk install <arguments>
@@ -672,6 +760,8 @@ amptk install
 
 amptk database
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Building reference databases is done with ``amptk database``.  It has built-in parsers for UNITE and RDP FASTA headers, see the discussion about `AMPtk taxonomy <taxonomy>` for more information on FASTA headers. 
+
 .. code-block:: none
 
     Usage:       amptk database <arguments>
