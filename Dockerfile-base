@@ -24,9 +24,9 @@ RUN wget https://github.com/torognes/vsearch/archive/v2.4.4.tar.gz && \
 
 RUN pip install -U srapy edlib
 
-RUN wget https://github.com/nextgenusfs/amptk/archive/0.10.3.tar.gz && \
-    tar xzf 0.10.3.tar.gz && \
-    mv amptk-0.10.3 amptk 
+RUN wget https://github.com/nextgenusfs/amptk/archive/1.0.0.tar.gz && \
+    tar xzf 1.0.0.tar.gz && \
+    mv amptk-1.0.0 amptk 
 
 ENV PATH=/work:/amptk:$PATH \
     SHELL=/bin/bash

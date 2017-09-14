@@ -106,6 +106,31 @@ Dependencies
     conda config --add channels r
     conda install --yes r-base bioconductor-phyloseq
     
+Run from Docker
+==================
+There is a base installation of AMPtk on Docker at nextgenusfs/amptk-base. Because usearch9 and usearch10 are required but must be personally licensed, here are the directions to get a working AMPtk docker image.
+
+1) Download the Dockerfile build file.
+
+.. code-block:: none
+
+    wget https://raw.githubusercontent.com/nextgenusfs/amptk/master/Dockerfile
+
+2) Download usearch9.2.64 and usearch10.0.240 for linux (32 bit version) [here](http://www.drive5.com/usearch/download.html)
+
+3) Build AMPtk docker image
+
+.. code-block:: none
+
+    docker build -t amptk -f Dockerfile .
+
+4) You can now launch the docker image like so (make sure files you need are in current directory)
+
+.. code-block:: none
+
+    docker run -it --rm -v $PWD:/work amptk /bin/bash
+
+
 More Information
 ==================
 
