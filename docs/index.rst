@@ -116,7 +116,8 @@ There is a base installation of AMPtk on Docker at nextgenusfs/amptk-base. Becau
 
     wget https://raw.githubusercontent.com/nextgenusfs/amptk/master/Dockerfile
 
-2) Download usearch9.2.64 and usearch10.0.240 for linux (32 bit version) [here](http://www.drive5.com/usearch/download.html)
+2) Download usearch9.2.64 and usearch10.0.240 for linux (32 bit version) `here <http://www.drive5.com/usearch/download.html>`_.
+
 
 3) Build AMPtk docker image
 
