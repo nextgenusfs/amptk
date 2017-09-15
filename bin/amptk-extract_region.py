@@ -301,7 +301,8 @@ def stripPrimer(input):
                                     errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, str(rec.seq)))
                                     continue 
                     else:
-                        StripSeq = Seq                             
+                        StripSeq = Seq
+                        rec.id = orig_id                           
                     #check for ambiguous bases
                     if args.drop_ns != 0 and 'N'*args.drop_ns in StripSeq:
                         errorfile.write('>ERROR:AMBIGUOUS|%s\n%s\n' % (orig_id, str(rec.seq)))
