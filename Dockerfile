@@ -12,6 +12,6 @@ RUN chmod +x /amptk/usearch9
 
 RUN chmod +x /amptk/usearch10
 
-RUN amptk install -i ITS LSU 16S COI
+RUN amptk install -i ITS LSU 16S COI --force
 
 WORKDIR /work

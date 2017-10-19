@@ -205,12 +205,12 @@ if not args.taxonomy:
             if args.fasta_db:
                 #now run through usearch global
                 amptklib.log.info("Global alignment OTUs with usearch_global (VSEARCH)")
-                cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(args.fasta_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels']
+                cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(args.fasta_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--maxaccepts', '0', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels']
                 amptklib.runSubprocess(cmd, amptklib.log)
             elif custom_db:
                 #now run through usearch global
                 amptklib.log.info("Global alignment OTUs with usearch_global (VSEARCH) using custom DB")
-                cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(custom_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels']
+                cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(custom_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--maxaccepts', '0', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels']
                 amptklib.runSubprocess(cmd, amptklib.log)
             else:
                 if usearch_db:

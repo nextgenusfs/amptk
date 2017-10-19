@@ -291,6 +291,12 @@ else:
     #get read lengths for process read function
     ReadLen = max(set(ReadLengths))
 
+#cleanup to save space
+if gzip_list:
+    for file in gzip_list:
+        file = file.replace('.gz', '')
+        amptklib.removefile(os.path.join(args.input, file))
+
 #get list of files to demux
 file_list = []
 for file in os.listdir(args.out):
@@ -374,10 +380,7 @@ if not args.mapping_file:
 FinalDemux = catDemux+'.gz'
 amptklib.Fzip(catDemux, FinalDemux, cpus)
 amptklib.removefile(catDemux)
-if gzip_list:
-    for file in gzip_list:
-        file = file.replace('.gz', '')
-        amptklib.removefile(os.path.join(args.input, file))
+
 
 #get file size
 filesize = os.path.getsize(FinalDemux)

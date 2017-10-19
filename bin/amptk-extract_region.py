@@ -31,6 +31,8 @@ parser.add_argument('-r','--rev_primer', dest='R_primer', default='ITS4', help='
 parser.add_argument('--skip_trimming', dest='trimming', action='store_true', help='Skip Primer trimming (not recommended)')
 parser.add_argument('--format', dest='utax', default='unite2utax', choices=['unite2utax', 'rdp2utax', 'off'], help='Reformat FASTA headers for UTAX')
 parser.add_argument('--lca', action='store_true', help='Run LCA (last common ancestor) for dereplicating taxonomy')
+parser.add_argument('--trunclen', type=int, help='Truncate reads to length')
+parser.add_argument('--subsample', type=int, help='Random subsample')
 parser.add_argument('--min_len', default=100, type=int, help='Minimum read length to keep')
 parser.add_argument('--max_len', default=1200, type=int, help='Maximum read length to keep')
 parser.add_argument('--drop_ns', dest='drop_ns', type=int, default=8, help="Drop Seqeunces with more than X # of N's")
@@ -239,33 +241,44 @@ def stripPrimer(input):
                         else:
                             g = ""
                         reformat_tax = []
-                        removal = ("unidentified", "Incertae", "uncultured", "Group", "incertae", "Chloroplast", "unclassified", "Family")
-                        sp_removal = (" sp", "_sp", "uncultured", "isolate", "mycorrhizae", "vouchered", "fungal", "basidiomycete", "ascomycete", "fungus", "symbiont", "unclassified", "unidentified", "bacterium", "phytoplasma")
+                        removal = ("unidentified", "Incertae", "uncultured", "Group", "incertae", "Chloroplast", "unclassified", "Family", "leaf")
+                        sp_removal = (" sp", "_sp", "uncultured", "isolate", "mycorrhizae", "vouchered", "fungal", "basidiomycete", "ascomycete", "fungus", "symbiont", "unclassified", "unidentified", "bacterium", "phytoplasma", "genogroup")
                         if not any(x in k for x in removal) and k != "" and not amptklib.number_present(k):
                             reformat_tax.append(k)
-                        if not any(x in p for x in removal) and p != "" and not amptklib.number_present(p):
+                        if not any(x in p for x in removal) and p != "" and not amptklib.number_present(p) and p != 'p:Fungi':
                             reformat_tax.append(p)
-                        if not any(x in c for x in removal) and c != "" and not amptklib.number_present(c):
+                        if not any(x in c for x in removal) and c != "" and not amptklib.number_present(c) and c != 'c:Fungi':
                             reformat_tax.append(c)
-                        if not any(x in o for x in removal) and o != "" and not amptklib.number_present(o):
+                        if not any(x in o for x in removal) and o != "" and not amptklib.number_present(o) and o != 'o:Fungi':
                             reformat_tax.append(o)
-                        if not any(x in f for x in removal) and f != "" and not amptklib.number_present(f):
+                        if not any(x in f for x in removal) and f != "" and not amptklib.number_present(f) and f != 'f:Fungi':
                             reformat_tax.append(f)
-                        if not any(x in g for x in removal) and g != "" and not amptklib.number_present(g):
+                        if not any(x in g for x in removal) and g != "" and not amptklib.number_present(g) and g != 'g:Fungi':
                             reformat_tax.append(g)
                         if not any(x in s for x in sp_removal):
+                            if ' cf ' in s or ' aff ' in s:
+                                chop = s.split(' ')
+                                if len(chop) > 3:
+                                    s = chop[0]+ ' ' + chop[2]
+                                else:
+                                    s = 's:'
+                            if ' I' in s:
+                                s = s.replace(" II", "")
+                                s = s.replace(" I", "")
                             reformat_tax.append(s)
                         rec.id = ID+";tax="+",".join(reformat_tax)
                         rec.id = re.sub(",s:$", "", rec.id)
                         if rec.id.endswith(";tax="): #if there is no taxonomy, get rid of it
                             rec.id = ""
                         rec.name = ""
-                        rec.description = ""                
+                        rec.description = ""
+                    else:
+                        rec.id = orig_id              
                     if rec.id == "":
                         errorfile.write('>ERROR:NO_ID|%s\n%s\n' % (orig_id, str(rec.seq)))
                         continue
                     #make sequence a string for processing
-                    Seq = str(rec.seq)
+                    Seq = str(rec.seq).upper()
                     #remove any terminal N's
                     Seq = Seq.strip('N')       
                     #make sure alignments are resetting
@@ -301,18 +314,20 @@ def stripPrimer(input):
                                     errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, str(rec.seq)))
                                     continue 
                     else:
-                        StripSeq = Seq
-                        rec.id = orig_id                           
+                        StripSeq = Seq                        
                     #check for ambiguous bases
                     if args.drop_ns != 0 and 'N'*args.drop_ns in StripSeq:
-                        errorfile.write('>ERROR:AMBIGUOUS|%s\n%s\n' % (orig_id, str(rec.seq)))
+                        errorfile.write('>ERROR:AMBIGUOUS|%s\n%s\n' % (orig_id, Seq))
                         continue
+                    #truncate
+                    if args.trunclen:
+                        StripSeq = StripSeq[:args.trunclen]
                     #check length
                     SeqLength = len(StripSeq)
                     if SeqLength >= args.min_len:
                         outputfile.write('>%s\n%s\n' % (rec.id, StripSeq))
                     else:
-                        errorfile.write('>ERROR:LENGTH=%i|%s\n%s\n' % (SeqLength, orig_id, str(rec.seq)))
+                        errorfile.write('>ERROR:LENGTH=%i|%s\n%s\n' % (SeqLength, orig_id, Seq))
 
 def makeDB(input):
     db_details = args.out + '.udb.txt'
@@ -466,9 +481,11 @@ with open(ErrorName, 'rU') as infile:
 Passed = amptklib.countfasta(OutName)
 amptklib.log.info('{0:,}'.format(Passed) + ' records passed (%.2f%%)' % (Passed*100.0/SeqCount))
 amptklib.log.info('Errors: {0:,}'.format(noID) + ' no taxonomy info, ' + 
-                  '{0:,}'.format(tooShort) + ' too short, ' +
+                  '{0:,}'.format(tooShort) + ' length out of range, ' +
                   '{0:,}'.format(ambig) + ' too many ambiguous bases, ' +
                   '{0:,}'.format(noPrimer) + ' no primers found')
+
+#dereplicate if argument passed
 if args.derep_fulllength:
     amptklib.log.info("Now dereplicating sequences (collapsing identical sequences)")
     derep_tmp = args.out + '.derep.extracted.fa'
@@ -478,6 +495,16 @@ if args.derep_fulllength:
     amptklib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
     os.remove(derep_tmp)
 
+#subsample if argument passed
+if args.subsample:
+    amptklib.log.info("Random subsampling to %i records" % args.subsample)
+    subsample = args.out + '.subsample.tmp'
+    os.rename(OutName, subsample)
+    cmd = ['vsearch', '--fastx_subsample', subsample, '--sample_size', str(args.subsample), '--fastaout', OutName, '--notrunclabels']
+    amptklib.runSubprocess(cmd, amptklib.log)
+    os.remove(subsample)
+
+#create DB if argument passed  
 if args.create_db:
     makeDB(OutName)
 

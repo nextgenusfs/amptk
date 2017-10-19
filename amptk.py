@@ -59,7 +59,7 @@ def download(url, name):
         sys.stdout.write(status)
     f.close()
 
-version = '1.0.0'
+version = '1.0.1'
 
 default_help = """
 Usage:       amptk <command> <arguments>
@@ -843,9 +843,11 @@ Arguments:   -i, --fasta         Input FASTA file
              --skip_trimming     Keep full length sequences. Default: off
              --derep_fulllength  Remove identical sequences.
              --lca               Run LCA (last common ancestor) on taxonomy if dereplicating sequences.
-             --min_len           Minimum length to keep.
-             --max_len           Maximum length to keep.
-             --primer_mismatch   Max Primer Mismatch. Default: 4
+             --min_len           Minimum length to keep. Default: 100
+             --max_len           Maximum length to keep. Default: 1200
+             --trunclen          Truncate records to length.
+             --subsample         Random subsample reads.
+             --primer_mismatch   Max Primer Mismatch. Default: 2
              --keep_all          Keep Sequence if forward primer not found.
              --utax_trainlevels  UTAX custom parameters. Default: kpcofgs
              --utax_splitlevels  UTAX custom parameters. Default: NVkpcofgs

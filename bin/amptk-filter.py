@@ -39,6 +39,7 @@ parser.add_argument('-s','--subtract', default=0, help='Threshold to subtract')
 parser.add_argument('-n','--normalize', default='y', choices=['y','n'], help='Normalize OTU table prior to filtering')
 parser.add_argument('-m','--mc', help='Multi-FASTA mock community')
 parser.add_argument('-d','--drop', nargs='+', help='samples to drop from table after index-bleed filtering')
+parser.add_argument('--ignore', nargs='+', help='Ignore OTUs during index-bleed')
 parser.add_argument('--delimiter', default='tsv', choices=['csv','tsv'], help='Delimiter')
 parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
 parser.add_argument('--keep_mock', action='store_true', help='Keep mock sample in OTU table (Default: False)')
@@ -236,12 +237,13 @@ if args.mock_barcode: #if user passes a column name for mock
         annotate_dict[ID] = newID
         if not v[0] in seen:
             seen.append(v[0])
-    chimeras = [x for x in chimeras if x not in seen]
-    variants = [x for x in variants if x not in seen]
-    for i in chimeras:
-        annotate_dict[i] = i+'_suspect_mock_chimera'
-    for x in variants:
-        annotate_dict[x] = x+'_suspect_mock_variant'
+    if args.calculate == 'all':
+        chimeras = [x for x in chimeras if x not in seen]
+        variants = [x for x in variants if x not in seen]
+        for i in chimeras:
+            annotate_dict[i] = i+'_suspect_mock_chimera'
+        for x in variants:
+            annotate_dict[x] = x+'_suspect_mock_variant'
     if len(missing) > 0:
         amptklib.log.info("%i mock missing: %s" % (len(missing), ', '.join(missing)))
 else:
@@ -315,6 +317,9 @@ if args.mock_barcode:
     for i in norm_round.index:
         if not i in mock:
             sample.append(i)
+    if args.ignore:
+        mock = [x for x in mock if x not in args.ignore]
+        sample = [x for x in sample if x not in args.ignore]
     #first calculate bleed out of mock community
     #slice normalized dataframe to get only mock OTUs from table
     mock_df = pd.DataFrame(norm_round, index=mock)
@@ -329,9 +334,19 @@ if args.mock_barcode:
     bleed1 = np.sum(np.sum(mock_df,axis=None))
     #calculate rate of bleed by taking num reads bleed divided by the total
     bleed1max = bleed1 / float(total)
+    
     #second, calculate bleed into mock community
+    #get list of mock OTUs not found in any other sample -> these are likely chimeras
+    theRest = [x for x in list(norm_round.columns.values) if x not in [args.mock_barcode]]
+    non_mocks = pd.DataFrame(norm_round, index=sample, columns=theRest)
+    non_mock_zeros = non_mocks.loc[(non_mocks==0).all(axis=1)]
+    zeros = list(non_mock_zeros.index)
+    if len(zeros) > 0:
+        amptklib.log.info("Found {:,} mock chimeras (only in mock sample and not mapped to mock sequences) excluding from index-bleed calculation".format(len(zeros)))
+    #now get updated list of samples, dropping chimeras
+    samples_trimmed = [x for x in sample if x not in zeros]
     #slice the OTU table to get all OTUs that are not in mock community from the mock sample
-    sample_df = pd.DataFrame(norm_round, index=sample, columns=[args.mock_barcode])
+    sample_df = pd.DataFrame(norm_round, index=samples_trimmed, columns=[args.mock_barcode])
     #get total number of reads that don't belong in mock
     bleed2 = np.sum(np.sum(sample_df,axis=None))
     #now pull the entire mock sample
