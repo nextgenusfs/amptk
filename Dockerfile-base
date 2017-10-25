@@ -1,32 +1,39 @@
-#docker config for base-AMPtk installation 
+#docker config for base-AMPtk installation
 FROM continuumio/miniconda
-MAINTAINER Jon Palmer <nextgenusfs@gmail.com>
+
+LABEL maintainer="Jon Palmer <nextgenusfs@gmail.com>"
 
 USER root
 
-RUN apt-get update && apt-get install -y zlib1g-dev libssl-dev libbz2-dev libgl1-mesa-glx \
-    libcurl4-gnutls-dev libxml2-dev libxslt1-dev build-essential pigz wget autoconf
-
-RUN conda config --add channels r && \
-    conda config --add channels bioconda && \
-    conda install --yes cython biopython natsort pandas psutil matplotlib seaborn \
-    biom-format sra-tools r-base htslib samtools bioconductor-dada2 bioconductor-phyloseq
-
-RUN wget https://github.com/torognes/vsearch/archive/v2.4.4.tar.gz && \
-    tar xzf v2.4.4.tar.gz && \
-    mv vsearch-2.4.4 vsearch && \
-    cd vsearch && \
-    ./autogen.sh && \
-    ./configure && \
-    make && \
-    make install && \
-    cd ..
-
-RUN wget https://github.com/nextgenusfs/amptk/archive/1.0.0.tar.gz && \
-    tar xzf 1.0.0.tar.gz && \
-    mv amptk-1.0.0 amptk 
-    
-RUN pip install -U srapy edlib
+RUN apt-get update -qq && apt-get install -y \
+  zlib1g-dev \
+  libssl-dev \
+  libbz2-dev \
+  libgl1-mesa-glx \
+  libcurl4-gnutls-dev \
+  libxml2-dev \
+  libxslt1-dev \
+  build-essential \
+  pigz \
+  wget \
+  autoconf && \
+  conda config --add channels r && \
+  conda config --add channels bioconda && \
+  conda install --yes cython biopython natsort pandas psutil matplotlib seaborn \
+  biom-format sra-tools r-base htslib samtools bioconductor-dada2 bioconductor-phyloseq && \
+  wget https://github.com/torognes/vsearch/archive/v2.4.4.tar.gz && \
+  tar xzf v2.4.4.tar.gz && \
+  mv vsearch-2.4.4 vsearch && \
+  cd vsearch && \
+  ./autogen.sh && \
+  ./configure && \
+  make && \
+  make install && \
+  cd .. && \
+  wget https://github.com/nextgenusfs/amptk/archive/1.0.0.tar.gz && \
+  tar xzf 1.0.0.tar.gz && \
+  mv amptk-1.0.0 amptk && \
+  pip install -U srapy edlib
 
 ENV PATH=/work:/amptk:$PATH \
     SHELL=/bin/bash
