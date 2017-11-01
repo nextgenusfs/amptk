@@ -41,13 +41,13 @@ parser.add_argument('-m','--mc', help='Multi-FASTA mock community')
 parser.add_argument('-d','--drop', nargs='+', help='samples to drop from table after index-bleed filtering')
 parser.add_argument('--ignore', nargs='+', help='Ignore OTUs during index-bleed')
 parser.add_argument('--delimiter', default='tsv', choices=['csv','tsv'], help='Delimiter')
-parser.add_argument('--col_order', dest="col_order", default="naturally", help='Provide comma separated list')
+parser.add_argument('--col_order', nargs='+', dest="col_order", default="naturally", help='Provide space separated list')
 parser.add_argument('--keep_mock', action='store_true', help='Keep mock sample in OTU table (Default: False)')
 parser.add_argument('--show_stats', action='store_true', help='Show stats datatable STDOUT')
 parser.add_argument('--negatives', nargs='+', help='Negative Control Sample names')
 parser.add_argument('-o','--out', help='Base output name')
 parser.add_argument('--min_reads_otu', default=2, type=int, help='Minimum number of reads per OTU for experiment')
-parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH8 EXE')
+parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
 parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
 
@@ -255,12 +255,12 @@ if args.mock_barcode:
 
 #sort the table
 df2 = df.reindex(index=natsorted(df.index))
-if args.col_order == 'naturally':
+if args.col_order[0] == 'naturally':
     amptklib.log.info("Sorting OTU table naturally")
     df = df2.reindex(columns=natsorted(df2.columns))
 else:
     amptklib.log.info("Sorting OTU table by user defined order (--col_order)")
-    col_headers = args.col_order.split(',')
+    col_headers = args.col_order
     #check if all names in headers or not
     for i in col_headers:
         if not i in df2.columns.values:
@@ -337,12 +337,15 @@ if args.mock_barcode:
     
     #second, calculate bleed into mock community
     #get list of mock OTUs not found in any other sample -> these are likely chimeras
+    mock_only = pd.DataFrame(norm_round, index=list(norm_round.index), columns=[args.mock_barcode])
+    mock_OTUs_zeros = mock_only.loc[(mock_only==0).all(axis=1)]
     theRest = [x for x in list(norm_round.columns.values) if x not in [args.mock_barcode]]
     non_mocks = pd.DataFrame(norm_round, index=sample, columns=theRest)
     non_mock_zeros = non_mocks.loc[(non_mocks==0).all(axis=1)]
-    zeros = list(non_mock_zeros.index)
+    zeros = [x for x in list(non_mock_zeros.index) if x not in list(mock_OTUs_zeros.index)]
     if len(zeros) > 0:
         amptklib.log.info("Found {:,} mock chimeras (only in mock sample and not mapped to mock sequences) excluding from index-bleed calculation".format(len(zeros)))
+        amptklib.log.debug('{:}'.format(', '.join(zeros)))
     #now get updated list of samples, dropping chimeras
     samples_trimmed = [x for x in sample if x not in zeros]
     #slice the OTU table to get all OTUs that are not in mock community from the mock sample
@@ -534,10 +537,10 @@ FiltTable.index.name = '#OTU ID'
 #order the filtered table
 #sort the table
 FiltTable2 = FiltTable.reindex(index=natsorted(FiltTable.index))
-if args.col_order == 'naturally':
+if args.col_order[0] == 'naturally':
     FiltTable = FiltTable2.reindex(columns=natsorted(FiltTable2.columns))
 else:
-    col_headers = args.col_order.split(',')
+    col_headers = args.col_order
     #check if all names in headers or not
     for i in col_headers:
         if not i in FiltTable2.columns.values:
