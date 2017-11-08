@@ -165,4 +165,5 @@ if args.quality_trim:
     print "----------------------------------"
     print "Script finished, output in %s" % args.out
 
-amptklib.removefile(tmpinput)
+if args.input.endswith('.gz'):
+    amptklib.removefile(tmpinput)
