@@ -519,10 +519,11 @@ Required:    -i, --otu_table     OTU table
              
 Optional:    -o, --out           Base name for output files. Default: use input basename
              -b, --mock_barcode  Name of barcode of mock community (Recommended)
-             -m, --mc            Mock community FASTA file. Required if -b passed. [synmock,mock1,mock2,mock3,etc]
-             -d, --drop          Sample names to drop from OTU table.
+             -m, --mc            Mock community FASTA file. Required if -b passed. [synmock,mock1,mock2,mock3,other]
              -c, --calculate     Calculate index-bleed options. Default: all [in,all]
+             -d, --drop          Sample(s) to drop from OTU table. (list, separate by space)
              --negatives         Negative sample names. (list, separate by space)
+             --ignore            Ignore sample(s) during index-bleed calc (list, separate by space)
              
 Filtering    -n, --normalize     Normalize reads to number of reads per sample [y,n]. Default: y
              -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.005
@@ -1023,6 +1024,8 @@ Arguments:   -i, --biom          Input BIOM file with taxonomy and metadata (Req
         sys.exit(1)
     elif sys.argv[1] == 'version':
         print "AMPtk v%s" % version
+    elif sys.argv[1] == 'citation':
+        print "\nPalmer JM, Jusino MA, Banik MT, Lindner DL. 2017. Non-biological synthetic spike-in controls and the AMPtk software pipeline\n\t improve fungal high throughput amplicon sequencing data. bioRxiv 213470; doi: 10.1101/213470\n"
     else:
         print "%s option not recognized" % sys.argv[1]
         print default_help
