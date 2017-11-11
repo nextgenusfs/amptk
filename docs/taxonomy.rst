@@ -37,7 +37,8 @@ Taxonomy information follows the ; in the string. The pre-taxonomy identifiers a
 
     #OTUID	taxonomy
     OTU1	Method|Pident/Score|Ref_DB ID;
-    Coding for the different methods:
+
+Coding for the different methods:
 
 - **GS**:    Global Alignment (G), Bayesian and Global Alignment Taxonomy is the Same (S)
 - **GSL**:   Global Alignment (G), Bayesian and Global Alignment Taxonomy is the Same (S), LCA algorithm used (L)
