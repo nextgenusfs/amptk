@@ -128,10 +128,16 @@ with open(FastaCounts, 'w') as outfile:
                 ID = rec.id.split(';',1)[0]
                 tax = rec.id.split(';',1)[-1]
                 OTU_tax[ID] = tax
-                count = AddCounts.get(ID)
+                if ID in AddCounts:
+                    count = AddCounts.get(ID)
+                else:
+                    count = 0
                 outfile.write('>%s;size=%i\n%s\n' % (ID, count, rec.seq))
             else: #no tax, just process
-                count = AddCounts.get(rec.id) 
+                if rec.id in AddCounts:
+                    count = AddCounts.get(rec.id)
+                else:
+                    count = 0
                 outfile.write('>%s;size=%i\n%s\n' % (rec.id, count, rec.seq))
 
 amptklib.log.info('OTU table contains {0:,}'.format(len(df.index)) + ' OTUs and {0:,}'.format(int(df.values.sum())) + ' read counts')
