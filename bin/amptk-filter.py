@@ -41,7 +41,7 @@ parser.add_argument('-m','--mc', help='Multi-FASTA mock community')
 parser.add_argument('-d','--drop', nargs='+', help='samples to drop from table after index-bleed filtering')
 parser.add_argument('--ignore', nargs='+', help='Ignore OTUs during index-bleed')
 parser.add_argument('--delimiter', default='tsv', choices=['csv','tsv'], help='Delimiter')
-parser.add_argument('--col_order', nargs='+', dest="col_order", default="naturally", help='Provide space separated list')
+parser.add_argument('--col_order', nargs='+', dest="col_order", help='Provide space separated list')
 parser.add_argument('--keep_mock', action='store_true', help='Keep mock sample in OTU table (Default: False)')
 parser.add_argument('--show_stats', action='store_true', help='Show stats datatable STDOUT')
 parser.add_argument('--negatives', nargs='+', help='Negative Control Sample names')
@@ -152,6 +152,9 @@ if args.mock_barcode: #if user passes a column name for mock
         amptklib.log.error("%s not a valid barcode." % args.mock_barcode)
         amptklib.log.error("Valid barcodes: %s" % (' '.join(validBCs)))
         sys.exit(1)
+    if args.col_order and not args.mock_barcode in args.col_order:
+        amptklib.log.error("Error: %s not listed in --col_order." % args.mock_barcode)
+        sys.exit(1)
     #make sure there is a --mc passed here otherwise throw error
     if not args.mc:
         amptklib.log.error("If using the -b,--barcode option you must specify a fasta file of mock community via the --mc option")
@@ -261,7 +264,7 @@ if args.mock_barcode:
 
 #sort the table
 df2 = df.reindex(index=natsorted(df.index))
-if args.col_order[0] == 'naturally':
+if not args.col_order:
     amptklib.log.info("Sorting OTU table naturally")
     df = df2.reindex(columns=natsorted(df2.columns))
 else:
@@ -543,7 +546,7 @@ FiltTable.index.name = '#OTU ID'
 #order the filtered table
 #sort the table
 FiltTable2 = FiltTable.reindex(index=natsorted(FiltTable.index))
-if args.col_order[0] == 'naturally':
+if not args.col_order:
     FiltTable = FiltTable2.reindex(columns=natsorted(FiltTable2.columns))
 else:
     col_headers = args.col_order
