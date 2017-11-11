@@ -30,9 +30,9 @@ RUN apt-get update -qq && apt-get install -y \
   make && \
   make install && \
   cd .. && \
-  wget https://github.com/nextgenusfs/amptk/archive/v1.0.1.tar.gz && \
-  tar xzf v1.0.1.tar.gz && \
-  mv amptk-1.0.1 amptk && \
+  wget https://github.com/nextgenusfs/amptk/archive/v1.0.2.tar.gz && \
+  tar xzf v1.0.2.tar.gz && \
+  mv amptk-1.0.2 amptk && \
   pip install -U srapy edlib
 
 ENV PATH=/work:/amptk:$PATH \
