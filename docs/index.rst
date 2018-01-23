@@ -39,7 +39,7 @@ But the easiest way to install AMPtk and its dependencies is with `HomeBrew <htt
     /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
     
     #setup homebrew and link repositories
-    brew doctor; brew tap homebrew/science; brew tap nextgenusfs/tap
+    brew doctor; brew tap brewsci/bio; brew tap brewsci/science; brew tap nextgenusfs/tap
     
     #install python dependencies
     pip install -U biopython natsort pandas numpy matplotlib seaborn edlib biom-format psutil
