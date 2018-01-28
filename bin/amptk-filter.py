@@ -456,11 +456,6 @@ if subtract_num != 0:
     amptklib.log.info("Subtracting %i from OTU table" % subtract_num)
     sub = final.subtract(subtract_num)
     sub[sub < 0] = 0 #if negative, change to zero
-    if not args.keep_mock:
-        try:
-            sub.drop(args.mock_barcode, axis=1, inplace=True)
-        except:
-            pass
     sub = sub.loc[~(sub==0).all(axis=1)]
     sub = sub.astype(int)
     if otuDict:
