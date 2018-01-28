@@ -25,11 +25,17 @@ parser.add_argument('-i','--biom', required=True, help='Input BIOM file (OTU tab
 parser.add_argument('-t','--tree', required=True, help='Phylogentic tree from AMPtk taxonomy')
 parser.add_argument('-o','--out', default='amptk_stats', help='Output folder basename')
 parser.add_argument('-d','--distance', default='raupcrick', choices=['raupcrick','bray','unifrac','wunifrac','jaccard','all'], help="Distance metric")
+parser.add_argument('--indicator_species', action='store_true', help='Run indicator species analysis')
 #parser.add_argument('-t','--treatments', nargs='+', help='treatments (metadata variables) to run, Default: all')
 args=parser.parse_args()
 
 phyloseq_nmds = os.path.join(parentdir, 'util', 'phyloseq_nmds.R')
 parse_adonis = os.path.join(parentdir, 'util', 'parse_adonis.py')
+phyloseq_nmds_indicator = os.path.join(parentdir, 'util', 'phyloseq_nmds_indicator.R')
+if args.indicator_species:
+    phyloseqCMD = phyloseq_nmds_indicator
+else:
+    phyloseqCMD = phyloseq_nmds
 
 #remove logfile if exists
 log_name = args.out + '.amptk-stats.log'
@@ -66,11 +72,11 @@ if args.distance == 'all':
     distances = ['raupcrick','bray','unifrac','wunifrac','jaccard']
     amptklib.log.info("Running hypothesis test using %s distance metrics on all treatments, drawing NMDS for each." % ','.join(distances))
     for dist in distances:
-        cmd = ['Rscript', '--vanilla', phyloseq_nmds, os.path.abspath(args.biom), os.path.abspath(args.tree), args.out, dist]
+        cmd = ['Rscript', '--vanilla', phyloseqCMD, os.path.abspath(args.biom), os.path.abspath(args.tree), args.out, dist]
         amptklib.runSubprocess3(cmd, amptklib.log, args.out, phylolog)
 else:
     amptklib.log.info("Running hypothesis test using %s distance metric on all treatments, drawing NMDS for each." % args.distance)
-    cmd = ['Rscript', '--vanilla', phyloseq_nmds, os.path.abspath(args.biom), os.path.abspath(args.tree), args.out, args.distance]
+    cmd = ['Rscript', '--vanilla', phyloseqCMD, os.path.abspath(args.biom), os.path.abspath(args.tree), args.out, args.distance]
     amptklib.runSubprocess3(cmd, amptklib.log, args.out, phylolog)
     
 #parse the adonis output

@@ -1108,19 +1108,20 @@ def CreateGenericMappingFile(barcode_fasta, fwd_primer, rev_primer, adapter, out
     mapDict = {}
     with open(barcode_fasta, 'rU') as input:
         for rec in SeqIO.parse(input, 'fasta'):
-            if rec.id in barcodes_found:
+                count = barcodes_found.get(rec.id, 0)
                 if not rec.id in mapDict:
-                    mapDict[rec.id] = (rec.seq, fwd_primer, rev_primer, rec.id, "no_data")
+                    mapDict[rec.id] = (rec.seq, fwd_primer, rev_primer, rec.id, int(count), "no_data")
     with open(output, 'w') as outfile:
-        outfile.write('#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tReversePrimer\tphinchID\tTreatment\n')
+        outfile.write('#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tReversePrimer\tphinchID\tDemuxReads\tTreatment\n')
         for k,v in natsorted(mapDict.items()):
-            outfile.write('%s\t%s\t%s\t%s\t%s\t%s\n' % (k, v[0], adapter+v[0]+v[1], v[2], v[3], v[4]))
+            outfile.write('%s\t%s\t%s\t%s\t%s\t%i\t%s\n' % (k, v[0], adapter+v[0]+v[1], v[2], v[3], v[4], v[5]))
 
-def CreateGenericMappingFileIllumina(samples, fwd_primer, rev_primer, output):
+def CreateGenericMappingFileIllumina(samples, fwd_primer, rev_primer, output, barcodes):
     with open(output, 'w') as outfile:
-        outfile.write('#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tReversePrimer\tphinchID\tTreatment\n')
+        outfile.write('#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tReversePrimer\tphinchID\tDemuxReads\tTreatment\n')
         for k,v in natsorted(samples.items()):
-            outfile.write('%s\t%s\t%s\t%s\t%s\t%s\n' % (k, v, fwd_primer, rev_primer, k, "no_data"))
+            count = barcodes.get(k, 0)
+            outfile.write('%s\t%s\t%s\t%s\t%s\t%i\t%s\n' % (k, v, fwd_primer, rev_primer, k, int(count), "no_data"))
 
 def parseMappingFile(input, output):
     fwdprimer = ''

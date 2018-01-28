@@ -411,17 +411,14 @@ with open(catDemux, 'rU') as input:
 
 #now let's count the barcodes found and count the number of times they are found.
 barcode_counts = "%22s:  %s" % ('Sample', 'Count')
-barcodes_found = []
 for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
     barcode_counts += "\n%22s:  %s" % (k, str(BarcodeCount[k]))
-    if k not in barcodes_found:
-        barcodes_found.append(k)
 amptklib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
 if not args.mapping_file:
     #create a generic mappingfile for downstream processes
     genericmapfile = args.out + '.mapping_file.txt'
-    amptklib.CreateGenericMappingFile(barcode_file, FwdPrimer, revcomp_lib.RevComp(RevPrimer), Adapter, genericmapfile, barcodes_found)
+    amptklib.CreateGenericMappingFile(barcode_file, FwdPrimer, revcomp_lib.RevComp(RevPrimer), Adapter, genericmapfile, BarcodeCount)
 
 #compress the output to save space
 FinalDemux = catDemux+'.gz'

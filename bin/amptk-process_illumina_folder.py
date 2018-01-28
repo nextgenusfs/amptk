@@ -374,7 +374,7 @@ amptklib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_
 if not args.mapping_file:
     #create a generic mappingfile for downstream processes
     genericmapfile = args.out + '.mapping_file.txt'
-    amptklib.CreateGenericMappingFileIllumina(sampleDict, FwdPrimer, revcomp_lib.RevComp(RevPrimer), genericmapfile)
+    amptklib.CreateGenericMappingFileIllumina(sampleDict, FwdPrimer, revcomp_lib.RevComp(RevPrimer), genericmapfile, BarcodeCount)
 
 #compress the output to save space
 FinalDemux = catDemux+'.gz'
