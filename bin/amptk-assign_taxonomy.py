@@ -399,6 +399,26 @@ if args.otu_table and not args.method == 'blast':
         cmd = ['biom', 'convert', '-i', tmpTable, '-o', outBiom+'.tmp', '--table-type', "OTU table", '--to-json']
         amptklib.runSubprocess(cmd, amptklib.log)
         if args.mapping_file:
+            mapSamples = []
+            with open(args.mapping_file, 'rU') as mapin:
+                for line in mapin:
+                    line = line.rstrip()
+                    if line.startswith('#'):
+                        continue
+                    sampleID = line.split('\t')[0]
+                    mapSamples.append(sampleID)
+            otuSamples = []
+            with open(tmpTable, 'rU') as otuin:
+                for line in otuin:
+                    line = line.rstrip()
+                    if line.startswith('#'):
+                        otuSamples = line.split('\t')[1:]
+            missingMap = []
+            for otu in otuSamples:
+                if not otu in mapSamples:
+                    missingMap.append(otu)
+            if len(missingMap) > 0:
+                amptklib.log.error("%s are missing from mapping file (metadata), biom file will be corrupt" % ', '.join(missingMap))
             cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '-m', args.mapping_file, '--sc-separated', 'taxonomy', '--output-as-json']
             amptklib.runSubprocess(cmd, amptklib.log)
         else:
