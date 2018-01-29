@@ -28,7 +28,7 @@ parser=argparse.ArgumentParser(prog='amptk-assign_taxonomy.py', usage="%(prog)s 
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('-i', '--input', dest="otu_table", help='Append Taxonomy to OTU table')
+parser.add_argument('-i', '--otu_table', dest="otu_table", help='Append Taxonomy to OTU table')
 parser.add_argument('-f','--fasta', required=True, help='FASTA input')
 parser.add_argument('-o','--out', help='Output file (FASTA)')
 parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')

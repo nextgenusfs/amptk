@@ -1109,7 +1109,7 @@ def CreateGenericMappingFile(barcode_fasta, fwd_primer, rev_primer, adapter, out
     with open(barcode_fasta, 'rU') as input:
         for rec in SeqIO.parse(input, 'fasta'):
                 count = barcodes_found.get(rec.id, 0)
-                if not rec.id in mapDict:
+                if not rec.id in mapDict and int(count) > 0:
                     mapDict[rec.id] = (rec.seq, fwd_primer, rev_primer, rec.id, int(count), "no_data")
     with open(output, 'w') as outfile:
         outfile.write('#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tReversePrimer\tphinchID\tDemuxReads\tTreatment\n')
