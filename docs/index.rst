@@ -46,7 +46,28 @@ But the easiest way to install AMPtk and its dependencies is with `HomeBrew <htt
     
     #install AMPtk and dependencies
     brew install amptk
+
+You could also install all dependencies with Miniconda (conda). Download Miniconda2 for your operating system https://conda.io/miniconda.html
+
+.. code-block:: none
+
+    #install miniconda2 using installation script
+    bash Miniconda2-latest-Linux-x86_64.sh
     
+    #now setup your conda env with bioconda, type following in order
+    conda config --add channels r
+    conda config --add channels defaults
+    conda config --add channels conda-forge
+    conda config --add channels bioconda
+    
+    #now install dependencies
+    conda install vsearch biopython natsort pandas numpy matplotlib \
+        seaborn biom-format psutil r-base bioconductor-dada2 bioconductor-phyloseq
+    
+    #edlib from conda doesn't work on system, install using pip
+    pip install -U edlib
+    
+
 Dependencies
 ==================
 1) AMPtk utilizes USEARCH9 which must be installed manually from the developer `here <http://www.drive5.com/usearch/download.html>`_.  Obtain the proper version of USEARCH v9.2.64 and softlink into the PATH:
@@ -77,8 +98,7 @@ Dependencies
     brew install vsearch
     
     #or with bioconda
-    conda config --add channels bioconda
-    conda install --yes vsearch
+    conda install -c bioconda vsearch
 
 3) Several Python modules are also required, they can be installed with pip or conda:
 
@@ -95,16 +115,14 @@ Dependencies
 .. code-block:: none
 
     #install with conda/bioconda
-    conda config --add channels r
-    conda install --yes r-base bioconductor-dada2
+    conda install r-base bioconductor-dada2
 
 5) (optional) To run some preliminary community ecology stats via ``amptk stats`` you will also need the R package `Phyloseq <https://joey711.github.io/phyloseq/>`_.  One way to install with conda:
 
 .. code-block:: none
 
     #install with conda/bioconda
-    conda config --add channels r
-    conda install --yes r-base bioconductor-phyloseq
+    conda install r-base bioconductor-phyloseq
     
 Run from Docker
 ==================
