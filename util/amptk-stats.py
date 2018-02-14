@@ -26,6 +26,8 @@ parser.add_argument('-t','--tree', required=True, help='Phylogentic tree from AM
 parser.add_argument('-o','--out', default='amptk_stats', help='Output folder basename')
 parser.add_argument('-d','--distance', default='raupcrick', choices=['raupcrick','bray','unifrac','wunifrac','jaccard','all'], help="Distance metric")
 parser.add_argument('--indicator_species', action='store_true', help='Run indicator species analysis')
+parser.add_argument('--ignore_otus', nargs="+", help='OTUs to drop from table and run stats')
+parser.add_argument('--ord_method', default='NMDS', choices=["DCA", "CCA", "RDA", "DPCoA", "NMDS", "MDS", "PCoA"], help='Ordination method')
 #parser.add_argument('-t','--treatments', nargs='+', help='treatments (metadata variables) to run, Default: all')
 args=parser.parse_args()
 
@@ -70,13 +72,17 @@ if not os.path.isdir(args.out):
 phylolog = os.path.join(args.out, 'phyloseq-R.log')
 if args.distance == 'all':
     distances = ['raupcrick','bray','unifrac','wunifrac','jaccard']
-    amptklib.log.info("Running hypothesis test using %s distance metrics on all treatments, drawing NMDS for each." % ','.join(distances))
+    amptklib.log.info("Running hypothesis test using %s distance metrics on all treatments, drawing %s for each." % (','.join(distances),args.ord_method))
     for dist in distances:
-        cmd = ['Rscript', '--vanilla', phyloseqCMD, os.path.abspath(args.biom), os.path.abspath(args.tree), args.out, dist]
+        cmd = ['Rscript', '--vanilla', phyloseqCMD, os.path.abspath(args.biom), os.path.abspath(args.tree), args.out, dist, args.ord_method]
+        if args.ignore_otus:
+            cmd = cmd + args.ignore_otus
         amptklib.runSubprocess3(cmd, amptklib.log, args.out, phylolog)
 else:
     amptklib.log.info("Running hypothesis test using %s distance metric on all treatments, drawing NMDS for each." % args.distance)
-    cmd = ['Rscript', '--vanilla', phyloseqCMD, os.path.abspath(args.biom), os.path.abspath(args.tree), args.out, args.distance]
+    cmd = ['Rscript', '--vanilla', phyloseqCMD, os.path.abspath(args.biom), os.path.abspath(args.tree), args.out, args.distance, args.ord_method]
+    if args.ignore_otus:
+        cmd = cmd + args.ignore_otus
     amptklib.runSubprocess3(cmd, amptklib.log, args.out, phylolog)
     
 #parse the adonis output
