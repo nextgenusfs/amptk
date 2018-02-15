@@ -61,13 +61,14 @@ You could also install all dependencies with Miniconda (conda). Download Minicon
     conda config --add channels bioconda
     
     #now install dependencies
-    conda install vsearch biopython natsort pandas numpy matplotlib \
+    conda install vsearch biopython natsort pandas numpy matplotlib python-edlib \
         seaborn biom-format psutil r-base bioconductor-dada2 bioconductor-phyloseq
     
-    #edlib from conda doesn't work on system, install using pip
-    pip install -U edlib
-    
+    #now get latest version of amptk
+    git clone https://github.com/nextgenusfs/amptk.git
+    export PATH="/path/to/amptk:$PATH"   
 
+    
 Dependencies
 ==================
 1) AMPtk utilizes USEARCH9 which must be installed manually from the developer `here <http://www.drive5.com/usearch/download.html>`_.  Obtain the proper version of USEARCH v9.2.64 and softlink into the PATH:
@@ -90,7 +91,7 @@ Dependencies
     #create softlink
     sudo ln -s /path/to/usearch10.0.240_i86osx32 /usr/local/bin/usearch10
 
-2) AMPtk requires VSEARCH, which you can install from `here <https://github.com/torognes/vsearch>`_. Note, if you use homebrew recipe it will be install automatically.
+2) AMPtk requires VSEARCH, which you can install from `here <https://github.com/torognes/vsearch>`_. Note, if you use homebrew recipe it will be install automatically or can use conda.
 
 .. code-block:: none
 
@@ -108,7 +109,7 @@ Dependencies
     pip install -U biopython natsort pandas numpy matplotlib seaborn edlib biom-format psutil
     
     #install with conda
-    conda install biopython natsort pandas numpy matplotlib seaborn edlib biom-format psutil
+    conda install biopython natsort pandas numpy matplotlib seaborn python-edlib biom-format psutil
 
 4) (optional)  DADA2 denoising algorithm requires installation of R and DADA2.  Instructions are located `here <http://benjjneb.github.io/dada2/>`_.
 
