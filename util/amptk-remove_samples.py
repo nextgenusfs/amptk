@@ -59,21 +59,24 @@ else:
 
 remove = []
 if args.threshold:
-    print("Removing samples with less than %i reads" % args.threshold)
+    print("Finding samples with less than %i reads" % args.threshold)
     BC_counts = countBarcodes(SeqIn)
     for k,v in BC_counts.items():
         if int(v) <= args.threshold:
             if not k in remove:
                 remove.append(k)
-
+    print("Removing samples: %s" % ','.join(remove))
+    
 if args.file:   
     #load in list of sample names to keep
     with open(args.file, 'rU') as input:
         lines = [line.rstrip('\n') for line in input]
+    print("Removing samples from file: %s" % ','.join(lines))
     remove = remove + lines
 
 if args.list:
     lines = args.list
+    print("Removing samples from list: %s" % ','.join(lines))
     remove = remove + lines
 
 #make sure it is a set, faster lookup
