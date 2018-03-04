@@ -14,8 +14,12 @@ if (!is.installed("phyloseq")){
 } else {
     phyloseqversion <- packageVersion("phyloseq")
     }
+if (!is.installed("lulu")){
+    luluversion <- '0.0.0'
+} else {
+    luluversion <- packageVersion("lulu")
+    }
 parts <- strsplit(Rversion, ' ')
 Rvers <- parts[[1]][3]
-output <- paste(Rvers,dadaversion, phyloseqversion, sep=',')
+output <- paste(Rvers, dadaversion, phyloseqversion, luluversion, sep=',')
 cat(output,"\n")
-

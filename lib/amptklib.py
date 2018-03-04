@@ -114,7 +114,8 @@ def checkRversion():
     Rvers = versions.split(',')[0]
     dada2 = versions.split(',')[1]
     phyloseq = versions.split(',')[2]
-    return (Rvers, dada2, phyloseq)
+    lulu = versions.split(',')[3]
+    return (Rvers, dada2, phyloseq, lulu)
 
 def checkfastqsize(input):
     filesize = os.path.getsize(input)
@@ -334,6 +335,16 @@ def runSubprocess3(cmd, logfile, folder, output):
     logfile.debug(' '.join(cmd))
     with open(output, 'w') as out:
         proc = subprocess.Popen(cmd, stdout=out, stderr=out, cwd=folder)
+    stderr = proc.communicate()
+    if stderr:
+        if stderr[0] != None:
+            logfile.debug(stderr)
+            
+def runSubprocess4(cmd, logfile, logfile2):
+    #function where cmd is issued in logfile, and log captured in logfile 2
+    logfile.debug(' '.join(cmd))
+    with open(logfile2, 'w') as out:
+        proc = subprocess.Popen(cmd, stdout=out, stderr=out)
     stderr = proc.communicate()
     if stderr:
         if stderr[0] != None:
@@ -932,8 +943,8 @@ def setupLogging(LOGNAME):
     if 'win32' in sys.platform:
         stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='[%I:%M:%S %p]')
     else:
-        stdoutformat = logging.Formatter(colr.GRN+'%(asctime)s'+colr.END+': %(message)s', datefmt='[%I:%M:%S %p]')
-    fileformat = logging.Formatter('%(asctime)s: %(message)s')
+        stdoutformat = logging.Formatter(colr.GRN+'%(asctime)s'+colr.END+': %(message)s', datefmt='[%b %d %I:%M %p]')
+    fileformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='[%x %H:%M:%S]')
     log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)
     sth = logging.StreamHandler()

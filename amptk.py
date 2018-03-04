@@ -59,7 +59,7 @@ def download(url, name):
         sys.stdout.write(status)
     f.close()
 
-version = '1.0.4'
+version = '1.1.0'
 
 default_help = """
 Usage:       amptk <command> <arguments>
@@ -82,6 +82,7 @@ Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
              cluster_ref closed/open reference based clustering (EXPERIMENTAL)
 
 Utilities:   filter      OTU table filtering
+             lulu        LULU amplicon curation of OTU table
              taxonomy    Assign taxonomy to OTUs
              show        show number or reads per barcode from de-multiplexed data
              select      select reads (samples) from de-multiplexed data
@@ -496,6 +497,37 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
         arguments = sys.argv[2:]
         if len(arguments) > 1:
             cmd = os.path.join(script_path, 'bin', 'amptk-unoise3.py')
+            arguments.insert(0, cmd)
+            exe = sys.executable
+            arguments.insert(0, exe)
+            subprocess.call(arguments)
+        else:
+            print help
+            sys.exit(1)
+    
+    elif sys.argv[1] == 'lulu' or sys.argv[1] == 'LULU':
+        help = """
+Usage:       amptk %s <arguments>
+version:     %s
+
+Description: Script is a wrapper for the LULU OTU table post-clustering curation of amplicon
+             data. The script calculates pairwise identity between the OTUs and then filters
+             the OTU table based on whether closely related OTUs that share the same/similar
+             distributions in the data are "daughters" of the "parent" OTU. Requires R and the
+             LULU R package. doi:10.1038/s41467-017-01312-x
+                 
+Arguments:   -i, --otu_table            Input OTU table (Required)
+             -f, --fasta                Input OTUs in FASTA format (Required)
+             -o, --out                  Output base name. Default: input basename
+             --min_ratio_type           Minimum ratio threshold. Default: min [min,avg]
+             --min_ratio                Minimum ratio. Default: 1
+             --min_match                Minimum match pident (%%). Default: 84
+             --min_relative_cooccurence Minimum relative co-occurance (%%): Default: 95
+             --debug                    Keep intermediate files.
+        """ % (sys.argv[1], version)
+        arguments = sys.argv[2:]
+        if len(arguments) > 1:
+            cmd = os.path.join(script_path, 'util', 'amptk-lulu.py')
             arguments.insert(0, cmd)
             exe = sys.executable
             arguments.insert(0, exe)
@@ -1002,6 +1034,8 @@ Arguments:   -i, --biom          Input BIOM file with taxonomy and metadata (Req
              -t, --tree          Phylogeny of OTUs (from amptk taxonomy) (Required)
              -d, --distance      Distance metric. Default: raupcrick [raupcrick,jaccard,bray,unifrac,wunifrac]
              -o, --out           Output base name. Default: amptk_stats
+             --indicator_species Run indicator species analysis
+             --ignore_otus       Drop OTUs from table before running stats
         """ % (sys.argv[1], version)
    
         arguments = sys.argv[2:]
