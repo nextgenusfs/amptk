@@ -421,6 +421,31 @@ Removing index-bleed or sample cross-over from datasets is important for downstr
                  --debug             Keep intermediate files.
                  -u, --usearch       USEARCH executable. Default: usearch9 
 
+amptk lulu
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Script runs LULU post-clustering OTU table filtering. see doi:10.1038/s41467-017-01312-x
+
+.. code-block:: none
+
+    Usage:       amptk lulu <arguments>
+    version:     1.1.0
+
+    Description: Script is a wrapper for the LULU OTU table post-clustering curation of amplicon
+                 data. The script calculates pairwise identity between the OTUs and then filters
+                 the OTU table based on whether closely related OTUs that share the same/similar
+                 distributions in the data are "daughters" of the "parent" OTU. Requires R and the
+                 LULU R package. doi:10.1038/s41467-017-01312-x
+                 
+    Arguments:   -i, --otu_table            Input OTU table (Required)
+                 -f, --fasta                Input OTUs in FASTA format (Required)
+                 -o, --out                  Output base name. Default: input basename
+                 --min_ratio_type           Minimum ratio threshold. Default: min [min,avg]
+                 --min_ratio                Minimum ratio. Default: 1
+                 --min_match                Minimum match pident (%). Default: 84
+                 --min_relative_cooccurence Minimum relative co-occurance (%): Default: 95
+                 --debug                    Keep intermediate files.
+             
+
 amptk taxonomy
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 This script assigns taxonomy to OTUs and an OTU table. A variety of methods are available, more details are located :ref:`here <taxonomy>`. 

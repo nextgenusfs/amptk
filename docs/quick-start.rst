@@ -116,30 +116,55 @@ Since we included a mock community in our sample, we will filter for index-bleed
     Filtered OTUs:        miseq.filtered.otus.fa
     -------------------------------------------------------
 
+Post clustering LULU
+-------------------------------------
+AMPtk can run the LULU post clustering tool that can identify potential errors in a dataset. This step is optional.
+
+.. code-block:: none
+
+    amptk lulu -i miseq.final.txt -f miseq.filtered.otus.fa -o miseq
+
+    -------------------------------------------------------
+    [Mar 07 11:47 AM]: OS: MacOSX 10.13.3, 8 cores, ~ 16 GB RAM. Python: 2.7.14
+    [Mar 07 11:47 AM]: AMPtk v1.1.0, USEARCH v9.2.64, VSEARCH v2.6.2
+    [Mar 07 11:47 AM]: R v3.4.1; LULU v0.1.0
+    [Mar 07 11:47 AM]: Loading 8 OTUs
+    [Mar 07 11:47 AM]: Generating pairwise percent identity between OTUs using VSEARCH at 84% identity
+    [Mar 07 11:47 AM]: Running LULU algorithm
+    [Mar 07 11:47 AM]: LULU has merged 1 OTUs, output data contains 7 OTUs
+    [Mar 07 11:47 AM]: LULU OTU table post processing finished
+    ----------------------------------
+    OTU table:  miseq.lulu.otu_table.txt
+    OTU FASTA:  miseq.lulu.otus.fa
+    LULU map:   miseq.lulu.otu-map.txt
+    ----------------------------------
+
+
 Assign Taxonomy
 -------------------------------------
 We can now assign taxonomy to our OTUs and create the final BIOM output file.
 
 .. code-block:: none
 
-    amptk taxonomy -f miseq.cluster.otus.fa -i miseq.otu_table.txt -m miseq.mapping_file.txt -d ITS2 -o miseq
+    amptk taxonomy -f miseq.lulu.otus.fa -i miseq.lulu.otu_table.txt -m miseq.mapping_file.txt -d ITS2 -o miseq
     
     -------------------------------------------------------
-    [03:59:33 PM]: OS: MacOSX 10.12.6, 8 cores, ~ 16 GB RAM. Python: 2.7.12
-    [03:59:34 PM]: AMPtk v1.0.0, USEARCH v9.2.64, VSEARCH v2.4.4
-    [03:59:34 PM]: Loading FASTA Records
-    [03:59:34 PM]: 32 OTUs
-    [03:59:34 PM]: Global alignment OTUs with usearch_global (USEARCH)
-    [03:59:38 PM]: Classifying OTUs with UTAX (USEARCH)
-    [03:59:38 PM]: Classifying OTUs with SINTAX (USEARCH)
-    [04:00:24 PM]: Appending taxonomy to OTU table and OTUs
-    [04:00:24 PM]: Generating phylogenetic tree
-    [04:00:24 PM]: Taxonomy finished: miseq.taxonomy.txt
-    [04:00:24 PM]: Classic OTU table with taxonomy: miseq.otu_table.taxonomy.txt
-    [04:00:25 PM]: BIOM OTU table created: miseq.biom
-    [04:00:25 PM]: OTUs with taxonomy: miseq.otus.taxonomy.fa
-    [04:00:25 PM]: OTU phylogeny: miseq.tree.phy
+    [Mar 07 12:51 PM]: OS: MacOSX 10.13.3, 8 cores, ~ 16 GB RAM. Python: 2.7.14
+    [Mar 07 12:51 PM]: AMPtk v1.1.0, USEARCH v9.2.64, VSEARCH v2.6.2
+    [Mar 07 12:51 PM]: Loading FASTA Records
+    [Mar 07 12:51 PM]: 7 OTUs
+    [Mar 07 12:51 PM]: Global alignment OTUs with usearch_global (USEARCH)
+    [Mar 07 12:51 PM]: Classifying OTUs with UTAX (USEARCH)
+    [Mar 07 12:51 PM]: Classifying OTUs with SINTAX (USEARCH)
+    [Mar 07 12:52 PM]: Appending taxonomy to OTU table and OTUs
+    [Mar 07 12:52 PM]: Generating phylogenetic tree
+    [Mar 07 12:52 PM]: Taxonomy finished: miseq.taxonomy.txt
+    [Mar 07 12:52 PM]: Classic OTU table with taxonomy: miseq.otu_table.taxonomy.txt
+    [Mar 07 12:52 PM]: BIOM OTU table created: miseq.biom
+    [Mar 07 12:52 PM]: OTUs with taxonomy: miseq.otus.taxonomy.fa
+    [Mar 07 12:52 PM]: OTU phylogeny: miseq.tree.phy
     -------------------------------------------------------
+
 
 And we now have an OTU table complete with taxonomy:
 
