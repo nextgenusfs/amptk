@@ -211,8 +211,6 @@ def Funzip(input, output, cpus):
     '''
     if which('pigz'):
         cmd = ['pigz', '--decompress', '-c', '-p', str(cpus), input]
-    elif which('bgzip'):
-        cmd = ['bgzip', '--decompress', '-c', '-@', str(cpus), input]
     else:
         cmd = ['gzip', '--decompress', '-c', input]
     try:
@@ -227,8 +225,6 @@ def Fzip(input, output, cpus):
     '''
     if which('pigz'):
         cmd = ['pigz', '-c', '-p', str(cpus), input]
-    elif which('bgzip'):
-        cmd = ['bgzip', '-c', '-@', str(cpus), input]
     else:
         cmd = ['gzip', '-c', input]
     try:
@@ -244,8 +240,6 @@ def Fzip_inplace(input):
     cpus = multiprocessing.cpu_count()
     if which('pigz'):
         cmd = ['pigz', '-f', '-p', str(cpus), input]
-    elif which('bgzip'):
-        cmd = ['bgzip', '-f', '-@', str(cpus), input]
     else:
         cmd = ['gzip', '-f', input]
     try:
