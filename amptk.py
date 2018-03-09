@@ -563,6 +563,7 @@ Filtering    -n, --normalize     Normalize reads to number of reads per sample [
              -s, --subtract      Threshold to subtract from all OTUs (any number or auto). Default: 0
              --delimiter         Delimiter of OTU tables. Default: tsv  [csv, tsv]
              --min_reads_otu     Minimum number of reads for valid OTU from whole experiment. Default: 2
+             --min_samples_otu   Minimum number of samples for valid OTU from whole experiment. Default: 1
              --col_order         Column order (separate by space). Default: sort naturally
              --keep_mock         Keep Spike-in mock community. Default: False
              --show_stats        Show OTU stats on STDOUT  

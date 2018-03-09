@@ -47,6 +47,7 @@ parser.add_argument('--show_stats', action='store_true', help='Show stats datata
 parser.add_argument('--negatives', nargs='+', help='Negative Control Sample names')
 parser.add_argument('-o','--out', help='Base output name')
 parser.add_argument('--min_reads_otu', default=2, type=int, help='Minimum number of reads per OTU for experiment')
+parser.add_argument('--min_samples_otu', default=1, type=int, help='Minimum number of samples per OTU for experiment')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
 parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
 args=parser.parse_args()
@@ -525,9 +526,18 @@ else:
 #convert to binary
 final[final > 0] = 1
 
+#apply min_sample_otu here (most stringent filter, not sure I would use this unless you know what you are doing)
+los = final.sum(axis=1)
+fotus = los[los >= args.min_samples_otu]
+keep = fotus.index
+final2 = pd.DataFrame(final, index=keep)
+diff = len(final.index) - len(keep)
+if diff > 0:
+    amptklib.log.info('Dropped {:,} OTUs found in fewer than {:,} samples'.format(diff, args.min_samples_otu))
+
 #get the actual read counts from binary table
 merge = {}
-for index, row in final.iteritems():
+for index, row in final2.iteritems():
 	merge[index] = []
 	for i in range(0, len(row)):
 		if row[i] == 0:
@@ -535,7 +545,7 @@ for index, row in final.iteritems():
 		else:
 			merge[index].append(SortedTable[index][row.index[i]])
 
-FiltTable = pd.DataFrame(merge, index=list(final.index))
+FiltTable = pd.DataFrame(merge, index=list(final2.index))
 FiltTable.index.name = '#OTU ID'
 
 #order the filtered table
@@ -609,10 +619,10 @@ else: #proceed with rest of script
     
     #output binary table
     if otuDict:
-        final['Taxonomy'] = pd.Series(otuDict)
-        final.to_csv(final_binary_table, sep=delim)
+        final2['Taxonomy'] = pd.Series(otuDict)
+        final2.to_csv(final_binary_table, sep=delim)
     else:
-        final.to_csv(final_binary_table, sep=delim)
+        final2.to_csv(final_binary_table, sep=delim)
 
     #generate final OTU list for taxonomy
     amptklib.log.info("Filtering valid OTUs")
@@ -628,7 +638,7 @@ else: #proceed with rest of script
                         newname = annotate_dict.get(rec.id)
                         rec.id = newname
                         rec.description = ''
-                if rec.id in final.index:
+                if rec.id in final2.index:
                     if rec.id in OTU_tax:
                         otu_update.write('>%s;%s\n%s\n' % (rec.id, OTU_tax.get(rec.id), rec.seq))
                     else:
