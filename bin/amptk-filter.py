@@ -106,7 +106,7 @@ stats_table = base+'.stats'+ending
 #load OTU table into pandas DataFrame
 df = pd.read_csv(args.otu_table, sep='\t')
 df.set_index(OTUhead, inplace=True)
-headers = list(df.columns.values)
+headers = df.columns.values.tolist()
 if headers[-1] == 'taxonomy' or headers[-1] == 'Taxonomy':
     otuDict = df[headers[-1]].to_dict()
     del df[headers[-1]]
@@ -141,7 +141,7 @@ with open(FastaCounts, 'w') as outfile:
                     count = 0
                 outfile.write('>%s;size=%i\n%s\n' % (rec.id, count, rec.seq))
 
-amptklib.log.info('OTU table contains {0:,}'.format(len(df.index)) + ' OTUs and {0:,}'.format(int(df.values.sum())) + ' read counts')
+amptklib.log.info('OTU table contains {:,} samples, {:,} OTUs, and {:,} reads counts'.format(len(df.columns.values.tolist()), len(df.index), int(df.values.sum())))
 
 #setup output files/variables
 mock_out = base + '.mockmap.txt'
@@ -291,8 +291,10 @@ otus_per_sample_original = df[df > 0].count(axis=0, numeric_only=True)
 filtered = pd.DataFrame(df, columns=fs.index)
 filt2 = filtered.loc[(filtered != 0).any(1)]
 tos = filt2.sum(axis=1)
-amptklib.log.info("Removing OTUs according to --min_reads_otu: (OTUs with less than %i reads from all samples)" % args.min_reads_otu)
 fotus = tos[tos >= args.min_reads_otu] #valid allele must be found atleast from than 2 times, i.e. no singletons
+if len(fotus.index) < len(tos.index):
+    diff = len(tos.index) - len(fotus.index)
+    amptklib.log.info("Removing {:,} OTUs according to --min_reads_otu {:,}".format(diff, args.min_reads_otu))
 filt3 = pd.DataFrame(filt2, index=fotus.index)
 
 if args.normalize == 'y':
@@ -535,9 +537,13 @@ diff = len(final.index) - len(keep)
 if diff > 0:
     amptklib.log.info('Dropped {:,} OTUs found in fewer than {:,} samples'.format(diff, args.min_samples_otu))
 
+#drop samples that don't have any OTUs after filtering
+final3 = final2.loc[:, (final2 != 0).any(axis=0)]
+final3 = final3.astype(int)
+
 #get the actual read counts from binary table
 merge = {}
-for index, row in final2.iteritems():
+for index, row in final3.iteritems():
 	merge[index] = []
 	for i in range(0, len(row)):
 		if row[i] == 0:
@@ -545,7 +551,7 @@ for index, row in final2.iteritems():
 		else:
 			merge[index].append(SortedTable[index][row.index[i]])
 
-FiltTable = pd.DataFrame(merge, index=list(final2.index))
+FiltTable = pd.DataFrame(merge, index=list(final3.index))
 FiltTable.index.name = '#OTU ID'
 
 #order the filtered table
@@ -614,18 +620,24 @@ else: #proceed with rest of script
         del FiltTable['Taxonomy']
     else:
         FiltTable.to_csv(final_table, sep=delim)
-        
-    amptklib.log.info('Filtering OTU table down to {0:,}'.format(len(FiltTable.index)) + ' OTUs and {0:,}'.format(FiltTable.values.sum()) + ' read counts')
-    
+    finalSamples = FiltTable.columns.values.tolist()
+    if 'Taxonomy' in finalSamples:
+        numFinalSamples = len(finalSamples) - 1
+    else:
+        numFinalSamples = len(finalSamples)
+    amptklib.log.info('Filtered OTU table contains {:,} samples, {:,} OTUs, and {:,} read counts'.format(numFinalSamples, len(FiltTable.index), FiltTable.values.sum()))
+    if numFinalSamples < len(df.columns.values.tolist()):
+        diffSamples = [item for item in headers if item not in FiltTable.columns.values.tolist()]
+        amptklib.log.info('Samples dropped: %s' % (','.join(diffSamples)))
     #output binary table
     if otuDict:
-        final2['Taxonomy'] = pd.Series(otuDict)
-        final2.to_csv(final_binary_table, sep=delim)
+        final3['Taxonomy'] = pd.Series(otuDict)
+        final3.to_csv(final_binary_table, sep=delim)
     else:
-        final2.to_csv(final_binary_table, sep=delim)
+        final3.to_csv(final_binary_table, sep=delim)
 
     #generate final OTU list for taxonomy
-    amptklib.log.info("Filtering valid OTUs")
+    amptklib.log.info("Finding valid OTUs")
     otu_new = base + '.filtered.otus.fa'
     with open(otu_new, 'w') as otu_update:
         with open(args.fasta, "rU") as myfasta:
@@ -638,7 +650,7 @@ else: #proceed with rest of script
                         newname = annotate_dict.get(rec.id)
                         rec.id = newname
                         rec.description = ''
-                if rec.id in final2.index:
+                if rec.id in final3.index:
                     if rec.id in OTU_tax:
                         otu_update.write('>%s;%s\n%s\n' % (rec.id, OTU_tax.get(rec.id), rec.seq))
                     else:
