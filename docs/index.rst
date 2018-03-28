@@ -129,7 +129,7 @@ Dependencies
 
 .. code-block:: none
 
-    #install devtools if you don't have alread
+    #install devtools if you don't have already
     install.packages('devtools')
     library('devtools')
     install_github("tobiasgf/lulu") 

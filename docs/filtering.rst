@@ -12,34 +12,36 @@ In AMPtk, this process is done using the ``amptk filter`` command, which takes a
 .. code-block:: none
 
     Usage:       amptk filter <arguments>
-    version:     1.0.0
+    version:     1.1.1
 
-    Description: Script filters OTU table generated from the `amptk cluster` command and should 
-                 be run on all datasets to combat barcode-switching or index-bleed (as high as 
-                 2% in MiSeq datasets, ~ 0.3% in Ion PGM datasets).  This script works best when
-                 a spike-in control sequence is used, e.g. Synthetic Mock, although a mock is not required.
-    
-    Required:    -i, --otu_table     OTU table
-                 -f, --fasta         OTU fasta
-             
-    Optional:    -o, --out           Base name for output files. Default: use input basename
-                 -b, --mock_barcode  Name of barcode of mock community (Recommended)
-                 -m, --mc            Mock community FASTA file. Required if -b passed. [synmock,mock1,mock2,mock3,etc]
-                 -d, --drop          Sample names to drop from OTU table
-                 -c, --calculate     Calculate index-bleed options. Default: all [in,all]
-                 --negatives         Negative sample names. (list, separate by space)
-             
-    Filtering    -n, --normalize     Normalize reads to number of reads per sample [y,n]. Default: y
-                 -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.005
-                 -t, --threshold     Number to use for establishing read count threshold. Default: max [max,sum,top5,top10,top25]
-                 -s, --subtract      Threshold to subtract from all OTUs (any number or auto). Default: 0
-                 --delimiter         Delimiter of OTU tables. Default: tsv  [csv, tsv]
-                 --min_reads_otu     Minimum number of reads for valid OTU from whole experiment. Default: 2
-                 --col_order         Column order (comma separated list). Default: sort naturally
-                 --keep_mock         Keep Spike-in mock community. Default: False
-                 --show_stats        Show OTU stats on STDOUT  
-                 --debug             Keep intermediate files.
-                 -u, --usearch       USEARCH executable. Default: usearch9 
+	Description: Script filters OTU table generated from the `amptk cluster` command and should 
+				 be run on all datasets to combat barcode-switching or index-bleed (as high as 
+				 2% in MiSeq datasets, ~ 0.3% in Ion PGM datasets).  This script works best when
+				 a spike-in control sequence is used, e.g. Synthetic Mock, although a mock is not required.
+	
+	Required:    -i, --otu_table     OTU table
+				 -f, --fasta         OTU fasta
+			 
+	Optional:    -o, --out           Base name for output files. Default: use input basename
+				 -b, --mock_barcode  Name of barcode of mock community (Recommended)
+				 -m, --mc            Mock community FASTA file. Required if -b passed. [synmock,mock1,mock2,mock3,other]
+				 -c, --calculate     Calculate index-bleed options. Default: all [in,all]
+				 -d, --drop          Sample(s) to drop from OTU table. (list, separate by space)
+				 --negatives         Negative sample names. (list, separate by space)
+				 --ignore            Ignore sample(s) during index-bleed calc (list, separate by space)
+			 
+	Filtering    -n, --normalize     Normalize reads to number of reads per sample [y,n]. Default: y
+				 -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.005
+				 -t, --threshold     Number to use for establishing read count threshold. Default: max [max,sum,top5,top10,top25]
+				 -s, --subtract      Threshold to subtract from all OTUs (any number or auto). Default: 0
+				 --delimiter         Delimiter of OTU tables. Default: tsv  [csv, tsv]
+				 --min_reads_otu     Minimum number of reads for valid OTU from whole experiment. Default: 2
+				 --min_samples_otu   Minimum number of samples for valid OTU from whole experiment. Default: 1
+				 --col_order         Column order (separate by space). Default: sort naturally
+				 --keep_mock         Keep Spike-in mock community. Default: False
+				 --show_stats        Show OTU stats on STDOUT  
+				 --debug             Keep intermediate files.
+				 -u, --usearch       USEARCH executable. Default: usearch9 
 
 
 The steps of ``amptk filter`` are:
@@ -48,7 +50,7 @@ The steps of ``amptk filter`` are:
 
     2) Parses the OTU table, normalizing the read counts for each sample (optional, but recommended)
 
-    3) Next it calculates the number of reads that bleed into the mock community and the number of reads that bleed from the mock community to the rest of the dataset
+    3) Next it calculates the number of reads that bleed into the mock community and the number of reads that bleed from the mock community to the rest of the dataset.  The default setting ``-c all`` is desinged for a synthetic mock, if you have biological mock (i.e. real OTUs that might be in your sample) then you can pass the ``-c in`` option to only look at index-bleed into the mock community sample.
     
     4) Then the index-bleed threshold is calculated for each OTU separately based on ``-t, --threshold`` value and read counts less than the calculated threshold are set to 0.
     
