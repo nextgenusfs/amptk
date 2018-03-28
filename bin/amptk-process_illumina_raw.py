@@ -20,7 +20,7 @@ class col:
     WARN = '\033[93m'
 
 parser=argparse.ArgumentParser(prog='amptk-process_illumina_raw.py', 
-	usage="%(prog)s [options] -i file.fastq\n%(prog)s -h for help menu",
+    usage="%(prog)s [options] -i file.fastq\n%(prog)s -h for help menu",
     description='''Script finds barcodes, strips forward and reverse primers, relabels, and then trim/pads reads to a set length''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
@@ -163,7 +163,9 @@ if args.mapping_file:
     FwdPrimer = mapdata[0]
     RevPrimer = mapdata[1]
     genericmapfile = args.mapping_file
-		
+else:
+	FwdPrimer,RevPrimer = (None,)*2
+        
 if not FwdPrimer or not RevPrimer:
     #parse primers here so doesn't conflict with mapping primers
     #look up primer db otherwise default to entry
@@ -185,26 +187,27 @@ if not FwdPrimer or not RevPrimer:
 if args.mapping_file:
     mapdict = amptklib.mapping2dict(args.mapping_file)
 else:
-	if not args.barcode_fasta:
-		amptklib.log.error("A -m,--mapping_file or --barcode_fasta are required")
-		sys.exit(1)
-	else:
-    	mapdict = {}
-    	with open(args.barcode_fasta, 'rU') as infile:
-    		for rec in SeqIO.parse(infile, 'fasta'):
-    			Seq = str(rec.seq)
-    			if not Seq in mapdict:
-    				mapdict[Seq] = rec.id
+    if not args.barcode_fasta:
+        amptklib.log.error("A -m,--mapping_file or --barcode_fasta are required")
+        sys.exit(1)
+    else:
+        mapdict = {}
+        shutil.copyfile(args.barcode_fasta, barcode_file)
+        with open(barcode_file, 'rU') as infile:
+            for rec in SeqIO.parse(infile, 'fasta'):
+                Seq = str(rec.seq)
+                if not Seq in mapdict:
+                    mapdict[Seq] = rec.id
 
 #if barcodes_rev_comp passed then reverse complement the keys in mapdict
 if args.barcode_rev_comp:
-	amptklib.log.info("Reverse complementing barcode sequences")
-	backupDict = mapdict
-	mapdict = {}
-	for k,v in backupDict.items():
-		RCkey = amptklib.RevComp(k)
-		if not RCkey in mapdict:
-			mapdict[RCkey] = v
+    amptklib.log.info("Reverse complementing barcode sequences")
+    backupDict = mapdict
+    mapdict = {}
+    for k,v in backupDict.items():
+        RCkey = amptklib.RevComp(k)
+        if not RCkey in mapdict:
+            mapdict[RCkey] = v
 
 amptklib.log.info("Loading %i samples from mapping file, checking FASTQ input" % len(mapdict))
 
@@ -333,13 +336,13 @@ amptklib.Fzip(Demux, FinalDemux, cpus)
 amptklib.removefile(Demux)
 
 if args.cleanup:
-	amptklib.SafeRemove(tmpdir)
+    amptklib.SafeRemove(tmpdir)
 
 #get file size
 filesize = os.path.getsize(FinalDemux)
 readablesize = amptklib.convertSize(filesize)
 amptklib.log.info("Output file:  %s (%s)" % (FinalDemux, readablesize))
-amptklib.log.info("Mapping file: %s" % args.mapping_file)
+amptklib.log.info("Mapping file: %s" % genericmapfile)
 print "-------------------------------------------------------"
 if 'win32' in sys.platform:
     print "\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux)

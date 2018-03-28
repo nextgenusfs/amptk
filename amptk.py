@@ -246,7 +246,8 @@ Description: Script takes PE Illumina reads, Index reads, mapping file and proce
 Arguments:   -f, --forward       FASTQ R1 (forward) file (Required)
              -r, --reverse       FASTQ R2 (reverse) file (Required)
              -i, --index         FASTQ I3 (index) file (Required)
-             -m, --mapping_file  QIIME-like mapping file. (Required)
+             -m, --mapping_file  QIIME-like mapping file.
+             --barcode_fasta	 Multi-fasta file of barocdes.
              -o, --out           Output folder name. Default: amptk-data  
              -l, --trim_len      Length to trim/pad reads. Default: 300
              --fwd_primer        Forward primer sequence
