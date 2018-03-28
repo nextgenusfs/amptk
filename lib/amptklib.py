@@ -44,15 +44,13 @@ class colr:
 def git_version():
     def _minimal_ext_cmd(cmd):
         # construct minimal environment
-        out = subprocess.Popen(cmd, stdout = subprocess.PIPE, cwd=currentdir).communicate()[0]
+        out = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = open(os.devnull, 'w'), cwd=currentdir).communicate()[0]
         return out
     try:
         out = _minimal_ext_cmd(['git', 'rev-parse', '--short', 'HEAD'])
         GIT_REVISION = out.strip().decode('ascii')
     except OSError:
-        GIT_REVISION = "Unknown"
-    if GIT_REVISION.startswith('fatal'):
-        GIT_REVISION = "Unknown"
+        GIT_REVISION = False
     return GIT_REVISION
 
 def SafeRemove(input):

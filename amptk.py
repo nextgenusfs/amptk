@@ -61,7 +61,7 @@ def download(url, name):
 
 git_version = amptklib.git_version()
 base_version = '1.1.1'
-if git_version != "Unknown":
+if git_version:
     version = base_version+'-'+git_version
 else:
     version = base_version
@@ -247,7 +247,7 @@ Arguments:   -f, --forward       FASTQ R1 (forward) file (Required)
              -r, --reverse       FASTQ R2 (reverse) file (Required)
              -i, --index         FASTQ I3 (index) file (Required)
              -m, --mapping_file  QIIME-like mapping file.
-             --barcode_fasta	 Multi-fasta file of barocdes.
+             --barcode_fasta     Multi-fasta file of barocdes.
              -o, --out           Output folder name. Default: amptk-data  
              -l, --trim_len      Length to trim/pad reads. Default: 300
              --fwd_primer        Forward primer sequence
@@ -259,7 +259,7 @@ Arguments:   -f, --forward       FASTQ R1 (forward) file (Required)
              --require_primer    Require the Forward primer to be present. Default: off [on,off]
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
              --barcode_mismatch  Number of mismatches in index (barcodes) to allow. Default: 2
-             --barcode_rev_comp	 Reverse complement barcode sequences in mapping file.
+             --barcode_rev_comp  Reverse complement barcode sequences in mapping file.
              -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
              --cpus              Number of CPUs to use. Default: all
              --cleanup           Remove intermediate files.
@@ -1064,10 +1064,10 @@ Arguments:   -i, --biom          Input BIOM file with taxonomy and metadata (Req
            print k.ljust(13) + v
         print "----------------------------------"
         sys.exit(1)
-    elif sys.argv[1] == 'version':
+    elif sys.argv[1] == 'version' or sys.argv[1] == '--version' or sys.argv[1] == '-version' or sys.argv[1] == '-v':
         print "AMPtk v%s" % version
-    elif sys.argv[1] == 'citation':
-        print "\nPalmer JM, Jusino MA, Banik MT, Lindner DL. 2017. Non-biological synthetic spike-in controls and the AMPtk software pipeline\n\t improve fungal high throughput amplicon sequencing data. bioRxiv 213470; doi: 10.1101/213470\n"
+    elif sys.argv[1] == 'citation' or sys.argv[1] == '-citation' or sys.argv[1] == '--citation':
+        print "\nPalmer JM, Jusino MA, Banik MT, Lindner DL. 2017. Non-biological synthetic spike-in controls and the\n\tAMPtk software pipeline improve mycobiome data. bioRxiv 213470; doi: 10.1101/213470\n"
     else:
         print "%s option not recognized" % sys.argv[1]
         print default_help
