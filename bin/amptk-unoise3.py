@@ -104,7 +104,7 @@ total = amptklib.countfasta(unoise_out)
 amptklib.log.info('{0:,}'.format(total) + ' denoised sequences')
 
 #strip N's
-amptklib.log.info("Cleaning up padding from OTUs")
+#amptklib.log.info("Cleaning up padding from OTUs")
 otu_clean = os.path.join(tmp, args.out + '.EE' + args.maxee + '.clean.fa')
 amptklib.fasta_strip_padding(unoise_out, otu_clean)
 

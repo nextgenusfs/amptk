@@ -37,6 +37,7 @@ if (!is.installed('lulu')) {
 }
 
 #import necessary packages
+library("dplyr"); packageVersion("dplyr")
 library("lulu"); packageVersion("lulu")
 
 #setup arguments, first is OTU table, second is match table, 3rd thru 6th are options, and 7th is output OTU table, 8th list of OTUs to keep, 9th is mapping file

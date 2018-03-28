@@ -59,7 +59,12 @@ def download(url, name):
         sys.stdout.write(status)
     f.close()
 
-version = '1.1.1'
+git_version = amptklib.git_version()
+base_version = '1.1.1'
+if git_version != "Unknown":
+    version = base_version+'-'+git_version
+else:
+    version = base_version
 
 default_help = """
 Usage:       amptk <command> <arguments>
@@ -253,6 +258,7 @@ Arguments:   -f, --forward       FASTQ R1 (forward) file (Required)
              --require_primer    Require the Forward primer to be present. Default: off [on,off]
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
              --barcode_mismatch  Number of mismatches in index (barcodes) to allow. Default: 2
+             --barcode_rev_comp	 Reverse complement barcode sequences in mapping file.
              -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
              --cpus              Number of CPUs to use. Default: all
              --cleanup           Remove intermediate files.

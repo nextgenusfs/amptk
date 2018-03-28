@@ -124,6 +124,22 @@ Dependencies
 
     #install with conda/bioconda
     conda install r-base bioconductor-phyloseq
+
+6) (optional) LULU post-clustering OTU table filtering via ``amptk lulu`` requires the R package `LULU <https://github.com/tobiasgf/lulu>`_. Install requires devtools.
+
+.. code-block:: none
+
+    #install devtools if you don't have alread
+    install.packages('devtools')
+    library('devtools')
+    install_github("tobiasgf/lulu") 
+    
+    #not listed as dependency but on my system also requires dpylr
+    install.packages('dpylr') or perhaps all of tidyverse install.packages('tidyverse')
+    
+    #could also install tidyverse from conda
+    conda install r-tidyverse
+
     
 Run from Docker
 ==================

@@ -75,8 +75,15 @@ nmds_pretty <- function(physeq, ord, dataset, variable, colors, heading, custom_
 #load in biom and tree file
 physeqLoad <- import_biom(args[1], treefilename=args[2])
 
-colnames(tax_table(physeqLoad)) <- c("Kingdom", "Phylum", "Class", 
+#get number of taxonomic ranks from phyloseq object
+numRanks <- length(rank_names(physeqLoad))
+if ( numRanks > 7 ) {
+	colnames(tax_table(physeqLoad)) <- c("Domain", "Kingdom", "Phylum", "Class", 
   "Order", "Family", "Genus", "Species")
+  } else {
+	colnames(tax_table(physeqLoad)) <- c("Kingdom", "Phylum", "Class", 
+  "Order", "Family", "Genus", "Species")  
+}
 
 #check if OTUs to drop
 if ( lenArgs > 5 ) {

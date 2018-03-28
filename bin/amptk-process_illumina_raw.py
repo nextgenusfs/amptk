@@ -19,7 +19,8 @@ class col:
     END = '\033[0m'
     WARN = '\033[93m'
 
-parser=argparse.ArgumentParser(prog='amptk-process_illumina_raw.py', usage="%(prog)s [options] -i file.fastq\n%(prog)s -h for help menu",
+parser=argparse.ArgumentParser(prog='amptk-process_illumina_raw.py', 
+	usage="%(prog)s [options] -i file.fastq\n%(prog)s -h for help menu",
     description='''Script finds barcodes, strips forward and reverse primers, relabels, and then trim/pads reads to a set length''',
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
@@ -27,22 +28,24 @@ parser=argparse.ArgumentParser(prog='amptk-process_illumina_raw.py', usage="%(pr
 parser.add_argument('-f','--forward', dest='fastq', required=True, help='Illumina FASTQ R1 reads')
 parser.add_argument('-r', '--reverse', required=True, help='Illumina FASTQ R2 reads')
 parser.add_argument('-i', '--index', nargs='+', required=True, help='Illumina FASTQ index reads')
-parser.add_argument('-m', '--mapping_file', required=True, help='QIIME-like mapping file')
+parser.add_argument('-m', '--mapping_file', help='QIIME-like mapping file')
 parser.add_argument('--read_length', type=int, help='Read length, i.e. 2 x 300 bp = 300')
 parser.add_argument('-o','--out', dest="out", default='illumina_out', help='Base name for output')
 parser.add_argument('--fwd_primer', dest="F_primer", help='Forward Primer')
 parser.add_argument('--rev_primer', dest="R_primer", help='Reverse Primer')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--barcode_mismatch', default=0, type=int, help='Number of mis-matches in barcode')
-parser.add_argument('--barcode_fasta', default='pgm_barcodes.fa', help='FASTA file containing Barcodes (Names & Sequences)')
+parser.add_argument('--barcode_fasta', help='FASTA file containing Barcodes (Names & Sequences)')
 parser.add_argument('--require_primer', dest="primer", default='off', choices=['on', 'off'], help='Require Fwd primer to be present')
 parser.add_argument('--rescue_forward', default='on', choices=['on', 'off'], help='Rescue Not-merged forward reads')
+parser.add_argument('--barcode_rev_comp', action='store_true', help='Reverse complement barcode sequences')
 parser.add_argument('--min_len', default=100, type=int, help='Minimum read length to keep')
 parser.add_argument('-l','--trim_len', default=300, type=int, help='Trim length for reads')
 parser.add_argument('-p','--pad', default='off', choices=['on', 'off'], help='Pad with Ns to a set length')
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
+parser.add_argument('--cleanup', action='store_true', help='remove intermediate files')
 args=parser.parse_args()
 
 def processRead(input):
@@ -160,14 +163,7 @@ if args.mapping_file:
     FwdPrimer = mapdata[0]
     RevPrimer = mapdata[1]
     genericmapfile = args.mapping_file
-else:
-    if args.barcode_fasta:
-        if not os.path.isfile(args.barcode_fasta):
-            amptklib.log.error("Mapping file or barcode_fasta is required")
-            sys.exit(1)
-        else:
-            shutil.copyfile(args.barcode_fasta, barcode_file)
-
+		
 if not FwdPrimer or not RevPrimer:
     #parse primers here so doesn't conflict with mapping primers
     #look up primer db otherwise default to entry
@@ -189,7 +185,26 @@ if not FwdPrimer or not RevPrimer:
 if args.mapping_file:
     mapdict = amptklib.mapping2dict(args.mapping_file)
 else:
-    mapdict = False
+	if not args.barcode_fasta:
+		amptklib.log.error("A -m,--mapping_file or --barcode_fasta are required")
+		sys.exit(1)
+	else:
+    	mapdict = {}
+    	with open(args.barcode_fasta, 'rU') as infile:
+    		for rec in SeqIO.parse(infile, 'fasta'):
+    			Seq = str(rec.seq)
+    			if not Seq in mapdict:
+    				mapdict[Seq] = rec.id
+
+#if barcodes_rev_comp passed then reverse complement the keys in mapdict
+if args.barcode_rev_comp:
+	amptklib.log.info("Reverse complementing barcode sequences")
+	backupDict = mapdict
+	mapdict = {}
+	for k,v in backupDict.items():
+		RCkey = amptklib.RevComp(k)
+		if not RCkey in mapdict:
+			mapdict[RCkey] = v
 
 amptklib.log.info("Loading %i samples from mapping file, checking FASTQ input" % len(mapdict))
 
@@ -202,6 +217,7 @@ cleanR1 = os.path.join(tmpdir, 'renamedR1.fastq')
 cleanR2 = os.path.join(tmpdir, 'renamedR2.fastq')
 amptklib.DemuxIllumina(args.fastq, args.reverse, args.index[0], mapdict, args.barcode_mismatch, cleanR1, cleanR2)
 
+amptklib.log.info("Loading FASTQ Records")
 #estimate read length
 if amptklib.check_valid_file(cleanR1):
     #if read length explicity passed use it otherwise measure it
@@ -209,9 +225,9 @@ if amptklib.check_valid_file(cleanR1):
         ReadLen = args.read_length
     else:
         ReadLen = amptklib.GuessRL(cleanR1)
+        amptklib.log.info('Estimation of read length is %i bp' % ReadLen)
 
 #Count FASTQ records
-amptklib.log.info("Loading FASTQ Records")
 orig_total = amptklib.countfastq(cleanR1)
 size = amptklib.checkfastqsize(cleanR1)
 readablesize = amptklib.convertSize(size)
@@ -307,11 +323,17 @@ for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
     barcode_counts += "\n%30s:  %s" % (k, str(BarcodeCount[k]))
 amptklib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
+#create mapping file if one doesn't exist
+genericmapfile = args.out + '.mapping_file.txt'
+amptklib.CreateGenericMappingFile(barcode_file, FwdPrimer, revcomp_lib.RevComp(RevPrimer), '', genericmapfile, BarcodeCount)
+
 #compress the output to save space
 FinalDemux = Demux+'.gz'
 amptklib.Fzip(Demux, FinalDemux, cpus)
 amptklib.removefile(Demux)
 
+if args.cleanup:
+	amptklib.SafeRemove(tmpdir)
 
 #get file size
 filesize = os.path.getsize(FinalDemux)

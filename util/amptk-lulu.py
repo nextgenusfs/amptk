@@ -36,7 +36,12 @@ luluScript = os.path.join(parentdir, 'util', 'runLULU.R')
 
 if not args.out:
     #get base name of files
-    base = args.otu_table.split(".otu_table")[0]
+    if 'otu_table' in args.otu_table:
+    	base = os.path.basename(args.otu_table).split(".otu_table")[0]
+    elif 'final.txt' in args.otu_table:
+    	base = os.path.basename(args.otu_table).split(".final")[0]
+    else:
+    	base = os.path.basename(args.otu_table).split(".txt")[0]
 else:
     base = args.out
 
