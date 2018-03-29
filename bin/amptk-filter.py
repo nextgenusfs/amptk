@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 
-#This script filters results from amptk-OTU_cluster.py
-#written by Jon Palmer palmer.jona at gmail dot com
-
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
-from builtins import *
 import sys
 import os
 import argparse
@@ -96,10 +92,10 @@ with open(args.otu_table, 'rU') as f:
     OTUhead = first_line.split('\t')[0]
 
 if args.delimiter == 'csv':
-    delim = ','
+    delim = str(',')
     ending = '.csv'
 elif args.delimiter == 'tsv':
-    delim = '\t'
+    delim = str('\t')
     ending = '.txt'
 
 #setup outputs

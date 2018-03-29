@@ -5,7 +5,6 @@
 
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
-from builtins import *
 import sys
 import os
 import argparse
@@ -140,8 +139,8 @@ else:
         amptklib.log.info('{0:,}'.format(total) + ' OTUs passed')
 
 #inferred sequences
-iSeqs = args.out+'.iSeqs.fa'
-amptklib.fastarename(uchime_out, 'iSeq', iSeqs)
+iSeqs = args.out+'.ASVs.fa'
+amptklib.fastarename(uchime_out, 'ASV', iSeqs)
 
 #build OTU table with iSeqs
 uc_iSeq_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.mapping.uc')
@@ -151,13 +150,13 @@ if args.map_filtered:
     reads = filter_fasta
 else:
     reads = orig_fasta
-amptklib.log.info("Mapping Reads to iSeqs and Building OTU table")
+amptklib.log.info("Mapping Reads to ASVs and Building OTU table")
 cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', iSeqs, '--uc', uc_iSeq_out, '--otutabout', iSeq_otu_table]
 amptklib.runSubprocess(cmd, amptklib.log)
 
 #count reads mapped
 total = amptklib.line_count2(uc_iSeq_out)
-amptklib.log.info('{0:,}'.format(total) + ' reads mapped to iSeqs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
+amptklib.log.info('{0:,}'.format(total) + ' reads mapped to ASVs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
 
 #now cluster to biological OTUs with UCLUST
 radius = float(args.pct_otu) / 100.
@@ -169,7 +168,7 @@ total = amptklib.countfasta(uclust_out)
 amptklib.log.info('{0:,}'.format(total) + ' OTUs generated')
 
 #determine where denoised sequences clustered
-ClusterComp = args.out+'.iSeqs2clusters.txt'
+ClusterComp = args.out+'.ASVs2clusters.txt'
 iSeqmap = args.out+'.unoise_map.uc'
 cmd = [usearch, '-usearch_global', iSeqs, '-db', uclust_out, '-id', str(radius), '-uc', iSeqmap, '-strand', 'plus']
 amptklib.runSubprocess(cmd, amptklib.log)
@@ -185,7 +184,7 @@ with open(iSeqmap, 'rU') as mapping:
         else:
             iSeqMapped[OTU].append(Hit)
 with open(ClusterComp, 'w') as clusters:
-    clusters.write('OTU\tiSeqs\n')
+    clusters.write('OTU\tASVs\n')
     for k,v in natsorted(list(iSeqMapped.items())):
         clusters.write('%s\t%s\n' % (k, ', '.join(v)))
 
@@ -220,11 +219,11 @@ print("UNOISE2 Script has Finished Successfully")
 print("-------------------------------------------------------")
 if not not args.debug:
     print("Tmp Folder of files: %s" % tmp)
-print("inferred Seqs: %s" % os.path.abspath(iSeqs))
-print("iSeq OTU Table: %s" % os.path.abspath(iSeq_otu_table))
-print("Clustered OTUs: %s" % final_otu)
-print("OTU Table: %s" % final_otu_table)
-print("iSeqs 2 OTUs: %s" % os.path.abspath(ClusterComp))
+print("Amplicon sequence variants: %s" % iSeqs)
+print("ASV OTU Table: %s" % iSeq_otu_table)
+print("Clustered OTUs: %s" % os.path.basename(final_otu))
+print("OTU Table: %s" % os.path.basename(final_otu_table))
+print("ASVs 2 OTUs: %s" % ClusterComp)
 print("-------------------------------------------------------")
 
 otu_print = final_otu.split('/')[-1]

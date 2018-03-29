@@ -120,10 +120,10 @@ amptklib.log.info("Loading FASTQ Records")
 no_ns = args.out+'.cleaned_input.fq'
 if args.fastq.endswith('.gz'):
 	fastqInput = args.fastq.replace('.gz', '')
-	amptklib.Funzip(args.fastq, fastqInput, CORES)
+	amptklib.Funzip(os.path.abspath(args.fastq), os.path.basename(fastqInput), CORES)
 else:
-	fastqInput = args.fastq
-amptklib.fastq_strip_padding(fastqInput, no_ns)
+	fastqInput = os.path.abspath(args.fastq)
+amptklib.fastq_strip_padding(os.path.basename(fastqInput), no_ns)
 demuxtmp = args.out+'.original.fa'
 cmd = ['vsearch', '--fastq_filter', os.path.abspath(no_ns),'--fastq_qmax', '55', '--fastaout', demuxtmp]
 amptklib.runSubprocess(cmd, amptklib.log)
@@ -187,7 +187,7 @@ with open(fastaout, 'w') as writefasta:
             line = line.replace('"', '')
             cols = line.split(',')
             Seq = cols[0]
-            ID = 'iSeq'+str(counter)
+            ID = 'ASV'+str(counter)
             writefasta.write(">%s\n%s\n" % (ID, Seq))
             counter += 1
 
@@ -199,14 +199,14 @@ with open(dada2log, 'rU') as bimeracheck:
             bimeras = int(bimeraline[1])
             totalSeqs = int(bimeraline[5])
 validSeqs = totalSeqs - bimeras
-amptklib.log.info('{0:,}'.format(totalSeqs) + ' total inferred sequences (iSeqs)')
+amptklib.log.info('{0:,}'.format(totalSeqs) + ' total amplicon sequence variants (ASVs)')
 amptklib.log.info('{0:,}'.format(bimeras) + ' denovo chimeras removed')
-amptklib.log.info('{0:,}'.format(validSeqs) + ' valid iSeqs')
+amptklib.log.info('{0:,}'.format(validSeqs) + ' valid ASVs')
 
 #optional UCHIME Ref
 uchime_out = args.out+'.nonchimeras.fa'
 chimeraFreeTable = args.out+'.otu_table.txt'
-iSeqs = args.out+'.iSeqs.fa'
+iSeqs = args.out+'.ASVs.fa'
 if not args.uchime_ref:
     os.rename(fastaout, iSeqs)
 else:
@@ -232,7 +232,7 @@ else:
         amptklib.runSubprocess(cmd, amptklib.log)
         total = amptklib.countfasta(uchime_out)
         uchime_chimeras = validSeqs - total
-        amptklib.log.info('{0:,}'.format(total) + ' iSeqs passed, ' + '{0:,}'.format(uchime_chimeras) + ' ref chimeras removed')
+        amptklib.log.info('{0:,}'.format(total) + ' ASVs passed, ' + '{0:,}'.format(uchime_chimeras) + ' ref chimeras removed')
 
     #now reformat OTUs and OTU table, dropping chimeric OTUs from table, sorting the output as well
     nonchimeras = amptklib.fasta2list(uchime_out)
@@ -252,17 +252,17 @@ dadademux = args.out+'.dada2.map.uc'
 bioSeqs = args.out+'.cluster.otus.fa'
 bioTable = args.out+'.cluster.otu_table.txt'
 uctmp = args.out+'.map.uc'
-ClusterComp = args.out+'.iSeqs2clusters.txt'
+ClusterComp = args.out+'.ASVs2clusters.txt'
 
 #map reads to DADA2 OTUs
-amptklib.log.info("Mapping reads to DADA2 iSeqs")
+amptklib.log.info("Mapping reads to DADA2 ASVs")
 cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', iSeqs, '--id', '0.97', '--uc', dadademux, '--strand', 'plus', '--otutabout', chimeraFreeTable ]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.line_count2(dadademux)
-amptklib.log.info('{0:,}'.format(total) + ' reads mapped to iSeqs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
+amptklib.log.info('{0:,}'.format(total) + ' reads mapped to ASVs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
 
 #cluster
-amptklib.log.info("Clustering iSeqs at %s%% to generate biological OTUs" % args.pct_otu)
+amptklib.log.info("Clustering ASVs at %s%% to generate biological OTUs" % args.pct_otu)
 radius = float(args.pct_otu) / 100.
 cmd = ['vsearch', '--cluster_smallmem', iSeqs, '--centroids', bioSeqs, '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU', '--qmask', 'none', '--usersort']
 amptklib.runSubprocess(cmd, amptklib.log)
@@ -270,7 +270,7 @@ total = amptklib.countfasta(bioSeqs)
 amptklib.log.info('{0:,}'.format(total) + ' OTUs generated')
 
 #determine where iSeqs clustered
-iSeqmap = args.out+'.iseq_map.uc'
+iSeqmap = args.out+'.ASV_map.uc'
 cmd = ['vsearch', '--usearch_global', iSeqs, '--db', bioSeqs, '--id', str(radius), '--uc', iSeqmap, '--strand', 'plus']
 amptklib.runSubprocess(cmd, amptklib.log)
 iSeqMapped = {}
@@ -285,7 +285,7 @@ with open(iSeqmap, 'rU') as mapping:
         else:
             iSeqMapped[OTU].append(Hit)
 with open(ClusterComp, 'w') as clusters:
-    clusters.write('OTU\tiSeqs\n')
+    clusters.write('OTU\tASVs\n')
     for k,v in natsorted(list(iSeqMapped.items())):
         clusters.write('%s\t%s\n' % (k, ', '.join(v)))
 #create OTU table
@@ -311,11 +311,11 @@ print("DADA2 Script has Finished Successfully")
 print("-------------------------------------------------------")
 if args.debug:
     print("Tmp Folder of files: %s" % filtfolder)
-print("Inferred iSeqs: %s" % os.path.abspath(iSeqs))
-print("iSeq OTU Table: %s" % os.path.abspath(chimeraFreeTable))
-print("Clustered OTUs: %s" % os.path.abspath(bioSeqs))
-print("OTU Table: %s" % os.path.abspath(bioTable))
-print("iSeqs 2 OTUs: %s" % os.path.abspath(ClusterComp))
+print("Amplicon sequence variants: %s" % iSeqs)
+print("ASV OTU Table: %s" % chimeraFreeTable)
+print("Clustered OTUs: %s" % bioSeqs)
+print("OTU Table: %s" % bioTable)
+print("ASVs 2 OTUs: %s" % ClusterComp)
 print("-------------------------------------------------------")
 
 otu_print = bioSeqs.split('/')[-1]

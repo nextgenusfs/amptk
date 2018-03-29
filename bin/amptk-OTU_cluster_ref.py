@@ -5,7 +5,6 @@
 
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
-from builtins import *
 import sys
 import os
 import argparse
@@ -332,8 +331,8 @@ print("OTU Clustering Script has Finished Successfully")
 print("-------------------------------------------------------")
 if not not args.debug:
     print("Tmp Folder of files: %s" % tmp)
-print("Clustered OTUs: %s" % final_otu)
-print("OTU Table: %s" % final_otu_table)
+print("Clustered OTUs: %s" % os.path.basename(final_otu))
+print("OTU Table: %s" % os.path.basename(final_otu_table))
 print("-------------------------------------------------------")
 
 otu_print = final_otu.split('/')[-1]
