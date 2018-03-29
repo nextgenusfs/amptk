@@ -72,7 +72,7 @@ def download(url, name):
     f.close()
 
 git_version = amptklib.git_version()
-base_version = '1.1.1'
+base_version = '1.1.2'
 if git_version:
     version = base_version+'-'+git_version
 else:
