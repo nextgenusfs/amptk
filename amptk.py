@@ -3,7 +3,12 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 from builtins import *
-import sys, os, subprocess, inspect, tarfile, shutil
+import sys
+import os
+import subprocess
+import inspect
+import tarfile
+import shutil
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0,script_path)
 import lib.amptklib as amptklib
