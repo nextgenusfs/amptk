@@ -1,13 +1,18 @@
 #!/usr/bin/env python
 
 #This script is a wrapper for -fastq_mergepairs from USEARCH8
+from __future__ import print_function
+from __future__ import division
+from builtins import str
+from past.utils import old_div
+from builtins import object
 import os, sys, argparse, shutil, subprocess, gzip, logging
     
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
 
-class col:
+class col(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -24,7 +29,7 @@ parser.add_argument('-u','--usearch', dest="usearch", default='usearch8', help='
 args=parser.parse_args()
 
 def myround(x, base=10):
-    return int(base * round(float(x)/base))
+    return int(base * round(old_div(float(x),base)))
 
 def setupLogging(LOGNAME):
     global log
@@ -53,7 +58,7 @@ setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 #initialize script, log system info and usearch version
 log.info("Operating system: %s" % sys.platform)
 usearch = args.usearch
@@ -125,7 +130,7 @@ out_file = open(final_out, 'wb')
 shutil.copyfileobj(open(merge_out,'rb'), out_file)
 shutil.copyfileobj(open(skip_for,'rb'), out_file)
 out_file.close()
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 #clean and close up intermediate files
 os.remove(merge_out)
 os.remove(pretrim_R1)

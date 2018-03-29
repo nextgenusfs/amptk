@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import sys, argparse, os, inspect, itertools, multiprocessing
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -61,7 +62,7 @@ remove = []
 if args.threshold:
     print("Finding samples with less than %i reads" % args.threshold)
     BC_counts = countBarcodes(SeqIn)
-    for k,v in BC_counts.items():
+    for k,v in list(BC_counts.items()):
         if int(v) <= args.threshold:
             if not k in remove:
                 remove.append(k)

@@ -1,12 +1,21 @@
 #!/usr/bin/env python
 
-#Wrapper script for AMPtk package.
-
-import sys, os, subprocess, inspect, tarfile, shutil, urllib2, urlparse
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+import sys
+import os
+import subprocess
+import inspect
+import tarfile
+import shutil
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0,script_path)
 import lib.amptklib as amptklib
 from natsort import natsorted
+try:
+    from urllib.request import urlopen
+except ImportError:
+    from urllib2 import urlopen
 
 URL = { 'ITS': 'https://osf.io/pbtyh/download?version=4',
         '16S': 'https://osf.io/m7v5q/download?version=1', 
@@ -33,17 +42,20 @@ def fmtcols(mylist, cols):
         ljust = map(lambda x: x.ljust(length), mylist[i::cols])
         justify.append(ljust)
     justify = flatten(justify)
-    num_lines = len(mylist) / cols
+    num_lines = len(mylist) // cols
     lines = (' '.join(justify[i::num_lines]) 
              for i in range(0,num_lines))
-    return "\n".join(lines)
+    return "\n".join('{}'.format(lines))
 
 def download(url, name):
     file_name = name
-    u = urllib2.urlopen(url)
+    u = urlopen(url)
     f = open(file_name, 'wb')
     meta = u.info()
-    file_size = int(meta.getheaders("Content-Length")[0])
+    file_size = 0
+    for x in meta.items():
+    	if x[0].lower() == 'content-length':
+    		file_size = int(x[1])
     print("Downloading: {0} Bytes: {1}".format(url, file_size))
     file_size_dl = 0
     block_sz = 8192
@@ -147,7 +159,7 @@ Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)
     elif sys.argv[1] == 'illumina2':
         help = """
@@ -190,7 +202,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)
     elif sys.argv[1] == 'illumina':
         help = """
@@ -231,7 +243,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)
     elif sys.argv[1] == 'illumina3':
         help = """
@@ -273,7 +285,7 @@ Arguments:   -f, --forward       FASTQ R1 (forward) file (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)
     elif sys.argv[1] == '454':
         help = """
@@ -311,7 +323,7 @@ Arguments:   -i, --sff, --fasta  Input file (SFF, FASTA, or FASTQ) (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)
     elif sys.argv[1] == 'SRA':
         help = """
@@ -348,7 +360,7 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)
     elif sys.argv[1] == 'cluster' or sys.argv[1] == 'uparse':
         help = """
@@ -380,7 +392,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)            
     elif sys.argv[1] == 'cluster_ref':
         help = """
@@ -417,7 +429,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)            
     
     elif sys.argv[1] == 'dada2':
@@ -451,7 +463,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)            
 
     elif sys.argv[1] == 'unoise2':
@@ -480,7 +492,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1) 
 
     elif sys.argv[1] == 'unoise3':
@@ -509,7 +521,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)
     
     elif sys.argv[1] == 'lulu' or sys.argv[1] == 'LULU':
@@ -540,7 +552,7 @@ Arguments:   -i, --otu_table            Input OTU table (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1) 
                  
     elif sys.argv[1] == 'filter':
@@ -586,7 +598,7 @@ Filtering    -n, --normalize     Normalize reads to number of reads per sample [
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)
     elif sys.argv[1] == 'select':
         help = """
@@ -612,7 +624,7 @@ Required:    -i, --input      Input FASTQ file (.demux.fq)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)    
     elif sys.argv[1] == 'remove':
         help = """
@@ -638,7 +650,7 @@ Required:    -i, --input      Input FASTQ file (.demux.fq)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)    
     elif sys.argv[1] == 'sample':
         help = """
@@ -662,7 +674,7 @@ Required:    -i, --input       Input FASTQ file
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)
     elif sys.argv[1] == 'meta':
         help = """
@@ -687,7 +699,7 @@ Required:    -i, --input       Input OTU table
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)
     elif sys.argv[1] == 'show':
         help = """
@@ -711,7 +723,7 @@ Required:    -i, --input     Input FASTQ file (.demux.fq)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)    
     
     elif sys.argv[1] == 'funguild':
@@ -735,7 +747,7 @@ Options:     -i, --input        Input OTU table
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)    
 
     elif sys.argv[1] == 'heatmap':
@@ -775,7 +787,7 @@ Arguments:   -i, --input         Input OTU table (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)
     elif sys.argv[1] == 'drop':
         help = """
@@ -798,7 +810,7 @@ Required:    -i, --input     Input OTU file (.cluster.otus.fa) (FASTA)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)
     elif sys.argv[1] == 'taxonomy':
         db_list = ['DB_name', 'DB_type', 'FASTA originated from', 'Fwd Primer', 'Rev Primer', 'Records']
@@ -865,7 +877,7 @@ Databases Configured:
             subprocess.call(arguments)
 
         else:
-            print help
+            print(help)
             sys.exit(1)                    
     elif sys.argv[1] == 'database':
         help = """
@@ -911,7 +923,7 @@ Arguments:   -i, --fasta         Input FASTA file
             subprocess.call(arguments)
         
         else:
-            print help
+            print(help)
             sys.exit(1)   
     elif sys.argv[1] == 'summarize':
         help = """
@@ -939,7 +951,7 @@ Arguments:   -i, --table     OTU Table containing Taxonomy information (Required
             arguments.insert(0, exe)
             subprocess.call(arguments)        
         else:
-            print help
+            print(help)
             sys.exit(1)  
     elif sys.argv[1] == 'install':
         help = """
@@ -956,13 +968,13 @@ Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI
 
         arguments = sys.argv[2:]
         if len(arguments) < 1:
-            print help
+            print(help)
             sys.exit(1)
         else:
             if '-i' in arguments:
                 arguments.remove('-i')
                 if len(arguments) < 1:
-                    print help
+                    print(help)
                     sys.exit(1)
                 for x in arguments:
                     if os.path.isfile(os.path.join(script_path, 'DB', x+'.udb')):
@@ -973,9 +985,9 @@ Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI
                     if not x in URL:
                         if x == '--force':
                             continue
-                        print "%s not valid, choices are ITS, 16S, LSU, COI" % x
+                        print("%s not valid, choices are ITS, 16S, LSU, COI" % x)
                         sys.exit(1)
-                    print "Downloading %s pre-formatted database" % x
+                    print("Downloading %s pre-formatted database" % x)
                     address = URL.get(x)
                     download(address, x+'.amptk.tar.gz')
                     tfile = tarfile.open(x+'.amptk.tar.gz', 'r:gz')
@@ -984,9 +996,9 @@ Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI
                         shutil.move(os.path.join(x,file), os.path.join(script_path, 'DB', file))
                     shutil.rmtree(x)
                     os.remove(x+'.amptk.tar.gz')
-                    print "%s taxonomy database installed" % x
+                    print("%s taxonomy database installed" % x)
             else:
-                print help
+                print(help)
                 sys.exit(1)
     elif sys.argv[1] == 'SRA-submit':
         help = """
@@ -1027,7 +1039,7 @@ Arguments:   -i, --input         Input FASTQ file or folder (Required)
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)
     elif sys.argv[1] == 'stats':
         help = """
@@ -1054,25 +1066,25 @@ Arguments:   -i, --biom          Input BIOM file with taxonomy and metadata (Req
             arguments.insert(0, exe)
             subprocess.call(arguments)
         else:
-            print help
+            print(help)
             sys.exit(1)            
     elif sys.argv[1] == 'primers':
-        print "----------------------------------"
-        print "Primers hard-coded into AMPtk:"
-        print "----------------------------------"
+        print("----------------------------------")
+        print("Primers hard-coded into AMPtk:")
+        print("----------------------------------")
         for k,v in natsorted(amptklib.primer_db.items()):
-           print k.ljust(13) + v
-        print "----------------------------------"
+           print(k.ljust(13) + v)
+        print("----------------------------------")
         sys.exit(1)
     elif sys.argv[1] == 'version' or sys.argv[1] == '--version' or sys.argv[1] == '-version' or sys.argv[1] == '-v':
-        print "AMPtk v%s" % version
+        print("AMPtk v%s" % version)
     elif sys.argv[1] == 'citation' or sys.argv[1] == '-citation' or sys.argv[1] == '--citation':
-        print "\nPalmer JM, Jusino MA, Banik MT, Lindner DL. 2017. Non-biological synthetic spike-in controls and the\n\tAMPtk software pipeline improve mycobiome data. bioRxiv 213470; doi: 10.1101/213470\n"
+        print("\nPalmer JM, Jusino MA, Banik MT, Lindner DL. 2017. Non-biological synthetic spike-in controls and the\n\tAMPtk software pipeline improve mycobiome data. bioRxiv 213470; doi: 10.1101/213470\n")
     else:
-        print "%s option not recognized" % sys.argv[1]
-        print default_help
+        print("%s option not recognized" % sys.argv[1])
+        print(default_help)
         sys.exit(1)
     
 else:
-    print default_help
+    print(default_help)
         

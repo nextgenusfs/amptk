@@ -20,6 +20,12 @@
 #                                                                             #
 ###############################################################################
 
+from __future__ import print_function
+from __future__ import division
+from builtins import str
+from builtins import range
+from builtins import object
+from past.utils import old_div
 __author__ = "Michael Imelfort"
 __copyright__ = "Copyright 2014"
 __credits__ = ["Michael Imelfort"]
@@ -36,7 +42,7 @@ from matplotlib import pyplot as plt
 
 ###############################################################################
 
-class StackedBarGrapher:
+class StackedBarGrapher(object):
     """Container class"""
     def __init__(self): pass
 
@@ -171,7 +177,7 @@ class StackedBarGrapher:
         else:
             x = [0]
             for i in range(1, len(widths)):
-                x.append(x[i-1] + (widths[i-1] + widths[i])/2)
+                x.append(x[i-1] + old_div((widths[i-1] + widths[i]),2))
 
         # stack the data --
         # replace the value in each level by the cumulative sum of all preceding levels
@@ -182,7 +188,7 @@ class StackedBarGrapher:
             data_copy /= data_stack[levels-1]
             data_stack /= data_stack[levels-1]
             if heights is not None:
-                print "WARNING: setting scale and heights does not make sense."
+                print("WARNING: setting scale and heights does not make sense.")
                 heights = None
         elif heights is not None:
             data_copy /= data_stack[levels-1]
@@ -206,7 +212,7 @@ class StackedBarGrapher:
                 yTicks = float(yTicks)
                 if scale:
                     # make the ticks line up to 100 %
-                    y_ticks_at = np.arange(yTicks)/(yTicks-1)
+                    y_ticks_at = old_div(np.arange(yTicks),(yTicks-1))
                     y_tick_labels = np.array(["%0.2f"%(i * 100) for i in y_ticks_at])
                 else:
                     # space the ticks along the y axis
@@ -267,9 +273,9 @@ class StackedBarGrapher:
 
         # limits
         if endGaps:
-            ax.set_xlim(-1.*widths[0]/2. - gap/2., np.sum(widths)-widths[0]/2. + gap/2.)
+            ax.set_xlim(-1.*widths[0]/2. - old_div(gap,2.), np.sum(widths)-old_div(widths[0],2.) + old_div(gap,2.))
         else:
-            ax.set_xlim(-1.*widths[0]/2. + gap/2., np.sum(widths)-widths[0]/2. - gap/2.)
+            ax.set_xlim(-1.*widths[0]/2. + old_div(gap,2.), np.sum(widths)-old_div(widths[0],2.) - old_div(gap,2.))
         ax.set_ylim(0, yTicks[0][-1])#np.max(data_stack))
 
         # labels

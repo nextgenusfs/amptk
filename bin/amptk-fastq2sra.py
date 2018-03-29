@@ -1,18 +1,25 @@
 #!/usr/bin/env python
 
-import sys, os, re, gzip, argparse, inspect, csv, shutil, edlib, multiprocessing
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+import sys
+import os
+import argparse
+import inspect
+import csv
+import shutil
+import edlib
+import multiprocessing
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
-import lib.revcomp_lib as revcomp_lib
-import lib.primer as primer
-from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
-class col:
+class col(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -49,7 +56,7 @@ amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 amptklib.SystemInfo()
 
 amptkversion = amptklib.get_version()
@@ -164,7 +171,7 @@ if args.platform == 'illumina':
 
 else:
     #start here to process the reads, first reverse complement the reverse primer
-    ReverseCompRev = revcomp_lib.RevComp(RevPrimer)
+    ReverseCompRev = amptklib.RevComp(RevPrimer)
 
     #if --names given, load into dictonary
     if args.names:

@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 
-#This script filters results from amptk-OTU_cluster.py
-#written by Jon Palmer palmer.jona at gmail dot com
-
-import sys, os, argparse, inspect, subprocess, csv, sys, math
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+import sys
+import os
+import argparse
+import inspect
+import subprocess
+import sys
+import math
 from Bio import SeqIO
 from natsort import natsorted
 import pandas as pd
@@ -13,7 +18,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
 import lib.amptklib as amptklib
 
-class colr:
+class colr(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -67,7 +72,7 @@ amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 
 #initialize script, log system info and usearch version
 amptklib.SystemInfo()
@@ -87,10 +92,10 @@ with open(args.otu_table, 'rU') as f:
     OTUhead = first_line.split('\t')[0]
 
 if args.delimiter == 'csv':
-    delim = ','
+    delim = str(',')
     ending = '.csv'
 elif args.delimiter == 'tsv':
-    delim = '\t'
+    delim = str('\t')
     ending = '.txt'
 
 #setup outputs
@@ -219,7 +224,7 @@ if args.mock_barcode: #if user passes a column name for mock
     chimeras = []
     variants = []
     missing = []
-    for k,v in natsorted(Results.items()):
+    for k,v in natsorted(list(Results.items())):
         besthit = []
         #v is a list of tuples of results, parse through to get best hit
         for y in v:
@@ -241,7 +246,7 @@ if args.mock_barcode: #if user passes a column name for mock
     #make name change dict
     annotate_dict = {}
     seen = []
-    for k,v in natsorted(found_dict.items()):
+    for k,v in natsorted(list(found_dict.items())):
         ID = v[0].replace('_chimera', '')
         newID = k+'_pident='+str(v[2])+'_'+v[0]
         annotate_dict[ID] = newID
@@ -323,7 +328,7 @@ if args.mock_barcode:
     mock = []
     sample = []
     #get names from mapping
-    for k,v in annotate_dict.items():
+    for k,v in list(annotate_dict.items()):
         if not '_suspect_mock_' in v:
             mock.append(v)
     for i in norm_round.index:
@@ -475,7 +480,7 @@ stats.columns = ['reads per sample', 'original OTUs', 'final OTUs']
 stats.fillna(0, inplace=True)
 stats = stats.astype(int)
 if args.show_stats:
-    print stats.to_string()
+    print(stats.to_string())
 stats.to_csv(stats_table, sep=delim)
 #after all filtering, get list of OTUs in mock barcode
 if args.mock_barcode:
@@ -543,7 +548,7 @@ final3 = final3.astype(int)
 
 #get the actual read counts from binary table
 merge = {}
-for index, row in final3.iteritems():
+for index, row in final3.items():
 	merge[index] = []
 	for i in range(0, len(row)):
 		if row[i] == 0:
@@ -658,26 +663,26 @@ else: #proceed with rest of script
 
                 
     #tell user what output files are
-    print "-------------------------------------------------------"
-    print "OTU Table filtering finished"
-    print "-------------------------------------------------------"
-    print "OTU Table Stats:      %s" % stats_table
-    print "Sorted OTU table:     %s" % sorted_table
+    print("-------------------------------------------------------")
+    print("OTU Table filtering finished")
+    print("-------------------------------------------------------")
+    print("OTU Table Stats:      %s" % stats_table)
+    print("Sorted OTU table:     %s" % sorted_table)
     if not args.debug:
         for i in [normal_table_pct, normal_table_nums, subtract_table, mock_out, FastaCounts]:
             amptklib.removefile(i)
     else:   
-        print "Normalized (pct):     %s" % normal_table_pct
-        print "Normalized (10k):     %s" % normal_table_nums
+        print("Normalized (pct):     %s" % normal_table_pct)
+        print("Normalized (10k):     %s" % normal_table_nums)
         if args.subtract != 0:
-            print "Subtracted table:     %s" % subtract_table
-    print "Normalized/filter:    %s" % filtered_table
-    print "Final Binary table:   %s" % final_binary_table
-    print "Final OTU table:      %s" % final_table
-    print "Filtered OTUs:        %s" % otu_new
-    print "-------------------------------------------------------"
+            print("Subtracted table:     %s" % subtract_table)
+    print("Normalized/filter:    %s" % filtered_table)
+    print("Final Binary table:   %s" % final_binary_table)
+    print("Final OTU table:      %s" % final_table)
+    print("Filtered OTUs:        %s" % otu_new)
+    print("-------------------------------------------------------")
 
     if 'win32' in sys.platform:
-        print "\nExample of next cmd: amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table)
+        print("\nExample of next cmd: amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table))
     else:
-        print colr.WARN + "\nExample of next cmd:" + colr.END + " amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table)
+        print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table))

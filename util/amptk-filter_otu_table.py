@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+from __future__ import division
+from builtins import str
+from past.utils import old_div
 import csv
 import argparse
 import re
@@ -49,7 +53,7 @@ def only_convert_binary(x):
 
 def convert_percent(x,y):
     try:
-        percent = float(x) / float(y)
+        percent = old_div(float(x), float(y))
         percent = percent * 100
         return percent
     except ValueError:
@@ -121,4 +125,4 @@ for line in sortTable:
     finalTable.append(lineList)
 
 for line in finalTable:
-    print ",".join(str(x) for x in line)
+    print(",".join(str(x) for x in line))

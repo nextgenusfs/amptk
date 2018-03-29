@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 
-import sys, os, argparse
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+import sys
+import os
+import argparse
 import pandas as pd
 from natsort import natsorted
 
-class colr:
+class colr(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -54,16 +58,16 @@ for i in range(0, len(df)):
         otuDict[tax].append(otu)
 
 singletons = []
-for k,v in notax.items():
+for k,v in list(notax.items()):
     singletons.append(v[0])
 
 #re-index to OTUId to make retrieving easier
 df.set_index('OTUId', inplace=True)
-print "Parsing %i OTUs" % len(df)
+print("Parsing %i OTUs" % len(df))
 new = pd.DataFrame(df, index=singletons)
 uniqcount = len(new)
-print "Found %i OTUs with unique taxonomy to %s" % (len(new), taxlevelname)
-for k,v in otuDict.items():
+print("Found %i OTUs with unique taxonomy to %s" % (len(new), taxlevelname))
+for k,v in list(otuDict.items()):
     if len(v) == 1:
         df2 = pd.DataFrame(df, index=v)
         new = pd.concat([new,df2])
@@ -79,18 +83,18 @@ for k,v in otuDict.items():
 new2 = new.reindex(index=natsorted(new.index))
 new3 = new2.reindex(columns=natsorted(new2.columns))
 
-print "Collapsing %i OTUs into %i with identical taxonomy to %s levels" % (len(df)-uniqcount, len(new3) - uniqcount, taxlevelname)
+print("Collapsing %i OTUs into %i with identical taxonomy to %s levels" % (len(df)-uniqcount, len(new3) - uniqcount, taxlevelname))
 
 #create output files
 otu_out = args.out+'.csv'
 new3.to_csv(otu_out, sep=',')
 with open(args.out+'.collapsed_tax.txt', 'w') as output:
     output.write('%s\t%s\n' % ('Taxonomy', 'OTU(s)'))
-    for k,v in notax.items():
+    for k,v in list(notax.items()):
         if 'tax=' in k:
             k = k.replace('tax=', '')
         output.write('%s\t%s\n' % (k, ', '.join(v)))
-    for k,v in otuDict.items():
+    for k,v in list(otuDict.items()):
         if 'tax=' in k:
             k = k.replace('tax=', '')
         output.write('%s\t%s\n' % (k, ', '.join(v)))

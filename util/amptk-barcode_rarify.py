@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 
-import sys, os, itertools, random, argparse, inspect, multiprocessing
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+import sys
+import os
+import itertools
+import random
+import argparse
+import inspect
+import multiprocessing
 from natsort import natsorted
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -38,7 +46,7 @@ def countBarcodes(file):
 
     #now let's count the barcodes found and count the number of times they are found.
     barcode_counts = "%20s:  %s" % ('Sample', 'Count')
-    for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
+    for k,v in natsorted(list(BarcodeCount.items()), key=lambda k_v: k_v[1], reverse=True):
         barcode_counts += "\n%20s:  %s" % (k, str(BarcodeCount[k]))
     print("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
@@ -66,17 +74,17 @@ else:
 
 IndexSeqs(SeqIn)
 countBarcodes(SeqIn)
-print "----------------------------------"
-print "Now sub-sampling reads down to a max of %s per sample" % args.num_reads
+print("----------------------------------")
+print("Now sub-sampling reads down to a max of %s per sample" % args.num_reads)
 Reads = []
-for key, value in BarcodeCount.items():
+for key, value in list(BarcodeCount.items()):
     sample = []
     for rec in SeqIndex:
         ID = rec.split("=")[-1].split(";")[0]
         if key == ID:
             sample.append(rec)
     Reads.append(sample)
-print "Finished indexing reads, split up by barcodelabel"
+print("Finished indexing reads, split up by barcodelabel")
 Subsample = []
 for line in Reads:
     if len(line) > int(args.num_reads):
@@ -88,17 +96,17 @@ Subsample = [item for sublist in Subsample for item in sublist]
 #convert list to set for faster lookup
 Lookup = set(Subsample)
 
-print "Finished randomly sampling reads, now writing %i sequences to %s" % (len(Lookup), outfile)
+print("Finished randomly sampling reads, now writing %i sequences to %s" % (len(Lookup), outfile))
 filterSeqs(SeqIn, Lookup, outfile)
-print "----------------------------------"
+print("----------------------------------")
 countBarcodes(outfile)
 #compress and clean
 if args.out.endswith('.gz'): #compress in place
     amptklib.Fzip_inplace(outfile)
 if args.input.endswith('.gz'):
     amptklib.removefile(SeqIn)
-print "----------------------------------"
-print "Sub-sampling done: %s" % args.out
+print("----------------------------------")
+print("Sub-sampling done: %s" % args.out)
 
 
 

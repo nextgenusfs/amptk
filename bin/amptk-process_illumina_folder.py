@@ -1,20 +1,34 @@
 #!/usr/bin/env python
 
-import os, sys, argparse, shutil, subprocess, glob, math, logging, gzip, inspect, multiprocessing, itertools, re
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+import os
+import sys
+import argparse
+import shutil
+import subprocess
+import glob
+import math
+import logging
+import gzip
+import inspect
+import multiprocessing
+import itertools
+import re
 from natsort import natsorted
+import edlib
+from Bio import SeqIO
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
-import lib.revcomp_lib as revcomp_lib
-import edlib
-from Bio import SeqIO
-from Bio.SeqIO.QualityIO import FastqGeneralIterator
+
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
-class col:
+class col(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -133,7 +147,7 @@ amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 
 #initialize script, log system info and usearch version
 amptklib.SystemInfo()
@@ -212,7 +226,7 @@ if args.sra:
     ReadLen = args.min_len
 else:
     if len(filenames) % 2 != 0:
-        print "Check your input files, they do not seem to be properly paired"
+        print("Check your input files, they do not seem to be properly paired")
         sys.exit(1)
 
     #check list for files, i.e. they need to have _R1 and _R2 in the filenames, otherwise throw exception
@@ -318,17 +332,17 @@ else:
 amptklib.log.info("splitting the job over %i cpus, but this may still take awhile" % (cpus))
 
 #make sure primer is reverse complemented
-RevPrimer = revcomp_lib.RevComp(RevPrimer)
+RevPrimer = amptklib.RevComp(RevPrimer)
 amptklib.log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
 
 #finally process reads over number of cpus
 amptklib.runMultiProgress(processRead, file_list, cpus)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 #Now concatenate all of the demuxed files together
 amptklib.log.info("Concatenating Demuxed Files")
 
 catDemux = args.out + '.demux.fq'
-with open(catDemux, 'wb') as outfile:
+with open(catDemux, 'w') as outfile:
     for filename in glob.glob(os.path.join(args.out,'*.demux.fq')):
         if filename == catDemux:
             continue
@@ -367,14 +381,14 @@ with open(catDemux, 'rU') as input:
 
 #now let's count the barcodes found and count the number of times they are found.
 barcode_counts = "%30s:  %s" % ('Sample', 'Count')
-for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
+for k,v in natsorted(list(BarcodeCount.items()), key=lambda k_v: k_v[1], reverse=True):
     barcode_counts += "\n%30s:  %s" % (k, str(BarcodeCount[k]))
 amptklib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
 if not args.mapping_file:
     #create a generic mappingfile for downstream processes
     genericmapfile = args.out + '.mapping_file.txt'
-    amptklib.CreateGenericMappingFileIllumina(sampleDict, FwdPrimer, revcomp_lib.RevComp(RevPrimer), genericmapfile, BarcodeCount)
+    amptklib.CreateGenericMappingFileIllumina(sampleDict, FwdPrimer, amptklib.RevComp(RevPrimer), genericmapfile, BarcodeCount)
 
 #compress the output to save space
 FinalDemux = catDemux+'.gz'
@@ -389,8 +403,8 @@ amptklib.log.info("Output file:  %s (%s)" % (FinalDemux, readablesize))
 amptklib.log.info("Mapping file: %s" % genericmapfile)
 if args.cleanup:
     shutil.rmtree(args.out)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux)
+    print("\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux))
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux)
+    print(col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux))

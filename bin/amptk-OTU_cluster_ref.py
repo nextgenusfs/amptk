@@ -3,13 +3,24 @@
 #This script runs reference based OTU clustering
 #written by Jon Palmer nextgenusfs@gmail.com
 
-import sys, os, argparse, subprocess, inspect, csv, re, logging, shutil, multiprocessing
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+import sys
+import os
+import argparse
+import subprocess
+import inspect
+import csv
+import re
+import logging
+import shutil
+import multiprocessing
+import pandas as pd
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
-import pandas as pd
 
 #get script path for directory
 script_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -19,7 +30,7 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
 
-class colr:
+class colr(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -68,7 +79,7 @@ amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 
 #initialize script, log system info and usearch version
 amptklib.SystemInfo()
@@ -202,14 +213,14 @@ with open(align_out, 'rU') as alignment:
             if not col[8] in ref_results:
                 ref_results[col[8]] = (col[9], col[3], counts)
             else:
-                print "Error: %s duplicated ID" % col[8]
+                print("Error: %s duplicated ID" % col[8])
         else:
             nohits.append(col[8])
 
 #summarize results from first ref clustering
 num_refcluster = len(ref_results)
 seqs_refcluster = 0
-for k,v in ref_results.items():
+for k,v in list(ref_results.items()):
     seqs_refcluster += v[2]
 amptklib.log.info("%i OTUs classified " % num_refcluster + "({0:.0f}%".format(seqs_refcluster/float(qtrimtotal)* 100)+ " of reads)")
 
@@ -265,7 +276,7 @@ if not args.closed_ref_only:
     with open(ref_clustered, 'a') as output:
         seqDict = SeqIO.index(otu_out, 'fasta')
         utaxresults = []
-        with open(os.path.join(tmp, args.out+'.utax.out'), 'ru') as utax:
+        with open(os.path.join(tmp, args.out+'.utax.out'), 'rU') as utax:
             for line in utax:
                 line = line.replace('\n', '')
                 col = line.split('\t')
@@ -315,18 +326,18 @@ if not args.debug:
     shutil.rmtree(tmp)
 
 #Print location of files to STDOUT
-print "-------------------------------------------------------"
-print "OTU Clustering Script has Finished Successfully"
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
+print("OTU Clustering Script has Finished Successfully")
+print("-------------------------------------------------------")
 if not not args.debug:
-    print "Tmp Folder of files: %s" % tmp
-print "Clustered OTUs: %s" % final_otu
-print "OTU Table: %s" % final_otu_table
-print "-------------------------------------------------------"
+    print("Tmp Folder of files: %s" % tmp)
+print("Clustered OTUs: %s" % os.path.basename(final_otu))
+print("OTU Table: %s" % os.path.basename(final_otu_table))
+print("-------------------------------------------------------")
 
 otu_print = final_otu.split('/')[-1]
 tab_print = final_otu_table.split('/')[-1]
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
+    print("\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
+    print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))

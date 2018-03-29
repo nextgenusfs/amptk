@@ -2,6 +2,10 @@
 
 #script to pivot OTU table and append to metadata
 
+from __future__ import print_function
+from builtins import zip
+from builtins import str
+from builtins import range
 import sys, os, itertools, csv, argparse
 from natsort import natsorted
 
@@ -97,7 +101,7 @@ def transposeTable(metadata, otu_Dict, outfile, filter):
                 output.write("%s\n" % join_line)
 
 if not args.out.endswith('.csv'):
-    print "Error: output file must end with .csv"
+    print("Error: output file must end with .csv")
     os._exit(1)
 
 #first import OTU table, pivot and convert to dictionary
@@ -106,7 +110,7 @@ with open(args.input,'rU') as infile:
         d = ','
     else:
         d = '\t'
-    reader = itertools.izip(*csv.reader(infile, delimiter=d))
+    reader = zip(*csv.reader(infile, delimiter=d))
     otuDict = {rows[0]:rows[1:] for rows in reader}
 
 taxonomy = []
@@ -123,14 +127,14 @@ if args.split_taxonomy:
             if not taxlv in taxonomy:
                 taxonomy.append(taxlv)
     except KeyError:
-        print "Error: OTU table does not contain taxonomy information"
+        print("Error: OTU table does not contain taxonomy information")
         os._exit(1)
     #now have list of search terms to use in the taxonomy list to filter the table
     #print taxonomy
 
 #run entire dataset first, then if taxonomy given, loop through each filtering via index lookup
 num_otus = countOTUs(args.input)
-print "Working on complete OTU table: found %i OTUs" % num_otus
+print("Working on complete OTU table: found %i OTUs" % num_otus)
 transposeTable(args.meta, otuDict, args.out, False)
 if taxonomy:
     for y in taxonomy:
@@ -138,14 +142,14 @@ if taxonomy:
         if '/' in y:
             y = y.replace('/', '_')
         tmpout = args.out.split('.csv')[0]+'.'+y+'.csv'
-        print "Working on table for %s: found %i OTUs" % (y, len(index_match))
+        print("Working on table for %s: found %i OTUs" % (y, len(index_match)))
         transposeTable(args.meta, otuDict, tmpout, index_match)
         
 if len(errors) > 0:
-    print "ERROR %s: not found in OTU table. Names must max exactly." % ', '.join(errors)
+    print("ERROR %s: not found in OTU table. Names must max exactly." % ', '.join(errors))
 
 os._exit(1)
-print len(otuDict['Taxonomy'])
+print(len(otuDict['Taxonomy']))
 for i in range(0,len(otuDict['Taxonomy'])):
     if 'Basidiomycota' in otuDict['Taxonomy'][i]:
-        print i, otuDict['OTUId'][i], otuDict['Taxonomy'][i]
+        print(i, otuDict['OTUId'][i], otuDict['Taxonomy'][i])

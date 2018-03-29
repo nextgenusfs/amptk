@@ -1,20 +1,30 @@
 #!/usr/bin/env python
 
-import sys, os, argparse, logging, shutil, subprocess, inspect
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
+import sys
+import os
+import argparse
+import logging
+import shutil
+import subprocess
+import inspect
+import numpy as np
+from natsort import natsorted
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
-import numpy as np
-from natsort import natsorted
+
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
 
-class colr:
+class colr(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -55,11 +65,11 @@ def splitDemux2(input, outputdir):
         sample = title.split('barcodelabel=')[1].split(';')[0]
         sample = sample.replace(';', '')
         if not args.length:
-            with open(os.path.join(outputdir, sample+'.fastq'), 'ab') as output:
+            with open(os.path.join(outputdir, sample+'.fastq'), 'a') as output:
                 output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
         else:
             if len(seq) >= int(args.length):
-                with open(os.path.join(outputdir, sample+'.fastq'), 'ab') as output:
+                with open(os.path.join(outputdir, sample+'.fastq'), 'a') as output:
                     output.write("@%s\n%s\n+\n%s\n" % (title, seq[:int(args.length):], qual[:int(args.length)]))
 
 def getAvgLength(input):
@@ -82,12 +92,15 @@ amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 #initialize script, log system info and usearch version
 amptklib.SystemInfo()
 #Do a version check
 usearch = args.usearch
 amptklib.versionDependencyChecks(usearch)
+
+#get number of cores
+CORES = str(amptklib.getCPUS())
 
 #check dependencies
 programs = ['Rscript']
@@ -105,7 +118,12 @@ amptklib.log.info("R v%s; DADA2 v%s" % (Rversions[0], Rversions[1]))
 #Count FASTQ records and remove 3' N's as dada2 can't handle them
 amptklib.log.info("Loading FASTQ Records")
 no_ns = args.out+'.cleaned_input.fq'
-amptklib.fastq_strip_padding(args.fastq, no_ns)
+if args.fastq.endswith('.gz'):
+	fastqInput = args.fastq.replace('.gz', '')
+	amptklib.Funzip(os.path.abspath(args.fastq), os.path.basename(fastqInput), CORES)
+else:
+	fastqInput = os.path.abspath(args.fastq)
+amptklib.fastq_strip_padding(os.path.basename(fastqInput), no_ns)
 demuxtmp = args.out+'.original.fa'
 cmd = ['vsearch', '--fastq_filter', os.path.abspath(no_ns),'--fastq_qmax', '55', '--fastaout', demuxtmp]
 amptklib.runSubprocess(cmd, amptklib.log)
@@ -150,7 +168,6 @@ if args.pool:
     POOL = 'TRUE'
 else:
     POOL = 'FALSE'
-CORES = str(amptklib.getCPUS())
 with open(dada2log, 'w') as logfile:
     subprocess.call(['Rscript', '--vanilla', dada2script, filtfolder, dada2out, args.platform, POOL, CORES], stdout = logfile, stderr = logfile)
 
@@ -170,7 +187,7 @@ with open(fastaout, 'w') as writefasta:
             line = line.replace('"', '')
             cols = line.split(',')
             Seq = cols[0]
-            ID = 'iSeq'+str(counter)
+            ID = 'ASV'+str(counter)
             writefasta.write(">%s\n%s\n" % (ID, Seq))
             counter += 1
 
@@ -182,14 +199,14 @@ with open(dada2log, 'rU') as bimeracheck:
             bimeras = int(bimeraline[1])
             totalSeqs = int(bimeraline[5])
 validSeqs = totalSeqs - bimeras
-amptklib.log.info('{0:,}'.format(totalSeqs) + ' total inferred sequences (iSeqs)')
+amptklib.log.info('{0:,}'.format(totalSeqs) + ' total amplicon sequence variants (ASVs)')
 amptklib.log.info('{0:,}'.format(bimeras) + ' denovo chimeras removed')
-amptklib.log.info('{0:,}'.format(validSeqs) + ' valid iSeqs')
+amptklib.log.info('{0:,}'.format(validSeqs) + ' valid ASVs')
 
 #optional UCHIME Ref
 uchime_out = args.out+'.nonchimeras.fa'
 chimeraFreeTable = args.out+'.otu_table.txt'
-iSeqs = args.out+'.iSeqs.fa'
+iSeqs = args.out+'.ASVs.fa'
 if not args.uchime_ref:
     os.rename(fastaout, iSeqs)
 else:
@@ -215,7 +232,7 @@ else:
         amptklib.runSubprocess(cmd, amptklib.log)
         total = amptklib.countfasta(uchime_out)
         uchime_chimeras = validSeqs - total
-        amptklib.log.info('{0:,}'.format(total) + ' iSeqs passed, ' + '{0:,}'.format(uchime_chimeras) + ' ref chimeras removed')
+        amptklib.log.info('{0:,}'.format(total) + ' ASVs passed, ' + '{0:,}'.format(uchime_chimeras) + ' ref chimeras removed')
 
     #now reformat OTUs and OTU table, dropping chimeric OTUs from table, sorting the output as well
     nonchimeras = amptklib.fasta2list(uchime_out)
@@ -235,17 +252,17 @@ dadademux = args.out+'.dada2.map.uc'
 bioSeqs = args.out+'.cluster.otus.fa'
 bioTable = args.out+'.cluster.otu_table.txt'
 uctmp = args.out+'.map.uc'
-ClusterComp = args.out+'.iSeqs2clusters.txt'
+ClusterComp = args.out+'.ASVs2clusters.txt'
 
 #map reads to DADA2 OTUs
-amptklib.log.info("Mapping reads to DADA2 iSeqs")
+amptklib.log.info("Mapping reads to DADA2 ASVs")
 cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', iSeqs, '--id', '0.97', '--uc', dadademux, '--strand', 'plus', '--otutabout', chimeraFreeTable ]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.line_count2(dadademux)
-amptklib.log.info('{0:,}'.format(total) + ' reads mapped to iSeqs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
+amptklib.log.info('{0:,}'.format(total) + ' reads mapped to ASVs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
 
 #cluster
-amptklib.log.info("Clustering iSeqs at %s%% to generate biological OTUs" % args.pct_otu)
+amptklib.log.info("Clustering ASVs at %s%% to generate biological OTUs" % args.pct_otu)
 radius = float(args.pct_otu) / 100.
 cmd = ['vsearch', '--cluster_smallmem', iSeqs, '--centroids', bioSeqs, '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU', '--qmask', 'none', '--usersort']
 amptklib.runSubprocess(cmd, amptklib.log)
@@ -253,7 +270,7 @@ total = amptklib.countfasta(bioSeqs)
 amptklib.log.info('{0:,}'.format(total) + ' OTUs generated')
 
 #determine where iSeqs clustered
-iSeqmap = args.out+'.iseq_map.uc'
+iSeqmap = args.out+'.ASV_map.uc'
 cmd = ['vsearch', '--usearch_global', iSeqs, '--db', bioSeqs, '--id', str(radius), '--uc', iSeqmap, '--strand', 'plus']
 amptklib.runSubprocess(cmd, amptklib.log)
 iSeqMapped = {}
@@ -268,8 +285,8 @@ with open(iSeqmap, 'rU') as mapping:
         else:
             iSeqMapped[OTU].append(Hit)
 with open(ClusterComp, 'w') as clusters:
-    clusters.write('OTU\tiSeqs\n')
-    for k,v in natsorted(iSeqMapped.items()):
+    clusters.write('OTU\tASVs\n')
+    for k,v in natsorted(list(iSeqMapped.items())):
         clusters.write('%s\t%s\n' % (k, ', '.join(v)))
 #create OTU table
 amptklib.log.info("Mapping reads to OTUs")
@@ -289,23 +306,23 @@ if not args.debug:
     amptklib.removefile(dadademux)
 
 #Print location of files to STDOUT
-print "-------------------------------------------------------"
-print "DADA2 Script has Finished Successfully"
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
+print("DADA2 Script has Finished Successfully")
+print("-------------------------------------------------------")
 if args.debug:
-    print "Tmp Folder of files: %s" % filtfolder
-print "Inferred iSeqs: %s" % os.path.abspath(iSeqs)
-print "iSeq OTU Table: %s" % os.path.abspath(chimeraFreeTable)
-print "Clustered OTUs: %s" % os.path.abspath(bioSeqs)
-print "OTU Table: %s" % os.path.abspath(bioTable)
-print "iSeqs 2 OTUs: %s" % os.path.abspath(ClusterComp)
-print "-------------------------------------------------------"
+    print("Tmp Folder of files: %s" % filtfolder)
+print("Amplicon sequence variants: %s" % iSeqs)
+print("ASV OTU Table: %s" % chimeraFreeTable)
+print("Clustered OTUs: %s" % bioSeqs)
+print("OTU Table: %s" % bioTable)
+print("ASVs 2 OTUs: %s" % ClusterComp)
+print("-------------------------------------------------------")
 
 otu_print = bioSeqs.split('/')[-1]
 tab_print = bioTable.split('/')[-1]
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
+    print("\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
+    print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
 
         

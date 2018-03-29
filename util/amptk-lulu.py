@@ -1,17 +1,26 @@
 #!/usr/bin/env python
-from __future__ import division
-import sys, os, argparse, logging, shutil, subprocess, inspect
+
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+import sys
+import os
+import argparse
+import logging
+import shutil
+import subprocess
+import inspect
+from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
-from Bio import SeqIO
+
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
 
-class colr:
+class colr(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -54,7 +63,7 @@ amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 #initialize script, log system info and usearch version
 amptklib.SystemInfo()
 amptklib.versionDependencyChecks('usearch9')
@@ -107,10 +116,10 @@ OTU FASTA:  {:}\n\
 LULU map:   {:}\n\
 ----------------------------------".format(lulu_otu_table,lulu_otus, MapData))
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (lulu_otus, lulu_otu_table)
+    print("\nExample of next cmd: amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (lulu_otus, lulu_otu_table))
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (lulu_otus, lulu_otu_table)
+    print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (lulu_otus, lulu_otu_table))
 if not args.debug:
     if os.path.isdir(tmpdir):
         shutil.rmtree(tmpdir)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")

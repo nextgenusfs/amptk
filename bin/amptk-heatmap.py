@@ -1,9 +1,14 @@
 #!/usr/bin/env python
-from __future__ import division
+
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-import csv, argparse, re, os, sys
+import csv
+import argparse
+import os
+import sys
 from natsort import natsorted
 try:
     import seaborn as sns
@@ -80,7 +85,7 @@ with open(args.table, 'rU') as f:
 df = pd.read_csv(args.table, sep=delim, index_col=0)
 if 'Taxonomy' in df.columns.values:
     del df['Taxonomy']
-print df
+print(df)
 sys.exit(1)
 
 f2 = csv.reader(open(args.table), delimiter=delim)
@@ -93,7 +98,7 @@ if tax:
 else:
     for line in f2:
         taxTable.append(line)
-print taxTable
+print(taxTable)
 otuDict = {rows[0]:rows[-1] for rows in taxTable}
 
 #first convert the numbers to integers instead of strings
@@ -163,9 +168,9 @@ for line in sortTable:
     finalTable.append(lineList)
 
 if count >= 100:
-    print "Your table has %i rows (OTUs)" % count
-    print "It is likely not going to be displayed very well"
-    filter_num = raw_input('How many rows should I print: ')
+    print("Your table has %i rows (OTUs)" % count)
+    print("It is likely not going to be displayed very well")
+    filter_num = input('How many rows should I print: ')
     filter_num = int(filter_num) + 1
     finalTable = finalTable[:filter_num]
 
@@ -184,7 +189,7 @@ for item in Index[0]:
     
 #construct panda dataframe with appropriate headers and index
 df = pd.DataFrame(finalTable, index=Index, columns=Cols)
-print df
+print(df)
 #get sizes
 width = len(df.columns)/4
 height = len(df.index)/4

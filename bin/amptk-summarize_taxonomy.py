@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-from __future__ import division
+
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
 import matplotlib
 matplotlib.use('agg')
 import warnings
@@ -10,7 +12,11 @@ with warnings.catch_warnings():
     import seaborn as sns
 import pandas as pd
 import numpy as np
-import csv, argparse, re, os, sys, inspect
+import csv
+import argparse
+import os
+import sys
+import inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
@@ -210,7 +216,7 @@ for i in range(1,headerCount):
     tab = []
     OTUs = 0
     for line in sub_table:
-        if line[i] > 0:
+        if i > 0:
             OTUs += 1
             tab.append(line[-1])
     

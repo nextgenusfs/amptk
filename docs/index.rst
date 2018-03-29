@@ -67,7 +67,7 @@ You could also install all dependencies with Miniconda (conda). Download Minicon
     conda config --add channels bioconda
     
     #now install dependencies
-    conda install vsearch biopython natsort pandas numpy matplotlib python-edlib \
+    conda install vsearch biopython natsort pandas numpy matplotlib python-edlib urllib2 \
         seaborn biom-format psutil r-base bioconductor-dada2 bioconductor-phyloseq
     
     #now get latest version of amptk

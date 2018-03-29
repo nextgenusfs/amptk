@@ -1,20 +1,32 @@
 #!/usr/bin/env python
 
-import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools, re
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+import sys
+import os
+import inspect
+import argparse
+import shutil
+import logging
+import subprocess
+import multiprocessing
+import glob
+import itertools
+import re
+import edlib
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
-import lib.revcomp_lib as revcomp_lib
 import lib.amptklib as amptklib
-import edlib
+
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
-class col:
+class col(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -128,7 +140,7 @@ amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 
 #initialize script, log system info and usearch version
 amptklib.SystemInfo()
@@ -204,7 +216,7 @@ if args.barcode_rev_comp:
     amptklib.log.info("Reverse complementing barcode sequences")
     backupDict = mapdict
     mapdict = {}
-    for k,v in backupDict.items():
+    for k,v in list(backupDict.items()):
         RCkey = amptklib.RevComp(k)
         if not RCkey in mapdict:
             mapdict[RCkey] = v
@@ -257,7 +269,7 @@ amptklib.split_fastq(os.path.join(tmpdir, mergedReads), mergedTotal, tmpdir, cpu
 
 
 #start here to process the reads, first reverse complement the reverse primer
-RevPrimer = revcomp_lib.RevComp(RevPrimer)
+RevPrimer = amptklib.RevComp(RevPrimer)
 amptklib.log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
 
 #now get file list from tmp folder
@@ -270,7 +282,7 @@ for file in os.listdir(tmpdir):
 #finally process reads over number of cpus
 amptklib.runMultiProgress(processRead, file_list, cpus)
 
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 #Now concatenate all of the demuxed files together
 amptklib.log.info("Concatenating Demuxed Files")
 
@@ -322,13 +334,13 @@ with open(Demux, 'rU') as input:
 
 #now let's count the barcodes found and count the number of times they are found.
 barcode_counts = "%30s:  %s" % ('Sample', 'Count')
-for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
+for k,v in natsorted(list(BarcodeCount.items()), key=lambda k_v: k_v[1], reverse=True):
     barcode_counts += "\n%30s:  %s" % (k, str(BarcodeCount[k]))
 amptklib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
 #create mapping file if one doesn't exist
 genericmapfile = args.out + '.mapping_file.txt'
-amptklib.CreateGenericMappingFile(barcode_file, FwdPrimer, revcomp_lib.RevComp(RevPrimer), '', genericmapfile, BarcodeCount)
+amptklib.CreateGenericMappingFile(barcode_file, FwdPrimer, amptklib.RevComp(RevPrimer), '', genericmapfile, BarcodeCount)
 
 #compress the output to save space
 FinalDemux = Demux+'.gz'
@@ -343,8 +355,8 @@ filesize = os.path.getsize(FinalDemux)
 readablesize = amptklib.convertSize(filesize)
 amptklib.log.info("Output file:  %s (%s)" % (FinalDemux, readablesize))
 amptklib.log.info("Mapping file: %s" % genericmapfile)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux)
+    print("\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux))
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux)
+    print(col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux))

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from builtins import str
 import sys
 
 #script to reindex reads containing a ';' such as ';barcodelabel=;'

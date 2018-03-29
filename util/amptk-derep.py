@@ -2,6 +2,8 @@
 
 #script to reformat green-genes fasta file for UTAX compatibility
 
+from __future__ import print_function
+from builtins import str
 import sys
 from Bio import SeqIO
 
