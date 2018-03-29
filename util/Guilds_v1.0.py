@@ -79,9 +79,9 @@ import urllib.request, urllib.parse, urllib.error
 from operator import itemgetter
 import csv
 try:
-    from urllib.request import urlretrieve
+    from urllib.request import urlopen
 except ImportError:
-    from urllib.request import urlretrieve
+    from urllib2 import urlopen
 
 start = timeit.default_timer()
 ################################
@@ -131,13 +131,8 @@ print("Downloading %s database ..." % database_name)
 
 function_file = 'temp_db.txt' #temp file to store database file
 temp = 'temp.txt'
-urlretrieve(url, temp)
-
-f = open(temp,'rU')
-data = f.read()
-f.close()
-
-os.remove(temp)
+urlFile = urlopen(url)
+data = urlFile.read().decode('utf-8')
 
 new_data = data.split("} , {")
 

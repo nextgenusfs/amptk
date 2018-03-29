@@ -159,7 +159,7 @@ if not args.taxonomy:
     
         #load results and reformat
         new = []
-        f = csv.reader(open(blast_out), delimiter='\t')
+        f = csv.reader(open(blast_out), delimiter=str('\t'))
         for col in f:
             query = col[0]
             gbID = col[1].split("|")[3]
@@ -188,7 +188,7 @@ if not args.taxonomy:
         new = []
         removal = ["unidentified", "Incertae", "uncultured", "incertae"]
         remove_exp = [re.compile(x) for x in removal]
-        f = csv.reader(open(rdp_out), delimiter='\t')
+        f = csv.reader(open(rdp_out), delimiter=str('\t'))
         for col in f:
             if float(col[19]) > args.rdp_cutoff:
                 tax = "RDP;k:"+col[2]+",p:"+col[5]+",c:"+col[8]+",o:"+col[11]+",f:"+col[14]+",g:"+col[17]
@@ -267,7 +267,7 @@ if not args.taxonomy:
             #load results into dictionary for appending to OTU table
             amptklib.log.debug("Loading UTAX results into dictionary")
             with open(utax_out, 'rU') as infile:
-                reader = csv.reader(infile, delimiter="\t")
+                reader = csv.reader(infile, delimiter=str("\t"))
                 otuDict = {rows[0]:'UTAX;'+rows[2] for rows in reader}
     
         elif args.method == 'usearch' and os.path.isfile(usearch_out): 
@@ -291,13 +291,13 @@ if not args.taxonomy:
             #load results into dictionary for appending to OTU table
             amptklib.log.debug("Loading SINTAX results into dictionary")
             with open(sintax_out, 'rU') as infile:
-                reader = csv.reader(infile, delimiter="\t")
+                reader = csv.reader(infile, delimiter=("\t"))
                 otuDict = {rows[0]:'SINTAX;'+rows[3] for rows in reader} 
 else:
     #you have supplied a two column taxonomy file, parse and build otuDict
     amptklib.log.debug("Loading custom Taxonomy into dictionary")
     with open(args.taxonomy, 'rU') as infile:
-        reader = csv.reader(infile, delimiter="\t")
+        reader = csv.reader(infile, delimiter=str("\t"))
         otuDict = {rows[0]:rows[1] for rows in reader} 
                 
 #now format results
