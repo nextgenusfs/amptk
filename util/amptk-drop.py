@@ -1,7 +1,13 @@
 #!/usr/bin/env python
 
 #This script renames fasta
-import sys, argparse, os, inspect
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
+import sys
+import argparse
+import os
+import inspect
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -12,7 +18,7 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)      
 
-class colr:
+class colr(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -35,7 +41,7 @@ if os.path.isfile(log_name):
 amptklib.setupLogging(log_name)
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 
 #initialize script, log system info and usearch version
 amptklib.SystemInfo()
@@ -96,10 +102,10 @@ orig_total = amptklib.countfasta(tmpReads)
 amptklib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
 
 #Print location of files to STDOUT
-print "-------------------------------------------------------"
-print "Clustered OTUs: %s" % newOTUs
-print "OTU Table: %s" % newTable
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
+print("Clustered OTUs: %s" % newOTUs)
+print("OTU Table: %s" % newTable)
+print("-------------------------------------------------------")
 
 #cleanup
 amptklib.removefile(tmpReads)
@@ -108,8 +114,8 @@ amptklib.removefile(uc_out)
 otu_print = newOTUs.split('/')[-1]
 tab_print = newTable.split('/')[-1]
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
+    print("\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
+    print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
 
 

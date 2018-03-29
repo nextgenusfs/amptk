@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+from __future__ import division
+from builtins import str
+from past.utils import old_div
 import sys, argparse, os, inspect, shutil, glob, multiprocessing
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from Bio.SeqIO.FastaIO import FastaIterator
@@ -83,7 +87,7 @@ def splitter(inputfile, tempdir):
     #split the input FASTQ file into chunks to process
     with open(inputfile, 'rU') as input:
         SeqRecords = SeqIO.parse(input, 'fastq')
-        chunks = total / (4*cpus)+1
+        chunks = old_div(total, (4*cpus))+1
         #divide into chunks, store in tmp file
         for i, batch in enumerate(amptklib.batch_iterator(SeqRecords, chunks)) :
             filename = "chunk_%i.fq" % (i+1)

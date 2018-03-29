@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 #script to draw a heatmap from counts data, i.e. PFAM, InterPro, or even OTU table
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
 import matplotlib
 matplotlib.use('agg')
 import sys, warnings, argparse
@@ -51,8 +54,8 @@ else:
 
 def drawHeatmap(df, output):
     #get size of table
-    width = len(df.columns) / 2
-    height = len(df.index) / 4
+    width = len(df.columns) // 2
+    height = len(df.index) // 4
     fig, ax = plt.subplots(figsize=(width,height))
     cbar_ax = fig.add_axes(shrink=0.4)
     if args.annotate:
@@ -93,7 +96,7 @@ else:
 #lets open up file and convert to dataframe
 data = pd.read_csv(args.input, index_col=0, sep=delim)
 if args.debug:
-    print data
+    print(data)
 #if taxonomy in the last row, dropit
 headers = list(data.columns.values)
 if headers[-1] == 'Taxonomy':
@@ -115,8 +118,8 @@ if args.normalize:
     norm_round = np.round(normal.multiply(args.normalize_counts), decimals=0)
     norm_round = norm_round.astype(int)
     if args.debug:
-        print tc
-        print norm_round
+        print(tc)
+        print(norm_round)
 else:
     norm_round = data
 

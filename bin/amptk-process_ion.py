@@ -1,21 +1,32 @@
 #!/usr/bin/env python
 
-import sys, os, inspect, argparse, shutil, logging, subprocess, multiprocessing, glob, itertools, re, gzip
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
+import sys
+import os
+import inspect
+import argparse
+import shutil
+import logging
+import subprocess
+import multiprocessing
+import glob
+import itertools
+import re
+import edlib
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
-import lib.fasta as fasta
-import lib.revcomp_lib as revcomp_lib
 import lib.amptklib as amptklib
-import edlib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
-class col:
+class col(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -146,7 +157,7 @@ FNULL = open(os.devnull, 'w')
 amptklib.setupLogging(log_name)
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 
 #initialize script, log system info and usearch version
 amptklib.SystemInfo()
@@ -233,7 +244,6 @@ else:
     else:
         Adapter = ''
 
-
 #check if input is compressed
 gzip_list = []
 if args.fastq.endswith('.gz'):
@@ -307,11 +317,11 @@ if args.illumina:
         SeqIn = args.fastq 
 
 #start here to process the reads, first reverse complement the reverse primer
-RevPrimer = revcomp_lib.RevComp(RevPrimer)
+RevPrimer = amptklib.RevComp(RevPrimer)
 amptklib.log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
 
 #then setup barcode dictionary
-Barcodes = fasta.ReadSeqsDict(barcode_file)
+Barcodes = amptklib.fasta2barcodes(barcode_file)
 
 #setup for looking for reverse barcode
 if args.reverse_barcode:
@@ -345,26 +355,32 @@ amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 tmpdir = args.out.split('.')[0]+'_'+str(os.getpid())
 if not os.path.exists(tmpdir):
     os.makedirs(tmpdir)
+    
+if cpus > 1:
 
-#split fastq file
-amptklib.split_fastq(SeqIn, orig_total, tmpdir, cpus*2)    
+    #split fastq file
+    amptklib.split_fastq(SeqIn, orig_total, tmpdir, cpus*2)    
 
-#now get file list from tmp folder
-file_list = []
-for file in os.listdir(tmpdir):
-    if file.endswith(".fq"):
-        file = os.path.join(tmpdir, file)
-        file_list.append(file)
+    #now get file list from tmp folder
+    file_list = []
+    for file in os.listdir(tmpdir):
+        if file.endswith(".fq"):
+            file = os.path.join(tmpdir, file)
+            file_list.append(file)
 
-#finally process reads over number of cpus
-amptklib.runMultiProgress(processRead, file_list, cpus)
+    #finally process reads over number of cpus
+    amptklib.runMultiProgress(processRead, file_list, cpus)
+else:
+    shutil.copyfile(SeqIn, os.path.join(tmpdir, 'chunk.fq'))
+    processRead(os.path.join(tmpdir, 'chunk.fq'))
+    
 
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 #Now concatenate all of the demuxed files together
 amptklib.log.info("Concatenating Demuxed Files")
 
 tmpDemux = args.out + '.tmp.demux.fq'
-with open(tmpDemux, 'wb') as outfile:
+with open(tmpDemux, 'w') as outfile:
     for filename in glob.glob(os.path.join(tmpdir,'*.demux.fq')):
         if filename == tmpDemux:
             continue
@@ -376,7 +392,7 @@ for file in os.listdir(tmpdir):
     if file.endswith('.stats'):
         with open(os.path.join(tmpdir, file), 'rU') as statsfile:
             line = statsfile.readline()
-            line = line.replace('\n', '')
+            line = line.rstrip()
             newstats = line.split(',')
             newstats = [int(i) for i in newstats]
             for x, num in enumerate(newstats):
@@ -411,14 +427,14 @@ with open(catDemux, 'rU') as input:
 
 #now let's count the barcodes found and count the number of times they are found.
 barcode_counts = "%22s:  %s" % ('Sample', 'Count')
-for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
+for k,v in natsorted(list(BarcodeCount.items()), key=lambda k_v: k_v[1], reverse=True):
     barcode_counts += "\n%22s:  %s" % (k, str(BarcodeCount[k]))
 amptklib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
 if not args.mapping_file:
     #create a generic mappingfile for downstream processes
     genericmapfile = args.out + '.mapping_file.txt'
-    amptklib.CreateGenericMappingFile(barcode_file, FwdPrimer, revcomp_lib.RevComp(RevPrimer), Adapter, genericmapfile, BarcodeCount)
+    amptklib.CreateGenericMappingFile(barcode_file, FwdPrimer, amptklib.RevComp(RevPrimer), Adapter, genericmapfile, BarcodeCount)
 
 #compress the output to save space
 FinalDemux = catDemux+'.gz'
@@ -435,8 +451,8 @@ readablesize = amptklib.convertSize(filesize)
 amptklib.log.info("Output file:  %s (%s)" % (FinalDemux, readablesize))
 amptklib.log.info("Mapping file: %s" % genericmapfile)
 
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux)
+    print("\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux))
 else:
-    print col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux)
+    print(col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux))

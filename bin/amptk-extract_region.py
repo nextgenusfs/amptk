@@ -1,20 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys, os, re, argparse, logging, subprocess, inspect, codecs, unicodedata, shutil, multiprocessing
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
+import sys
+import os
+import re
+import argparse
+import logging
+import subprocess
+import inspect
+import codecs
+import unicodedata
+import shutil
+import multiprocessing
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
-import lib.primer as primer
-import lib.revcomp_lib as revcomp_lib
 import lib.amptklib as amptklib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
 
-class col:
+class col(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -112,7 +123,7 @@ def dereplicate(input, output):
                                 amptklib.log.debug("setting taxonomy to %s" % (consensusTax))
                                 seqs[sequence] = consensusTax
         #now write to file     
-        for key,value in seqs.iteritems():
+        for key,value in seqs.items():
             out.write('>'+value+'\n'+key+'\n')
         
 def stripPrimer(input):
@@ -125,7 +136,7 @@ def stripPrimer(input):
                 for rec in SeqIO.parse(infile, 'fasta'):
                     orig_id = rec.description
                     if args.utax == 'unite2utax':
-                        latin = unicode(rec.description, 'utf-8')
+                        latin = str(rec.description, 'utf-8')
                         test = latin.encode('ascii', 'latin2ascii')
                         fields = test.split("|")
                         for i in fields:
@@ -184,7 +195,7 @@ def stripPrimer(input):
                         rec.name = ""
                         rec.description = ""
                     elif args.utax == 'rdp2utax':
-                        latin = unicode(rec.description, 'utf-8')
+                        latin = str(rec.description, 'utf-8')
                         test = latin.encode('ascii', 'latin2ascii')
                         temp = test.split("\t")
                         taxLevels = temp[-1]
@@ -297,7 +308,7 @@ def stripPrimer(input):
                             StripSeq = Seq[:RevCutPos]
                         elif not ForCutPos and not RevCutPos:
                             #neither is found, try reverse complementing
-                            RevSeq = revcomp_lib.RevComp(Seq)
+                            RevSeq = amptklib.RevComp(Seq)
                             ForCutPos1 = amptklib.findFwdPrimer(FwdPrimer, RevSeq, args.primer_mismatch, amptklib.degenNucSimple)
                             RevCutPos1 = amptklib.findRevPrimer(RevPrimer, RevSeq, args.primer_mismatch, amptklib.degenNucSimple)
                             #now check if either were found
@@ -380,7 +391,7 @@ amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 amptklib.SystemInfo()
 
 #Do a version check
@@ -398,7 +409,7 @@ else:
     RevPrimer = args.R_primer
 
 #reverse complement the reverse primer and get forward length for trim function
-RevPrimer = revcomp_lib.RevComp(RevPrimer)
+RevPrimer = amptklib.RevComp(RevPrimer)
 fwdLen = len(FwdPrimer)
 
 if not args.trimming:
@@ -508,4 +519,4 @@ if args.subsample:
 if args.create_db:
     makeDB(OutName)
 
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")

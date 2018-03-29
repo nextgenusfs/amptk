@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+from builtins import str
 import sys, re, argparse, os, subprocess, shutil
 from natsort import natsorted
 from Bio import pairwise2
@@ -130,17 +132,17 @@ with open(args.input, 'rU') as input:
             else:
                 output.write('>%s_NA;tax=%s\n%s\n' % (BIN, tax_fmt, Seq))
         
-print "%i total records processed" % Total
-print "%i non COI records dropped" % nonCOI
-print "%i records without a BIN dropped" % noBIN
-print "%i records written to BINs" % count
-print "Now looping through BINs and clustering with VSEARCH @ 99%"
+print("%i total records processed" % Total)
+print("%i non COI records dropped" % nonCOI)
+print("%i records without a BIN dropped" % noBIN)
+print("%i records written to BINs" % count)
+print("Now looping through BINs and clustering with VSEARCH @ 99%")
 FNULL = open(os.devnull, 'w')
 for file in os.listdir(tmp):
     base = file.replace('.fa', '')
     cluster_out = os.path.join(tmp, base+'.centroids.fa')
     subprocess.call(['vsearch', '--cluster_fast', os.path.join(tmp, file), '--id', '0.99', '--consout', cluster_out, '--notrunclabels'], stdout = FNULL, stderr = FNULL)
-print "Combining consensus for each BIN"
+print("Combining consensus for each BIN")
 #now grab all the centroids and combine
 with open(args.out+'.tmp', 'w') as tmpout:
     for file in os.listdir(tmp):
@@ -148,7 +150,7 @@ with open(args.out+'.tmp', 'w') as tmpout:
             with open(os.path.join(tmp, file)) as input:
                 tmpout.write(input.read()) 
 
-print "Updating taxonomy"
+print("Updating taxonomy")
 #finally loop through centroids and get taxonomy from dictionary 
 finalcount = 0
 with open(args.out, 'w') as outputfile:
@@ -160,6 +162,6 @@ with open(args.out, 'w') as outputfile:
         tax = BINtax.get(ID)
         outputfile.write('>%s;tax=%s\n%s\n' % (ID, tax, record.seq)) 
 
-print "Wrote %i consensus seqs for each BIN to %s" % (finalcount, args.out)
+print("Wrote %i consensus seqs for each BIN to %s" % (finalcount, args.out))
 shutil.rmtree(tmp)
 os.remove(args.out+'.tmp')

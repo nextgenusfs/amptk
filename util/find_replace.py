@@ -2,6 +2,8 @@
 
 #script to do quick find and replace using dictionary
 
+from __future__ import print_function
+from builtins import str
 import argparse
 import re
 
@@ -36,10 +38,10 @@ with open(args.dict, "rb") as in_file:
             dictionary[line[0]]=line[1]
         else:
             continue
-pattern = re.compile(r'\b(' + '|'.join(dictionary.keys()) + r')\b')
+pattern = re.compile(r'\b(' + '|'.join(list(dictionary.keys())) + r')\b')
 if args.verbose:
-    print "Dictionary"
-    print dictionary
+    print("Dictionary")
+    print(dictionary)
 
 #load input file and write new one
 output_file = open(args.out, "w")

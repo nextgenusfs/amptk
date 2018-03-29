@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+from builtins import str
+from builtins import object
 import sys, os, argparse, shutil, logging, inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -14,7 +17,7 @@ import lib.die as die
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
-class col:
+class col(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -76,7 +79,7 @@ if os.path.isfile(log_name):
 setupLogging(log_name)
 cmd_args = " ".join(sys.argv)+'\n'
 log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 
 
 MAX_PRIMER_MISMATCHES = 2
@@ -137,10 +140,10 @@ def OnRec(Label, Seq, Qual):
             Tail = Seq[BestPosRev:]
             Diffs2 = primer.MatchPrefix(Tail, RevPrimer)
             if Diffs2 != BestDiffsRev:
-                print >> sys.stderr
-                print >> sys.stderr, " Seq=" + Seq
-                print >> sys.stderr, "Tail=" + Tail
-                print >> sys.stderr, "RevP=" + RevPrimer
+                print(file=sys.stderr)
+                print(" Seq=" + Seq, file=sys.stderr)
+                print("Tail=" + Tail, file=sys.stderr)
+                print("RevP=" + RevPrimer, file=sys.stderr)
                 die.Die("BestPosRev %u Diffs2 %u BestDiffsRev %u" % (BestPosRev, Diffs2, BestDiffsRev))
             assert StrippedSeq + Tail == Seq
 
@@ -194,8 +197,8 @@ out_file.close()
 filesize = os.path.getsize(demuxname)
 readablesize = convertSize(filesize)
 log.info("File size:  %s" % readablesize)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 if filesize >= 4294967296:
-    print "\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs"
+    print("\nWarning, file is larger than 4 GB, you will need USEARCH 64 bit to cluster OTUs")
 else:
-    print "\nExample of next cmd: ufits-OTU_cluster.py -f %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (demuxname)
+    print("\nExample of next cmd: ufits-OTU_cluster.py -f %s -o out --uchime_ref ITS2 --mock <mock BC name> (test data: BC_5)\n" % (demuxname))

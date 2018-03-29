@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+from builtins import object
 import sys, os, argparse, inspect, logging, shutil
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -14,7 +16,7 @@ import edlib
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
-class col:
+class col(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -55,7 +57,7 @@ if args.platform == 'ion':
 
 def FindBarcode(Seq):
     global Barcodes
-    for BarcodeLabel in Barcodes.keys():
+    for BarcodeLabel in list(Barcodes.keys()):
         Barcode = Barcodes[BarcodeLabel]
         if Seq.startswith(Barcode):
             return Barcode, BarcodeLabel
@@ -72,7 +74,7 @@ amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 
 #initialize script, log system info
 amptklib.log.info("Operating system: %s, %s" % (sys.platform, amptklib.get_version()))

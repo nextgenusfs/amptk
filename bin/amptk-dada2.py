@@ -1,20 +1,30 @@
 #!/usr/bin/env python
 
-import sys, os, argparse, logging, shutil, subprocess, inspect
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
+import sys
+import os
+import argparse
+import logging
+import shutil
+import subprocess
+import inspect
+import numpy as np
+from natsort import natsorted
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
-import numpy as np
-from natsort import natsorted
+
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
 
-class colr:
+class colr(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -55,11 +65,11 @@ def splitDemux2(input, outputdir):
         sample = title.split('barcodelabel=')[1].split(';')[0]
         sample = sample.replace(';', '')
         if not args.length:
-            with open(os.path.join(outputdir, sample+'.fastq'), 'ab') as output:
+            with open(os.path.join(outputdir, sample+'.fastq'), 'a') as output:
                 output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
         else:
             if len(seq) >= int(args.length):
-                with open(os.path.join(outputdir, sample+'.fastq'), 'ab') as output:
+                with open(os.path.join(outputdir, sample+'.fastq'), 'a') as output:
                     output.write("@%s\n%s\n+\n%s\n" % (title, seq[:int(args.length):], qual[:int(args.length)]))
 
 def getAvgLength(input):
@@ -82,12 +92,15 @@ amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 #initialize script, log system info and usearch version
 amptklib.SystemInfo()
 #Do a version check
 usearch = args.usearch
 amptklib.versionDependencyChecks(usearch)
+
+#get number of cores
+CORES = str(amptklib.getCPUS())
 
 #check dependencies
 programs = ['Rscript']
@@ -105,7 +118,12 @@ amptklib.log.info("R v%s; DADA2 v%s" % (Rversions[0], Rversions[1]))
 #Count FASTQ records and remove 3' N's as dada2 can't handle them
 amptklib.log.info("Loading FASTQ Records")
 no_ns = args.out+'.cleaned_input.fq'
-amptklib.fastq_strip_padding(args.fastq, no_ns)
+if args.fastq.endswith('.gz'):
+	fastqInput = args.fastq.replace('.gz', '')
+	amptklib.Funzip(args.fastq, fastqInput, CORES)
+else:
+	fastqInput = args.fastq
+amptklib.fastq_strip_padding(fastqInput, no_ns)
 demuxtmp = args.out+'.original.fa'
 cmd = ['vsearch', '--fastq_filter', os.path.abspath(no_ns),'--fastq_qmax', '55', '--fastaout', demuxtmp]
 amptklib.runSubprocess(cmd, amptklib.log)
@@ -150,7 +168,6 @@ if args.pool:
     POOL = 'TRUE'
 else:
     POOL = 'FALSE'
-CORES = str(amptklib.getCPUS())
 with open(dada2log, 'w') as logfile:
     subprocess.call(['Rscript', '--vanilla', dada2script, filtfolder, dada2out, args.platform, POOL, CORES], stdout = logfile, stderr = logfile)
 
@@ -269,7 +286,7 @@ with open(iSeqmap, 'rU') as mapping:
             iSeqMapped[OTU].append(Hit)
 with open(ClusterComp, 'w') as clusters:
     clusters.write('OTU\tiSeqs\n')
-    for k,v in natsorted(iSeqMapped.items()):
+    for k,v in natsorted(list(iSeqMapped.items())):
         clusters.write('%s\t%s\n' % (k, ', '.join(v)))
 #create OTU table
 amptklib.log.info("Mapping reads to OTUs")
@@ -289,23 +306,23 @@ if not args.debug:
     amptklib.removefile(dadademux)
 
 #Print location of files to STDOUT
-print "-------------------------------------------------------"
-print "DADA2 Script has Finished Successfully"
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
+print("DADA2 Script has Finished Successfully")
+print("-------------------------------------------------------")
 if args.debug:
-    print "Tmp Folder of files: %s" % filtfolder
-print "Inferred iSeqs: %s" % os.path.abspath(iSeqs)
-print "iSeq OTU Table: %s" % os.path.abspath(chimeraFreeTable)
-print "Clustered OTUs: %s" % os.path.abspath(bioSeqs)
-print "OTU Table: %s" % os.path.abspath(bioTable)
-print "iSeqs 2 OTUs: %s" % os.path.abspath(ClusterComp)
-print "-------------------------------------------------------"
+    print("Tmp Folder of files: %s" % filtfolder)
+print("Inferred iSeqs: %s" % os.path.abspath(iSeqs))
+print("iSeq OTU Table: %s" % os.path.abspath(chimeraFreeTable))
+print("Clustered OTUs: %s" % os.path.abspath(bioSeqs))
+print("OTU Table: %s" % os.path.abspath(bioTable))
+print("iSeqs 2 OTUs: %s" % os.path.abspath(ClusterComp))
+print("-------------------------------------------------------")
 
 otu_print = bioSeqs.split('/')[-1]
 tab_print = bioTable.split('/')[-1]
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
+    print("\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
+    print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
 
         

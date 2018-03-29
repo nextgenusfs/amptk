@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+from builtins import str
+from builtins import range
 import sys, re, argparse, os, subprocess, shutil, edlib, inspect
 from natsort import natsorted
 from Bio.SeqIO.FastaIO import FastaIterator
@@ -8,7 +11,7 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
-import lib.revcomp_lib as revcomp_lib
+
 
 #setup menu with argparse
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -66,7 +69,7 @@ def dereplicate(input, output):
         #now write to file
         seenID = []
         seenTax = []
-        for key,value in seqs.iteritems():
+        for key,value in seqs.items():
             ID = value.split(';tax=')[0]
             tax = value.split(';tax=')[-1]
             taxCount = tax.count(',')
@@ -84,11 +87,11 @@ FNULL = open(os.devnull, 'w')
 pid = os.getpid()
 #reverse complement rev primer
 ForPrimer = args.fwdprimer
-RevPrimer = revcomp_lib.RevComp(args.revprimer)
+RevPrimer = amptklib.RevComp(args.revprimer)
 
-print 'Loading '+'{0:,}'.format(amptklib.countfasta(args.input)) + ' sequence records'
-print 'Searching for forward primer: %s, and reverse primer: %s' % (ForPrimer, RevPrimer)
-print 'Requiring reverse primer match with at least %i mismatches' % args.primer_mismatch
+print('Loading '+'{0:,}'.format(amptklib.countfasta(args.input)) + ' sequence records')
+print('Searching for forward primer: %s, and reverse primer: %s' % (ForPrimer, RevPrimer))
+print('Requiring reverse primer match with at least %i mismatches' % args.primer_mismatch)
 #loop through seqs, remove primer if found, and truncate to length
 truncated = 'bold2amptk_'+str(pid)+'.truncate.tmp'
 with open(truncated, 'w') as output:
@@ -110,14 +113,14 @@ trunctotal = amptklib.countfasta(truncated)
 derep_out = 'bold2amptk_'+str(pid)+'.derep.tmp'
 usearch = args.out+'.all4usearch.fa'
 utax = args.out+'.genus4utax.fa'
-print '{0:,}'.format(trunctotal)+ ' seqs passed -> now dereplicating'
+print('{0:,}'.format(trunctotal)+ ' seqs passed -> now dereplicating')
 dereplicate(truncated, usearch)
 dereptotal = amptklib.countfasta(usearch)
 
 #randomly subsample this dataset to make sure can train with UTAX
 subprocess.call([args.usearch, '-fastx_subsample', usearch, '-sample_size', args.utax_size, '-fastaout', utax], stdout = FNULL, stderr = FNULL)                  
-print '{0:,}'.format(dereptotal) +" unique records written to %s" % (usearch)
-print '{0:,}'.format(int(args.utax_size)) +" records for UTAX training written to %s" % (utax)
+print('{0:,}'.format(dereptotal) +" unique records written to %s" % (usearch))
+print('{0:,}'.format(int(args.utax_size)) +" records for UTAX training written to %s" % (utax))
   
 #cleanup
 os.remove(truncated)

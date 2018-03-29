@@ -1,18 +1,30 @@
 #!/usr/bin/env python
 
-import sys, os, re, argparse, subprocess, csv, inspect, multiprocessing, shutil
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
+import sys
+import os
+import re
+import argparse
+import subprocess
+import csv
+import inspect
+import multiprocessing
+import shutil
 from Bio import SeqIO
+from natsort import natsorted
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
-from natsort import natsorted
+
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
 
-class col:
+class col(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -69,7 +81,7 @@ amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 
 #initialize script, log system info and usearch version
 amptklib.SystemInfo()
@@ -264,7 +276,7 @@ if not args.taxonomy:
             amptklib.log.debug("Loading Global Alignment results into dictionary")
             otuDict = {}
             usearchDict = amptklib.usearchglobal2dict(usearch_out)
-            for k,v in natsorted(usearchDict.items()):
+            for k,v in natsorted(list(usearchDict.items())):
                 pident = float(v[0]) * 100
                 pident = "{0:.1f}".format(pident)
                 ID = v[1]
@@ -364,14 +376,14 @@ if not args.taxonomy:
     with open(taxFinal, 'w') as finaltax:
         if args.method == 'hybrid':
             finaltax.write('#OTUID\ttaxonomy\tUSEARCH\tSINTAX\tUTAX\n')
-            for k,v in natsorted(otuDict.items()):
+            for k,v in natsorted(list(otuDict.items())):
                 usearchResult = usearchDict.get(k)[-1]
                 if not usearchResult == 'No hit':
                     usearchResult = ','.join(usearchResult)
                 finaltax.write('%s\t%s\t%s\t%s\t%s\n' % (k,v, usearchResult, ','.join(sintaxDict.get(k)[-1]), ','.join(utaxDict.get(k)[-1])))
         else:
             finaltax.write('#OTUID\ttaxonomy\n')
-            for k,v in natsorted(otuDict.items()):
+            for k,v in natsorted(list(otuDict.items())):
                 finaltax.write('%s\t%s\n' % (k,v))
 else:
     taxFinal = args.taxonomy    
@@ -435,4 +447,4 @@ amptklib.log.info("OTU phylogeny: %s" % tree_out)
 if not args.debug:
     for i in [utax_out, usearch_out, sintax_out, qiimeTax, base+'.otu_table.tmp']:
         amptklib.removefile(i)   
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")

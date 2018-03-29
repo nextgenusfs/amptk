@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+from __future__ import division
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import sys, random, math, re
 from natsort import natsorted
 from Bio.SeqUtils import GC
@@ -18,7 +23,7 @@ def randomSeq(length, GC):
     global RandomSeq
     pctGC = length * GC / 2
     pctGC = math.trunc(pctGC)
-    pctAT = length/2 - pctGC
+    pctAT = old_div(length,2) - pctGC
     Seq = "A"*pctAT + "T"*pctAT + "G"*pctGC + "C"*pctGC
     SeqList = list(Seq)
     random.shuffle(SeqList)
@@ -28,7 +33,7 @@ def randomSeq(length, GC):
 def pashuffle(string, perc=10):
     data = list(string)
     for index, letter in enumerate(data):
-        if random.randrange(0, 100) < perc/2:
+        if random.randrange(0, 100) < old_div(perc,2):
             new_index = random.randrange(0, len(data))
             data[index], data[new_index] = data[new_index], data[index]
     return "".join(data)
@@ -129,5 +134,5 @@ Paralog[name2] = sequence2
 #merge dictionaries
 final = merge_dicts(Seqs,GCSeqs,Paralog)
 
-for key,value in natsorted(final.iteritems()):
-    print ">%s\n%s" % (key, value)
+for key,value in natsorted(iter(final.items())):
+    print(">%s\n%s" % (key, value))

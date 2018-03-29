@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+from builtins import str
 import re
 import argparse
 from Bio import SeqIO
@@ -75,7 +77,7 @@ for record in SeqIO.parse(open(args.fasta, "rU"), "fasta"):
 homo_count = record_count - none_count
 homo_pct = float(homo_count) / float(record_count) * 100
 pct = "%"
-print "Input Sequences: %i" % record_count
-print "Seqs with homopolymers > %s: %i (%.02f%%)" % (args.homo, homo_count, homo_pct)
-print "Results located here: %s" % out_name
+print("Input Sequences: %i" % record_count)
+print("Seqs with homopolymers > %s: %i (%.02f%%)" % (args.homo, homo_count, homo_pct))
+print("Results located here: %s" % out_name)
 out_file.close()

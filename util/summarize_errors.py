@@ -3,6 +3,9 @@
 #script to sum columns and output error rates from usearch9 mapping to reference and custom
 #user field of -userfield ql+ids+mism+diffs
 
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
 import sys
 
 total = 0
@@ -25,11 +28,11 @@ with open(sys.argv[1], 'rU') as input:
 subs_errors = mismatches / float(total) * 100
 indel_errors = indels / float(total) * 100
 
-print "------------------------------"
-print "Summarizing %s" % sys.argv[1]
-print "------------------------------"
-print "Aligned reads: "+ "{0:,}".format(count) + " ("+ "{0:,}".format(total)+" bp)"
-print "Substitution errors: "+ "{0:.4f}%".format(subs_errors)
-print "InDel errors: "+ "{0:.4f}%".format(indel_errors)
+print("------------------------------")
+print("Summarizing %s" % sys.argv[1])
+print("------------------------------")
+print("Aligned reads: "+ "{0:,}".format(count) + " ("+ "{0:,}".format(total)+" bp)")
+print("Substitution errors: "+ "{0:.4f}%".format(subs_errors))
+print("InDel errors: "+ "{0:.4f}%".format(indel_errors))
      
         

@@ -1,6 +1,15 @@
 #!/usr/bin/env python
 
-import sys, os, argparse, logging, shutil, subprocess, inspect
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
+import sys
+import os
+import argparse
+import logging
+import shutil
+import subprocess
+import inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
@@ -11,7 +20,7 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
 
-class colr:
+class colr(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -48,7 +57,7 @@ amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 #initialize script, log system info and usearch version
 amptklib.SystemInfo()
 
@@ -88,4 +97,4 @@ else:
 #parse the adonis output
 amptklib.log.info("Parsing p-values from hyopthesis tests generated in R")
 subprocess.call([parse_adonis, args.out])
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")

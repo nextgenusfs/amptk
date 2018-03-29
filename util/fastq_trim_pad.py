@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import sys, os, inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -10,7 +11,7 @@ import lib.progress as progress
 import lib.die as die
 
 if len(sys.argv) < 2:
-    print "Usage: fastq_trim_pad.py input.fastq trimlen"
+    print("Usage: fastq_trim_pad.py input.fastq trimlen")
     sys.exit()
 
 
@@ -66,7 +67,7 @@ fastq.ReadRecs(FileName, OnRec)
 progress.FileDone("%u reads, %u outupt, %u too short" % \
       (SeqCount, OutCount, TooShortCount))
 
-print >> sys.stderr, "%10u seqs" % SeqCount
-print >> sys.stderr, "%10u padded (%.2f%%)" % (PadCount, PadCount*100.0/SeqCount)
-print >> sys.stderr, "%10u too short (%.2f%%)" % (TooShortCount, TooShortCount*100.0/SeqCount)
-print >> sys.stderr, "%10u output (%.1f%%)" % (OutCount, OutCount*100.0/SeqCount)
+print("%10u seqs" % SeqCount, file=sys.stderr)
+print("%10u padded (%.2f%%)" % (PadCount, PadCount*100.0/SeqCount), file=sys.stderr)
+print("%10u too short (%.2f%%)" % (TooShortCount, TooShortCount*100.0/SeqCount), file=sys.stderr)
+print("%10u output (%.1f%%)" % (OutCount, OutCount*100.0/SeqCount), file=sys.stderr)

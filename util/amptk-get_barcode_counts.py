@@ -1,6 +1,16 @@
 #!/usr/bin/env python
 
-import sys, os, itertools, multiprocessing, glob, shutil, argparse, inspect
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
+import sys
+import os
+import itertools
+import multiprocessing
+import glob
+import shutil
+import argparse
+import inspect
 from natsort import natsorted
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -31,7 +41,7 @@ def batch_iterator(iterator, batch_size):
         batch = []
         while len(batch) < batch_size :
             try :
-                entry = iterator.next()
+                entry = next(iterator)
             except StopIteration :
                 entry = None
             if entry is None :
@@ -77,7 +87,7 @@ def countBarcodes(file):
 
     #now let's count the barcodes found and count the number of times they are found.
     barcode_counts = "%10s:  %s" % ('Sample', 'Count')
-    for k,v in natsorted(BarcodeCount.items(), key=lambda (k,v): v, reverse=True):
+    for k,v in natsorted(list(BarcodeCount.items()), key=lambda k_v: k_v[1], reverse=True):
         barcode_counts += "\n%10s:  %s" % (k, str(BarcodeCount[k]))
     print("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
@@ -93,15 +103,15 @@ def getSeqLength(file):
                 seqlength[length] += 1
     lengthlist = []
     countlist = []
-    for k,v in natsorted(seqlength.items()):
+    for k,v in natsorted(list(seqlength.items())):
         lengthlist.append(k)
         countlist.append(v)
-    print "Read count: %i" % sum(countlist)
+    print("Read count: %i" % sum(countlist))
     if len(lengthlist) < 2:
-        print "Read Length: %i bp" % lengthlist[0]
+        print("Read Length: %i bp" % lengthlist[0])
     else:
-        print "Read length average: %i" % (sum(lengthlist) / len(lengthlist))
-        print "Read length range: %i - %i bp" % (lengthlist[0], lengthlist[-1])
+        print("Read length average: %i" % (sum(lengthlist) / len(lengthlist)))
+        print("Read length range: %i - %i bp" % (lengthlist[0], lengthlist[-1]))
         
     
 def filterSeqs(file, lst):
@@ -113,21 +123,21 @@ def filterSeqs(file, lst):
                 yield rec
 
 if args.quality_trim and not args.out:
-    print "Error, to run quality trimming you must provide -o, --output"
+    print("Error, to run quality trimming you must provide -o, --output")
     sys.exit(1)
 
 #main start here
 cpus = multiprocessing.cpu_count()
-print "----------------------------------"
+print("----------------------------------")
 tmpinput = 'amptk_show.tmp'
 if args.input.endswith('.gz'):
     amptklib.Funzip(args.input, tmpinput, cpus)
 else:
     tmpinput = args.input
 countBarcodes(tmpinput)
-print "----------------------------------"
+print("----------------------------------")
 getSeqLength(tmpinput)
-print "----------------------------------"
+print("----------------------------------")
 if args.quality_trim:
     #split the input FASTQ file into chunks to process
     #split fastq file
@@ -160,10 +170,10 @@ if args.quality_trim:
     if catDemux.endswith('.gz'):
         amptklib.Fzip_inplace(catDemux)
     shutil.rmtree(folder)
-    print "----------------------------------"
+    print("----------------------------------")
     countBarcodes(args.out)
-    print "----------------------------------"
-    print "Script finished, output in %s" % args.out
+    print("----------------------------------")
+    print("Script finished, output in %s" % args.out)
 
 if args.input.endswith('.gz'):
     amptklib.removefile(tmpinput)

@@ -3,7 +3,14 @@
 #This script runs USEARCH OTU clustering
 #written by Jon Palmer nextgenusfs@gmail.com
 
-import sys, os, argparse, inspect, shutil
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
+import sys
+import os
+import argparse
+import inspect
+import shutil
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
@@ -17,7 +24,7 @@ class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
 
-class colr:
+class colr(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
@@ -49,7 +56,7 @@ amptklib.setupLogging(log_name)
 FNULL = open(os.devnull, 'w')
 cmd_args = " ".join(sys.argv)+'\n'
 amptklib.log.debug(cmd_args)
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
 
 #initialize script, log system info and usearch version
 amptklib.SystemInfo()
@@ -176,18 +183,18 @@ if not args.debug:
     shutil.rmtree(tmp)
 
 #Print location of files to STDOUT
-print "-------------------------------------------------------"
-print "OTU Clustering Script has Finished Successfully"
-print "-------------------------------------------------------"
+print("-------------------------------------------------------")
+print("OTU Clustering Script has Finished Successfully")
+print("-------------------------------------------------------")
 if not not args.debug:
-    print "Tmp Folder of files: %s" % tmp
-print "Clustered OTUs: %s" % final_otu
-print "OTU Table: %s" % final_otu_table
-print "-------------------------------------------------------"
+    print("Tmp Folder of files: %s" % tmp)
+print("Clustered OTUs: %s" % final_otu)
+print("OTU Table: %s" % final_otu_table)
+print("-------------------------------------------------------")
 
 otu_print = final_otu.split('/')[-1]
 tab_print = final_otu_table.split('/')[-1]
 if 'win32' in sys.platform:
-    print "\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
+    print("\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
 else:
-    print colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)
+    print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))

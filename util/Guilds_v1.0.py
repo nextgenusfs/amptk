@@ -62,15 +62,26 @@ Zewei Song
 2/14/2015
 songzewei@outlook.com
 '''
+from __future__ import print_function
+from __future__ import division
 
 #Import modules#################
+from future import standard_library
+standard_library.install_aliases()
+from builtins import map
+from builtins import range
+from past.utils import old_div
 import argparse
 import os
 import timeit
 import sys
-import urllib
+import urllib.request, urllib.parse, urllib.error
 from operator import itemgetter
 import csv
+try:
+    from urllib.request import urlretrieve
+except ImportError:
+    from urllib.request import urlretrieve
 
 start = timeit.default_timer()
 ################################
@@ -108,7 +119,7 @@ total_file = base + '.guilds.txt'
 ###########################################################################################
 
 # Import Function Database from GitHub, and get it ready.##################################
-print "FunGuild v1.0 Beta"
+print("FunGuild v1.0 Beta")
 
 database_name = args.db
 if database_name == 'fungi':
@@ -116,11 +127,11 @@ if database_name == 'fungi':
 elif database_name == 'nematode':
     url = 'http://www.stbates.org/nemaguild_db.php'
 
-print "Downloading %s database ..." % database_name
+print("Downloading %s database ..." % database_name)
 
 function_file = 'temp_db.txt' #temp file to store database file
 temp = 'temp.txt'
-urllib.urlretrieve(url, temp)
+urlretrieve(url, temp)
 
 f = open(temp,'rU')
 data = f.read()
@@ -175,18 +186,18 @@ with open(function_file) as f1:
         i += 1
 total_length = float(i) #length of the database
 
-p = range(1,11)
-way_points = [int(total_length*(x/10.0)) for x in p]
+p = list(range(1,11))
+way_points = [int(total_length*(old_div(x,10.0))) for x in p]
 ############################################################################################		
 
 # Open the OTU table and read in the header ################################################
-print ""
-print "Reading in the OTU table: '%s'" %(args.input)
-print ""
+print("")
+print("Reading in the OTU table: '%s'" %(args.input))
+print("")
 
 #load the header
 with open(otu_file, 'rU') as otu:
-	header = otu.next().rstrip('\n').split(otu_delimiter) 
+	header = otu.readline().rstrip().split(otu_delimiter) 
 
 #Attach all columns of database file to the header of the new OTU table
 for item in header_database:
@@ -204,7 +215,7 @@ index_notes = header.index('Notes')
 
 #Abort if the column 'taxonomy' is not found
 if index_tax == -1:
-	print "Column 'taxonomy' not found. Please check you OTU table %s." %(otu_file)
+	print("Column 'taxonomy' not found. Please check you OTU table %s." %(otu_file))
 	sys.exit(0)
 ############################################################################################
 
@@ -231,7 +242,7 @@ percent = 0 # line number in the database
 otu_redundant = []
 otu_new = []
 
-print "Searching the FUNGuild database..."
+print("Searching the FUNGuild database...")
 
 f_database = open(function_file, 'rU')
 for record in f_database:
@@ -240,7 +251,7 @@ for record in f_database:
  
     if percent in way_points:
         progress = (int(round(percent/total_length*100.0)))
-        print '{}%'.format(progress) 
+        print('{}%'.format(progress)) 
     else: t = 0
     
     # Compare database with the OTU table
@@ -264,9 +275,9 @@ f_database.close()
 if os.path.isfile('temp_db.txt') == True: 
 	os.remove('temp_db.txt')        
 
-print ""
-print "Found %i matching taxonomy records in the database."%(count)
-print "Dereplicating and sorting the result..."
+print("")
+print("Found %i matching taxonomy records in the database."%(count))
+print("Dereplicating and sorting the result...")
 
 #Dereplicate and write to output file##########################################################
 #Sort by OTU names and Level. Level is sorted from species to kingdom.
@@ -366,19 +377,19 @@ output_total.close()
 ####################################################################################################################
 
 #Print report on the screen#########################################################################################
-print "FunGuild tried to assign function to %i OTUs in '%s'."  %(count_total, otu_file)
-print "FUNGuild made assignments on %i OTUs." %(count)
-print "Result saved to '%s'" %(total_file)
+print("FunGuild tried to assign function to %i OTUs in '%s'."  %(count_total, otu_file))
+print("FUNGuild made assignments on %i OTUs." %(count))
+print("Result saved to '%s'" %(total_file))
 
 if args.matched or args.unmatched:
-	print '\nAdditional output:'
+	print('\nAdditional output:')
 	if args.matched:
-		print "FUNGuild made assignments on %i OTUs, these have been saved to %s." %(count, matched_file)
+		print("FUNGuild made assignments on %i OTUs, these have been saved to %s." %(count, matched_file))
 	if args.unmatched:
-		print "%i OTUs were unassigned, these are saved to %s." %(count_unmatched, unmatched_file)
+		print("%i OTUs were unassigned, these are saved to %s." %(count_unmatched, unmatched_file))
 
 # Finish the program
 stop = timeit.default_timer()
 runtime = round((stop-start),2)
-print "\nTotal calculating time: {} seconds.".format(runtime)
+print("\nTotal calculating time: {} seconds.".format(runtime))
 ####################################################################################################################
