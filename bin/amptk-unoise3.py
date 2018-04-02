@@ -219,7 +219,7 @@ print("UNOISE2 Script has Finished Successfully")
 print("-------------------------------------------------------")
 if not not args.debug:
     print("Tmp Folder of files: %s" % tmp)
-print("amplicon sequnce variants: %s" % iSeqs))
+print("amplicon sequnce variants: %s" % iSeqs)
 print("ASV OTU Table: %s" % iSeq_otu_table)
 print("Clustered OTUs: %s" % os.path.basename(final_otu))
 print("OTU Table: %s" % os.path.basename(final_otu_table))

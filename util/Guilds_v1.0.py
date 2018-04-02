@@ -15,7 +15,7 @@ Copyright (C) 2014-2015 Zewei Song
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-	
+    
 This script assigns functional information to the OTUs in the user's OTU table. The OTU table needs to have a column named 'taxonomy', which contains information from a reference database (such as UNITE - https://unite.ut.ee/). It is required that the first line of the OTU table to be the header, without any additional comments. Some programs, such as QIIME will add an additional row of comments before the header, and this has to be removed before using the FunGuild script. The script will try to recognized the delimiter in the user's OTU table, but comma (.csv) or tab (.txt) delimiter formats are recommended.
 
 The functional databases are fetched from http://www.stbates.org/funguild_db.php or http://www.stbates.org/nemaguild_db.php
@@ -29,9 +29,9 @@ optional arguments:
                    preferred formats.
   -db              Database to use ('fungi' or 'nematode') [default:fungi]
   -m, --matched    Ask the script to output an otu table containing only OTUs
-  		   for which functional assignments have been made
+           for which functional assignments have been made
   -u, --unmatched  Ask the script to output an otu table containing only OTUs
-  		   for which functional assignments could not be made
+           for which functional assignments could not be made
   
 This is an example command to run this script:
 python Guilds_v1.0.py -otu user_otu_table.txt
@@ -75,14 +75,14 @@ import argparse
 import os
 import timeit
 import sys
-import urllib.request, urllib.parse, urllib.error
+#import urllib.request, urllib.parse, urllib.error
 from operator import itemgetter
 import csv
 try:
     from urllib.request import urlopen
 except ImportError:
     from urllib2 import urlopen
-
+    
 start = timeit.default_timer()
 ################################
 
@@ -90,7 +90,7 @@ start = timeit.default_timer()
 parser = argparse.ArgumentParser()
 
 parser.add_argument("-i", "--input", help="Path and file name of the OTU table. The script will try to detect the delimiter"
-					"in the file, but tab or csv are preferred formats.") 
+                    "in the file, but tab or csv are preferred formats.") 
 parser.add_argument("-m", "--matched", action="store_true", help="Ask the script to output a otu table with function assigned OTUs") 
 parser.add_argument("-u", "--unmatched", action="store_true", help="Ask the script to output a otu table with function assigned OTUs")
 parser.add_argument("-d","--db", choices=['fungi','nematode'], default='fungi', help="Assign a specified database to the script")
@@ -103,9 +103,9 @@ otu_file = args.input
 #Detect delimiter in the input file
 with open(otu_file, 'rU') as f1:
     dialect = csv.Sniffer().sniff(f1.read())
-    otu_delimiter = dialect.delimiter
-    if otu_delimiter == ';':
-        out_delimiter = '\t'
+    otu_delimiter = str(dialect.delimiter)
+    if otu_delimiter == str(';'):
+        out_delimiter = str('\t')
 
 #setup the output files and naming
 if args.out:
@@ -133,46 +133,39 @@ function_file = 'temp_db.txt' #temp file to store database file
 temp = 'temp.txt'
 urlFile = urlopen(url)
 data = urlFile.read().decode('utf-8')
-
 new_data = data.split("} , {")
 
 #Fix the first and last record
 new_data[0] = new_data[0][3:]
 new_data[-1]=new_data[-1][:-3]
 
-#Parse the record
-parse_data = []
-for line in new_data:
-    record = line
-    rec = record.split(" , ")
-    del rec[0]
+#Parse the record and write temp data file
+with open(function_file, 'w') as f:
+    f.write("Taxon\tTaxon Level\tTrophic Mode\tGuild\tConfidence Ranking\tGrowth Morphology\tTrait\tNotes\tCitation/Source\n")
+    parse_data = []
+    for line in new_data:
+        record = line
+        rec = record.split(" , ")
+        del rec[0]
 
-    current_rec = []
-    for item in rec:
-        p = item.find(":")
-        current_rec.append(item[p+2:].replace('"',''))
-    parse_data.append(current_rec)
-
-header = "Taxon\tTaxon Level\tTrophic Mode\tGuild\tConfidence Ranking\tGrowth Morphology\tTrait\tNotes\tCitation/Source"
-
-f = open(function_file,'a')
-f.write("%s\n" %(header))
-for item in parse_data:
-    f.write("%s\n" %("\t".join(item)))
-f.close()
-
+        current_rec = []
+        for item in rec:
+            p = item.find(":")
+            cleaned_item = item[p+2:].replace('"','')
+            current_rec.append(cleaned_item.encode('ascii', 'ignore').decode('ascii'))
+        f.write('{:}\n'.format('\t'.join(current_rec)))
+        
 
 #Detect the position of header
-f_database = open(function_file, 'r') # Open the database file.
-for line in f_database:
-	if line.find('Taxon') != -1: #Search for the line that contains the header (if it is not the first line)
-		header_database = line.split('\t')
-		break
-f_database.close()
+with open(function_file, 'rU') as f_database:
+    for line in f_database:
+        if line.find('Taxon') != -1: #Search for the line that contains the header (if it is not the first line)
+            header_database = line.split('\t')
+            break
 
 #Check the database header.
 if len(header_database) == 1:
-	header_database = header_database[0].split(" ")
+    header_database = header_database[0].split(" ")
 
 # Set the parameters for progress report
 with open(function_file) as f1:
@@ -183,7 +176,7 @@ total_length = float(i) #length of the database
 
 p = list(range(1,11))
 way_points = [int(total_length*(old_div(x,10.0))) for x in p]
-############################################################################################		
+############################################################################################        
 
 # Open the OTU table and read in the header ################################################
 print("")
@@ -192,11 +185,11 @@ print("")
 
 #load the header
 with open(otu_file, 'rU') as otu:
-	header = otu.readline().rstrip().split(otu_delimiter) 
+    header = otu.readline().rstrip().split(otu_delimiter) 
 
 #Attach all columns of database file to the header of the new OTU table
 for item in header_database:
-	header.append(item)
+    header.append(item)
 
 #look for Taxonomy or taxonomy
 if 'taxonomy' in header:
@@ -210,24 +203,24 @@ index_notes = header.index('Notes')
 
 #Abort if the column 'taxonomy' is not found
 if index_tax == -1:
-	print("Column 'taxonomy' not found. Please check you OTU table %s." %(otu_file))
-	sys.exit(0)
+    print("Column 'taxonomy' not found. Please check you OTU table %s." %(otu_file))
+    sys.exit(0)
 ############################################################################################
 
 #Search in function database################################################################
 # Read the OTU table into memory, and separate taxonomic levels with '@'.
 with open(otu_file, 'rU') as otu:
-	otu_tab = []    
-	for record in otu:
-		otu_current = record.split(otu_delimiter)
-		otu_taxonomy = otu_current[index_tax].rstrip('\n')
-		replace_list = ['_', ' ', ';', ',', ':']
-		for symbol in replace_list:
-			otu_taxonomy = otu_taxonomy.replace(symbol, '@')
-		otu_taxonomy = otu_taxonomy + '@'
-		otu_current[index_tax] = otu_taxonomy
-		otu_tab.append(otu_current)
-	otu_tab = otu_tab[1:] # remove the header line
+    otu_tab = []    
+    for record in otu:
+        otu_current = record.split(otu_delimiter)
+        otu_taxonomy = otu_current[index_tax].rstrip('\n')
+        replace_list = ['_', ' ', ';', ',', ':']
+        for symbol in replace_list:
+            otu_taxonomy = otu_taxonomy.replace(symbol, '@')
+        otu_taxonomy = otu_taxonomy + '@'
+        otu_current[index_tax] = otu_taxonomy
+        otu_tab.append(otu_current)
+    otu_tab = otu_tab[1:] # remove the header line
 
 # Start searching the database
 ## Each record in the Fungal Guild Database is searched in the user's OTU table.
@@ -239,36 +232,37 @@ otu_new = []
 
 print("Searching the FUNGuild database...")
 
-f_database = open(function_file, 'rU')
-for record in f_database:
-    # report the progress   
-    percent += 1
+with open(function_file, 'rb') as f_database:
+    for record in f_database:
+        record = record.decode('utf-8')
+        # report the progress   
+        percent += 1
  
-    if percent in way_points:
-        progress = (int(round(percent/total_length*100.0)))
-        print('{}%'.format(progress)) 
-    else: t = 0
+        if percent in way_points:
+            progress = (int(round(percent/total_length*100.0)))
+            print('{}%'.format(progress)) 
+        else: t = 0
     
-    # Compare database with the OTU table
-    function_tax = record.split('\t')
-    search_term = function_tax[0].replace(' ', '@') #first column of database, contains the name of the species
-    search_term = '@' + search_term + '@' #Add @ to the search term
-
-    for otu in otu_tab:
-        otu_tax = otu[index_tax] # Get the taxonomy string of current OTU record.
-        if otu_tax.find(search_term) >= 0: #found the keyword in this OTU's taxonomy
-            count += 1 # Count the matching record
-            otu_new = otu[:]
+        # Compare database with the OTU table
+        function_tax = record.split('\t')
+        search_term = function_tax[0].replace(' ', '@') #first column of database, contains the name of the species
+        search_term = '@' + search_term + '@' #Add @ to the search term
+        #print(search_term)
+        for otu in otu_tab:
+            otu_tax = otu[index_tax] # Get the taxonomy string of current OTU record.
+            #print(otu_tax)
+            if otu_tax.find(search_term) >= 0: #found the keyword in this OTU's taxonomy
+                count += 1 # Count the matching record
+                otu_new = otu[:]
             
-            # Assign the matching functional information to current OTU record.
-            for item in function_tax:
-                otu_new.append(item)
-            otu_redundant.append(otu_new)
-f_database.close()
-
+                # Assign the matching functional information to current OTU record.
+                for item in function_tax:
+                    otu_new.append(item)
+                otu_redundant.append(otu_new)
+#sys.exit(1)
 # Finish searching, delete the temp function database file
 if os.path.isfile('temp_db.txt') == True: 
-	os.remove('temp_db.txt')        
+    os.remove('temp_db.txt')        
 
 print("")
 print("Found %i matching taxonomy records in the database."%(count))
@@ -310,52 +304,52 @@ unique_list.sort(key=lambda x: float(sum(map(float,x[1:index_tax]))), reverse=Tr
 #Write to output files##############################################################################
 #Output matched OTUs to a new file
 if args.matched:
-	if os.path.isfile(matched_file) == True:
-		os.remove(matched_file)
-	output = open(matched_file,'a')
-	#Write the matched list header
-	output.write('%s' % ('\t'.join(header))) #Header
+    if os.path.isfile(matched_file) == True:
+        os.remove(matched_file)
+    output = open(matched_file,'a')
+    #Write the matched list header
+    output.write('%s' % ('\t'.join(header))) #Header
 
-	#Write the matched OTU table
-	for item in unique_list:
-		rec = '\t'.join(item)    
-		output.write('%s' % rec)
-	output.close()
+    #Write the matched OTU table
+    for item in unique_list:
+        rec = '\t'.join(item)    
+        output.write('%s' % rec)
+    output.close()
 
 #Output unmatched OTUs to a new file
 unmatched_list = []    
 
 for rec in otu_tax:
-	count2 = 0        
-	for new_rec in unique_list:
-		if rec[0] == new_rec[0]: #Check if the current record is in the unique_list (has been assigned a function)
-			count2 += 1
-	if count2 == 0:
-		unmatched_list.append(rec)
+    count2 = 0        
+    for new_rec in unique_list:
+        if rec[0] == new_rec[0]: #Check if the current record is in the unique_list (has been assigned a function)
+            count2 += 1
+    if count2 == 0:
+        unmatched_list.append(rec)
 
 count_unmatched = 0
 
 #Add 'Unassigned' to the 'Notes' column
 for item in unmatched_list:
-	l = len(header) - len(item)
-	for i in range(l):
-		item.extend('-')
-	item[index_notes] = 'Unassigned'
+    l = len(header) - len(item)
+    for i in range(l):
+        item.extend('-')
+    item[index_notes] = 'Unassigned'
 
 if args.unmatched:
-	if os.path.isfile(unmatched_file) == True: 
-		os.remove(unmatched_file)
-	output_unmatched = open(unmatched_file, 'a')
-	output_unmatched.write('%s' % ('\t'.join(header)))		
-	for item in unmatched_list:
-		rec = '\t'.join(item)
-		output_unmatched.write('%s\n' % rec)
-		count_unmatched += 1
-	output_unmatched.close()
+    if os.path.isfile(unmatched_file) == True: 
+        os.remove(unmatched_file)
+    output_unmatched = open(unmatched_file, 'a')
+    output_unmatched.write('%s' % ('\t'.join(header)))      
+    for item in unmatched_list:
+        rec = '\t'.join(item)
+        output_unmatched.write('%s\n' % rec)
+        count_unmatched += 1
+    output_unmatched.close()
  
 #Output the combined matched and unmatched OTUs to a new file
 if os.path.isfile(total_file) == True: 
-	os.remove(total_file)
+    os.remove(total_file)
 
 total_list = unique_list + unmatched_list #Combine the two OTU tables
 total_list.sort(key=lambda x: float(sum(map(float,x[1:index_tax]))), reverse=True) #Sorted the combined OTU table
@@ -365,9 +359,9 @@ output_total.write('%s' % ('\t'.join(header)))
 
 count_total = 0
 for item in total_list:
-	rec = ('\t'.join(item)).strip('\n')
-	output_total.write('%s\n' % rec)
-	count_total += 1
+    rec = ('\t'.join(item)).strip('\n')
+    output_total.write('%s\n' % rec)
+    count_total += 1
 output_total.close()
 ####################################################################################################################
 
@@ -377,11 +371,11 @@ print("FUNGuild made assignments on %i OTUs." %(count))
 print("Result saved to '%s'" %(total_file))
 
 if args.matched or args.unmatched:
-	print('\nAdditional output:')
-	if args.matched:
-		print("FUNGuild made assignments on %i OTUs, these have been saved to %s." %(count, matched_file))
-	if args.unmatched:
-		print("%i OTUs were unassigned, these are saved to %s." %(count_unmatched, unmatched_file))
+    print('\nAdditional output:')
+    if args.matched:
+        print("FUNGuild made assignments on %i OTUs, these have been saved to %s." %(count, matched_file))
+    if args.unmatched:
+        print("%i OTUs were unassigned, these are saved to %s." %(count_unmatched, unmatched_file))
 
 # Finish the program
 stop = timeit.default_timer()

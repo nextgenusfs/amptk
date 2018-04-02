@@ -291,7 +291,7 @@ if not args.taxonomy:
             #load results into dictionary for appending to OTU table
             amptklib.log.debug("Loading SINTAX results into dictionary")
             with open(sintax_out, 'rU') as infile:
-                reader = csv.reader(infile, delimiter=("\t"))
+                reader = csv.reader(infile, delimiter=(str("\t")))
                 otuDict = {rows[0]:'SINTAX;'+rows[3] for rows in reader} 
 else:
     #you have supplied a two column taxonomy file, parse and build otuDict
