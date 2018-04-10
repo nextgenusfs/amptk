@@ -303,7 +303,7 @@ def countfasta(input):
     count = 0
     with open(input, 'rU') as f:
         for line in f:
-            if line.startswith (">"):
+            if line.startswith(">"):
                 count += 1
     return count
     
@@ -459,11 +459,15 @@ def split_fasta(input, outputdir, chunks):
     splits = []
     n = numseqs // chunks
     num = 0
+    lastline = line_count(input)
     for i in range(chunks):
         if i == 0:
             start = 0
             num = n
             lastpos = fastapos[n+1]
+        elif i == chunks-1: #last one
+            start = lastpos
+            lastpos = lastline
         else:
             start = lastpos
             num = num + n
@@ -482,7 +486,7 @@ def split_fasta(input, outputdir, chunks):
         num = i+1
         with open(os.path.join(outputdir, 'chunk_'+str(num)+'.fasta'), 'w') as output:
             lines = return_lines(input, linepos, x[0], x[1])
-            output.write('%s' % ''.join(lines))
+            output.write('{:}'.format(''.join(lines)))
 
 def trim3prime(input, trimlen, output, removelist):
     with open(output, 'w') as outfile:
@@ -859,7 +863,7 @@ def utax2qiime(input, output):
                 levels = levels.replace(',', ';')
                 if levels.startswith('d:'):
                     domain = True
-                    changes = ['d','k','p','c','o','f','g','s']
+                    changes = ['d','p','c','o','f','g','s']
                 else:
                     changes = ['k','p','c','o','f','g','s']
                 for i in changes:
@@ -886,21 +890,19 @@ def utax2qiime(input, output):
                         levList.insert(6,'s__')
                 else:
                     if not levList[0].startswith('d__'):
-                        levList = ['d__','k__', 'p__', 'c__', 'o__', 'f__', 'g__', 's__']
+                        levList = ['d__','p__', 'c__', 'o__', 'f__', 'g__', 's__']
                     if len(levList) < 2 and levList[0].startswith('d__'):
-                        levList.extend(['k__','p__', 'c__', 'o__', 'f__', 'g__', 's__'])                    
-                    if len(levList) > 2 and not levList[2].startswith('p__'):
-                        levList.insert(2,'p__')
-                    if len(levList) > 3 and not levList[3].startswith('c__'):
-                        levList.insert(3,'c__')
-                    if len(levList) > 4 and not levList[4].startswith('o__'):
-                        levList.insert(4,'o__')
-                    if len(levList) > 5 and not levList[5].startswith('f__'):
-                        levList.insert(5,'f__')
-                    if len(levList) > 6 and not levList[6].startswith('g__'):
-                        levList.insert(6,'g__')
-                    if len(levList) > 7 and not levList[7].startswith('s__'):
-                        levList.insert(7,'s__')                             
+                        levList.extend(['p__', 'c__', 'o__', 'f__', 'g__', 's__'])                    
+                    if len(levList) > 2 and not levList[2].startswith('c__'):
+                        levList.insert(2,'c__')
+                    if len(levList) > 3 and not levList[3].startswith('o__'):
+                        levList.insert(3,'o__')
+                    if len(levList) > 4 and not levList[4].startswith('f__'):
+                        levList.insert(4,'f__')
+                    if len(levList) > 5 and not levList[5].startswith('g__'):
+                        levList.insert(5,'g__')
+                    if len(levList) > 6 and not levList[6].startswith('s__'):
+                        levList.insert(6,'s__')                             
                 outfile.write('%s\t%s\n' % (OTU, ';'.join(levList)))
 
   
@@ -1006,10 +1008,10 @@ def batch_iterator(iterator, batch_size):
 
 def setupLogging(LOGNAME):
     global log
-    if 'win32' in sys.platform:
-        stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='[%I:%M:%S %p]')
+    if 'darwin' in sys.platform:
+        stdoutformat = logging.Formatter(colr.GRN+'%(asctime)s'+colr.END+': %(message)s', datefmt='[%b %d %I:%M %p]')      
     else:
-        stdoutformat = logging.Formatter(colr.GRN+'%(asctime)s'+colr.END+': %(message)s', datefmt='[%b %d %I:%M %p]')
+        stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='[%I:%M:%S %p]')
     fileformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='[%x %H:%M:%S]')
     log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)

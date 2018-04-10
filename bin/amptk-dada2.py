@@ -35,7 +35,7 @@ parser=argparse.ArgumentParser(prog='amptk-dada2.py',
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--fastq', required=True, help='Input Demuxed containing FASTQ')
-parser.add_argument('-o','--out', default='dada2', help='Output Basename')
+parser.add_argument('-o','--out', help='Output Basename')
 parser.add_argument('-m','--min_reads', default=10, type=int, help="Minimum number of reads after Q filtering to run DADA2 on")
 parser.add_argument('-l','--length', type=int, help='Length to truncate reads')
 parser.add_argument('-e','--maxee', default='1.0', help='MaxEE quality filtering')
@@ -83,8 +83,17 @@ def getAvgLength(input):
     nintyfive = np.percentile(a, 5)
     return (Average, Min, Max, int(nintyfive))
 
+#get basename if not args.out passed
+if args.out:
+	base = args.out
+else:
+	if 'demux' in args.fastq:
+		base = os.path.basename(args.fastq).split('.demux')[0]
+	else:
+		base = os.path.basename(args.fastq).split('.f')[0]
+
 #remove logfile if exists
-log_name = args.out + '.amptk-dada2.log'
+log_name = base + '.amptk-dada2.log'
 if os.path.isfile(log_name):
     amptklib.removefile(log_name)
 
@@ -108,6 +117,7 @@ amptklib.CheckDependencies(programs)
 Rversions = amptklib.checkRversion()
 R_pass = '3.2.1'
 dada2_pass = '1.3.3'
+
 #check dada2 first, if good move on, otherwise issue warning
 if not amptklib.gvc(Rversions[1], dada2_pass):
     amptklib.log.error("R v%s; DADA2 v%s detected, need atleast v%s" % (Rversions[0], Rversions[1], dada2_pass))
@@ -117,14 +127,14 @@ amptklib.log.info("R v%s; DADA2 v%s" % (Rversions[0], Rversions[1]))
 
 #Count FASTQ records and remove 3' N's as dada2 can't handle them
 amptklib.log.info("Loading FASTQ Records")
-no_ns = args.out+'.cleaned_input.fq'
+no_ns = base+'.cleaned_input.fq'
 if args.fastq.endswith('.gz'):
 	fastqInput = args.fastq.replace('.gz', '')
 	amptklib.Funzip(os.path.abspath(args.fastq), os.path.basename(fastqInput), CORES)
 else:
 	fastqInput = os.path.abspath(args.fastq)
 amptklib.fastq_strip_padding(os.path.basename(fastqInput), no_ns)
-demuxtmp = args.out+'.original.fa'
+demuxtmp = base+'.original.fa'
 cmd = ['vsearch', '--fastq_filter', os.path.abspath(no_ns),'--fastq_qmax', '55', '--fastaout', demuxtmp]
 amptklib.runSubprocess(cmd, amptklib.log)
 orig_total = amptklib.countfasta(demuxtmp)
@@ -134,7 +144,7 @@ amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 
 #quality filter
 amptklib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
-derep = args.out+'.qual-filtered.fq'
+derep = base+'.qual-filtered.fq'
 filtercmd = ['vsearch', '--fastq_filter', no_ns, '--fastq_maxee', str(args.maxee), '--fastqout', derep, '--fastq_qmax', '55', '--fastq_maxns', '0']
 amptklib.runSubprocess(filtercmd, amptklib.log)
 total = amptklib.countfastq(derep)
@@ -142,7 +152,7 @@ amptklib.log.info('{0:,}'.format(total) + ' reads passed')
 
 #split into individual files
 amptklib.log.info("Splitting FASTQ file by Sample into individual files")
-filtfolder = args.out+'_filtered'
+filtfolder = base+'_filtered'
 if os.path.isdir(filtfolder):
     shutil.rmtree(filtfolder)
 os.makedirs(filtfolder)
@@ -161,8 +171,8 @@ if len(remove) > 0:
 
 #now run DADA2 on filtered folder
 amptklib.log.info("Running DADA2 pipeline")
-dada2log = args.out+'.dada2.Rscript.log'
-dada2out = args.out+'.dada2.csv'
+dada2log = base+'.dada2.Rscript.log'
+dada2out = base+'.dada2.csv'
 #check pooling vs notpooled, default is not pooled.
 if args.pool:
     POOL = 'TRUE'
@@ -177,7 +187,7 @@ if not os.path.isfile(dada2out):
     sys.exit(1)
     
 #now process the output, pull out fasta, rename, etc
-fastaout = args.out+'.otus.tmp'
+fastaout = base+'.otus.tmp'
 counter = 1
 with open(fastaout, 'w') as writefasta:
     with open(dada2out, 'rU') as input:
@@ -204,9 +214,9 @@ amptklib.log.info('{0:,}'.format(bimeras) + ' denovo chimeras removed')
 amptklib.log.info('{0:,}'.format(validSeqs) + ' valid ASVs')
 
 #optional UCHIME Ref
-uchime_out = args.out+'.nonchimeras.fa'
-chimeraFreeTable = args.out+'.otu_table.txt'
-iSeqs = args.out+'.ASVs.fa'
+uchime_out = base+'.nonchimeras.fa'
+chimeraFreeTable = base+'.otu_table.txt'
+iSeqs = base+'.ASVs.fa'
 if not args.uchime_ref:
     os.rename(fastaout, iSeqs)
 else:
@@ -248,11 +258,11 @@ else:
 
 
 #setup output files
-dadademux = args.out+'.dada2.map.uc'
-bioSeqs = args.out+'.cluster.otus.fa'
-bioTable = args.out+'.cluster.otu_table.txt'
-uctmp = args.out+'.map.uc'
-ClusterComp = args.out+'.ASVs2clusters.txt'
+dadademux = base+'.dada2.map.uc'
+bioSeqs = base+'.cluster.otus.fa'
+bioTable = base+'.cluster.otu_table.txt'
+uctmp = base+'.map.uc'
+ClusterComp = base+'.ASVs2clusters.txt'
 
 #map reads to DADA2 OTUs
 amptklib.log.info("Mapping reads to DADA2 ASVs")
@@ -270,7 +280,7 @@ total = amptklib.countfasta(bioSeqs)
 amptklib.log.info('{0:,}'.format(total) + ' OTUs generated')
 
 #determine where iSeqs clustered
-iSeqmap = args.out+'.ASV_map.uc'
+iSeqmap = base+'.ASV_map.uc'
 cmd = ['vsearch', '--usearch_global', iSeqs, '--db', bioSeqs, '--id', str(radius), '--uc', iSeqmap, '--strand', 'plus']
 amptklib.runSubprocess(cmd, amptklib.log)
 iSeqMapped = {}
@@ -320,9 +330,9 @@ print("-------------------------------------------------------")
 
 otu_print = bioSeqs.split('/')[-1]
 tab_print = bioTable.split('/')[-1]
-if 'win32' in sys.platform:
-    print("\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
+if 'darwin' in sys.platform:
+	print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
 else:
-    print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
+	print("\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))   
 
         

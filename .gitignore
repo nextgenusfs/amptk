@@ -1,5 +1,6 @@
 **/*.pyc
 **/.DS_store
+**/*.bak
 DB/FULL*
 DB/ITS1*
 DB/ITS2*

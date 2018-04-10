@@ -59,8 +59,7 @@ args=parser.parse_args()
 
 if not args.out:
     #get base name of files
-    base = args.otu_table.split(".otu_table")
-    base = base[0]
+    base = args.otu_table.split(".otu_table")[0]
 else:
     base = args.out
 
@@ -682,7 +681,8 @@ else: #proceed with rest of script
     print("Filtered OTUs:        %s" % otu_new)
     print("-------------------------------------------------------")
 
-    if 'win32' in sys.platform:
-        print("\nExample of next cmd: amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table))
+    if 'darwin' in sys.platform:
+    	print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table))
     else:
-        print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table))
+    	print("\nExample of next cmd: amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table))
+        

@@ -8,6 +8,7 @@ import subprocess
 import inspect
 import tarfile
 import shutil
+import pandas as pd
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
@@ -22,31 +23,6 @@ URL = { 'ITS': 'https://osf.io/pbtyh/download?version=4',
         '16S': 'https://osf.io/m7v5q/download?version=1', 
         'LSU': 'https://osf.io/sqn5r/download?version=1', 
         'COI': 'https://osf.io/pax79/download?version=2' }
-
-def flatten(l):
-    flatList = []
-    for elem in l:
-        # if an element of a list is a list
-        # iterate over this list and add elements to flatList 
-        if type(elem) == list:
-            for e in elem:
-                flatList.append(e)
-        else:
-            flatList.append(elem)
-    return flatList
-
-def fmtcols(mylist, cols):
-    justify = []
-    for i in range(0,cols):
-        length = max(map(lambda x: len(x), mylist[i::cols]))
-        length += 2
-        ljust = map(lambda x: x.ljust(length), mylist[i::cols])
-        justify.append(ljust)
-    justify = flatten(justify)
-    num_lines = len(mylist) // cols
-    lines = (' '.join(justify[i::num_lines]) 
-             for i in range(0,num_lines))
-    return "\n".join('{}'.format(lines))
 
 def download(url, name):
     file_name = name
@@ -73,7 +49,7 @@ def download(url, name):
     f.close()
 
 git_version = amptklib.git_version()
-base_version = '1.1.2'
+base_version = '1.1.3'
 if git_version:
     version = base_version+'-'+git_version
 else:
@@ -814,7 +790,7 @@ Required:    -i, --input     Input OTU file (.cluster.otus.fa) (FASTA)
             print(help)
             sys.exit(1)
     elif sys.argv[1] == 'taxonomy':
-        db_list = ['DB_name', 'DB_type', 'FASTA originated from', 'Fwd Primer', 'Rev Primer', 'Records']
+        db_list = []
         okay_list = []
         search_path = os.path.join(parentdir, 'DB')
         for file in os.listdir(search_path):
@@ -825,12 +801,14 @@ Required:    -i, --input     Input OTU file (.cluster.otus.fa) (FASTA)
                     line = info.readlines()
                     line = [words for segments in line for words in segments.split()]
                     line.insert(0, file)
-                    db_list.append(line)
-        if len(db_list) < 7:
+                    db_list.append(line)    
+
+        if len(db_list) < 2:
             db_print = "No DB configured, run 'amptk database' or 'amptk install' command."
         else:
-            d = flatten(db_list)
-            db_print = fmtcols(d, 6)
+        	df = pd.DataFrame(db_list)
+        	df.columns = ['DB_name', 'DB_type', 'FASTA originated from', 'Fwd Primer', 'Rev Primer', 'Records']
+        	db_print = df.to_string(index=False,justify='center')
         
         help = """
 Usage:       amptk %s <arguments>

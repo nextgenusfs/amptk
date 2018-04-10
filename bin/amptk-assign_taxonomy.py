@@ -18,7 +18,6 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 import lib.amptklib as amptklib
 
-
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=48)
@@ -65,7 +64,9 @@ args=parser.parse_args()
 if not args.out:
     #get base name of files
     if 'filtered' in args.fasta:
-        base = args.fasta.split(".filtered.otus.fa")[0]
+        base = args.fasta.split(".filtered")[0]
+    elif 'otu' in args.fasta:
+    	base = args.fasta.split('.otu')[0]
     else:
         base = args.fasta.split('.fa')[0]
 else:
@@ -411,13 +412,17 @@ if args.otu_table and not args.method == 'blast':
         amptklib.runSubprocess(cmd, amptklib.log)
         if args.mapping_file:
             mapSamples = []
+            repeatSamples = []
             with open(args.mapping_file, 'rU') as mapin:
                 for line in mapin:
                     line = line.rstrip()
                     if line.startswith('#'):
                         continue
                     sampleID = line.split('\t')[0]
-                    mapSamples.append(sampleID)
+                    if not sampleID in mapSamples:
+                    	mapSamples.append(sampleID)
+                    else:
+                    	repeatSamples.append(sampleID)
             otuSamples = []
             with open(tmpTable, 'rU') as otuin:
                 for line in otuin:
@@ -429,16 +434,19 @@ if args.otu_table and not args.method == 'blast':
                 if not otu in mapSamples:
                     missingMap.append(otu)
             if len(missingMap) > 0:
-                amptklib.log.error("%s are missing from mapping file (metadata), biom file will be corrupt" % ', '.join(missingMap))
-            cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '-m', args.mapping_file, '--sc-separated', 'taxonomy', '--output-as-json']
-            amptklib.runSubprocess(cmd, amptklib.log)
+                amptklib.log.error("%s are missing from mapping file (metadata), skipping biom file creation" % ', '.join(missingMap))
+            elif len(repeatSamples) > 0:
+            	amptklib.log.error('%s duplicate sample IDs in mapping file, skipping biom file creation' % ', '.join(repeatSamples))
+            else:
+            	cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '-m', args.mapping_file, '--sc-separated', 'taxonomy', '--output-as-json']
+            	amptklib.runSubprocess(cmd, amptklib.log)
         else:
             cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '--sc-separated',  'taxonomy', '--output-as-json']
             amptklib.runSubprocess(cmd, amptklib.log)
         amptklib.removefile(outBiom+'.tmp')
         amptklib.log.info("BIOM OTU table created: %s" % outBiom)
     else:
-        amptklib.log.info("biom program not installed, install via `pip install biom-format`")
+        amptklib.log.info("biom program not installed, install via `pip install biom-format` or `conda install biom-format`")
 amptklib.log.info("OTUs with taxonomy: %s" % otuTax)
 amptklib.log.info("OTU phylogeny: %s" % tree_out)  
 

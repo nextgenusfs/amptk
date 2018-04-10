@@ -30,7 +30,7 @@ parser=argparse.ArgumentParser(prog='amptk-fastq2sra.py', usage="%(prog)s [optio
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--input', dest='FASTQ', required=True, help='Input FASTQ file or folder')
-parser.add_argument('-o','--out', dest='out', default="sra", help='Basename for output folder/files')
+parser.add_argument('-o','--out', dest='out', help='Basename for output folder/files')
 parser.add_argument('--min_len', default=50, type=int, help='Minimum length of read to keep')
 parser.add_argument('-b','--barcode_fasta', dest='barcodes', help='Multi-fasta file containing barcodes used')
 parser.add_argument('-s','--biosample', dest='biosample', help='BioSample file from NCBI')
@@ -48,7 +48,17 @@ parser.add_argument('--force', action='store_true', help='Overwrite existing dir
 parser.add_argument('-a','--append', help='Append a name to all sample names for a run, i.e. --append run1 would yield Sample_run1')
 args=parser.parse_args()
 
-log_name = args.out + '.amptk-sra.log'
+#get basename if not args.out passed
+if args.out:
+	base = args.out
+else:
+	if 'demux' in args.FASTQ:
+		base = os.path.basename(args.FASTQ).split('.demux')[0]
+	else:
+		base = os.path.basename(args.FASTQ).split('.f')[0]
+
+
+log_name = base + '.amptk-sra.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
@@ -62,19 +72,19 @@ amptklib.SystemInfo()
 amptkversion = amptklib.get_version()
 
 #create output directory
-if not os.path.exists(args.out):
-    os.makedirs(args.out)
+if not os.path.exists(base):
+    os.makedirs(base)
 else:
     if not args.force:
-        amptklib.log.error("Directory %s exists, add --force argument to overwrite" % args.out)
+        amptklib.log.error("Directory %s exists, add --force argument to overwrite" % base)
         sys.exit(1)
     else:
-        shutil.rmtree(args.out)
-        os.makedirs(args.out)
+        shutil.rmtree(base)
+        os.makedirs(base)
 
 #parse a mapping file or a barcode fasta file, primers, etc get setup
 #dealing with Barcodes, get ion barcodes or parse the barcode_fasta argument
-barcode_file = os.path.join(args.out, args.out + ".barcodes_used.fa")
+barcode_file = os.path.join(base, base + ".barcodes_used.fa")
 if os.path.isfile(barcode_file):
     os.remove(barcode_file)
 
@@ -158,14 +168,14 @@ if args.platform == 'illumina':
             rawlist.append(file)
     if len(rawlist) > 0:
         if not '_R2' in sorted(rawlist)[1]:
-            amptklib.log.info("Found %i single files, copying to %s folder" % (len(rawlist), args.out))
+            amptklib.log.info("Found %i single files, copying to %s folder" % (len(rawlist), base))
             filelist = rawlist
             for file in rawlist:
-                shutil.copyfile(os.path.join(args.FASTQ,file),(os.path.join(args.out,file)))
+                shutil.copyfile(os.path.join(args.FASTQ,file),(os.path.join(base,file)))
         else:
-            amptklib.log.info("Found %i paired-end files, copying to %s folder" % (len(rawlist) / 2, args.out))
+            amptklib.log.info("Found %i paired-end files, copying to %s folder" % (len(rawlist) / 2, base))
             for file in rawlist:
-                shutil.copyfile(os.path.join(args.FASTQ,file),(os.path.join(args.out,file)))
+                shutil.copyfile(os.path.join(args.FASTQ,file),(os.path.join(base,file)))
                 if '_R1' in file:
                     filelist.append(file)
 
@@ -251,8 +261,8 @@ else:
             if len(seq) < args.min_len: #filter out sequences less than minimum length.
                 continue
             runningTotal += 1
-            fileout = os.path.join(args.out, BarcodeLabel)
-            with open(fileout, 'ab') as output:
+            fileout = os.path.join(base, BarcodeLabel)
+            with open(fileout, 'a') as output:
                 output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
                 
     if args.require_primer == 'off':   
@@ -263,18 +273,18 @@ else:
         amptklib.log.info('{0:,}'.format(runningTotal) + ' total reads with valid barcode and both primers')
     
     amptklib.log.info("Now Gzipping files")
-    for file in os.listdir(args.out):
+    for file in os.listdir(base):
         if file.endswith(".fastq"):
-            file_path = os.path.join(args.out, file)
+            file_path = os.path.join(base, file)
             amptklib.Fzip_inplace(file_path)
     
     #after all files demuxed into output folder, loop through and create SRA metadata file
     filelist = []
-    for file in os.listdir(args.out):
+    for file in os.listdir(base):
         if file.endswith(".fastq.gz"):
             filelist.append(file)
 
-amptklib.log.info("Finished: output in %s" % args.out)
+amptklib.log.info("Finished: output in %s" % base)
 #clean up if gzipped
 if args.FASTQ.endswith('.gz'):
     amptklib.removefile(FASTQ_IN)
@@ -320,7 +330,7 @@ if args.biosample:
     filetype = 'fastq'
     
     #now open file for writing, input header and then loop through samples
-    sub_out = args.out + '.submission.txt'
+    sub_out = base + '.submission.txt'
     with open(sub_out, 'w') as output:
         output.write(header)
         for file in filelist:
@@ -348,7 +358,7 @@ if args.biosample:
                     finalname = name+'_'+args.append
                     #also need to change the name for output files
                     newfile = file.replace(name, finalname)
-                    os.rename(os.path.join(args.out, file), os.path.join(args.out, newfile))
+                    os.rename(os.path.join(base, file), os.path.join(base, newfile))
                 else:
                     finalname = name
                     newfile = file
@@ -380,8 +390,8 @@ if args.biosample:
                     newfile = file.replace(name, finalname)
                     newfile2 = file2.replace(name, finalname)
                     #also need to change the name for output files
-                    os.rename(os.path.join(args.out, file), os.path.join(args.out, newfile1))
-                    os.rename(os.path.join(args.out, file2), os.path.join(args.out, newfile2))
+                    os.rename(os.path.join(base, file), os.path.join(base, newfile1))
+                    os.rename(os.path.join(base, file2), os.path.join(base, newfile2))
                     file = file.replace(name, finalname)
                 else:
                     finalname = name

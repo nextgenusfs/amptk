@@ -451,7 +451,7 @@ amptklib.log.info("Output file:  %s (%s)" % (FinalDemux, readablesize))
 amptklib.log.info("Mapping file: %s" % genericmapfile)
 
 print("-------------------------------------------------------")
-if 'win32' in sys.platform:
-    print("\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux))
+if 'darwin' in sys.platform:
+	print(col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux))
 else:
-    print(col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux))
+	print("\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux))

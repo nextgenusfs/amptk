@@ -27,13 +27,23 @@ parser = argparse.ArgumentParser(prog='amptk-drop.py',
     epilog = """Written by Jon Palmer (2016) nextgenusfs@gmail.com""", formatter_class=MyFormatter)
 parser.add_argument('-i', '--input', required=True, help='OTUs in FASTA format')
 parser.add_argument('-r', '--reads', required=True, help='Demuxed reads FASTQ format')
-parser.add_argument('-o','--out', default='amptk-drop', help='Base output name')
+parser.add_argument('-o','--out', help='Base output name')
 parser.add_argument('-l','--list', nargs='+', help='Input list of (BC) names to remove')
 parser.add_argument('-f','--file', help='File containing list of names to remove')
 args=parser.parse_args()
 
+#get basename if not args.out passed
+if args.out:
+	base = args.out
+else:
+	if 'otus' in args.input:
+		base = os.path.basename(args.input).split('.otus')[0]
+	else:
+		base = os.path.basename(args.input).split('.f')[0]
+
+
 #remove logfile if exists
-log_name = args.out + '.amptk-drop.log'
+log_name = base + '.amptk-drop.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
@@ -74,7 +84,7 @@ amptklib.log.info("Loading %i OTUs" % total)
 
 #load in the fasta file, change if in dictionary and output to stdout
 amptklib.log.info("Dropping %i OTUs" % count)
-newOTUs = args.out + '.cleaned.otus.fa'
+newOTUs = base + '.cleaned.otus.fa'
 with open(newOTUs, 'w') as otus:
     with open(args.input, 'rU') as fasta:
         for rec in SeqIO.parse(fasta, 'fasta'):
@@ -83,9 +93,9 @@ with open(newOTUs, 'w') as otus:
 
 #now make new OTU table
 amptklib.log.info("Mapping Reads to OTUs and Building OTU table")
-newTable = args.out + '.cleaned.otu_table.txt'
-tmpReads = args.out + '.reads.tmp'
-uc_out = args.out + '.mapping.uc'
+newTable = base + '.cleaned.otu_table.txt'
+tmpReads = base + '.reads.tmp'
+uc_out = base + '.mapping.uc'
 cmd = ['vsearch', '--fastq_filter', args.reads, '--fastaout', tmpReads, '--fastq_qmax', '55']
 amptklib.runSubprocess(cmd, amptklib.log)
 cmd = ['vsearch', '--usearch_global', tmpReads, '--strand', 'plus', '--id', '0.97', '--db', newOTUs, '--uc', uc_out, '--otutabout', newTable]
@@ -112,9 +122,9 @@ amptklib.removefile(uc_out)
 
 otu_print = newOTUs.split('/')[-1]
 tab_print = newTable.split('/')[-1]
-if 'win32' in sys.platform:
-    print("\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
+if 'darwin' in sys.platform:
+	print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
 else:
-    print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
+	print("\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
 
 

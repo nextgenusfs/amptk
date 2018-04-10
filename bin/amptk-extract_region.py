@@ -35,7 +35,7 @@ parser=argparse.ArgumentParser(prog='amptk-extract_region.py', usage="%(prog)s [
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--fasta', dest='fasta', required=True, help='FASTA input')
-parser.add_argument('-o','--out', dest='out', default='amptk', help='Base Name Output files')
+parser.add_argument('-o','--out', dest='out', help='Base Name Output files')
 parser.add_argument('-f','--fwd_primer', dest='F_primer', default='fITS7', help='Forward primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest='R_primer', default='ITS4', help='Reverse primer (ITS4)')
 parser.add_argument('--skip_trimming', dest='trimming', action='store_true', help='Skip Primer trimming (not recommended)')
@@ -77,7 +77,7 @@ u"ì": u"i", u"í": u"i", u"î": u"i", u"ï": u"i", u"ð": u"d",
 u"ñ": u"n", u"ò": u"o", u"ó": u"o", u"ô": u"o", u"õ": u"o",
 u"ö": u"o", u"÷": u"/", u"ø": u"o", u"ù": u"u", u"ú": u"u",
 u"û": u"u", u"ü": u"u", u"ý": u"y", u"þ": u"p", u"ÿ": u"y",
-u"’":u"'", u"×":u"x"}
+u"’": u"'", u"×": u"x"}
 
 def latin2ascii(error):
     return latin_dict[error.object[error.start]], error.start+1
@@ -135,9 +135,7 @@ def stripPrimer(input):
                 for rec in SeqIO.parse(infile, 'fasta'):
                     orig_id = rec.description
                     if args.utax == 'unite2utax':
-                        latin = str(rec.description, 'utf-8')
-                        test = latin.encode('ascii', 'latin2ascii')
-                        fields = test.split("|")
+                        fields = orig_id.split("|")
                         for i in fields:
                             if i.startswith("k__"):
                                 tax = i
@@ -194,9 +192,7 @@ def stripPrimer(input):
                         rec.name = ""
                         rec.description = ""
                     elif args.utax == 'rdp2utax':
-                        latin = str(rec.description, 'utf-8')
-                        test = latin.encode('ascii', 'latin2ascii')
-                        temp = test.split("\t")
+                        temp = rec.description.split("\t")
                         taxLevels = temp[-1]
                         split_temp = temp[0].split(";")
                         ID = split_temp[0].split(" ")[0]
@@ -381,8 +377,31 @@ def makeDB(input):
         else:
             amptklib.log.error("There was a problem creating the DB, check the log file %s" % utax_log)
 
+def decodeFasta(input, output):
+	'''
+	the taxonomy strings from UNITE database contain invalid characters, try to fix them
+	'''
+	with open(output, 'w') as outfile:
+		with open(input, 'rU') as infile:
+			for rec in SeqIO.parse(infile, 'fasta'):
+				try:
+					tmpID = rec.description.decode('utf-8')
+				except AttributeError:
+					tmpID = rec.description
+				cleanID = tmpID.encode('ascii', 'latin2ascii').decode()
+				outfile.write('>{:}\n{:}\n'.format(cleanID, str(rec.seq)))
+
+#get basename if not args.out passed
+if args.out:
+	base = args.out
+else:
+	if 'otus' in args.input:
+		base = os.path.basename(args.fasta).split('.otus')[0]
+	else:
+		base = os.path.basename(args.fasta).split('.f')[0]
+
 #remove logfile if exists
-log_name = args.out + '.log'
+log_name = base + '.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
@@ -427,16 +446,18 @@ folder = 'amptk_tmp_' + str(pid)
 if not os.path.exists(folder):
     os.makedirs(folder)
 
-SeqCount = amptklib.countfasta(args.fasta)
+decodedFasta = os.path.join(folder, 'cleaned.fa')
+decodeFasta(args.fasta, decodedFasta)
+SeqCount = amptklib.countfasta(decodedFasta)
 amptklib.log.info('{0:,}'.format(SeqCount) + ' records loaded')
 #if only 1 cpu just process data
 if cpus == 1:
-    stripPrimer(args.fasta)
+    stripPrimer(decodedFasta)
 else:
     amptklib.log.info("Using %i cpus to process data" % cpus)
 
     #now split it into chunks (as many cpus as are queried)
-    amptklib.split_fasta(args.fasta, folder, cpus*2)
+    amptklib.split_fasta(decodedFasta, folder, cpus*2)
 
     #get list of files
     file_list = []
@@ -449,8 +470,8 @@ else:
     amptklib.runMultiProgress(stripPrimer, file_list, cpus)
 
 #now concatenate outputs together
-OutName = args.out + '.extracted.fa'
-ErrorName = args.out + '.errors.fa'
+OutName = base + '.extracted.fa'
+ErrorName = base + '.errors.fa'
 with open(OutName, 'w') as outfile:
     with open(ErrorName, 'w') as outfile2:
         for filename in os.listdir(os.path.join(folder)):
@@ -488,8 +509,9 @@ with open(ErrorName, 'rU') as infile:
             elif Err == 'NO_PRIMER_MATCH':
                 noPrimer += 1
 
-Passed = amptklib.countfasta(OutName)
-amptklib.log.info('{0:,}'.format(Passed) + ' records passed (%.2f%%)' % (Passed*100.0/SeqCount))
+Passed = amptklib.countfasta(os.path.abspath(OutName))
+PassedPct = Passed / SeqCount
+amptklib.log.info('{:,} records passed ({:.2%})'.format(Passed, PassedPct))
 amptklib.log.info('Errors: {0:,}'.format(noID) + ' no taxonomy info, ' + 
                   '{0:,}'.format(tooShort) + ' length out of range, ' +
                   '{0:,}'.format(ambig) + ' too many ambiguous bases, ' +
@@ -498,7 +520,7 @@ amptklib.log.info('Errors: {0:,}'.format(noID) + ' no taxonomy info, ' +
 #dereplicate if argument passed
 if args.derep_fulllength:
     amptklib.log.info("Now dereplicating sequences (collapsing identical sequences)")
-    derep_tmp = args.out + '.derep.extracted.fa'
+    derep_tmp = base + '.derep.extracted.fa'
     os.rename(OutName, derep_tmp)
     dereplicate(derep_tmp, OutName)
     Total = amptklib.countfasta(OutName)
@@ -508,7 +530,7 @@ if args.derep_fulllength:
 #subsample if argument passed
 if args.subsample:
     amptklib.log.info("Random subsampling to %i records" % args.subsample)
-    subsample = args.out + '.subsample.tmp'
+    subsample = base + '.subsample.tmp'
     os.rename(OutName, subsample)
     cmd = ['vsearch', '--fastx_subsample', subsample, '--sample_size', str(args.subsample), '--fastaout', OutName, '--notrunclabels']
     amptklib.runSubprocess(cmd, amptklib.log)

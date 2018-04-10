@@ -48,7 +48,7 @@ parser=argparse.ArgumentParser(prog='amptk-OTU_cluster_ref.py', usage="%(prog)s 
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--fastq', dest="FASTQ", required=True, help='FASTQ file (Required)')
-parser.add_argument('-o','--out', default='out', help='Base output name')
+parser.add_argument('-o','--out', help='Base output name')
 parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
 parser.add_argument('-p','--pct_otu', default='97', help="OTU Clustering Percent")
 parser.add_argument('--id', default='97', help="Threshold for alignment")
@@ -67,11 +67,21 @@ args=parser.parse_args()
 def checkfastqsize(input):
     filesize = os.path.getsize(input)
     return filesize
+    
+#get basename if not args.out passed
+if args.out:
+	base = args.out
+else:
+	if 'demux' in args.fastq:
+		base = os.path.basename(args.fastq).split('.demux')[0]
+	else:
+		base = os.path.basename(args.fastq).split('.f')[0]
+
 
 taxonomyLookup = {'k': 'Kingdom', 'p': 'Phylum', 'c': 'Class', 'o': 'Order', 'f': 'Family', 'g': 'Genus', 's': 'Species'}
 
 #remove logfile if exists
-log_name = args.out + '.amptk-cluster_ref.log'
+log_name = base + '.amptk-cluster_ref.log'
 if os.path.isfile(log_name):
     os.remove(log_name)
 
@@ -88,7 +98,7 @@ usearch = args.usearch
 amptklib.versionDependencyChecks(usearch)
 
 #make tmp folder
-tmp = args.out + '_tmp'
+tmp = base + '_tmp'
 if not os.path.exists(tmp):
     os.makedirs(tmp)
 
@@ -140,7 +150,7 @@ else:
 #Count FASTQ records
 amptklib.log.info("Loading FASTQ Records")
 #convert to FASTA for mapping
-orig_fasta = os.path.join(tmp, args.out+'.orig.fa')
+orig_fasta = os.path.join(tmp, base+'.orig.fa')
 cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '55']
 amptklib.runSubprocess(cmd, amptklib.log)
 orig_total = amptklib.countfasta(orig_fasta)
@@ -149,15 +159,15 @@ readablesize = amptklib.convertSize(size)
 amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 
 #Expected Errors filtering step
-filter_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fq')
-filter_fasta = os.path.join(tmp, args.out + '.EE' + args.maxee + '.filter.fa')
+filter_out = os.path.join(tmp, base + '.EE' + args.maxee + '.filter.fq')
+filter_fasta = os.path.join(tmp, base + '.EE' + args.maxee + '.filter.fa')
 amptklib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
 cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '55']
 amptklib.runSubprocess(cmd, amptklib.log)
 qtrimtotal = amptklib.countfastq(filter_out)
 amptklib.log.info('{0:,}'.format(qtrimtotal) + ' reads passed')
 #now run full length dereplication
-derep_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.derep.fa')
+derep_out = os.path.join(tmp, base + '.EE' + args.maxee + '.derep.fa')
 amptklib.log.info("De-replication (remove duplicate reads)")
 cmd = ['vsearch', '--derep_fulllength', filter_fasta, '--sizeout', '--output', derep_out]
 amptklib.runSubprocess(cmd, amptklib.log)
@@ -165,7 +175,7 @@ total = amptklib.countfasta(derep_out)
 amptklib.log.info('{0:,}'.format(total) + ' reads passed')
 
 #now run sort by size
-sort_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.sort.fa')
+sort_out = os.path.join(tmp, base + '.EE' + args.maxee + '.sort.fa')
 amptklib.log.info("Sorting reads by size: removing reads seen less than %s times" % args.minsize)
 cmd = ['vsearch', '--sortbysize', derep_out, '--minsize', args.minsize, '--output', sort_out]
 amptklib.runSubprocess(cmd, amptklib.log)
@@ -175,14 +185,14 @@ amptklib.log.info('{0:,}'.format(total) + ' reads passed')
 #chimera detection
 #first run through de novo chimera detection
 amptklib.log.info("De novo chimera detection (VSEARCH)")
-chimera_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.chimera_check.fa')
+chimera_out = os.path.join(tmp, base + '.EE' + args.maxee + '.chimera_check.fa')
 cmd = ['vsearch', '--uchime_denovo', sort_out, '--relabel', 'Seq', '--sizeout', '--nonchimeras', chimera_out]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfasta(chimera_out)
 amptklib.log.info('{0:,}'.format(total) + ' reads passed')
   
 #now run uchime_ref
-uchime_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.uchime.otus.fa')
+uchime_out = os.path.join(tmp, base + '.EE' + args.maxee + '.uchime.otus.fa')
 #now run chimera filtering if all checks out
 amptklib.log.info("Chimera Filtering (VSEARCH)")
 cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', chimera_out, '--db', refDB, '--sizeout', '--nonchimeras', uchime_out]
@@ -191,7 +201,7 @@ total = amptklib.countfasta(uchime_out)
 amptklib.log.info('{0:,}'.format(total) + ' OTUs passed')
     
 #now run usearch_global versus reference database
-align_out = os.path.join(tmp, args.out + '.align.uc')
+align_out = os.path.join(tmp, base + '.align.uc')
 pident = int(args.id) * 0.01
 amptklib.log.info("Reference Clustering using Global Alignment, %s%% identity" % args.id)
 cmd = ['vsearch', '--usearch_global', uchime_out, '--db', refDB, '--id', str(pident), '--output_no_hits', '--top_hits_only', '--notrunclabels', '--uc', align_out]
@@ -225,7 +235,7 @@ for k,v in list(ref_results.items()):
 amptklib.log.info("%i OTUs classified " % num_refcluster + "({0:.0f}%".format(seqs_refcluster/float(qtrimtotal)* 100)+ " of reads)")
 
 #get ref clustered hits to file with taxonomy
-ref_clustered = os.path.join(tmp, args.out+'.ref_clustered.fa')
+ref_clustered = os.path.join(tmp, base+'.ref_clustered.fa')
 with open(ref_clustered, 'w') as refoutput:
     with open(uchime_out, 'rU') as input:
         otu_counter = 1
@@ -243,7 +253,7 @@ with open(ref_clustered, 'w') as refoutput:
 
 if not args.closed_ref_only:
     #get nohits file to run clustering
-    utax_ref = os.path.join(tmp, args.out + '.EE' + args.maxee + '.utax_ref.fa')
+    utax_ref = os.path.join(tmp, base + '.EE' + args.maxee + '.utax_ref.fa')
     with open(utax_ref, 'w') as output:
         with open(uchime_out, 'rU') as input:
             for rec in SeqIO.parse(input, 'fasta'):
@@ -251,13 +261,13 @@ if not args.closed_ref_only:
                     SeqIO.write(rec, output, 'fasta')
 
     #input needs to be sorted, so 
-    ref_sort = os.path.join(tmp, args.out+'.utax_ref.sorted.fa')
+    ref_sort = os.path.join(tmp, base+'.utax_ref.sorted.fa')
     cmd = ['vsearch', '--sortbysize', utax_ref, '--minsize', args.minsize, '--output', ref_sort]
     amptklib.runSubprocess(cmd, amptklib.log)
            
     #now run clustering algorithm on those not found in reference database
     radius = str(100 - int(args.pct_otu))
-    otu_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otus.fa')
+    otu_out = os.path.join(tmp, base + '.EE' + args.maxee + '.otus.fa')
     amptklib.log.info("De novo Clustering remaining sequences (UPARSE)")
     cmd = [usearch, '-cluster_otus', ref_sort, '-relabel', 'OTU', '-otu_radius_pct', radius, '-otus', otu_out]
     amptklib.runSubprocess(cmd, amptklib.log)
@@ -266,7 +276,7 @@ if not args.closed_ref_only:
 
     #try utax reference clustering
     amptklib.log.info("Reference Clustering de novo OTUs using UTAX")
-    cmd = [usearch, '-cluster_otus_utax', otu_out, '-db', utaxDB, '-utax_cutoff', str(args.utax_cutoff), '-utax_level', 's', '-strand', 'plus', '-utaxout', os.path.join(tmp, args.out+'.utax.out')]
+    cmd = [usearch, '-cluster_otus_utax', otu_out, '-db', utaxDB, '-utax_cutoff', str(args.utax_cutoff), '-utax_level', 's', '-strand', 'plus', '-utaxout', os.path.join(tmp, base+'.utax.out')]
     amptklib.runSubprocess(cmd, amptklib.log)
     #setup tax filtering
     tax_values = ['k','p','c','o','f','g','s']
@@ -276,7 +286,7 @@ if not args.closed_ref_only:
     with open(ref_clustered, 'a') as output:
         seqDict = SeqIO.index(otu_out, 'fasta')
         utaxresults = []
-        with open(os.path.join(tmp, args.out+'.utax.out'), 'rU') as utax:
+        with open(os.path.join(tmp, base+'.utax.out'), 'rU') as utax:
             for line in utax:
                 line = line.replace('\n', '')
                 col = line.split('\t')
@@ -294,14 +304,14 @@ if not args.closed_ref_only:
 
 #clean up padded N's
 amptklib.log.info("Cleaning up padding from OTUs")
-otu_clean = os.path.join(tmp, args.out + '.clean.otus.fa')
+otu_clean = os.path.join(tmp, base + '.clean.otus.fa')
 amptklib.fasta_strip_padding(ref_clustered, otu_clean)           
 total = amptklib.countfasta(otu_clean)
 amptklib.log.info('{0:,}'.format(total) + ' total OTUs')
        
 #now map reads back to OTUs
-uc_out = os.path.join(tmp, args.out + '.EE' + args.maxee + '.mapping.uc')
-otu_table = os.path.join(tmp, args.out + '.EE' + args.maxee + '.otu_table.txt')
+uc_out = os.path.join(tmp, base + '.EE' + args.maxee + '.mapping.uc')
+otu_table = os.path.join(tmp, base + '.EE' + args.maxee + '.otu_table.txt')
 #setup reads to map
 if args.map_filtered:
     reads = filter_fasta
@@ -317,9 +327,9 @@ amptklib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'
 
 #Move files around, delete tmp if argument passed.
 currentdir = os.getcwd()
-final_otu = os.path.join(currentdir, args.out + '.cluster.otus.fa')
+final_otu = os.path.join(currentdir, base + '.cluster.otus.fa')
 shutil.copyfile(otu_clean, final_otu)
-final_otu_table = os.path.join(currentdir, args.out + '.otu_table.txt')
+final_otu_table = os.path.join(currentdir, base + '.otu_table.txt')
 shutil.copyfile(otu_table, final_otu_table)
 
 if not args.debug:
@@ -337,7 +347,7 @@ print("-------------------------------------------------------")
 
 otu_print = final_otu.split('/')[-1]
 tab_print = final_otu_table.split('/')[-1]
-if 'win32' in sys.platform:
-    print("\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
+if 'darwin' in sys.platform:
+	print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
 else:
-    print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
+	print("\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print)) 
