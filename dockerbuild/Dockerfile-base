@@ -1,43 +1,20 @@
-#docker config for base-AMPtk installation
 FROM continuumio/miniconda
+MAINTAINER Jon Palmer <nextgenusfs@gmail.com>
 
-LABEL maintainer="Jon Palmer <nextgenusfs@gmail.com>"
+RUN apt-get update && \
+	apt-get install --fix-missing -y build-essential zlib1g-dev libssl-dev unzip && \
+	export TAR=/bin/tar
 
-USER root
+RUN conda update conda && \
+	conda clean --packages && \
+	conda config --add channels r && \
+	conda config --add channels defaults && \
+	conda config --add channels conda-forge && \
+	conda config --add channels bioconda && \
+	conda install -y amptk r-tidyverse r-openssl
 
-RUN apt-get update -qq && apt-get install -y \
-  zlib1g-dev \
-  libssl-dev \
-  libbz2-dev \
-  libgl1-mesa-glx \
-  libcurl4-gnutls-dev \
-  libxml2-dev \
-  libxslt1-dev \
-  build-essential \
-  pigz \
-  wget \
-  autoconf && \
-  conda config --add channels r && \
-  conda config --add channels bioconda && \
-  conda install --yes cython biopython natsort pandas psutil matplotlib seaborn \
-  biom-format sra-tools r-base htslib samtools bioconductor-dada2 bioconductor-phyloseq && \
-  wget https://github.com/torognes/vsearch/archive/v2.4.4.tar.gz && \
-  tar xzf v2.4.4.tar.gz && \
-  mv vsearch-2.4.4 vsearch && \
-  cd vsearch && \
-  ./autogen.sh && \
-  ./configure && \
-  make && \
-  make install && \
-  cd .. && \
-  wget https://github.com/nextgenusfs/amptk/archive/v1.0.2.tar.gz && \
-  tar xzf v1.0.2.tar.gz && \
-  mv amptk-1.0.2 amptk && \
-  pip install -U srapy edlib
-
-ENV PATH=/work:/amptk:$PATH \
-    SHELL=/bin/bash
+RUN echo "r <- getOption('repos'); r['CRAN'] <- 'http://cran.us.r-project.org'; options(repos = r);" > ~/.Rprofile && \
+	Rscript -e "install.packages('devtools')" && \
+	Rscript -e "options(unzip = 'internal'); devtools::install_github('tobiasgf/lulu')"
 
 RUN mkdir /work
-
-WORKDIR /work

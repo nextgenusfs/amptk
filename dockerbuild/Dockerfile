@@ -1,9 +1,7 @@
-#dockerfile for adding usearch9 to base-amptk and downloading databases
 FROM nextgenusfs/base-amptk
+MAINTAINER Jon Palmer <nextgenusfs@gmail.com>
 
-LABEL maintainer="Jon Palmer <nextgenusfs@gmail.com>"
-
-WORKDIR /amptk
+RUN mkdir /amptk
 
 COPY usearch9.2.64_i86linux32 /amptk/usearch9
 
@@ -14,3 +12,5 @@ RUN chmod +x /amptk/usearch9 && \
   amptk install -i ITS LSU 16S COI --force
 
 WORKDIR /work
+
+ENTRYPOINT source activate && /bin/bash
