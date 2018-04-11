@@ -25,7 +25,10 @@ AMPtk is a series of scripts to process NGS amplicon data using USEARCH and VSEA
 
 Citation
 ==================
-Palmer JM, Jusino MA, Banik MT, Lindner DL. 2017. Non-biological synthetic spike-in controls and the AMPtk software pipeline improve mycobiome data. BioRxiv https://doi.org/10.1101/213470.
+.. code-block:: none
+
+	Palmer JM, Jusino MA, Banik MT, Lindner DL. 2017. Non-biological synthetic spike-in controls 
+		and the AMPtk software pipeline improve mycobiome data. BioRxiv https://doi.org/10.1101/213470.
 
 
 Install
