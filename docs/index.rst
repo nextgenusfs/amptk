@@ -27,8 +27,9 @@ Citation
 ==================
 .. code-block:: none
 
-	Palmer JM, Jusino MA, Banik MT, Lindner DL. 2017. Non-biological synthetic spike-in controls 
-		and the AMPtk software pipeline improve mycobiome data. BioRxiv https://doi.org/10.1101/213470.
+	Palmer JM, Jusino MA, Banik MT, Lindner DL. 2017. Non-biological synthetic spike-in 
+		controls and the AMPtk software pipeline improve mycobiome data. 
+		BioRxiv https://doi.org/10.1101/213470.
 
 
 Install
