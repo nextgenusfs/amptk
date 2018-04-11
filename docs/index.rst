@@ -30,14 +30,28 @@ Palmer JM, Jusino MA, Banik MT, Lindner DL. 2017. Non-biological synthetic spike
 
 Install
 ==================
-There are several ways to install AMPtk, you can download a `release <https://github.com/nextgenusfs/amptk/releases>`_. You can also build the latest unreleased version from github:
+There are several ways to install AMPtk, the easiest and recommended way is with Conda
 
 .. code-block:: none
+	 
+    #setup your conda env with bioconda, type the following in order to setup channels
+    conda config --add channels r
+    conda config --add channels defaults
+    conda config --add channels conda-forge
+    conda config --add channels bioconda
+    
+    #create amptk env (optional)
+	conda create -n amptk amptk
+	
+	#to run amptk, activate the environment
+	source activate amptk
+	
+	############################
+	#to install amptk systemwide (within miniconda)
+	conda install amptk
 
-    git clone https://github.com/nextgenusfs/amptk.git
-    export PATH="/path/to/amptk:$PATH"
 
-But the easiest way to install AMPtk and its dependencies is with `HomeBrew <https://brew.sh>`_. For example:
+Homebrew users can install AMPtk and its dependencies is with `HomeBrew <https://brew.sh>`_. For example:
 
 .. code-block:: none
 
@@ -53,30 +67,17 @@ But the easiest way to install AMPtk and its dependencies is with `HomeBrew <htt
     #install AMPtk and dependencies
     brew install amptk
 
-You could also install all dependencies with Miniconda (conda). Download Miniconda2 for your operating system https://conda.io/miniconda.html
+
+Users can also install manually, download a `release <https://github.com/nextgenusfs/amptk/releases>`_. You can also build the latest unreleased version from github:
 
 .. code-block:: none
 
-    #install miniconda2 using installation script
-    bash Miniconda2-latest-Linux-x86_64.sh
-    
-    #now setup your conda env with bioconda, type following in order
-    conda config --add channels r
-    conda config --add channels defaults
-    conda config --add channels conda-forge
-    conda config --add channels bioconda
-    
-    #now install dependencies
-    conda install vsearch biopython natsort pandas numpy matplotlib python-edlib urllib2 \
-        seaborn biom-format psutil r-base bioconductor-dada2 bioconductor-phyloseq
-    
-    #now get latest version of amptk
     git clone https://github.com/nextgenusfs/amptk.git
-    export PATH="/path/to/amptk:$PATH"   
+    export PATH="/path/to/amptk/bin:$PATH"
 
-    
-Dependencies
-==================
+
+Dependencies Requiring Manual Install
+=========================================
 1) AMPtk utilizes USEARCH9 which must be installed manually from the developer `here <http://www.drive5.com/usearch/download.html>`_.  Obtain the proper version of USEARCH v9.2.64 and softlink into the PATH:
 
 .. code-block:: none
@@ -97,41 +98,7 @@ Dependencies
     #create softlink
     sudo ln -s /path/to/usearch10.0.240_i86osx32 /usr/local/bin/usearch10
 
-2) AMPtk requires VSEARCH, which you can install from `here <https://github.com/torognes/vsearch>`_. Note, if you use homebrew recipe it will be install automatically or can use conda.
-
-.. code-block:: none
-
-    #install vsearch with homebrew
-    brew install vsearch
-    
-    #or with bioconda
-    conda install -c bioconda vsearch
-
-3) Several Python modules are also required, they can be installed with pip or conda:
-
-.. code-block:: none
-
-    #install with pip
-    pip install -U biopython natsort pandas numpy matplotlib seaborn edlib biom-format psutil
-    
-    #install with conda
-    conda install biopython natsort pandas numpy matplotlib seaborn python-edlib biom-format psutil
-
-4) (optional)  DADA2 denoising algorithm requires installation of R and DADA2.  Instructions are located `here <http://benjjneb.github.io/dada2/>`_.
-
-.. code-block:: none
-
-    #install with conda/bioconda
-    conda install r-base bioconductor-dada2
-
-5) (optional) To run some preliminary community ecology stats via ``amptk stats`` you will also need the R package `Phyloseq <https://joey711.github.io/phyloseq/>`_.  One way to install with conda:
-
-.. code-block:: none
-
-    #install with conda/bioconda
-    conda install r-base bioconductor-phyloseq
-
-6) (optional) LULU post-clustering OTU table filtering via ``amptk lulu`` requires the R package `LULU <https://github.com/tobiasgf/lulu>`_. Install requires devtools.
+2) (optional) LULU post-clustering OTU table filtering via ``amptk lulu`` requires the R package `LULU <https://github.com/tobiasgf/lulu>`_. Install requires devtools.
 
 .. code-block:: none
 
@@ -145,6 +112,45 @@ Dependencies
     
     #could also install tidyverse from conda
     conda install r-tidyverse
+    
+
+Dependencies installed via package managers
+============================================
+You only need to worry about these dependencies if you installed manually and/or some will be necessary if used homebrew for installation (for example homebrew doesn't install R packages)
+
+1) AMPtk requires VSEARCH, which you can install from `here <https://github.com/torognes/vsearch>`_. Note, if you use homebrew recipe it will be install automatically or can use conda.
+
+.. code-block:: none
+
+    #install vsearch with homebrew
+    brew install vsearch
+    
+    #or with bioconda
+    conda install -c bioconda vsearch
+
+2) Several Python modules are also required, they can be installed with pip or conda:
+
+.. code-block:: none
+
+    #install with pip
+    pip install -U biopython natsort pandas numpy matplotlib seaborn edlib biom-format psutil
+    
+    #install with conda
+    conda install biopython natsort pandas numpy matplotlib seaborn python-edlib biom-format psutil
+
+3) (optional)  DADA2 denoising algorithm requires installation of R and DADA2.  Instructions are located `here <http://benjjneb.github.io/dada2/>`_.
+
+.. code-block:: none
+
+    #install with conda/bioconda
+    conda install r-base bioconductor-dada2
+
+4) (optional) To run some preliminary community ecology stats via ``amptk stats`` you will also need the R package `Phyloseq <https://joey711.github.io/phyloseq/>`_.  One way to install with conda:
+
+.. code-block:: none
+
+    #install with conda/bioconda
+    conda install r-base bioconductor-phyloseq
 
     
 Run from Docker
