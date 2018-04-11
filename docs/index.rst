@@ -34,22 +34,18 @@ There are several ways to install AMPtk, the easiest and recommended way is with
 
 .. code-block:: none
      
-    #setup your conda env with bioconda, type the following in order to setup channels
-    conda config --add channels r
-    conda config --add channels defaults
-    conda config --add channels conda-forge
-    conda config --add channels bioconda
-    
-    #create amptk env (optional)
-    conda create -n amptk amptk
-    
-    #to run amptk, activate the environment
-    source activate amptk
-    
-    ############################
-    #to install amptk systemwide (within miniconda)
-    conda install amptk
-
+	#setup your conda env with bioconda, type the following in order to setup channels
+	conda config --add channels r
+	conda config --add channels defaults
+	conda config --add channels conda-forge
+	conda config --add channels bioconda
+	
+	#create amptk env (optional)
+	conda create -n amptk amptk
+	
+	#to run amptk, activate the environment
+	source activate amptk
+	
 
 Homebrew users can install AMPtk and its dependencies is with `HomeBrew <https://brew.sh>`_. For example:
 
