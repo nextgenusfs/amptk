@@ -143,16 +143,16 @@ Arguments:   -i, --fastq,--bam   Input BAM or FASTQ file (Required)
 Usage:       amptk %s <arguments>
 version:     %s
 
-Description: Script takes Illumina MiSeq data that is not de-multiplexed and has read structure 
+Description: Script takes Illumina data that is not de-multiplexed and has read structure 
              similar to Ion/454 such that the reads are <barcode><fwd_primer>Read<rev_primer> for 
-             clustering using AMPtk.  The default behavior is to: 1) merge the PE reads using USEARCH, 
-             2) find barcodes, 3)find and trim primers, 3) rename reads according to sample name, 
-             4) trim/pad reads to a set length.  This script can also handle dual barcodes 
+             clustering using AMPtk.  The default behavior is to: 1) find barcodes/primers, 
+             2) relabel headers and trim barcodes/primers, 3) merge the PE reads, 
+             4) trim/pad reads to a set length.  This script can handle dual barcodes 
              (3' barcodes using the --reverse_barcode option). 
     
-Arguments:   -i, --fastq         Input FASTQ file (Required)
+Arguments:   -i, --fastq         Input R1 Illumina reads (Required)
              --reverse           Illumina PE reverse reads.
-             -o, --out           Output base name. Default: out
+             -o, --out           Output base name. Default: illumina2
              -m, --mapping_file  QIIME-like mapping file
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence Default: ITS4
@@ -160,9 +160,9 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -l, --trim_len      Length to trim/pad reads. Default: 300
              -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
              --min_len           Minimum length read to keep. Default: 100
-             --barcode_fasta     FASTA file containing barcodes. Default: pgm_barcodes.fa
+             --barcode_fasta     FASTA file containing barcodes.
+             --reverse_barcode   FASTA file containing 3' barcodes.
              --barcode_mismatch   Number of mismatches in barcode to allow. Default: 0
-             --reverse_barcode   FASTA file containing 3' barcodes. Default: none
              --full_length       Keep only full length sequences.
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
              --merge_method      Software to use for PE merging. Default: usearch [usearch,vsearch]
@@ -172,9 +172,8 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
         
         arguments = sys.argv[2:]
         if len(arguments) > 1:
-            cmd = os.path.join(parentdir, 'bin', 'amptk-process_ion.py')
+            cmd = os.path.join(parentdir, 'bin', 'amptk-process_illumina2.py')
             arguments.insert(0, cmd)
-            arguments.append('--illumina')
             exe = sys.executable
             arguments.insert(0, exe)
             subprocess.call(arguments)

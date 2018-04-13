@@ -188,6 +188,7 @@ if not os.path.isfile(dada2out):
     
 #now process the output, pull out fasta, rename, etc
 fastaout = base+'.otus.tmp'
+OTUCounts = {}
 counter = 1
 with open(fastaout, 'w') as writefasta:
     with open(dada2out, 'rU') as input:
@@ -197,7 +198,11 @@ with open(fastaout, 'w') as writefasta:
             line = line.replace('"', '')
             cols = line.split(',')
             Seq = cols[0]
+            countList = [int(x) for x in cols[1:]]
+            counts = sum(countList)
             ID = 'ASV'+str(counter)
+            if not ID in OTUCounts:
+            	OTUCounts[ID] = counts
             writefasta.write(">%s\n%s\n" % (ID, Seq))
             counter += 1
 
@@ -256,13 +261,19 @@ else:
         if os.path.isfile(fastaout):
             amptklib.removefile(fastaout)
 
-
 #setup output files
 dadademux = base+'.dada2.map.uc'
 bioSeqs = base+'.cluster.otus.fa'
 bioTable = base+'.cluster.otu_table.txt'
 uctmp = base+'.map.uc'
 ClusterComp = base+'.ASVs2clusters.txt'
+
+#Filter out ASVs in wrong orientation
+amptklib.log.info('Validating ASV orientation')
+os.rename(iSeqs, iSeqs+'.bak')
+numKept, numDropped = amptklib.validateorientationDADA2(OTUCounts, iSeqs+'.bak', iSeqs)
+amptklib.log.info('{:,} ASVs validated ({:,} dropped)'.format(numKept, numDropped))
+amptklib.SafeRemove(iSeqs+'.bak')
 
 #map reads to DADA2 OTUs
 amptklib.log.info("Mapping reads to DADA2 ASVs")

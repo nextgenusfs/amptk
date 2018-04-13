@@ -39,7 +39,7 @@ parser=argparse.ArgumentParser(prog='amptk-process_illumina_folder.py', usage="%
     formatter_class=MyFormatter)
 
 parser.add_argument('-i','--input', dest='input', required=True, help='Folder of Illumina Data')
-parser.add_argument('-o','--out', dest="out", default='amptk-data', help='Name for output folder')
+parser.add_argument('-o','--out', dest="out", default='amptk-illumina', help='Name for output folder')
 parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')
 parser.add_argument('--reads', dest="reads", default='paired', choices=['paired', 'forward'], help='PE or forward reads')
 parser.add_argument('--read_length', type=int, help='Read length, i.e. 2 x 300 bp = 300')
@@ -175,16 +175,19 @@ if gzip_list:
         amptklib.Funzip(os.path.join(args.input, file), OutName, cpus) 
 
 #check for mapping file, if exists, then use names from first column only for filenames
+SampleData = {}
+Barcodes = {}
+RevBarcodes = {}
+FwdPrimer = ''
+RevPrimer = ''
 if args.mapping_file:
     if not os.path.isfile(args.mapping_file):
         amptklib.error("Mapping file is not valid: %s" % args.mapping_file)
         sys.exit(1)
+    SampleData, Barcodes, RevBarcodes, FwdPrimer, RevPrimer = amptklib.parseMappingFileNEW(args.mapping_file)  
     mapdata = amptklib.parseMappingFileIllumina(args.mapping_file)
     #forward primer in first item in tuple, reverse in second
-    sample_names = mapdata[0]
-    FwdPrimer = mapdata[1]
-    RevPrimer = mapdata[2]
-    genericmapfile = args.mapping_file
+    sample_names = list(SampleData.keys())
     #loop through the files in the folder and get the ones in the sample_names lit
     filenames = []
     for file in os.listdir(args.input):
@@ -385,16 +388,17 @@ for k,v in natsorted(list(BarcodeCount.items()), key=lambda k_v: k_v[1], reverse
     barcode_counts += "\n%30s:  %s" % (k, str(BarcodeCount[k]))
 amptklib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
+genericmapfile = args.out + '.mapping_file.txt'
 if not args.mapping_file:
     #create a generic mappingfile for downstream processes
-    genericmapfile = args.out + '.mapping_file.txt'
     amptklib.CreateGenericMappingFileIllumina(sampleDict, FwdPrimer, amptklib.RevComp(RevPrimer), genericmapfile, BarcodeCount)
-
+else:
+	amptklib.updateMappingFile(args.mapping_file, BarcodeCount, genericmapfile)
+	
 #compress the output to save space
 FinalDemux = catDemux+'.gz'
 amptklib.Fzip(catDemux, FinalDemux, cpus)
 amptklib.removefile(catDemux)
-
 
 #get file size
 filesize = os.path.getsize(FinalDemux)

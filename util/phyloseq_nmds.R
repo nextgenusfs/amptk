@@ -107,7 +107,7 @@ OTU = otu_table(t(votu), taxa_are_rows = TRUE)
 physeq2 = phyloseq(OTU, tax_table(physeq), sample_data(physeq), phy_tree(physeq))
 
 #loop through treatments, remove the non treatment options in biom that are relic of 
-remove <- c("LinkerPrimerSequence","phinchID","DemuxReads","BarcodeSequence","ReversePrimer")
+remove <- c("LinkerPrimerSequence","phinchID","RevBarcodeSequence","DemuxReads","BarcodeSequence","ReversePrimer")
 treatments <- setdiff(sample_variables(physeq), remove)
 print(treatments)
 

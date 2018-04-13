@@ -151,6 +151,12 @@ else:
 iSeqs = base+'.ASVs.fa'
 amptklib.fastarename(uchime_out, 'ASV', iSeqs)
 
+#Filter out ASVs in wrong orientation
+amptklib.log.info('Validating ASV orientation')
+passingOTUs = os.path.join(tmp, base+'.passed.asvs.fa')
+numKept, numDropped = amptklib.validateorientation(tmp, derep_out, uchime_out, passingOTUs)
+amptklib.log.info('{:,} ASVs validated ({:,} dropped)'.format(numKept, numDropped))
+
 #build OTU table with iSeqs
 uc_iSeq_out = os.path.join(tmp, base + '.EE' + args.maxee + '.mapping.uc')
 iSeq_otu_table = base + '.otu_table.txt'
@@ -160,7 +166,7 @@ if args.map_filtered:
 else:
     reads = orig_fasta
 amptklib.log.info("Mapping Reads to ASVs and Building OTU table")
-cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', iSeqs, '--uc', uc_iSeq_out, '--otutabout', iSeq_otu_table]
+cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', passingOTUs, '--uc', uc_iSeq_out, '--otutabout', iSeq_otu_table]
 amptklib.runSubprocess(cmd, amptklib.log)
 
 #count reads mapped
@@ -171,7 +177,7 @@ amptklib.log.info('{0:,}'.format(total) + ' reads mapped to ASVs '+ '({0:.0f}%)'
 radius = float(args.pct_otu) / 100.
 amptklib.log.info("Clustering denoised sequences into biological OTUs at %s%%" % args.pct_otu)
 uclust_out = os.path.join(tmp, base + '.EE' + args.maxee + '.uclust.fa')
-cmd = ['vsearch', '--cluster_smallmem', iSeqs, '--centroids', uclust_out, '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU', '--qmask', 'none', '--usersort']
+cmd = ['vsearch', '--cluster_smallmem', passingOTUs, '--centroids', uclust_out, '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU', '--qmask', 'none', '--usersort']
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfasta(uclust_out)
 amptklib.log.info('{0:,}'.format(total) + ' OTUs generated')
@@ -179,7 +185,7 @@ amptklib.log.info('{0:,}'.format(total) + ' OTUs generated')
 #determine where denoised sequences clustered
 ClusterComp = base+'.ASVs2clusters.txt'
 iSeqmap = base+'.unoise_map.uc'
-cmd = [usearch, '-usearch_global', iSeqs, '-db', uclust_out, '-id', str(radius), '-uc', iSeqmap, '-strand', 'plus']
+cmd = [usearch, '-usearch_global', passingOTUs, '-db', uclust_out, '-id', str(radius), '-uc', iSeqmap, '-strand', 'plus']
 amptklib.runSubprocess(cmd, amptklib.log)
 iSeqMapped = {}
 with open(iSeqmap, 'rU') as mapping:
@@ -228,7 +234,7 @@ print("UNOISE2 Script has Finished Successfully")
 print("-------------------------------------------------------")
 if not not args.debug:
     print("Tmp Folder of files: %s" % tmp)
-print("amplicon sequnce variants: %s" % iSeqs)
+print("amplicon sequnce variants: %s" % passingOTUs)
 print("ASV OTU Table: %s" % iSeq_otu_table)
 print("Clustered OTUs: %s" % os.path.basename(final_otu))
 print("OTU Table: %s" % os.path.basename(final_otu_table))

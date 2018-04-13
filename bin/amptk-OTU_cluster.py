@@ -180,7 +180,7 @@ if args.map_filtered:
 else:
     reads = orig_fasta
 amptklib.log.info("Mapping Reads to OTUs and Building OTU table")
-cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', uchime_out, '--uc', uc_out, '--otutabout', otu_table]
+cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', passingOTUs, '--uc', uc_out, '--otutabout', otu_table]
 amptklib.runSubprocess(cmd, amptklib.log)
 
 #count reads mapped
@@ -190,7 +190,7 @@ amptklib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'
 #Move files around, delete tmp if argument passed.
 currentdir = os.getcwd()
 final_otu = os.path.join(currentdir, base + '.cluster.otus.fa')
-shutil.copyfile(uchime_out, final_otu)
+shutil.copyfile(passingOTUs, final_otu)
 final_otu_table = os.path.join(currentdir, base + '.otu_table.txt')
 shutil.copyfile(otu_table, final_otu_table)
 if not args.debug:

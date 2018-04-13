@@ -35,27 +35,50 @@ parser=argparse.ArgumentParser(prog='amptk-process_ion.py', usage="%(prog)s [opt
     epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
     formatter_class=MyFormatter)
 
-parser.add_argument('-i','--fastq','--sff', '--fasta', '--bam', dest='fastq', required=True, help='BAM/FASTQ/SFF/FASTA file')
-parser.add_argument('-q','--qual', help='QUAL file (if -i is FASTA)')
-parser.add_argument('-o','--out', dest="out", default='ion', help='Base name for output')
-parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7-ion', help='Forward Primer')
+parser.add_argument('-i','--fastq', dest='fastq', required=True, help='FASTQ R1 file')
+parser.add_argument('--reverse', help='Illumina R2 reverse reads')
+parser.add_argument('-o','--out', dest="out", default='illumina2', help='Base name for output')
+parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer')
 parser.add_argument('-m','--mapping_file', help='Mapping file: QIIME format can have extra meta data columns')
 parser.add_argument('-p','--pad', default='off', choices=['on', 'off'], help='Pad with Ns to a set length')
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--barcode_mismatch', default=0, type=int, help='Number of mis-matches in barcode')
-parser.add_argument('--barcode_fasta', default='ionxpress', help='FASTA file containing Barcodes (Names & Sequences)')
+parser.add_argument('--barcode_fasta', help='FASTA file containing Barcodes (Names & Sequences)')
 parser.add_argument('--reverse_barcode', help='FASTA file containing 3 prime Barocdes')
-parser.add_argument('-b','--list_barcodes', dest="barcodes", default='all', help='Enter Barcodes used separated by commas')
 parser.add_argument('--min_len', default=100, type=int, help='Minimum read length to keep')
 parser.add_argument('-l','--trim_len', default=300, type=int, help='Trim length for reads')
 parser.add_argument('--full_length', action='store_true', help='Keep only full length reads (no trimming/padding)')
-parser.add_argument('--mult_samples', dest="multi", default='False', help='Combine multiple samples (i.e. FACE1)')
-parser.add_argument('--ion', action='store_true', help='Input data is Ion Torrent')
-parser.add_argument('--454', action='store_true', help='Input data is 454')
+parser.add_argument('--merge_method', default='usearch', choices=['usearch', 'vsearch'], help='Software to use for PE read merging')
 parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH EXE')
 args=parser.parse_args()
+
+def processReadsPE(input):
+    base = os.path.basename(input)
+    forward_reads = os.path.join(tmpdir, base+'_R1.fq')
+    reverse_reads = os.path.join(tmpdir, base+'_R2.fq')
+    phased_forward = os.path.join(tmpdir, base+'_R1.phased.fq')
+    phased_reverse = os.path.join(tmpdir, base+'_R2.phased.fq')
+    trim_forward = os.path.join(tmpdir, base+'_R1.trimmed.fq')
+    trim_reverse = os.path.join(tmpdir, base+'_R2.trimmed.fq')
+    merged_reads = os.path.join(tmpdir, base+'.merged.fq')
+    DemuxOut = os.path.join(tmpdir, base+'.demux.fq')
+    StatsOut = os.path.join(tmpdir, base+'.stats')
+    RL = amptklib.GuessRL(forward_reads)
+    amptklib.trim3prime(forward_reads, RL, phased_forward, [])
+    amptklib.trim3prime(reverse_reads, RL, phased_reverse, [])
+    amptklib.demuxIlluminaPE(phased_forward, phased_reverse, FwdPrimer, RevPrimer, SampleData, Barcodes, RevBarcodes, args.barcode_mismatch, args.primer_mismatch, trim_forward, trim_reverse, StatsOut)
+    if args.full_length:
+        amptklib.MergeReadsSimple(trim_forward, trim_reverse, '.', DemuxOut, args.min_len, usearch, 'off', args.merge_method)
+    else:
+        amptklib.MergeReadsSimple(trim_forward, trim_reverse, '.', merged_reads, args.min_len, usearch, 'on', args.merge_method)
+        amptklib.losslessTrim(merged_reads, args.trim_len, args.pad, args.min_len, DemuxOut) 
+    amptklib.SafeRemove(forward_reads)
+    amptklib.SafeRemove(reverse_reads)
+    amptklib.SafeRemove(phased_forward)
+    amptklib.SafeRemove(phased_reverse)
+    amptklib.SafeRemove(merged_reads)
 
 def processRead(input):
     base = os.path.basename(input).split('.')[0]
@@ -70,6 +93,7 @@ def processRead(input):
     TooShort = 0
     RevPrimerFound = 0
     ValidSeqs = 0
+    RCrevPrimer = amptklib.RevComp(RevPrimer)
     with open(StatsOut, 'w') as counts:
         with open(DemuxOut, 'w') as out:   
             for title, seq, qual in FastqGeneralIterator(open(input)):
@@ -89,7 +113,7 @@ def processRead(input):
                     continue
                 ForTrim = foralign["locations"][0][1]+1   
                 #now search for reverse primer
-                revalign = edlib.align(RevPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
+                revalign = edlib.align(RCrevPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                 if revalign["editDistance"] >= 0:  #reverse primer was found
                     RevPrimerFound += 1 
                     #location to trim sequences
@@ -143,7 +167,7 @@ def processRead(input):
                 out.write("@%s\n%s\n+\n%s\n" % (Name, Seq, Qual))
             counts.write('%i,%i,%i,%i,%i,%i,%i\n' % (Total, NoBarcode, NoPrimer, RevPrimerFound, NoRevBarcode, TooShort, ValidSeqs))        
 
-    
+
 args.out = re.sub(r'\W+', '', args.out)
 
 log_name = args.out + '.amptk-demux.log'
@@ -178,61 +202,23 @@ amptklib.SafeRemove(rev_barcode_file)
 SampleData = {}
 Barcodes = {}
 RevBarcodes = {}
+FwdPrimer = ''
+RevPrimer = ''
 if args.mapping_file:
     if not os.path.isfile(args.mapping_file):
         amptklib.log.error("Mapping file not found: %s" % args.mapping_file)
         sys.exit(1)
     SampleData, Barcodes, RevBarcodes, FwdPrimer, RevPrimer = amptklib.parseMappingFileNEW(args.mapping_file)  
-    genericmapfile = args.mapping_file
 else: #no mapping file, so create dictionaries from barcode fasta files
-    if args.barcode_fasta == 'ionxpress':
-        #get script path and barcode file name
-        pgm_barcodes = os.path.join(parentdir, 'DB', 'ionxpress_barcodes.fa')
-    elif args.barcode_fasta == 'ioncode':
-        pgm_barcodes = os.path.join(parentdir, 'DB', 'ioncode_barcodes.fa')
-    if args.barcode_fasta == 'ionxpress' or args.barcode_fasta == 'ioncode':
-        if args.barcodes == "all":
-            if args.multi == 'False':
-                shutil.copyfile(pgm_barcodes, barcode_file)
-            else:
-                with open(barcode_file, 'w') as barcodeout:
-                    with open(pgm_barcodes, 'rU') as input:
-                        for rec in SeqIO.parse(input, 'fasta'):
-                            outname = args.multi+'.'+rec.id
-                            barcodeout.write(">%s\n%s\n" % (outname, rec.seq))
-        else:
-            bc_list = args.barcodes.split(",")
-            inputSeqFile = open(pgm_barcodes, "rU")
-            SeqRecords = SeqIO.to_dict(SeqIO.parse(inputSeqFile, "fasta"))
-            for rec in bc_list:
-                name = "BC." + rec
-                seq = SeqRecords[name].seq
-                if args.multi != 'False':
-                    outname = args.multi+'.'+name
-                else:
-                    outname = name
-                outputSeqFile = open(barcode_file, "a")
-                outputSeqFile.write(">%s\n%s\n" % (outname, seq))
-            outputSeqFile.close()
-            inputSeqFile.close()
+    if not args.barcode_fasta:
+        amptklib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required")
+        sys.exit(1)
     else:
-        #check for multi_samples and add if necessary
-        if args.multi == 'False':
-            shutil.copyfile(args.barcode_fasta, barcode_file)
-            if args.reverse_barcodes:
-                shutil.copyfile(args.reverse_barcodes,rev_barcode_file)
-        else:
-            with open(barcode_file, 'w') as barcodeout:
-                with open(args.barcode_fasta, 'rU') as input:
-                    for rec in SeqIO.parse(input, 'fasta'):
-                        outname = args.multi+'.'+rec.id
-                        barcodeout.write(">%s\n%s\n" % (outname, rec.seq))
-            if args.reverse_barcodes:
-                with open(rev_barcode_file, 'w') as barcodeout:
-                    with open(args.reverse_barcodes, 'rU') as input:
-                        for rec in SeqIO.parse(input, 'fasta'):
-                            outname = args.multi+'.'+rec.id
-                            barcodeout.write(">%s\n%s\n" % (outname, rec.seq))                   
+        shutil.copyfile(args.barcode_fasta, barcode_file)
+        Barcodes = amptklib.fasta2barcodes(barcode_file, False)
+        if args.reverse_barcode:
+            shutil.copyfile(args.reverse_barcode, rev_barcode_file)
+            RevBarcodes = amptklib.fasta2barcodes(rev_barcode_file, False)                   
     
     #parse primers here so doesn't conflict with mapping primers
     #look up primer db otherwise default to entry
@@ -243,101 +229,70 @@ else: #no mapping file, so create dictionaries from barcode fasta files
     if args.R_primer in amptklib.primer_db:
         RevPrimer = amptklib.primer_db.get(args.R_primer)
     else:
-        RevPrimer = args.R_primer 
+        RevPrimer = args.R_primer
 
 #check if input is compressed
 gzip_list = []
 if args.fastq.endswith('.gz'):
     gzip_list.append(os.path.abspath(args.fastq))
+if args.reverse:
+    if args.reverse.endswith('.gz'):
+        gzip_list.append(os.path.abspath(args.reverse))
 if gzip_list:
     amptklib.log.info("Gzipped input files detected, uncompressing")
     for file in gzip_list:
         file_out = file.replace('.gz', '')
         amptklib.Funzip(file, file_out, cpus)
     args.fastq = args.fastq.replace('.gz', '')
-     
-#if SFF file passed, convert to FASTQ with biopython
-if args.fastq.endswith(".sff"):
-    if args.barcode_fasta == 'ionxpress':
-        if not args.mapping_file:
-            amptklib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required for 454 data")
-            sys.exit(1)
-    amptklib.log.info("SFF input detected, converting to FASTQ")
-    SeqIn = args.out + '.sff.extract.fastq'
-    SeqIO.convert(args.fastq, "sff-trim", SeqIn, "fastq")
-elif args.fastq.endswith(".fas") or args.fastq.endswith(".fasta") or args.fastq.endswith(".fa"):
-    if not args.qual:
-        amptklib.log.error("FASTA input detected, however no QUAL file was given.  You must have FASTA + QUAL files")
-        sys.exit(1)
-    else:
-        if args.barcode_fasta == 'ionxpress':
-            if not args.mapping_file:
-                amptklib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required for 454 data")
-                sys.exit(1)
-        SeqIn = args.out + '.fastq'
-        amptklib.log.info("FASTA + QUAL detected, converting to FASTQ")
-        amptklib.faqual2fastq(args.fastq, args.qual, SeqIn)
-elif args.fastq.endswith('.bam'):
-    #so we can convert natively with pybam, however it is 10X slower than bedtools/samtools
-    #since samtools is fastest, lets use that if exists, if not then bedtools, else default to pybam
-    amptklib.log.info("Converting Ion Torrent BAM file to FASTQ")
-    SeqIn = args.out+'.fastq'
-    if amptklib.which('samtools'):
-        cmd = ['samtools', 'fastq', '-@', str(cpus), args.fastq]
-        amptklib.runSubprocess2(cmd, amptklib.log, SeqIn)
-    else:
-        if amptklib.which('bedtools'):
-            cmd = ['bedtools', 'bamtofastq', '-i', args.fastq, '-fq', SeqIn]
-            amptklib.runSubprocess(cmd, amptklib.log)
-        else: #default to pybam
-            amptklib.bam2fastq(args.fastq, SeqIn)
-else:        
-    SeqIn = args.fastq
-
-#start here to process the reads, first reverse complement the reverse primer
-catDemux = args.out + '.demux.fq'
-origRevPrimer = RevPrimer
-RevPrimer = amptklib.RevComp(RevPrimer)
-amptklib.log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
-
-#then setup barcode dictionary
-if len(Barcodes) < 1:
-    Barcodes = amptklib.fasta2barcodes(barcode_file, False)
-
-#setup for looking for reverse barcode
-if len(RevBarcodes) < 1 and args.reverse_barcode:
-    if not os.path.isfile(args.reverse_barcode):
-        amptklib.log.info("Reverse barcode is not a valid file, exiting")
-        sys.exit(1) 
-    shutil.copyfile(args.reverse_barcode, rev_barcode_file)
-    RevBarcodes = amptklib.fasta2barcodes(rev_barcode_file, True)
+    if args.reverse:
+        args.reverse = args.reverse.replace('.gz', '')
 
 #Count FASTQ records
 amptklib.log.info("Loading FASTQ Records")
-orig_total = amptklib.countfastq(SeqIn)
-size = amptklib.checkfastqsize(SeqIn)
-readablesize = amptklib.convertSize(size)
-amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
+orig_total = amptklib.countfastq(args.fastq)
+size = amptklib.checkfastqsize(args.fastq)
+readablesize = amptklib.convertSize(size*2)
+amptklib.log.info('{:,} reads ({:})'.format(orig_total, readablesize))
 
 #create tmpdir and split input into n cpus
 tmpdir = args.out.split('.')[0]+'_'+str(os.getpid())
 if not os.path.exists(tmpdir):
     os.makedirs(tmpdir)
 
-if cpus > 1:
-    #split fastq file
-    amptklib.split_fastq(SeqIn, orig_total, tmpdir, cpus*2)    
-    #now get file list from tmp folder
-    file_list = []
-    for file in os.listdir(tmpdir):
-        if file.endswith(".fq"):
-            file = os.path.join(tmpdir, file)
-            file_list.append(file)
-    #finally process reads over number of cpus
-    amptklib.runMultiProgress(processRead, file_list, cpus)
+if args.reverse:
+	amptklib.log.info("Demuxing PE Illumina reads; FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))
 else:
-    shutil.copyfile(SeqIn, os.path.join(tmpdir, 'chunk.fq'))
-    processRead(os.path.join(tmpdir, 'chunk.fq'))
+	amptklib.log.info("Demuxing SE Illumina reads; FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, amptklib.RevComp(RevPrimer)))
+
+if cpus > 1:
+    if args.reverse:
+        amptklib.split_fastqPE(args.fastq, args.reverse, orig_total, tmpdir, cpus*2)
+        file_list = []
+        for file in os.listdir(tmpdir):
+            if file.endswith('.fq'):
+                filepart = os.path.join(tmpdir, file.split('_R')[0])
+                if not filepart in file_list:
+                    file_list.append(filepart)
+        amptklib.runMultiProgress(processReadsPE, file_list, cpus)               
+    else:
+        #split fastq file
+        amptklib.split_fastq(args.fastq, orig_total, tmpdir, cpus*2)    
+        #now get file list from tmp folder
+        file_list = []
+        for file in os.listdir(tmpdir):
+            if file.endswith(".fq"):
+                file = os.path.join(tmpdir, file)
+                file_list.append(file)
+        #finally process reads over number of cpus
+        amptklib.runMultiProgress(processRead, file_list, cpus)
+else:
+    if args.reverse:
+        shutil.copyfile(args.fastq, os.path.join(tmpdir, 'chunk_R1.fq'))
+        shutil.copyfile(args.reverse, os.path.join(tmpdir, 'chunk_R2.fq'))
+        processReadsPE(os.path.join(tmpdir, 'chunk'))
+    else:
+        shutil.copyfile(args.fastq, os.path.join(tmpdir, 'chunk.fq'))
+        processRead(os.path.join(tmpdir, 'chunk.fq'))
 
 print("-------------------------------------------------------")
 #Now concatenate all of the demuxed files together
@@ -350,34 +305,52 @@ with open(tmpDemux, 'w') as outfile:
             continue
         with open(filename, 'rU') as readfile:
             shutil.copyfileobj(readfile, outfile)
-#parse the stats
-finalstats = [0,0,0,0,0,0,0]
-for file in os.listdir(tmpdir):
-    if file.endswith('.stats'):
-        with open(os.path.join(tmpdir, file), 'rU') as statsfile:
-            line = statsfile.readline()
-            line = line.rstrip()
-            newstats = line.split(',')
-            newstats = [int(i) for i in newstats]
-            for x, num in enumerate(newstats):
-                finalstats[x] += num
-        
+if args.reverse:
+	#parse the stats
+	finalstats = [0,0,0,0,0,0]
+	for file in os.listdir(tmpdir):
+		if file.endswith('.stats'):
+			with open(os.path.join(tmpdir, file), 'rU') as statsfile:
+				line = statsfile.readline()
+				line = line.rstrip()
+				newstats = line.split(',')
+				newstats = [int(i) for i in newstats]
+				for x, num in enumerate(newstats):
+					finalstats[x] += num
+	
+	amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
+	amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1]-finalstats[3])+' valid Barcodes')
+	amptklib.log.info('{0:,}'.format(finalstats[5])+' valid output reads (Barcodes and Primers)')
+else:
+	#parse the stats
+	finalstats = [0,0,0,0,0,0,0]
+	for file in os.listdir(tmpdir):
+		if file.endswith('.stats'):
+			with open(os.path.join(tmpdir, file), 'rU') as statsfile:
+				line = statsfile.readline()
+				line = line.rstrip()
+				newstats = line.split(',')
+				newstats = [int(i) for i in newstats]
+				for x, num in enumerate(newstats):
+					finalstats[x] += num
+			
+	amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
+	if args.reverse_barcode:
+		amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1]-finalstats[2]-finalstats[4])+' valid Fwd and Rev Barcodes')
+	else:
+		amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1])+' valid Barcode')
+		amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1]-finalstats[2])+' Fwd Primer found, {0:,}'.format(finalstats[3])+ ' Rev Primer found')
+	amptklib.log.info('{0:,}'.format(finalstats[5])+' discarded too short (< %i bp)' % args.min_len)
+	amptklib.log.info('{0:,}'.format(finalstats[6])+' valid output reads')
+
+
 #clean up tmp folder
-shutil.rmtree(tmpdir)
+amptklib.SafeRemove(tmpdir)
 
 #last thing is to re-number of reads as it is possible they could have same name from multitprocessor split
+catDemux = args.out+'.demux.fq'
 amptklib.fastqreindex(tmpDemux, catDemux)
-os.remove(tmpDemux)
-    
-amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
-if args.reverse_barcode:
-    amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1]-finalstats[2]-finalstats[4])+' valid Fwd and Rev Barcodes')
-else:
-    amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1])+' valid Barcode')
-    amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1]-finalstats[2])+' Fwd Primer found, {0:,}'.format(finalstats[3])+ ' Rev Primer found')
-amptklib.log.info('{0:,}'.format(finalstats[5])+' discarded too short (< %i bp)' % args.min_len)
-amptklib.log.info('{0:,}'.format(finalstats[6])+' valid output reads')
-
+amptklib.SafeRemove(tmpDemux)
 #now loop through data and find barcoded samples, counting each.....
 BarcodeCount = {}
 with open(catDemux, 'rU') as input:
@@ -395,13 +368,12 @@ for k,v in natsorted(list(BarcodeCount.items()), key=lambda k_v: k_v[1], reverse
     barcode_counts += "\n%22s:  %s" % (k, str(BarcodeCount[k]))
 amptklib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
 
-#create a generic mappingfile for downstream processes
 genericmapfile = args.out + '.mapping_file.txt'
 if not args.mapping_file:
-    amptklib.CreateGenericMappingFile(Barcodes, RevBarcodes, FwdPrimer, origRevPrimer, genericmapfile, BarcodeCount)
+    #create a generic mappingfile for downstream processes
+    amptklib.CreateGenericMappingFile(Barcodes, RevBarcodes, FwdPrimer, RevPrimer, genericmapfile, BarcodeCount)
 else:
-    amptklib.updateMappingFile(args.mapping_file, BarcodeCount, genericmapfile)
-
+	amptklib.updateMappingFile(args.mapping_file, BarcodeCount, genericmapfile)
 #compress the output to save space
 FinalDemux = catDemux+'.gz'
 amptklib.Fzip(catDemux, FinalDemux, cpus)
@@ -422,3 +394,5 @@ if 'darwin' in sys.platform:
     print(col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux))
 else:
     print("\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux))
+
+sys.exit(1)

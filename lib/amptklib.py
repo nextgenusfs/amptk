@@ -678,7 +678,7 @@ def demuxIlluminaPE(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarco
                 if BCLabel == revBCLabel:
                     label = BCLabel
                 else:
-                    label = BCLabel+'-'+revBCLabel
+                    label = BCLabel+':-:'+revBCLabel
                 ForTrim = foralign["locations"][0][1]+1
                 RevTrim = revalign["locations"][0][1]+1
                 header = 'R_{:};barcodelabel={:};'.format(counter,label)
@@ -936,53 +936,89 @@ def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, me
     return log.info('{0:,}'.format(finalcount) + ' reads passed ('+'{0:.1%}'.format(pct_out)+')')
 
 def validateorientation(tmp, reads, otus, output):
-	orientcounts = os.path.join(tmp, 'orient.uc')
-	cmd = ['vsearch', '--usearch_global', reads, '--db', otus, '--sizein', '--id', '0.97', '--strand', 'plus', '--uc', orientcounts]
-	runSubprocess(cmd, log)
-	OTUCounts = {}
-	with open(orientcounts, 'rU') as countdata:
-		for line in countdata:
-			line = line.rstrip()
-			cols = line.split('\t')
-			ID = cols[9]
-			if ID == '*':
-				continue
-			size = cols[8].split('size=')[-1].replace(';', '')
-			if not ID in OTUCounts:
-				OTUCounts[ID] = int(size)
-			else:
-				OTUCounts[ID] += int(size)
-	orientmap = os.path.join(tmp, 'orient-map.txt')
-	cmd = ['vsearch', '--usearch_global', otus, '--db', otus, '--self', '--id', '0.95', '--strand', 'both', '--userout', orientmap, '--userfields', 'query+target+qstrand+id']
-	runSubprocess(cmd, log)
-	orient_remove = []
-	keeper = []
-	with open(orientmap, 'rU') as selfmap:
-		for line in selfmap:
-			line = line.rstrip()
-			cols = line.split('\t')
-			if cols[2] == '-':
-				qCount = OTUCounts.get(cols[0])
-				tCount = OTUCounts.get(cols[1])
-				if qCount > tCount:
-					if not cols[1] in orient_remove and not cols[1] in keeper:
-						orient_remove.append(cols[1])
-					if not cols[0] in keeper:
-						keeper.append(cols[0])
-				else:
-					if not cols[0] in orient_remove and not cols[0]:
-						orient_remove.append(cols[0])
-					if not cols[1] in keeper:
-						keeper.append(cols[1])
-	log.debug('Dropping {:,} OTUs: {:}'.format(len(orient_remove), ', '.join(orient_remove)))
-	count = 0
-	with open(output, 'w') as outfile:
-		with open(otus, 'rU') as infile:
-			for rec in SeqIO.parse(infile, 'fasta'):
-				if not rec.id in orient_remove:
-					count += 1
-					SeqIO.write(rec, outfile, 'fasta')
-	return count, len(orient_remove)
+    orientcounts = os.path.join(tmp, 'orient.uc')
+    cmd = ['vsearch', '--usearch_global', reads, '--db', otus, '--sizein', '--id', '0.97', '--strand', 'plus', '--uc', orientcounts]
+    runSubprocess(cmd, log)
+    OTUCounts = {}
+    with open(orientcounts, 'rU') as countdata:
+        for line in countdata:
+            line = line.rstrip()
+            cols = line.split('\t')
+            ID = cols[9]
+            if ID == '*':
+                continue
+            size = cols[8].split('size=')[-1].replace(';', '')
+            if not ID in OTUCounts:
+                OTUCounts[ID] = int(size)
+            else:
+                OTUCounts[ID] += int(size)
+    orientmap = os.path.join(tmp, 'orient-map.txt')
+    cmd = ['vsearch', '--usearch_global', otus, '--db', otus, '--self', '--id', '0.95', '--strand', 'both', '--userout', orientmap, '--userfields', 'query+target+qstrand+id']
+    runSubprocess(cmd, log)
+    orient_remove = []
+    keeper = []
+    with open(orientmap, 'rU') as selfmap:
+        for line in selfmap:
+            line = line.rstrip()
+            cols = line.split('\t')
+            if cols[2] == '-':
+                qCount = OTUCounts.get(cols[0])
+                tCount = OTUCounts.get(cols[1])
+                if qCount > tCount:
+                    if not cols[1] in orient_remove and not cols[1] in keeper:
+                        orient_remove.append(cols[1])
+                    if not cols[0] in keeper:
+                        keeper.append(cols[0])
+                else:
+                    if not cols[0] in orient_remove and not cols[0]:
+                        orient_remove.append(cols[0])
+                    if not cols[1] in keeper:
+                        keeper.append(cols[1])
+    log.debug('Dropping {:,} OTUs: {:}'.format(len(orient_remove), ', '.join(orient_remove)))
+    count = 0
+    with open(output, 'w') as outfile:
+        with open(otus, 'rU') as infile:
+            for rec in SeqIO.parse(infile, 'fasta'):
+                if not rec.id in orient_remove:
+                    count += 1
+                    SeqIO.write(rec, outfile, 'fasta')
+    return count, len(orient_remove)
+
+
+def validateorientationDADA2(OTUCounts, otus, output):
+    orientmap = 'orient-map.txt'
+    cmd = ['vsearch', '--usearch_global', otus, '--db', otus, '--self', '--id', '0.95', '--strand', 'both', '--userout', orientmap, '--userfields', 'query+target+qstrand+id']
+    runSubprocess(cmd, log)
+    orient_remove = []
+    keeper = []
+    with open(orientmap, 'rU') as selfmap:
+        for line in selfmap:
+            line = line.rstrip()
+            cols = line.split('\t')
+            if cols[2] == '-':
+                qCount = OTUCounts.get(cols[0])
+                tCount = OTUCounts.get(cols[1])
+                if qCount > tCount:
+                    if not cols[1] in orient_remove and not cols[1] in keeper:
+                        orient_remove.append(cols[1])
+                    if not cols[0] in keeper:
+                        keeper.append(cols[0])
+                else:
+                    if not cols[0] in orient_remove and not cols[0]:
+                        orient_remove.append(cols[0])
+                    if not cols[1] in keeper:
+                        keeper.append(cols[1])
+    log.debug('Dropping {:,} OTUs: {:}'.format(len(orient_remove), ', '.join(natsorted(orient_remove))))
+    count = 0
+    with open(output, 'w') as outfile:
+        with open(otus, 'rU') as infile:
+            for rec in SeqIO.parse(infile, 'fasta'):
+                if not rec.id in orient_remove:
+                    count += 1
+                    SeqIO.write(rec, outfile, 'fasta')
+    SafeRemove(orientmap)
+    return count, len(orient_remove)
+
 
 def dictFlip(input):
     #flip the list of dictionaries
@@ -1453,26 +1489,63 @@ def fasta2list(input):
             if not rec.description in seqlist:
                 seqlist.append(rec.description)
     return seqlist
-            
 
-def CreateGenericMappingFile(barcode_fasta, fwd_primer, rev_primer, adapter, output, barcodes_found):
-    mapDict = {}
-    with open(barcode_fasta, 'rU') as input:
-        for rec in SeqIO.parse(input, 'fasta'):
-                count = barcodes_found.get(rec.id, 0)
-                if not rec.id in mapDict and int(count) > 0:
-                    mapDict[rec.id] = (rec.seq, fwd_primer, rev_primer, rec.id, int(count), "no_data")
+def updateMappingFile(mapfile, barcode_count, output):
     with open(output, 'w') as outfile:
-        outfile.write('#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tReversePrimer\tphinchID\tDemuxReads\tTreatment\n')
-        for k,v in natsorted(list(mapDict.items())):
-            outfile.write('%s\t%s\t%s\t%s\t%s\t%i\t%s\n' % (k, v[0], adapter+v[0]+v[1], v[2], v[3], v[4], v[5]))
+        with open(mapfile, 'rU') as infile:
+            for line in infile:
+                line = line.rstrip()
+                cols = line.split('\t')
+                if line.startswith('#Sample'): #header row, look for DemuxReads
+                    if 'DemuxReads' in cols:
+                        loc = cols.index('DemuxReads')
+                    elif 'phinchID' in cols:
+                        loc = cols.index('phinchID')+1
+                        cols.insert(loc,'DemuxReads')
+                    else:
+                        cols.append('DemuxReads')
+                        loc = cols.index('DemuxReads')
+                    outfile.write('{:}\n'.format('\t'.join(cols)))
+                else:
+                    if cols[0] in barcode_count:
+                        outfile.write('{:}\t{:}\t{:}\n'.format('\t'.join(cols[:loc]), str(barcode_count[cols[0]]), '\t'.join(cols[loc+1:])))
+                        
+def CreateGenericMappingFile(barcode_dict, revbarcode_dict, fwd_primer, rev_primer, output, barcodes_found):
+    with open(output, 'w') as outfile:
+        outfile.write('#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tRevBarcodeSequence\tReversePrimer\tphinchID\tDemuxReads\tTreatment\n')
+        for k,v in natsorted(barcodes_found.items()):
+            sample = k
+            Fsample,Rsample = (None,)*2
+            if ':-:' in sample:
+                Fsample, Rsample = sample.split(':-:')
+            count = v
+            forbarcode, revbarcode = ('no_data',)*2
+            if Fsample:
+                if Fsample in barcode_dict:
+                    forbarcode = barcode_dict[Fsample]
+            else:
+                if sample in barcode_dict:
+                    forbarcode = barcode_dict[sample]
+            if Rsample:
+                if Rsample in revbarcode_dict:
+                    revbarcode = revbarcode_dict[Rsample]
+            else:
+                if sample in revbarcode_dict:
+                    revbarcode = revbarcode_dict[sample]
+        	outfile.write('%s\t%s\t%s\t%s\t%s\t%s\t%i\t%s\n' % (sample, forbarcode, fwd_primer, revbarcode, rev_primer, sample, count, 'no_data'))
 
 def CreateGenericMappingFileIllumina(samples, fwd_primer, rev_primer, output, barcodes):
     with open(output, 'w') as outfile:
-        outfile.write('#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tReversePrimer\tphinchID\tDemuxReads\tTreatment\n')
+        outfile.write('#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tRevBarcodeSequence\tReversePrimer\tphinchID\tDemuxReads\tTreatment\n')
         for k,v in natsorted(list(samples.items())):
             count = barcodes.get(k, 0)
-            outfile.write('%s\t%s\t%s\t%s\t%s\t%i\t%s\n' % (k, v, fwd_primer, rev_primer, k, int(count), "no_data"))
+            if count > 0:
+                if '-' in v:
+                    forbarcode,revbarcode = v.split('-')
+                else:
+                    forbarcode = v
+                    revbarcode = 'no_data'
+                outfile.write('%s\t%s\t%s\t%s\t%s\t%s\t%i\t%s\n' % (k, forbarcode, fwd_primer, revbarcode, rev_primer, k, int(count), "no_data"))
 
 def parseMappingFile(input, output):
     '''
@@ -1561,7 +1634,7 @@ def parseMappingFileNEW(input):
             else:
                 log.error('Please fix duplicate SampleID detected in mapping file: {:}'.format(ID))
                 sys.exit(1)
-    return results, ForBCDict, RevBCDict
+    return results, ForBCDict, RevBCDict, FP, RP
 
 def parseMappingFileIllumina(input):
     fwdprimer = ''
