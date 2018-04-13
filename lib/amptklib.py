@@ -20,9 +20,35 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 
 
-ASCII = {'!':'0','"':'1','#':'2','$':'3','%':'4','&':'5',"'":'6','(':'7',')':'8','*':'9','+':'10',',':'11','-':'12','.':'13','/':'14','0':'15','1':'16','2':'17','3':'18','4':'19','5':'20','6':'21','7':'22','8':'23','9':'24',':':'25',';':'26','<':'27','=':'28','>':'29','?':'30','@':'31','A':'32','B':'33','C':'34','D':'35','E':'36','F':'37','G':'38','H':'39','I':'40','J':'41','K':'42','L':'43','M':'44','N':'45','O':'46','P':'47','Q':'48','R':'49','S':'50'}
+ASCII = {'!':'0','"':'1','#':'2','$':'3','%':'4','&':'5',
+         "'":'6','(':'7',')':'8','*':'9','+':'10',',':'11',
+         '-':'12','.':'13','/':'14','0':'15','1':'16','2':'17',
+         '3':'18','4':'19','5':'20','6':'21','7':'22','8':'23',
+         '9':'24',':':'25',';':'26','<':'27','=':'28','>':'29',
+         '?':'30','@':'31','A':'32','B':'33','C':'34','D':'35',
+         'E':'36','F':'37','G':'38','H':'39','I':'40','J':'41',
+         'K':'42','L':'43','M':'44','N':'45','O':'46','P':'47',
+         'Q':'48','R':'49','S':'50'}
 
-primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG', 'ITS4': 'TCCTCCGCTTATTGATATGC', 'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 'ITS2': 'GCTGCGTTCTTCATCGATGC', 'ITS3': 'GCATCGATGAAGAACGCAGC', 'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 'ITS1': 'TCCGTAGGTGAACCTGCGG', 'LR0R': 'ACCCGCTGAACTTAAGC', 'LR2R': 'AAGAACTTTGAAAAGAG', 'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', '16S_V3': 'CCTACGGGNGGCWGCAG', '16S_V4': 'GACTACHVGGGTATCTAATCC', 'ITS3_KYO2': 'GATGAAGAACGYAGYRAA', 'COI-F': 'GGTCAACAAATCATAAAGATATTGG', 'COI-R': 'GGWACTAATCAATTTCCAAATCC', '515FB': 'GTGYCAGCMGCCGCGGTAA', '806RB': 'GGACTACNVGGGTWTCTAAT', 'ITS4-B21': 'CAGGAGACTTGTACACGGTCC'}
+primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG',
+            'fITS7-ion': 'AGTGARTCATCGAATCTTTG',
+            'ITS4': 'TCCTCCGCTTATTGATATGC', 
+            'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 
+            'ITS2': 'GCTGCGTTCTTCATCGATGC', 
+            'ITS3': 'GCATCGATGAAGAACGCAGC', 
+            'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 
+            'ITS1': 'TCCGTAGGTGAACCTGCGG', 
+            'LR0R': 'ACCCGCTGAACTTAAGC', 
+            'LR2R': 'AAGAACTTTGAAAAGAG', 
+            'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', 
+            '16S_V3': 'CCTACGGGNGGCWGCAG', 
+            '16S_V4': 'GACTACHVGGGTATCTAATCC', 
+            'ITS3_KYO2': 'GATGAAGAACGYAGYRAA', 
+            'COI-F': 'GGTCAACAAATCATAAAGATATTGG', 
+            'COI-R': 'GGWACTAATCAATTTCCAAATCC', 
+            '515FB': 'GTGYCAGCMGCCGCGGTAA', 
+            '806RB': 'GGACTACNVGGGTWTCTAAT', 
+            'ITS4-B21': 'CAGGAGACTTGTACACGGTCC'}
 
 
 degenNuc = [("R", "A"), ("R", "G"), 
@@ -213,7 +239,6 @@ class gzopen(object):
             self.f = gzip.GzipFile(fileobj=f)
         else:
             self.f = f
-
     # Define '__enter__' and '__exit__' to use in
     # 'with' blocks. Always close the file and the
     # GzipFile if applicable.
@@ -226,7 +251,6 @@ class gzopen(object):
             pass
         finally:
             self.f.close()
-
     # Reproduce the interface of an open file
     # by encapsulation.
     def __getattr__(self, name):
@@ -444,6 +468,37 @@ def split_fastq(input, numseqs, outputdir, chunks):
         with open(os.path.join(outputdir, 'chunk_'+str(num)+'.fq'), 'w') as output:
             lines = return_lines(input, linepos, x[0], x[1])
             output.write('%s' % ''.join(lines))
+            
+def split_fastqPE(R1, R2, numseqs, outputdir, chunks):
+    #get number of sequences and then number of sequences in each chunk
+    numlines = numseqs*4
+    n = numlines // chunks
+    #make sure n is divisible by 4 (number of lines in fastq)
+    if ( n % 4 ) != 0:
+        n = ((n // 4) + 1) * 4
+    splits = []
+    count = 0
+    for i in range(chunks):
+        start = count
+        end = count+n
+        if end > numlines:
+            end = numlines
+        splits.append((start, end))
+        count += n
+    #get line positions from file
+    linepos = scan_linepos(R1)
+    #make sure output directory exists
+    if not os.path.isdir(outputdir):
+        os.makedirs(outputdir)
+    #loop through the positions and write output
+    for i, x in enumerate(splits):
+        num = i+1
+        with open(os.path.join(outputdir, 'chunk_'+str(num)+'_R1.fq'), 'w') as output1:
+            with open(os.path.join(outputdir, 'chunk_'+str(num)+'_R2.fq'), 'w') as output2:
+                lines1 = return_lines(R1, linepos, x[0], x[1])
+                output1.write('%s' % ''.join(lines1))
+                lines2 = return_lines(R2, linepos, x[0], x[1])
+                output2.write('%s' % ''.join(lines2))   
 
 def split_fasta(input, outputdir, chunks):
     #function to return line positions of fasta files for chunking
@@ -535,7 +590,10 @@ def mapIndex(seq, mapDict, bcmismatch):
    
     
 def DemuxIllumina(R1, R2, I1, mapDict, mismatch, outR1, outR2):
-    from itertools import zip_longest
+    try:
+        from itertools import zip_longest
+    except ImportError:
+        from itertools import izip_longest as zip_longest
     #function to loop through PE reads, renaming according to index
     file1 = FastqGeneralIterator(gzopen(R1))
     file2 = FastqGeneralIterator(gzopen(R2))
@@ -555,6 +613,95 @@ def DemuxIllumina(R1, R2, I1, mapDict, mismatch, outR1, outR2):
                     outfile1.write('@%s\n%s\n+\n%s\n' % (header, read1[1], read1[2]))
                     outfile2.write('@%s\n%s\n+\n%s\n' % (header, read2[1], read2[2]))
                     counter += 1
+
+def demuxIlluminaPE(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarcodes, barcode_mismatch, primer_mismatch, outR1, outR2, stats):
+    try:
+        from itertools import zip_longest
+    except ImportError:
+        from itertools import izip_longest as zip_longest
+    #function to loop through PE reads, renaming according to index
+    file1 = FastqGeneralIterator(gzopen(R1))
+    file2 = FastqGeneralIterator(gzopen(R2))
+    counter = 1
+    Total = 0
+    NoBarcode = 0
+    NoRevBarcode = 0
+    NoPrimer = 0
+    NoRevPrimer = 0
+    ValidSeqs = 0
+    with open(outR1, 'w') as outfile1:
+        with open(outR2, 'w') as outfile2:
+            for read1, read2 in zip(file1, file2):
+                Total += 1
+                #look for valid barcode in forward read
+                if len(forbarcodes) > 0:
+                    BC, BCLabel = AlignBarcode(read1[1], forbarcodes, barcode_mismatch)
+                    if BC == '':
+                        NoBarcode += 1
+                        continue
+                if len(samples) > 0: #sample dictionary so enforce primers and barcodes from here
+                    FwdPrimer = samples[BCLabel]['ForPrimer']
+                    RevPrimer = samples[BCLabel]['RevPrimer']
+                    foralign = edlib.align(FwdPrimer, read1[1], mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
+                    if foralign['editDistance'] < 0: #not found
+                        NoPrimer += 1
+                        continue                    
+                    stringent = {}
+                    stringent[BCLabel] = samples[BCLabel]['RevBarcode']
+                    revBC, revBCLabel = AlignBarcode(read2[1], stringent, barcode_mismatch)
+                    if revBC == '':
+                        NoRevBarcode += 1
+                        continue
+                    #look for reverse primer in reverse read
+                    revalign = edlib.align(RevPrimer, read2[1], mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
+                    if revalign['editDistance'] < 0: #not found
+                        NoRevPrimer += 1
+                        continue
+                else:
+                    #look for forward primer
+                    foralign = edlib.align(fwdprimer, read1[1], mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
+                    if foralign['editDistance'] < 0: #not found
+                        NoPrimer += 1
+                        continue
+                    #look for valid revbarcodes
+                    if len(revbarcodes) > 0:
+                        revBC, revBCLabel = AlignBarcode(read2[1], revbarcodes, barcode_mismatch)
+                        if revBC == '':
+                            NoRevBarcode += 1
+                            continue
+                    #look for reverse primer in reverse read
+                    revalign = edlib.align(revprimer, read2[1], mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
+                    if revalign['editDistance'] < 0: #not found
+                        NoRevPrimer += 1
+                        continue
+                #if get here, then all is well, construct new header and trim reads
+                if BCLabel == revBCLabel:
+                    label = BCLabel
+                else:
+                    label = BCLabel+'-'+revBCLabel
+                ForTrim = foralign["locations"][0][1]+1
+                RevTrim = revalign["locations"][0][1]+1
+                header = 'R_{:};barcodelabel={:};'.format(counter,label)
+                outfile1.write('@%s\n%s\n+\n%s\n' % (header, read1[1][ForTrim:], read1[2][ForTrim:]))
+                outfile2.write('@%s\n%s\n+\n%s\n' % (header, read2[1][RevTrim:], read2[2][RevTrim:]))
+                counter += 1
+                ValidSeqs += 1
+    with open(stats, 'w') as statsout:
+        statsout.write('%i,%i,%i,%i,%i,%i\n' % (Total, NoBarcode, NoPrimer, NoRevBarcode, NoRevPrimer, ValidSeqs)) 
+
+def losslessTrim(input, trimLen, pad, minlength, output):
+    with open(output, 'w') as outfile:
+        for title, seq, qual in FastqGeneralIterator(gzopen(input)):
+            if len(seq) < minlength: #need this check here or primer dimers will get through
+                continue
+            if len(seq) < trimLen and pad == 'on':
+                pad = trimLen - len(seq)
+                Seq = seq + pad*'N'
+                Qual = qual + pad*'I'
+            else:
+                Seq = seq[:trimLen]
+                Qual = qual[:trimLen]
+            outfile.write('@%s\n%s\n+\n%s\n' % (title, Seq, Qual))
 
 
 def checkBCinHeader(input):
@@ -579,19 +726,33 @@ def illuminaBCmismatch(R1, R2, index):
     remove = set(remove)
     return remove
 
-def fasta2barcodes(input):
+def fasta2barcodes(input, revcomp):
     BC = {}
     with open(input, 'rU') as infile:
         for rec in SeqIO.parse(infile, 'fasta'):
             if not rec.id in BC:
-                BC[rec.id] = str(rec.seq)
+                if revcomp:
+                    Seq = RevComp(str(rec.seq))
+                else:
+                    Seq = str(rec.seq)
+                BC[rec.id] = Seq
     return BC
             
 def AlignBarcode(Seq, BarcodeDict, mismatch):
     besthit = ('', '', '')
     for BL in list(BarcodeDict.keys()):
         B = BarcodeDict[BL]
-        align = edlib.align(B, Seq, mode="SHW", k=int(mismatch))
+        #apparently people use N's in barcode sequences, this doesn't work well with
+        #edlib, so if N then trim and then align, need to trim the seq as well
+        if B.startswith('N'):
+            origLen = len(B)
+            B = B.lstrip('N')
+            newLen = len(B)
+            lenDiff = origLen - newLen
+            newSeq = Seq[lenDiff:]
+        else:
+            newSeq = Seq
+        align = edlib.align(B, newSeq, mode="SHW", k=int(mismatch))
         if align["editDistance"] == 0:
             return B, BL
         elif int(mismatch) == 0:
@@ -607,6 +768,8 @@ def AlignRevBarcode(Seq, BarcodeDict, mismatch):
     besthit = ('', '', '')
     for BL in list(BarcodeDict.keys()):
         B = BarcodeDict[BL]
+        if B.endswith('N'):
+            B = B.rstrip('N')
         align = edlib.align(B, Seq, mode="HW", k=int(mismatch), additionalEqualities=degenNuc)
         if align["editDistance"] == 0:
             return B, BL
@@ -637,9 +800,69 @@ def findRevPrimer(primer, sequence, mismatch, equalities):
     #return position will be None if not found
     return TrimPos
     
+def MergeReadsSimple(R1, R2, tmpdir, outname, minlen, usearch, rescue, method):
+    #check that num sequences is identical
+    if not PEsanitycheck(R1, R2):
+        log.error("%s and %s are not properly paired, exiting" % (R1, R2))
+        sys.exit(1)
+    #next run USEARCH/vsearch mergepe
+    merge_out = os.path.join(tmpdir, outname + '.merged.fq')
+    skip_for = os.path.join(tmpdir, outname + '.notmerged.R1.fq')
+    report = os.path.join(tmpdir, outname +'.merge_report.txt')
+    log.debug("Now merging PE reads")
+    if method == 'usearch':
+        cmd = [usearch, '-fastq_mergepairs', R1, '-reverse', R2, '-fastqout', merge_out, '-fastq_trunctail', '5', '-fastqout_notmerged_fwd', skip_for,'-minhsp', '12','-fastq_maxdiffs', '8', '-report', report, '-fastq_minmergelen', str(minlen)]
+    else:
+        cmd = ['vsearch', '--fastq_mergepairs', R1, '--reverse', R2, '--fastqout', merge_out, '--fastqout_notmerged_fwd', skip_for, '--fastq_minmergelen', str(minlen), '--fastq_allowmergestagger']
+    runSubprocess(cmd, log)
+    #now concatenate files for downstream pre-process_illumina.py script
+    final_out = os.path.join(tmpdir, outname)
+    tmp_merge = os.path.join(tmpdir, outname+'.tmp')
+    with open(tmp_merge, 'w') as cat_file:
+        shutil.copyfileobj(open(merge_out,'rU'), cat_file)
+        if rescue == 'on':
+            shutil.copyfileobj(open(skip_for,'rU'), cat_file)
+    #run phix removal
+    #since most users have 32 bit usearch, check size of file, if > 3 GB, split into parts
+    log.debug("Removing phix from %s" % outname)
+    phixsize = getSize(tmp_merge)
+    phixcount = countfastq(tmp_merge)
+    log.debug('File Size: %i bytes' % phixsize)
+    if phixsize > 3e9:
+        log.debug('FASTQ > 3 GB, splitting FASTQ file into chunks to avoid potential memory problems with 32 bit usearch')
+        phixdir = os.path.join(tmpdir, 'phix_'+str(os.getpid()))
+        os.makedirs(phixdir)
+        num = round(int((phixsize / 3e9))) + 1
+        split_fastq(tmp_merge, phixcount, phixdir, int(num))
+        for file in os.listdir(phixdir):
+            if file.endswith(".fq"):
+                output = os.path.join(phixdir, file+'.phix')
+                file = os.path.join(phixdir, file)
+                cmd = [usearch, '-filter_phix', file, '-output', output]
+                runSubprocess(cmd, log)
+        with open(final_out, 'wb') as finalout:
+            for file in os.listdir(phixdir):
+                if file.endswith('.phix'):
+                    with open(os.path.join(phixdir, file), 'rU') as infile:
+                        shutil.copyfileobj(infile, finalout)
+        shutil.rmtree(phixdir)
+    else:
+        cmd = [usearch, '-filter_phix', tmp_merge, '-output', final_out]
+        runSubprocess(cmd, log)
+    #count output
+    origcount = countfastq(R1)
+    finalcount = countfastq(final_out)
+    log.debug("Removed %i reads that were phiX" % (origcount - finalcount))
+    pct_out = finalcount / float(origcount) 
+    #clean and close up intermediate files
+    os.remove(merge_out)
+    os.remove(skip_for)
+    os.remove(tmp_merge)
+
+    
 def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, method, index, mismatch):
     removelist = []
-    if mismatch == 0:
+    if mismatch == 0 and index != '':
         if checkBCinHeader(R1):
             log.debug("Searching for index mismatches > 0: %s" % index) 
             removelist = illuminaBCmismatch(R1, R2, index)
@@ -711,6 +934,49 @@ def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, me
     os.remove(skip_for)
     os.remove(tmp_merge)
     return log.info('{0:,}'.format(finalcount) + ' reads passed ('+'{0:.1%}'.format(pct_out)+')')
+
+def validateorientation(tmp, reads, otus, output):
+	orientcounts = os.path.join(tmp, 'orient.uc')
+	cmd = ['vsearch', '--usearch_global', reads, '--db', otus, '--sizein', '--id', '0.97', '--strand', 'plus', '--uc', orientcounts]
+	runSubprocess(cmd, log)
+	OTUCounts = {}
+	with open(orientcounts, 'rU') as countdata:
+		for line in countdata:
+			line = line.rstrip()
+			cols = line.split('\t')
+			ID = cols[9]
+			if ID == '*':
+				continue
+			size = cols[8].split('size=')[-1].replace(';', '')
+			if not ID in OTUCounts:
+				OTUCounts[ID] = int(size)
+			else:
+				OTUCounts[ID] += int(size)
+	orientmap = os.path.join(tmp, 'orient-map.txt')
+	cmd = ['vsearch', '--usearch_global', otus, '--db', otus, '--self', '--id', '0.95', '--strand', 'both', '--userout', orientmap, '--userfields', 'query+target+qstrand']
+	runSubprocess(cmd, log)
+	orient_remove = []
+	with open(orientmap, 'rU') as selfmap:
+		for line in selfmap:
+			line = line.rstrip()
+			cols = line.split('\t')
+			if cols[2] == '-':
+				qCount = OTUcounts.get(cols[0])
+				tCount = OTUcounts.get(cols[1])
+				if qCount > tCount:
+					if not cols[1] in orient_remove:
+						orient_remove.append(cols[1])
+				else:
+					if not cols[0] in orient_remove:
+						orient_remove.append(cols[0])
+	count = 0
+	with open(output, 'w') as outfile:
+		with open(otus, 'rU') as infile:
+			for rec in SeqIO.parse(infile, 'fasta'):
+				if not rec.id in orient_remove:
+					count += 1
+					SeqIO.write(rec, outfile, 'fasta')
+	return count, len(orient_remove)
 
 def dictFlip(input):
     #flip the list of dictionaries
@@ -1203,6 +1469,9 @@ def CreateGenericMappingFileIllumina(samples, fwd_primer, rev_primer, output, ba
             outfile.write('%s\t%s\t%s\t%s\t%s\t%i\t%s\n' % (k, v, fwd_primer, rev_primer, k, int(count), "no_data"))
 
 def parseMappingFile(input, output):
+    '''
+    function to parse mapping file pull out primers and barcode sequences
+    '''
     fwdprimer = ''
     revprimer = ''
     with open(output, 'w') as outfile:
@@ -1220,6 +1489,73 @@ def parseMappingFile(input, output):
                         fwdprimer = cols[2][Trim:]
                         revprimer = cols[3]
     return (fwdprimer, revprimer)
+
+def getMappingHeaderIndexes(input):
+    IDx,FBCx,RBCx,FPx,RPx = (None,)*5
+    with open(input, 'rU') as infile:
+        for line in infile:
+            line = line.rstrip('\n')
+            if line.startswith('#'):
+                cols = line.split('\t')
+                if '#SampleID' in cols:
+                    IDx = cols.index('#SampleID')
+                if 'BarcodeSequence' in cols:
+                    FBCx = cols.index('BarcodeSequence')
+                if 'LinkerPrimerSequence' in cols:
+                    FPx = cols.index('LinkerPrimerSequence')
+                if 'RevBarcodeSequence' in cols:
+                    RBCx = cols.index('RevBarcodeSequence')
+                if 'ReversePrimer' in cols:
+                    RPx = cols.index('ReversePrimer')
+    return IDx, FBCx, FPx, RBCx, RPx
+
+exampleMapFile='#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tRevBarcodeSequence\tReversePrimer\tphinchID\tTreatment\n'
+                
+def parseMappingFileNEW(input):
+    '''
+    function to parse mapping file pull out primers and barcode sequences
+    '''
+    results = {}
+    ForBCDict = {}
+    RevBCDict = {} 
+    IDx, FBCx, FPx, RBCx, RPx = getMappingHeaderIndexes(input)
+    if not any([IDx, FBCx, FPx, RPx]):
+        log.error('Mapping file incorrectly formatted, headers should be (RevBarcodeSequence is optional):\n{:}'.format(exampleMapFile))
+        sys.exit(1)
+    with open(input, 'rU') as inputfile:
+        for line in inputfile:
+            line = line.rstrip()
+            if line.startswith('#'):
+                continue
+            cols = line.split('\t')
+            if len(cols) < 4:
+                continue
+            ID = cols[IDx]
+            FBC = cols[FBCx]
+            FP = cols[FPx]
+            if FBC in FP: #barcode nested in primer_db
+                loc = FP.index(FBC) + len(FBC)
+                FP = FP[loc:]
+            RP = cols[RPx]
+            if RBCx:
+                RBC = cols[RBCx]
+                if RBC != '':
+                    if RBC in RP:
+                        loc = RP.index(RBC) + len(RBC)
+                        RP = RP[loc:]
+                else:
+                    RBC = None
+            else:
+                RBC = None
+            if not ID in results:
+                results[ID] = {'ForBarcode': FBC, 'ForPrimer': FP, 'RevBarcode': RBC, 'RevPrimer': RP}
+                ForBCDict[ID] = FBC
+                if RBC:
+                    RevBCDict[ID] = RBC
+            else:
+                log.error('Please fix duplicate SampleID detected in mapping file: {:}'.format(ID))
+                sys.exit(1)
+    return results, ForBCDict, RevBCDict
 
 def parseMappingFileIllumina(input):
     fwdprimer = ''

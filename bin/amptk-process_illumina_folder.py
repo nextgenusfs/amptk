@@ -117,7 +117,7 @@ def processRead(input):
                     if len(Seq) < args.trim_len and args.pad == 'on':
                         pad = args.trim_len - len(Seq)
                         Seq = Seq + pad*'N'
-                        Qual = Qual + pad*'J'
+                        Qual = Qual + pad*'I'
                     else: #len(Seq) > args.trim_len:
                         Seq = Seq[:args.trim_len]
                         Qual = Qual[:args.trim_len]

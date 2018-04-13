@@ -117,10 +117,10 @@ if args.unoise:
 else:
     unoise_out = derep_out
 
-#now sort my size remove singletons
+#now sort by size remove singletons
 sort_out = os.path.join(tmp, base + '.EE' + args.maxee + '.sort.fa')
 cmd = ['vsearch', '--sortbysize', unoise_out, '--minsize', args.minsize, '--output', sort_out]
-amptklib.runSubprocess(cmd, amptklib.log)   
+amptklib.runSubprocess(cmd, amptklib.log)
 
 #now run clustering algorithm
 radius = str(100 - int(args.pct_otu))
@@ -158,13 +158,18 @@ else:
             uchime_out = otu_clean
     #now run chimera filtering if all checks out
     if not os.path.isfile(uchime_out):
-
         amptklib.log.info("Chimera Filtering (VSEARCH) using %s DB" % args.uchime_ref)
         cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out]
         amptklib.runSubprocess(cmd, amptklib.log)
         total = amptklib.countfasta(uchime_out)
         uchime_chimeras = numOTUs - total
         amptklib.log.info('{0:,}'.format(total) + ' OTUs passed, ' + '{0:,}'.format(uchime_chimeras) + ' ref chimeras')
+
+#Filter out OTUs in wrong orientation
+amptklib.log.info('Validating OTU orientation')
+passingOTUs = os.path.join(tmp, base+'.passed.otus.fa')
+numKept, numDropped = amptklib.validateorientation(tmp, sort_out, uchime_out, passingOTUs)
+amptklib.log.info('{:,} OTUs validated ({:,} dropped)'.format(numKept, numDropped))
 
 #now map reads back to OTUs and build OTU table
 uc_out = os.path.join(tmp, base + '.EE' + args.maxee + '.mapping.uc')
