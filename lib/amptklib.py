@@ -1532,7 +1532,8 @@ def CreateGenericMappingFile(barcode_dict, revbarcode_dict, fwd_primer, rev_prim
             else:
                 if sample in revbarcode_dict:
                     revbarcode = revbarcode_dict[sample]
-        	outfile.write('%s\t%s\t%s\t%s\t%s\t%s\t%i\t%s\n' % (sample, forbarcode, fwd_primer, revbarcode, rev_primer, sample, count, 'no_data'))
+            outfile.write('%s\t%s\t%s\t%s\t%s\t%s\t%i\t%s\n' % (sample, forbarcode, fwd_primer, revbarcode, rev_primer, sample, count, 'no_data'))
+            
 
 def CreateGenericMappingFileIllumina(samples, fwd_primer, rev_primer, output, barcodes):
     with open(output, 'w') as outfile:
