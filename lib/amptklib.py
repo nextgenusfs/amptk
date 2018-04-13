@@ -953,7 +953,7 @@ def validateorientation(tmp, reads, otus, output):
 			else:
 				OTUCounts[ID] += int(size)
 	orientmap = os.path.join(tmp, 'orient-map.txt')
-	cmd = ['vsearch', '--usearch_global', otus, '--db', otus, '--self', '--id', '0.95', '--strand', 'both', '--userout', orientmap, '--userfields', 'query+target+qstrand']
+	cmd = ['vsearch', '--usearch_global', otus, '--db', otus, '--self', '--id', '0.95', '--strand', 'both', '--userout', orientmap, '--userfields', 'query+target+qstrand+id']
 	runSubprocess(cmd, log)
 	orient_remove = []
 	keeper = []
@@ -974,6 +974,7 @@ def validateorientation(tmp, reads, otus, output):
 						orient_remove.append(cols[0])
 					if not cols[1] in keeper:
 						keeper.append(cols[1])
+	log.debug('Dropping {:,} OTUs: {:}'.format(len(orient_remove), ', '.join(orient_remove))))
 	count = 0
 	with open(output, 'w') as outfile:
 		with open(otus, 'rU') as infile:
