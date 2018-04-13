@@ -974,7 +974,7 @@ def validateorientation(tmp, reads, otus, output):
 						orient_remove.append(cols[0])
 					if not cols[1] in keeper:
 						keeper.append(cols[1])
-	log.debug('Dropping {:,} OTUs: {:}'.format(len(orient_remove), ', '.join(orient_remove))))
+	log.debug('Dropping {:,} OTUs: {:}'.format(len(orient_remove), ', '.join(orient_remove)))
 	count = 0
 	with open(output, 'w') as outfile:
 		with open(otus, 'rU') as infile:
