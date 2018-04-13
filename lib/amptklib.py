@@ -956,19 +956,24 @@ def validateorientation(tmp, reads, otus, output):
 	cmd = ['vsearch', '--usearch_global', otus, '--db', otus, '--self', '--id', '0.95', '--strand', 'both', '--userout', orientmap, '--userfields', 'query+target+qstrand']
 	runSubprocess(cmd, log)
 	orient_remove = []
+	keeper = []
 	with open(orientmap, 'rU') as selfmap:
 		for line in selfmap:
 			line = line.rstrip()
 			cols = line.split('\t')
 			if cols[2] == '-':
-				qCount = OTUcounts.get(cols[0])
-				tCount = OTUcounts.get(cols[1])
+				qCount = OTUCounts.get(cols[0])
+				tCount = OTUCounts.get(cols[1])
 				if qCount > tCount:
-					if not cols[1] in orient_remove:
+					if not cols[1] in orient_remove and not cols[1] in keeper:
 						orient_remove.append(cols[1])
+					if not cols[0] in keeper:
+						keeper.append(cols[0])
 				else:
-					if not cols[0] in orient_remove:
+					if not cols[0] in orient_remove and not cols[0]:
 						orient_remove.append(cols[0])
+					if not cols[1] in keeper:
+						keeper.append(cols[1])
 	count = 0
 	with open(output, 'w') as outfile:
 		with open(otus, 'rU') as infile:
