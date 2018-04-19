@@ -613,6 +613,102 @@ def DemuxIllumina(R1, R2, I1, mapDict, mismatch, outR1, outR2):
                     outfile1.write('@%s\n%s\n+\n%s\n' % (header, read1[1], read1[2]))
                     outfile2.write('@%s\n%s\n+\n%s\n' % (header, read2[1], read2[2]))
                     counter += 1
+                    
+def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch, require_primer, outR1, outR2):
+    try:
+        from itertools import zip_longest
+    except ImportError:
+        from itertools import izip_longest as zip_longest
+    #can walk through dataset in pairs
+    file1 = FastqGeneralIterator(gzopen(R1))
+    file2 = FastqGeneralIterator(gzopen(R2))
+    counter = 1
+    Total = 0
+    multihits = 0
+    noprimer = 0
+    with open(outR1, 'w') as outfile1:
+        with open(outR2, 'w') as outfile2:
+            for read1, read2 in zip(file1, file2):
+                Total += 1
+                R1Seq = read1[1][:RL]
+                R1Qual = read1[2][:RL]
+                R2Seq = read2[1][:RL]
+                R2Qual = read2[2][:RL]
+                #look for forward primer in forward read
+                R1foralign = edlib.align(fwdprimer, R1Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
+                if R1foralign['editDistance'] < 0 and require_primer == 'on': #not found
+                    noprimer += 1
+                    continue
+                if len(R1foralign['locations']) > 1: #multiple hits
+                    multihits += 1
+                    continue
+                R1revalign = edlib.align(RevComp(revprimer), R1Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
+                if R1revalign['editDistance'] < 0:
+                    R1RevCut = RL
+                else:
+                    R1RevCut = R1revalign["locations"][0][0]
+                #look for reverse primer in reverse read
+                R2foralign = edlib.align(revprimer, R2Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
+                if R2foralign['editDistance'] < 0 and require_primer == 'on': #not found
+                    noprimer += 1
+                    continue
+                if len(R2foralign['locations']) > 1: #multiple hits
+                    multihits += 1
+                    continue
+                R2revalign = edlib.align(RevComp(fwdprimer), R2Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
+                if R2revalign['editDistance'] < 0:
+                    R2RevCut = RL
+                else:
+                    R2RevCut = R2revalign["locations"][0][0]                
+                #if here, then get trim locations
+                ForTrim = R1foralign["locations"][0][1]+1
+                RevTrim = R2foralign["locations"][0][1]+1               
+                header = 'R_{:};barcodelabel={:};'.format(counter,samplename)
+                outfile1.write('@%s\n%s\n+\n%s\n' % (header, R1Seq[ForTrim:R1RevCut], R1Qual[ForTrim:R1RevCut]))
+                outfile2.write('@%s\n%s\n+\n%s\n' % (header, R2Seq[RevTrim:R2RevCut], R2Qual[RevTrim:R2RevCut]))
+                counter += 1
+    return Total, counter-1, multihits, noprimer
+
+def primerFound(primer, seq, mismatch):
+    align = edlib.align(primer, seq, mode="HW", k=mismatch, additionalEqualities=degenNuc)
+    if align['editDistance'] < 0:
+        return False
+    else:
+        return True
+
+def illuminaReorient(R1, R2, fwdprimer, revprimer, mismatch, ReadLength, outR1, outR2):
+    '''
+    function to re-orient reads based on primer sequences
+    only useful if primers in the reads
+    drops reads that don't have matching primers
+    '''
+    try:
+        from itertools import zip_longest
+    except ImportError:
+        from itertools import izip_longest as zip_longest
+    Total = 0
+    Correct = 0
+    Flipped = 0
+    Dropped = 0
+    #function to loop through PE reads, renaming according to index
+    file1 = FastqGeneralIterator(gzopen(R1))
+    file2 = FastqGeneralIterator(gzopen(R2))
+    with open(outR1, 'w') as outfile1:
+        with open(outR2, 'w') as outfile2:
+            for read1, read2 in zip(file1, file2):
+                Total += 1
+                if primerFound(fwdprimer, read1[1], mismatch) and primerFound(revprimer, read2[1], mismatch):
+                    Correct += 1
+                    outfile1.write('@%s\n%s\n+\n%s\n' % (read1[0], read1[1][:ReadLength], read1[2][:ReadLength]))
+                    outfile2.write('@%s\n%s\n+\n%s\n' % (read2[0], read2[1][:ReadLength], read2[2][:ReadLength]))
+                elif primerFound(fwdprimer, read2[1], mismatch) and primerFound(revprimer, read1[1], mismatch):
+                    Flipped += 1
+                    outfile1.write('@%s\n%s\n+\n%s\n' % (read2[0], read2[1][:ReadLength], read2[2][:ReadLength]))
+                    outfile2.write('@%s\n%s\n+\n%s\n' % (read1[0], read1[1][:ReadLength], read1[2][:ReadLength]))
+                else:
+                    Dropped += 1
+    return Total, Correct, Flipped, Dropped
+        
 
 def demuxIlluminaPE(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarcodes, barcode_mismatch, primer_mismatch, outR1, outR2, stats):
     try:
@@ -840,7 +936,7 @@ def MergeReadsSimple(R1, R2, tmpdir, outname, minlen, usearch, rescue, method):
                 file = os.path.join(phixdir, file)
                 cmd = [usearch, '-filter_phix', file, '-output', output]
                 runSubprocess(cmd, log)
-        with open(final_out, 'wb') as finalout:
+        with open(final_out, 'w') as finalout:
             for file in os.listdir(phixdir):
                 if file.endswith('.phix'):
                     with open(os.path.join(phixdir, file), 'rU') as infile:
@@ -850,14 +946,11 @@ def MergeReadsSimple(R1, R2, tmpdir, outname, minlen, usearch, rescue, method):
         cmd = [usearch, '-filter_phix', tmp_merge, '-output', final_out]
         runSubprocess(cmd, log)
     #count output
-    origcount = countfastq(R1)
     finalcount = countfastq(final_out)
-    log.debug("Removed %i reads that were phiX" % (origcount - finalcount))
-    pct_out = finalcount / float(origcount) 
-    #clean and close up intermediate files
-    os.remove(merge_out)
-    os.remove(skip_for)
-    os.remove(tmp_merge)
+    SafeRemove(merge_out)
+    SafeRemove(skip_for)
+    SafeRemove(tmp_merge)
+    return phixcount, finalcount
 
     
 def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, method, index, mismatch):

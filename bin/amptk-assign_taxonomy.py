@@ -91,7 +91,12 @@ amptklib.versionDependencyChecks(usearch)
 
 #Setup DB locations and names, etc
 DBdir = os.path.join(parentdir, 'DB')
-DataBase = { 'ITS1': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS1_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), 'ITS2': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS2_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), 'ITS': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), '16S': (os.path.join(DBdir, '16S.udb'), os.path.join(DBdir, '16S.udb'), os.path.join(DBdir, '16S.extracted.fa')), 'LSU': (os.path.join(DBdir, 'LSU.udb'), os.path.join(DBdir, 'LSU_UTAX.udb'), os.path.join(DBdir, 'LSU.extracted.fa')), 'COI': (os.path.join(DBdir,'COI.udb'), os.path.join(DBdir, 'COI_UTAX.udb'), os.path.join(DBdir, 'COI.extracted.fa'))}
+DataBase = { 'ITS1': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS1_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), 
+			 'ITS2': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS2_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), 
+			 'ITS': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS_UTAX.udb'), os.path.join(DBdir, 'ITS.extracted.fa')), 
+			 '16S': (os.path.join(DBdir, '16S.udb'), os.path.join(DBdir, '16S.udb'), os.path.join(DBdir, '16S.extracted.fa')), 
+			 'LSU': (os.path.join(DBdir, 'LSU.udb'), os.path.join(DBdir, 'LSU_UTAX.udb'), os.path.join(DBdir, 'LSU.extracted.fa')), 
+			 'COI': (os.path.join(DBdir,'COI.udb'), os.path.join(DBdir, 'COI_UTAX.udb'), os.path.join(DBdir, 'COI.extracted.fa'))}
 
 #get DB names up front
 if args.db in DataBase:
@@ -110,6 +115,23 @@ if args.method in ['hybrid', 'usearch', 'utax']:
     if not utax_db and not usearch_db and not args.fasta_db:
         amptklib.log.error("You have not selected a database, need either --db, --utax_db, --usearch_db, or --fasta_db")
         sys.exit(1)
+    else: #check that the DB exists
+    	if usearch_db:
+    		if not os.path.isfile(usearch_db):
+    			amptklib.log.error('USEARCH DB not found: {:}'.format(usearch_db))
+    			amptklib.log.derror('Use `amptk install` to install pre-formatted databases or `amptk database` to create custom DB')
+    			sys.exit(1)
+    	if sintax_db:
+    		if not os.path.isfile(sintax_db):
+    			amptklib.log.error('SINTAX DB not found: {:}'.format(sintax_db))
+    			amptklib.log.derror('Use `amptk install` to install pre-formatted databases or `amptk database` to create custom DB')
+    			sys.exit(1)
+    	if utax_db:
+    		if not os.path.isfile(utax_db):
+    			amptklib.log.error('UTAX DB not found: {:}'.format(utax_db))
+    			amptklib.log.derror('Use `amptk install` to install pre-formatted databases or `amptk database` to create custom DB')
+    			sys.exit(1)
+    	
 
 custom_db = None
 if args.add2db: #means user wants to add sequences to the usearch database on the fly, so we will grab sintax DB here, as not preformatted

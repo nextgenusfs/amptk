@@ -294,7 +294,7 @@ if args.biosample:
     amptklib.log.info("NCBI BioSample file detected, creating SRA metadata file") 
     #load in BioSample file to dictionary
     with open(args.biosample, 'rU') as input:
-        reader = csv.reader(input, delimiter='\t')
+        reader = csv.reader(input, delimiter=str('\t'))
         header = next(reader)
         acc = header.index('Accession')
         sample = header.index('Sample Name')
@@ -375,16 +375,16 @@ if args.biosample:
                 file2 = file.replace('_R1', '_R2')             
                 #count number of _ in name, determines the dataformat
                 fields = file.count("_")
+				barcode_for = 'missing'
+				barcode_rev = 'missing'
                 if fields > 3: #this is full illumina name with dual barcodes
                     dualBC = file.split("_")[1]
-                    barcode_for = dualBC.split('-')[0]
-                    barcode_rev = dualBC.split('-')[1]
+                    if '-' in dualBC:
+						barcode_for = dualBC.split('-')[0]
+						barcode_rev = dualBC.split('-')[1]
                 elif fields == 3: #this is older reverse barcoded name
                     barcode_for = 'None'
                     barcode_rev = file.split("_")[1]
-                else:
-                    barcode_for = 'missing'
-                    barcode_rev = 'missing'
                 if args.append:
                     finalname = name+'_'+args.append
                     newfile = file.replace(name, finalname)

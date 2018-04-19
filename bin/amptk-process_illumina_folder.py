@@ -60,9 +60,9 @@ parser.add_argument('--sra', action='store_true', help='Input files are from NCB
 parser.add_argument('--cleanup', action='store_true', help='Delete all intermediate files')
 args=parser.parse_args()
 
-def processRead(input):
+def processSEreads(input):
     #input is expected to be a FASTQ file
-    #local variables that need to be previously declared: ForPrimer, RevPrimer
+    #local variables that need to be previously declared: FwdPrimer, RevPrimer
     Name = os.path.basename(input).split(".fq",-1)[0]
     DemuxOut = os.path.join(args.out, Name + '.demux.fq')
     Sample = Name.split('_')[0]
@@ -72,6 +72,7 @@ def processRead(input):
     TooShort = 0
     RevPrimerFound = 0
     ValidSeqs = 0
+    RCRevPrimer = amptklib.RevComp(RevPrimer)
     with open(StatsOut, 'w') as counts:
         with open(DemuxOut, 'w') as out:
             for title, seq, qual in FastqGeneralIterator(open(input)):
@@ -80,7 +81,7 @@ def processRead(input):
                 foralign = edlib.align(FwdPrimer, seq, mode="HW", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                 #if require primer is on make finding primer in amplicon required if amplicon is larger than read length
                 #if less than read length, can't enforce primer because could have been trimmed via staggered trim in fastq_mergepairs
-                if args.primer == 'on' and len(seq) > ReadLen:
+                if args.primer == 'on':
                     if foralign["editDistance"] < 0:
                         NoPrimer += 1
                         continue
@@ -97,7 +98,7 @@ def processRead(input):
                         Seq = seq
                         Qual = qual
                 #now look for reverse primer
-                revalign = edlib.align(RevPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
+                revalign = edlib.align(RCRevPrimer, Seq, mode="HW", task="locations", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                 if revalign["editDistance"] >= 0:
                     RevPrimerFound += 1
                     RevCutPos = revalign["locations"][0][0]
@@ -105,7 +106,7 @@ def processRead(input):
                     Seq = Seq[:RevCutPos]
                     Qual = Qual[:RevCutPos]
                 else:
-                    if args.full_length and len(Seq) > ReadLen: #if full length and no primer found, exit, except if len is less than read length
+                    if args.full_length:
                         continue
                 #if full_length is passed, then only trim primers
                 if not args.full_length:
@@ -131,7 +132,46 @@ def processRead(input):
                 #now write to file
                 out.write("@%s\n%s\n+\n%s\n" % (Title, Seq, Qual))
             counts.write("%i,%i,%i,%i,%i\n" % (Total, NoPrimer, RevPrimerFound, TooShort, ValidSeqs))
-        
+
+def processPEreads(input):
+    '''
+    function for multiprocessing of the data, so take file list as input, need global forward/reverse list available
+    '''
+    forwardRead, reverseRead = input
+    name = forwardRead.split("_")[0]
+    for_reads = os.path.join(args.input, forwardRead)
+    rev_reads = os.path.join(args.input, reverseRead)
+    StatsOut = os.path.join(args.out, name+'.stats')
+    #if read length explicity passed use it otherwise measure it
+    if args.read_length:
+    	read_length = args.read_length
+    else:
+    	read_length = amptklib.GuessRL(for_reads)
+    trimR1 = os.path.join(args.out, name+'_R1.fq')
+    trimR2 = os.path.join(args.out, name+'_R2.fq')
+    mergedReads = os.path.join(args.out, name+'.merged.fq')
+    demuxReads = os.path.join(args.out, name+'.demux.fq')
+    TotalCount, Written, DropMulti, DropPrimer = amptklib.stripPrimersPE(for_reads, rev_reads, read_length, name, FwdPrimer, RevPrimer, args.primer_mismatch, args.primer, trimR1, trimR2)
+    MergedCount, PhixCleanedCount = amptklib.MergeReadsSimple(trimR1, trimR2, args.out, name+'.merged.fq', args.min_len, usearch, args.rescue_forward, args.merge_method)
+    amptklib.losslessTrim(mergedReads, args.trim_len, args.pad, args.min_len, demuxReads)
+    FinalCount = amptklib.countfastq(demuxReads)
+    TooShort = FinalCount - PhixCleanedCount
+    with open(StatsOut, 'w') as counts:
+        counts.write("%i,%i,%i,%i,%i\n" % (TotalCount, DropPrimer, DropMulti, TooShort, FinalCount))
+
+def safe_run(*args, **kwargs):
+    """Call run(), catch exceptions."""
+    try: processPEreads(*args, **kwargs)
+    except Exception as e:
+        print("error: %s run(*%r, **%r)" % (e, args, kwargs))
+
+def safe_run2(*args, **kwargs):
+    """Call run(), catch exceptions."""
+    try: processSEreads(*args, **kwargs)
+    except Exception as e:
+        print("error: %s run(*%r, **%r)" % (e, args, kwargs))
+
+
 #sometimes people add slashes in the output directory, this could be bad, try to fix it
 args.out = re.sub(r'\W+', '', args.out)
             
@@ -272,74 +312,23 @@ else:
                 else:
                     sampleDict[column[0]] = i5
 
-    #loop through each set and merge reads
-    if args.reads == 'paired':
-        amptklib.log.info("Merging Overlaping Pairs using USEARCH")
+#zip read lists into a single list of tuples
 
-    ReadLengths = []
-    for i in range(0,len(fastq_for)):
-        name = fastq_for[i].split("_")[0]
-        outname = name + '.fq'
-        for_reads = os.path.join(args.input, fastq_for[i])
-        rev_reads = os.path.join(args.input, fastq_rev[i])
-        #check sizes
-        if amptklib.check_valid_file(for_reads):
-            #if read length explicity passed use it otherwise measure it
-            if args.read_length:
-                read_length = args.read_length
-            else:
-                read_length = amptklib.GuessRL(for_reads)
-            amptklib.log.info("working on sample %s (Read Length: %i)" % (name, read_length))
-            #append read lengths for processReads function
-            ReadLengths.append(read_length)
-            #checked for merged output, skip if it exists
-            if os.path.isfile(os.path.join(args.out, outname)):
-                amptklib.log.info("Output for %s detected, skipping files" % outname)
-                continue
-            #if PE reads, then need to merge them
-            if args.reads == 'paired' and amptklib.check_valid_file(rev_reads):
-                Index = sampleDict.get(name).replace('-', '')
-                amptklib.MergeReads(for_reads, rev_reads, args.out, name+'.fq', read_length, args.min_len, args.usearch, args.rescue_forward, args.merge_method, Index, args.barcode_mismatch)
-            else:
-                shutil.copy(for_reads, os.path.join(args.out, outname))
-        else:
-            amptklib.log.debug("ERROR: %s file is empty, skipping" % for_reads)
-
-    #get read lengths for process read function
-    ReadLen = max(set(ReadLengths))
+if args.reads == 'paired':
+	amptklib.log.info("Strip Primers and Merge PE reads. FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))
+	readList = zip(fastq_for, fastq_rev)
+	amptklib.runMultiProgress(safe_run, readList, cpus)
+else:
+	amptklib.log.info("Strip Primers. FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))
+	readList = fastq_for
+	amptklib.runMultiProgress(safe_run2, readList, cpus)
+	
 
 #cleanup to save space
 if gzip_list:
     for file in gzip_list:
         file = file.replace('.gz', '')
         amptklib.removefile(os.path.join(args.input, file))
-
-#get list of files to demux
-file_list = []
-for file in os.listdir(args.out):
-    if file.endswith(".fq"):
-        if not file.endswith('.demux.fq'): #i don't want to demux the demuxed files.
-            file = os.path.join(args.out, file)
-            #check that the file is not empty
-            if amptklib.check_valid_file(file):
-                file_list.append(file)
-            else:
-                amptklib.log.debug("ERROR: %s demuxed file is empty, skipping" % file)
-if not args.full_length:
-    if args.pad == 'off':
-        amptklib.log.info("Stripping primers and trim to %s bp" % (args.trim_len))
-    else:
-        amptklib.log.info("Stripping primers and trim/pad to %s bp" % (args.trim_len))
-else:
-    amptklib.log.info("Stripping primers and keeping only full length sequences")
-amptklib.log.info("splitting the job over %i cpus, but this may still take awhile" % (cpus))
-
-#make sure primer is reverse complemented
-RevPrimer = amptklib.RevComp(RevPrimer)
-amptklib.log.info("Foward primer: %s,  Rev comp'd rev primer: %s" % (FwdPrimer, RevPrimer))
-
-#finally process reads over number of cpus
-amptklib.runMultiProgress(processRead, file_list, cpus)
 print("-------------------------------------------------------")
 #Now concatenate all of the demuxed files together
 amptklib.log.info("Concatenating Demuxed Files")
@@ -364,12 +353,19 @@ for file in os.listdir(args.out):
             newstats = [int(i) for i in newstats]
             for x, num in enumerate(newstats):
                 finalstats[x] += num           
+if args.reads == 'paired':
+	#output stats of the run
+	amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
+	amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1])+' Fwd/Rev Primer found')
+	amptklib.log.info('{0:,}'.format(finalstats[2])+ ' discarded Primer incompatibility')
+	amptklib.log.info('{0:,}'.format(finalstats[3])+' discarded too short (< %i bp)' % args.min_len)
+	amptklib.log.info('{0:,}'.format(finalstats[4])+' valid output reads')
+else:
+    amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
+    amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1])+' Fwd Primer found, {0:,}'.format(finalstats[2])+ ' Rev Primer found')
+    amptklib.log.info('{0:,}'.format(finalstats[3])+' discarded too short (< %i bp)' % args.min_len)
+    amptklib.log.info('{0:,}'.format(finalstats[4])+' valid output reads')
 
-#output stats of the run
-amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
-amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1])+' Fwd Primer found, {0:,}'.format(finalstats[2])+ ' Rev Primer found')
-amptklib.log.info('{0:,}'.format(finalstats[3])+' discarded too short (< %i bp)' % args.min_len)
-amptklib.log.info('{0:,}'.format(finalstats[4])+' valid output reads')
 
 #now loop through data and find barcoded samples, counting each.....
 BarcodeCount = {}
@@ -393,8 +389,8 @@ if not args.mapping_file:
     #create a generic mappingfile for downstream processes
     amptklib.CreateGenericMappingFileIllumina(sampleDict, FwdPrimer, amptklib.RevComp(RevPrimer), genericmapfile, BarcodeCount)
 else:
-	amptklib.updateMappingFile(args.mapping_file, BarcodeCount, genericmapfile)
-	
+    amptklib.updateMappingFile(args.mapping_file, BarcodeCount, genericmapfile)
+    
 #compress the output to save space
 FinalDemux = catDemux+'.gz'
 amptklib.Fzip(catDemux, FinalDemux, cpus)
@@ -409,6 +405,6 @@ if args.cleanup:
     shutil.rmtree(args.out)
 print("-------------------------------------------------------")
 if 'darwin' in sys.platform:
-	print(col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux))
+    print(col.WARN + "\nExample of next cmd: " + col.END + "amptk cluster -i %s -o out\n" % (FinalDemux))
 else:
-	print("\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux))
+    print("\nExample of next cmd: amptk cluster -i %s -o out\n" % (FinalDemux))
