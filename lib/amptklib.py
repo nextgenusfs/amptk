@@ -934,7 +934,7 @@ def MergeReadsSimple(R1, R2, tmpdir, outname, minlen, usearch, rescue, method):
             if file.endswith(".fq"):
                 output = os.path.join(phixdir, file+'.phix')
                 file = os.path.join(phixdir, file)
-                cmd = [usearch, '-filter_phix', file, '-output', output]
+                cmd = [usearch, '-filter_phix', file, '-output', output, '-threads', '1']
                 runSubprocess(cmd, log)
         with open(final_out, 'w') as finalout:
             for file in os.listdir(phixdir):
@@ -943,7 +943,7 @@ def MergeReadsSimple(R1, R2, tmpdir, outname, minlen, usearch, rescue, method):
                         shutil.copyfileobj(infile, finalout)
         shutil.rmtree(phixdir)
     else:
-        cmd = [usearch, '-filter_phix', tmp_merge, '-output', final_out]
+        cmd = [usearch, '-filter_phix', tmp_merge, '-output', final_out, '-threads', '1']
         runSubprocess(cmd, log)
     #count output
     finalcount = countfastq(final_out)
