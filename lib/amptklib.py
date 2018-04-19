@@ -907,9 +907,9 @@ def MergeReadsSimple(R1, R2, tmpdir, outname, minlen, usearch, rescue, method):
     report = os.path.join(tmpdir, outname +'.merge_report.txt')
     log.debug("Now merging PE reads")
     if method == 'usearch':
-        cmd = [usearch, '-fastq_mergepairs', R1, '-reverse', R2, '-fastqout', merge_out, '-fastq_trunctail', '5', '-fastqout_notmerged_fwd', skip_for,'-minhsp', '12','-fastq_maxdiffs', '8', '-report', report, '-fastq_minmergelen', str(minlen)]
+        cmd = [usearch, '-fastq_mergepairs', R1, '-reverse', R2, '-fastqout', merge_out, '-fastq_trunctail', '5', '-fastqout_notmerged_fwd', skip_for, '-minhsp', '12','-fastq_maxdiffs', '8', '-report', report, '-fastq_minmergelen', str(minlen), '-threads', '1']
     else:
-        cmd = ['vsearch', '--fastq_mergepairs', R1, '--reverse', R2, '--fastqout', merge_out, '--fastqout_notmerged_fwd', skip_for, '--fastq_minmergelen', str(minlen), '--fastq_allowmergestagger']
+        cmd = ['vsearch', '--fastq_mergepairs', R1, '--reverse', R2, '--fastqout', merge_out, '--fastqout_notmerged_fwd', skip_for, '--fastq_minmergelen', str(minlen), '--fastq_allowmergestagger', '--threads', '1']
     runSubprocess(cmd, log)
     #now concatenate files for downstream pre-process_illumina.py script
     final_out = os.path.join(tmpdir, outname)
