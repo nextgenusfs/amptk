@@ -802,7 +802,7 @@ def trimRevPrimer(primer, seq, primer_mismatch):
         CutPos = revalign["locations"][0][0]
         return CutPos
         
-def losslessTrim(input, fwdprimer, revprimer, mismatch, trimLen, pad, minlength, output):
+def losslessTrim(input, fwdprimer, revprimer, mismatch, trimLen, padding, minlength, output):
     '''
     function to trim primers if found from SE reads
     and then trim/pad to a set length
@@ -814,10 +814,10 @@ def losslessTrim(input, fwdprimer, revprimer, mismatch, trimLen, pad, minlength,
             RevTrim = trimRevPrimer(revprimer, seq, mismatch)
             Seq = seq[ForTrim:RevTrim]
             Qual = qual[ForTrim:RevTrim]
-            if len(Seq) < minlength: #need this check here or primer dimers will get through
+            if len(Seq) < int(minlength): #need this check here or primer dimers will get through
                 continue
-            if len(Seq) < trimLen and pad == 'on':
-                pad = trimLen - len(Seq)
+            if len(Seq) < int(trimLen) and padding == 'on':
+                pad = int(trimLen) - len(Seq)
                 SeqF = Seq + pad*'N'
                 QualF = Qual + pad*'I'
             else:

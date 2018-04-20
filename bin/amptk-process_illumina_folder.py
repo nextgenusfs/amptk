@@ -156,7 +156,7 @@ def processPEreads(input):
     MergedCount, PhixCleanedCount = amptklib.MergeReadsSimple(trimR1, trimR2, args.out, name+'.merged.fq', args.min_len, usearch, args.rescue_forward, args.merge_method)
     amptklib.losslessTrim(mergedReads, FwdPrimer, RevPrimer, args.primer_mismatch, args.trim_len, args.pad, args.min_len, demuxReads)
     FinalCount = amptklib.countfastq(demuxReads)
-    TooShort = FinalCount - PhixCleanedCount
+    TooShort = PhixCleanedCount - FinalCount
     with open(StatsOut, 'w') as counts:
         counts.write("%i,%i,%i,%i,%i\n" % (TotalCount, DropPrimer, DropMulti, TooShort, FinalCount))
 
