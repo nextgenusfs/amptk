@@ -31,8 +31,8 @@ def download(url, name):
     meta = u.info()
     file_size = 0
     for x in meta.items():
-    	if x[0].lower() == 'content-length':
-    		file_size = int(x[1])
+        if x[0].lower() == 'content-length':
+            file_size = int(x[1])
     print("Downloading: {0} Bytes: {1}".format(url, file_size))
     file_size_dl = 0
     block_sz = 8192
@@ -49,7 +49,7 @@ def download(url, name):
     f.close()
 
 git_version = amptklib.git_version()
-base_version = '1.1.3'
+base_version = '1.2.0'
 if git_version:
     version = base_version+'-'+git_version
 else:
@@ -65,7 +65,7 @@ Description: AMPtk is a package of scripts to process NGS amplicon data.
 Process:     ion         pre-process Ion Torrent data
              illumina    pre-process folder of de-multiplexed Illumina data
              illumina2   pre-process PE Illumina data from a single file
-             illumina3   pre-process PE Illumina + index reads (i.e. R1, R2, I)
+             illumina3   pre-process PE Illumina + index reads (i.e. EMP protocol)
              454         pre-process Roche 454 (pyrosequencing) data
              SRA         pre-process single FASTQ per sample data (i.e. SRA data)
              
@@ -221,34 +221,33 @@ Arguments:   -i, --fastq         Input folder of FASTQ files (Required)
         else:
             print(help)
             sys.exit(1)
-    elif sys.argv[1] == 'illumina3':
+    elif sys.argv[1] == 'illumina3' or sys.argv[1] == 'emp':
         help = """
 Usage:       amptk %s <arguments>
 version:     %s
 
 Description: Script takes PE Illumina reads, Index reads, mapping file and processes for 
              clustering/denoising in AMPtk.  The default behavior is to: 
-             1) merge the PE reads using VSEARCH, 2) filter for Phix, 3) find and trim primers,
+             1) find and trim primers, 2) merge the PE reads, 3) filter for Phix,
              4) rename reads according to sample name, 4) trim/pad reads.
     
 Arguments:   -f, --forward       FASTQ R1 (forward) file (Required)
              -r, --reverse       FASTQ R2 (reverse) file (Required)
              -i, --index         FASTQ I3 (index) file (Required)
              -m, --mapping_file  QIIME-like mapping file.
-             --barcode_fasta     Multi-fasta file of barocdes.
-             -o, --out           Output folder name. Default: amptk-data  
              -l, --trim_len      Length to trim/pad reads. Default: 300
+             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
+             -o, --out           Output folder name. Default: amptk-data  
              --fwd_primer        Forward primer sequence
              --rev_primer        Reverse primer sequence
              --min_len           Minimum length read to keep. Default: 100
-             --full_length       Keep only full length sequences.
              --read_length       Illumina Read length (250 if 2 x 250 bp run). Default: auto detect
              --rescue_forward    Rescue Forward Reads if PE do not merge, e.g. long amplicons. Default: on [on,off]
-             --require_primer    Require the Forward primer to be present. Default: off [on,off]
+             --barcode_fasta     Multi-fasta file of barocdes.
              --primer_mismatch   Number of mismatches in primers to allow. Default: 2
              --barcode_mismatch  Number of mismatches in index (barcodes) to allow. Default: 2
              --barcode_rev_comp  Reverse complement barcode sequences in mapping file.
-             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
+             --merge_method      Software to use for PE merging. Default: usearch [usearch,vsearch]
              --cpus              Number of CPUs to use. Default: all
              --cleanup           Remove intermediate files.
              -u, --usearch       USEARCH executable. Default: usearch9
@@ -805,9 +804,9 @@ Required:    -i, --input     Input OTU file (.cluster.otus.fa) (FASTA)
         if len(db_list) < 2:
             db_print = "No DB configured, run 'amptk database' or 'amptk install' command."
         else:
-        	df = pd.DataFrame(db_list)
-        	df.columns = ['DB_name', 'DB_type', 'FASTA originated from', 'Fwd Primer', 'Rev Primer', 'Records']
-        	db_print = df.to_string(index=False,justify='center')
+            df = pd.DataFrame(db_list)
+            df.columns = ['DB_name', 'DB_type', 'FASTA originated from', 'Fwd Primer', 'Rev Primer', 'Records']
+            db_print = df.to_string(index=False,justify='center')
         
         help = """
 Usage:       amptk %s <arguments>

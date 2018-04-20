@@ -35,7 +35,7 @@ parser.add_argument('--min_len', default=50, type=int, help='Minimum length of r
 parser.add_argument('-b','--barcode_fasta', dest='barcodes', help='Multi-fasta file containing barcodes used')
 parser.add_argument('-s','--biosample', dest='biosample', help='BioSample file from NCBI')
 parser.add_argument('-p','--platform', dest='platform', default='ion', choices=['ion', 'illumina', '454'], help='Sequencing platform')
-parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer (fITS7)')
+parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7-ion', help='Forward Primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer (ITS4)')
 parser.add_argument('-n', '--names', help='CSV mapping file BC,NewName')
 parser.add_argument('-d', '--description', help='Paragraph description for SRA metadata')
@@ -144,7 +144,6 @@ else:
 
     #because we use an 'A' linker between barcode and primer sequence, add an A if ion is chemistry
     if args.platform == 'ion':
-        FwdPrimer = 'A' + FwdPrimer
         Adapter = 'CCATCTCATCCCTGCGTGTCTCCGACTCAG'
     else:
         Adapter = ''

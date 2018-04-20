@@ -500,6 +500,41 @@ def split_fastqPE(R1, R2, numseqs, outputdir, chunks):
                 lines2 = return_lines(R2, linepos, x[0], x[1])
                 output2.write('%s' % ''.join(lines2))   
 
+def split_fastqPEandI(R1, R2, I1, numseqs, outputdir, chunks):
+    #get number of sequences and then number of sequences in each chunk
+    numlines = numseqs*4
+    n = numlines // chunks
+    #make sure n is divisible by 4 (number of lines in fastq)
+    if ( n % 4 ) != 0:
+        n = ((n // 4) + 1) * 4
+    splits = []
+    count = 0
+    for i in range(chunks):
+        start = count
+        end = count+n
+        if end > numlines:
+            end = numlines
+        splits.append((start, end))
+        count += n
+    #get line positions from file
+    linepos = scan_linepos(R1)
+    linepos2 = scan_linepos(I1)
+    #make sure output directory exists
+    if not os.path.isdir(outputdir):
+        os.makedirs(outputdir)
+    #loop through the positions and write output
+    for i, x in enumerate(splits):
+        num = i+1
+        with open(os.path.join(outputdir, 'chunk_'+str(num)+'_R1.fq'), 'w') as output1:
+            with open(os.path.join(outputdir, 'chunk_'+str(num)+'_R2.fq'), 'w') as output2:
+                with open(os.path.join(outputdir, 'chunk_'+str(num)+'_R3.fq'), 'w') as output3:
+                    lines1 = return_lines(R1, linepos, x[0], x[1])
+                    output1.write('%s' % ''.join(lines1))
+                    lines2 = return_lines(R2, linepos, x[0], x[1])
+                    output2.write('%s' % ''.join(lines2))
+                    lines3 = return_lines(I1, linepos2, x[0], x[1])
+                    output3.write('%s' % ''.join(lines3))
+
 def split_fasta(input, outputdir, chunks):
     #function to return line positions of fasta files for chunking
     fastapos = []
@@ -589,11 +624,15 @@ def mapIndex(seq, mapDict, bcmismatch):
     return BC
    
     
-def DemuxIllumina(R1, R2, I1, mapDict, mismatch, outR1, outR2):
+def DemuxIllumina(R1, R2, I1, mapDict, mismatch, fwdprimer, revprimer, primer_mismatch, outR1, outR2):
     try:
         from itertools import zip_longest
     except ImportError:
         from itertools import izip_longest as zip_longest
+    Total = 0
+    FPrimer = 0
+    RPrimer = 0
+    BCFound = 0
     #function to loop through PE reads, renaming according to index
     file1 = FastqGeneralIterator(gzopen(R1))
     file2 = FastqGeneralIterator(gzopen(R2))
@@ -602,6 +641,7 @@ def DemuxIllumina(R1, R2, I1, mapDict, mismatch, outR1, outR2):
     with open(outR1, 'w') as outfile1:
         with open(outR2, 'w') as outfile2:
             for read1, read2, index in zip(file1, file2, file3):
+                Total += 1
                 #see if index is valid
                 if index[0].split(' ')[1].startswith('2'):
                     Seq = RevComp(index[1])
@@ -609,10 +649,21 @@ def DemuxIllumina(R1, R2, I1, mapDict, mismatch, outR1, outR2):
                     Seq = index[1]
                 Name,Diffs = mapIndex(Seq, mapDict, mismatch)
                 if Name:
+                    BCFound += 1
+                    #strip primers if found
+                    R1ForPos = trimForPrimer(fwdprimer, read1[1], primer_mismatch)
+                    R1RevPos = trimRevPrimer(revprimer, read1[1], primer_mismatch)
+                    R2ForPos = trimForPrimer(revprimer, read2[1], primer_mismatch)
+                    R2RevPos = trimRevPrimer(fwdprimer, read2[1], primer_mismatch)
+                    if R1ForPos > 0:
+                        FPrimer += 1
+                    if R1RevPos > 0:
+                        RPrimer += 1
                     header = 'Read_'+str(counter)+';barcodelabel='+Name+';bcseq='+index[1]+';bcdiffs='+str(Diffs)+';'
-                    outfile1.write('@%s\n%s\n+\n%s\n' % (header, read1[1], read1[2]))
-                    outfile2.write('@%s\n%s\n+\n%s\n' % (header, read2[1], read2[2]))
+                    outfile1.write('@%s\n%s\n+\n%s\n' % (header, read1[1][R1ForPos:R1RevPos], read1[2][R1ForPos:R1RevPos]))
+                    outfile2.write('@%s\n%s\n+\n%s\n' % (header, read2[1][R2ForPos:R2RevPos], read2[2][R2ForPos:R2RevPos]))
                     counter += 1
+    return Total, BCFound, FPrimer, RPrimer
                     
 def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch, require_primer, outR1, outR2):
     try:
