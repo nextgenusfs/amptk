@@ -153,7 +153,7 @@ def processPEreads(input):
     demuxReads = os.path.join(args.out, name+'.demux.fq')
     TotalCount, Written, DropMulti, DropPrimer = amptklib.stripPrimersPE(for_reads, rev_reads, read_length, name, FwdPrimer, RevPrimer, args.primer_mismatch, args.primer, trimR1, trimR2)
     MergedCount, PhixCleanedCount = amptklib.MergeReadsSimple(trimR1, trimR2, args.out, name+'.merged.fq', args.min_len, usearch, args.rescue_forward, args.merge_method)
-    amptklib.losslessTrim(mergedReads, args.trim_len, args.pad, args.min_len, demuxReads)
+    amptklib.losslessTrim(mergedReads, FwdPrimer, RevPrimer, args.primer_mismatch, args.trim_len, args.pad, args.min_len, demuxReads)
     FinalCount = amptklib.countfastq(demuxReads)
     TooShort = FinalCount - PhixCleanedCount
     with open(StatsOut, 'w') as counts:

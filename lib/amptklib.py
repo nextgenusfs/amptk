@@ -785,19 +785,45 @@ def demuxIlluminaPE(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarco
     with open(stats, 'w') as statsout:
         statsout.write('%i,%i,%i,%i,%i,%i\n' % (Total, NoBarcode, NoPrimer, NoRevBarcode, NoRevPrimer, ValidSeqs)) 
 
-def losslessTrim(input, trimLen, pad, minlength, output):
+def trimForPrimer(primer, seq, primer_mismatch):
+    foralign = edlib.align(primer, seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
+    if foralign['editDistance'] < 0:
+        return 0
+    else:
+        CutPos = foralign["locations"][0][1]+1
+        return CutPos
+
+def trimRevPrimer(primer, seq, primer_mismatch):
+    revprimer = RevComp(primer)
+    revalign = edlib.align(revprimer, seq, mode="HW", k=primer_mismatch, task="locations", additionalEqualities=degenNuc)
+    if revalign['editDistance'] < 0:
+        return len(seq)
+    else:
+        CutPos = revalign["locations"][0][0]
+        return CutPos
+        
+def losslessTrim(input, fwdprimer, revprimer, mismatch, trimLen, pad, minlength, output):
+    '''
+    function to trim primers if found from SE reads
+    and then trim/pad to a set length
+    '''
     with open(output, 'w') as outfile:
         for title, seq, qual in FastqGeneralIterator(gzopen(input)):
-            if len(seq) < minlength: #need this check here or primer dimers will get through
+            #sometimes primers sneek through the PE merging pipeline, check quickly again trim if found
+            ForTrim = trimForPrimer(fwdprimer, seq, mismatch)
+            RevTrim = trimRevPrimer(revprimer, seq, mismatch)
+            Seq = seq[ForTrim:RevTrim]
+            Qual = qual[ForTrim:RevTrim]
+            if len(Seq) < minlength: #need this check here or primer dimers will get through
                 continue
-            if len(seq) < trimLen and pad == 'on':
-                pad = trimLen - len(seq)
-                Seq = seq + pad*'N'
-                Qual = qual + pad*'I'
+            if len(Seq) < trimLen and pad == 'on':
+                pad = trimLen - len(Seq)
+                SeqF = Seq + pad*'N'
+                QualF = Qual + pad*'I'
             else:
-                Seq = seq[:trimLen]
-                Qual = qual[:trimLen]
-            outfile.write('@%s\n%s\n+\n%s\n' % (title, Seq, Qual))
+                SeqF = Seq[:trimLen]
+                QualF = Qual[:trimLen]
+            outfile.write('@%s\n%s\n+\n%s\n' % (title, SeqF, QualF))
 
 
 def checkBCinHeader(input):

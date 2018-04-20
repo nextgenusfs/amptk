@@ -73,7 +73,7 @@ def processReadsPE(input):
         amptklib.MergeReadsSimple(trim_forward, trim_reverse, '.', DemuxOut, args.min_len, usearch, 'off', args.merge_method)
     else:
         amptklib.MergeReadsSimple(trim_forward, trim_reverse, '.', merged_reads, args.min_len, usearch, 'on', args.merge_method)
-        amptklib.losslessTrim(merged_reads, args.trim_len, args.pad, args.min_len, DemuxOut) 
+        amptklib.losslessTrim(merged_reads, FwdPrimer, RevPrimer, args.primer_mismatch, args.trim_len, args.pad, args.min_len, DemuxOut) 
     amptklib.SafeRemove(orientR1)
     amptklib.SafeRemove(orientR2)
     amptklib.SafeRemove(forward_reads)
