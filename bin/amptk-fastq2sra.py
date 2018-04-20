@@ -50,12 +50,12 @@ args=parser.parse_args()
 
 #get basename if not args.out passed
 if args.out:
-	base = args.out
+    base = args.out
 else:
-	if 'demux' in args.FASTQ:
-		base = os.path.basename(args.FASTQ).split('.demux')[0]
-	else:
-		base = os.path.basename(args.FASTQ).split('.f')[0]
+    if 'demux' in args.FASTQ:
+        base = os.path.basename(args.FASTQ).split('.demux')[0]
+    else:
+        base = os.path.basename(args.FASTQ).split('.f')[0]
 
 
 log_name = base + '.amptk-sra.log'
@@ -375,13 +375,13 @@ if args.biosample:
                 file2 = file.replace('_R1', '_R2')             
                 #count number of _ in name, determines the dataformat
                 fields = file.count("_")
-				barcode_for = 'missing'
-				barcode_rev = 'missing'
+                barcode_for = 'missing'
+                barcode_rev = 'missing'
                 if fields > 3: #this is full illumina name with dual barcodes
                     dualBC = file.split("_")[1]
                     if '-' in dualBC:
-						barcode_for = dualBC.split('-')[0]
-						barcode_rev = dualBC.split('-')[1]
+                        barcode_for = dualBC.split('-')[0]
+                        barcode_rev = dualBC.split('-')[1]
                 elif fields == 3: #this is older reverse barcoded name
                     barcode_for = 'None'
                     barcode_rev = file.split("_")[1]
