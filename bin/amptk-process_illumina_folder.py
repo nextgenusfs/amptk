@@ -63,7 +63,8 @@ args=parser.parse_args()
 def processSEreads(input):
     #input is expected to be a FASTQ file
     #local variables that need to be previously declared: FwdPrimer, RevPrimer
-    Name = os.path.basename(input).split(".fq",-1)[0]
+    inputPath = os.path.join(args.input, input)
+    Name = os.path.basename(inputPath).split(".fq",-1)[0]
     DemuxOut = os.path.join(args.out, Name + '.demux.fq')
     Sample = Name.split('_')[0]
     StatsOut = os.path.join(args.out, Name+'.stats')
@@ -75,7 +76,7 @@ def processSEreads(input):
     RCRevPrimer = amptklib.RevComp(RevPrimer)
     with open(StatsOut, 'w') as counts:
         with open(DemuxOut, 'w') as out:
-            for title, seq, qual in FastqGeneralIterator(open(input)):
+            for title, seq, qual in FastqGeneralIterator(open(inputPath)):
                 Total += 1
                 #first thing is look for forward primer, if found trim it off
                 foralign = edlib.align(FwdPrimer, seq, mode="HW", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
