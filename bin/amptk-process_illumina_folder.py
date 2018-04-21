@@ -314,10 +314,9 @@ else:
                     sampleDict[column[0]] = i5
 
 #zip read lists into a single list of tuples
-
 if args.reads == 'paired':
 	amptklib.log.info("Strip Primers and Merge PE reads. FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))
-	readList = zip(fastq_for, fastq_rev)
+	readList = list(zip(fastq_for, fastq_rev))
 	amptklib.runMultiProgress(safe_run, readList, cpus)
 else:
 	amptklib.log.info("Strip Primers. FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))
@@ -388,7 +387,7 @@ amptklib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_
 genericmapfile = args.out + '.mapping_file.txt'
 if not args.mapping_file:
     #create a generic mappingfile for downstream processes
-    amptklib.CreateGenericMappingFileIllumina(sampleDict, FwdPrimer, amptklib.RevComp(RevPrimer), genericmapfile, BarcodeCount)
+    amptklib.CreateGenericMappingFileIllumina(sampleDict, FwdPrimer, RevPrimer, genericmapfile, BarcodeCount)
 else:
     amptklib.updateMappingFile(args.mapping_file, BarcodeCount, genericmapfile)
     
