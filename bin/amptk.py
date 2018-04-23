@@ -148,26 +148,27 @@ Description: Script takes Illumina data that is not de-multiplexed and has read 
              clustering using AMPtk.  The default behavior is to: 1) find barcodes/primers, 
              2) relabel headers and trim barcodes/primers, 3) merge the PE reads, 
              4) trim/pad reads to a set length.  This script can handle dual barcodes 
-             (3' barcodes using the --reverse_barcode option). 
+             (3' barcodes using the --reverse_barcode option or mapping file). 
     
-Arguments:   -i, --fastq         Input R1 Illumina reads (Required)
-             --reverse           Illumina PE reverse reads.
-             -o, --out           Output base name. Default: illumina2
-             -m, --mapping_file  QIIME-like mapping file
-             -f, --fwd_primer    Forward primer sequence. Default: fITS7
-             -r, --rev_primer    Reverse primer sequence Default: ITS4
-             -n, --name_prefix   Prefix for re-naming reads. Default: R_
-             -l, --trim_len      Length to trim/pad reads. Default: 300
-             -p, --pad           Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
-             --min_len           Minimum length read to keep. Default: 100
-             --barcode_fasta     FASTA file containing barcodes.
-             --reverse_barcode   FASTA file containing 3' barcodes.
-             --barcode_mismatch   Number of mismatches in barcode to allow. Default: 0
-             --full_length       Keep only full length sequences.
-             --primer_mismatch   Number of mismatches in primers to allow. Default: 2
-             --merge_method      Software to use for PE merging. Default: usearch [usearch,vsearch]
-             --cpus              Number of CPUs to use. Default: all
-             -u, --usearch       USEARCH executable. Default: usearch9
+Arguments:   -i, --fastq         	Illumina R1 (PE forward) reads (Required)
+             --reverse           	Illumina R2 (PE reverse) reads.
+             -o, --out           	Output base name. Default: illumina2
+             -m, --mapping_file  	QIIME-like mapping file
+             -f, --fwd_primer    	Forward primer sequence. Default: fITS7
+             -r, --rev_primer    	Reverse primer sequence Default: ITS4
+             -n, --name_prefix   	Prefix for re-naming reads. Default: R_
+             -l, --trim_len      	Length to trim/pad reads. Default: 300
+             -p, --pad           	Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
+             --min_len           	Minimum length read to keep. Default: 100
+             --barcode_fasta     	FASTA file containing barcodes.
+             --reverse_barcode   	FASTA file containing R2 barcodes.
+             --barcode_mismatch   	Number of mismatches in barcode to allow. Default: 0
+             --barcode_not_anchored	Barcodes are not anchored to start of read.
+             --full_length       	Keep only full length sequences.
+             --primer_mismatch   	Number of mismatches in primers to allow. Default: 2
+             --merge_method      	Software to use for PE merging. Default: usearch [usearch,vsearch]
+             --cpus              	Number of CPUs to use. Default: all
+             -u, --usearch       	USEARCH executable. Default: usearch9
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]

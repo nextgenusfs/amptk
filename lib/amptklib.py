@@ -836,6 +836,82 @@ def demuxIlluminaPE(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarco
     with open(stats, 'w') as statsout:
         statsout.write('%i,%i,%i,%i,%i,%i\n' % (Total, NoBarcode, NoPrimer, NoRevBarcode, NoRevPrimer, ValidSeqs)) 
 
+def demuxIlluminaPE2(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarcodes, barcode_mismatch, primer_mismatch, outR1, outR2, stats):
+    try:
+        from itertools import zip_longest
+    except ImportError:
+        from itertools import izip_longest as zip_longest
+    #function to loop through PE reads, renaming according to index
+    file1 = FastqGeneralIterator(gzopen(R1))
+    file2 = FastqGeneralIterator(gzopen(R2))
+    counter = 1
+    Total = 0
+    NoBarcode = 0
+    NoRevBarcode = 0
+    NoPrimer = 0
+    NoRevPrimer = 0
+    ValidSeqs = 0
+    with open(outR1, 'w') as outfile1:
+        with open(outR2, 'w') as outfile2:
+            for read1, read2 in zip(file1, file2):
+                Total += 1
+                #look for forward primer first, should all have primer and in correct orientation
+                R1ForTrim = trimForPrimer(fwdprimer, read1[1], primer_mismatch)
+                if R1ForTrim == 0: #no primer found
+                    continue
+                if len(forbarcodes) > 0: #search for barcode match in seq upstream of primer
+                    R1BCtrim = R1ForTrim - len(fwdprimer)
+                    BC, BCLabel = AlignBarcode2(read1[1][:R1BCtrim], forbarcodes, barcode_mismatch)
+                    if BC == '':
+                        NoBarcode += 1
+                        continue                
+                if len(samples) > 0: #sample dictionary so enforce primers and barcodes from here
+                    FwdPrimer = samples[BCLabel]['ForPrimer']
+                    RevPrimer = samples[BCLabel]['RevPrimer']             
+                    stringent = {}
+                    stringent[BCLabel] = samples[BCLabel]['RevBarcode']
+                    #find rev primer in reverse read
+                    R2ForTrim = trimForPrimer(RevPrimer, read2[1], primer_mismatch)
+                    if R2ForTrim == 0:
+                        continue
+                    #look for reverse barcode
+                    R2BCTrim = R2ForTrim - len(RevPrimer)
+                    revBC, revBCLabel = AlignBarcode2(read2[1][:R2BCTrim], stringent, barcode_mismatch)
+                    if revBC == '':
+                        NoRevBarcode += 1
+                        continue
+                    #okay, found both primers and barcodes, now 1 more cleanup step trip revcomped primers
+                    R1RevTrim = trimRevPrimer(RevPrimer, read1[1], primer_mismatch) 
+                    R2RevTrim = trimRevPrimer(FwdPrimer, read2[1], primer_mismatch)
+                else:
+                    #no samples dictionary, so allow all combinations of matches
+                    R2ForTrim = trimForPrimer(revprimer, read2[1], primer_mismatch)
+                    if R2ForTrim == 0:
+                        continue
+                    #look for reverse barcode
+                    R2BCTrim = R2ForTrim - len(revprimer)
+                    revBC, revBCLabel = AlignBarcode2(read2[1][:R2BCTrim], revbarcodes, barcode_mismatch)
+                    if revBC == '':
+                        NoRevBarcode += 1
+                        continue
+                    #okay, found both primers and barcodes, now 1 more cleanup step trip revcomped primers
+                    R1RevTrim = trimRevPrimer(revprimer, read1[1], primer_mismatch) 
+                    R2RevTrim = trimRevPrimer(fwdprimer, read2[1], primer_mismatch)                     
+
+                #if get here, then all is well, construct new header and trim reads
+                if BCLabel == revBCLabel:
+                    label = BCLabel
+                else:
+                    label = BCLabel+':-:'+revBCLabel
+                header = 'R_{:};barcodelabel={:};'.format(counter,label)
+                outfile1.write('@%s\n%s\n+\n%s\n' % (header, read1[1][R1ForTrim:R1RevTrim], read1[2][R1ForTrim:R1RevTrim]))
+                outfile2.write('@%s\n%s\n+\n%s\n' % (header, read2[1][R2ForTrim:R2RevTrim], read2[2][R2ForTrim:R2RevTrim]))
+                counter += 1
+                ValidSeqs += 1
+    with open(stats, 'w') as statsout:
+        statsout.write('%i,%i,%i,%i,%i,%i\n' % (Total, NoBarcode, NoPrimer, NoRevBarcode, NoRevPrimer, ValidSeqs)) 
+
+
 def trimForPrimer(primer, seq, primer_mismatch):
     foralign = edlib.align(primer, seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
     if foralign['editDistance'] < 0:
@@ -946,6 +1022,32 @@ def AlignRevBarcode(Seq, BarcodeDict, mismatch):
         align = edlib.align(B, Seq, mode="HW", k=int(mismatch), additionalEqualities=degenNuc)
         if align["editDistance"] == 0:
             return B, BL
+        elif align["editDistance"] > 0:
+            if besthit[2] != '' and align["editDistance"] < int(besthit[2]):
+                besthit = (B,BL,align["editDistance"])
+    if besthit[2] != '' and int(besthit[2]) <= int(mismatch):
+        return besthit[0], besthit[1]
+    return "", ""
+
+def AlignBarcode2(Seq, BarcodeDict, mismatch):
+    besthit = ('', '', '')
+    for BL in list(BarcodeDict.keys()):
+        B = BarcodeDict[BL]
+        #apparently people use N's in barcode sequences, this doesn't work well with
+        #edlib, so if N then trim and then align, need to trim the seq as well
+        if B.startswith('N'):
+            origLen = len(B)
+            B = B.lstrip('N')
+            newLen = len(B)
+            lenDiff = origLen - newLen
+            newSeq = Seq[lenDiff:]
+        else:
+            newSeq = Seq
+        align = edlib.align(B, newSeq, mode="HW", k=int(mismatch))
+        if align["editDistance"] == 0:
+            return B, BL
+        elif int(mismatch) == 0:
+            continue
         elif align["editDistance"] > 0:
             if besthit[2] != '' and align["editDistance"] < int(besthit[2]):
                 besthit = (B,BL,align["editDistance"])

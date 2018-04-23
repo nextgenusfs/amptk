@@ -45,6 +45,7 @@ parser.add_argument('-p','--pad', default='off', choices=['on', 'off'], help='Pa
 parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
 parser.add_argument('--barcode_mismatch', default=0, type=int, help='Number of mis-matches in barcode')
 parser.add_argument('--barcode_fasta', help='FASTA file containing Barcodes (Names & Sequences)')
+parser.add_argument('--barcode_not_anchored', action='store_true', help='Barcodes (indexes) are not at start of reads')
 parser.add_argument('--reverse_barcode', help='FASTA file containing 3 prime Barocdes')
 parser.add_argument('--min_len', default=100, type=int, help='Minimum read length to keep')
 parser.add_argument('-l','--trim_len', default=300, type=int, help='Trim length for reads')
@@ -68,7 +69,10 @@ def processReadsPE(input):
     RL = amptklib.GuessRL(forward_reads)
     Total, Correct, Flip, Drop = amptklib.illuminaReorient(forward_reads, reverse_reads, FwdPrimer, RevPrimer, args.primer_mismatch, RL, orientR1, orientR2)
     amptklib.log.debug('Re-oriented PE reads for {:}: {:,} total, {:,} correct, {:,} flipped, {:,} dropped.'.format(base, Total, Correct, Flip, Drop))
-    amptklib.demuxIlluminaPE(orientR1, orientR2, FwdPrimer, RevPrimer, SampleData, Barcodes, RevBarcodes, args.barcode_mismatch, args.primer_mismatch, trim_forward, trim_reverse, StatsOut)
+    if args.barcode_not_anchored:
+        amptklib.demuxIlluminaPE2(orientR1, orientR2, FwdPrimer, RevPrimer, SampleData, Barcodes, RevBarcodes, args.barcode_mismatch, args.primer_mismatch, trim_forward, trim_reverse, StatsOut)
+    else:
+        amptklib.demuxIlluminaPE(orientR1, orientR2, FwdPrimer, RevPrimer, SampleData, Barcodes, RevBarcodes, args.barcode_mismatch, args.primer_mismatch, trim_forward, trim_reverse, StatsOut)
     if args.full_length:
         amptklib.MergeReadsSimple(trim_forward, trim_reverse, '.', DemuxOut, args.min_len, usearch, 'off', args.merge_method)
     else:
@@ -260,9 +264,9 @@ if not os.path.exists(tmpdir):
     os.makedirs(tmpdir)
 
 if args.reverse:
-	amptklib.log.info("Demuxing PE Illumina reads; FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))
+    amptklib.log.info("Demuxing PE Illumina reads; FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))
 else:
-	amptklib.log.info("Demuxing SE Illumina reads; FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, amptklib.RevComp(RevPrimer)))
+    amptklib.log.info("Demuxing SE Illumina reads; FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, amptklib.RevComp(RevPrimer)))
 
 if cpus > 1:
     if args.reverse:
@@ -306,42 +310,42 @@ with open(tmpDemux, 'w') as outfile:
         with open(filename, 'rU') as readfile:
             shutil.copyfileobj(readfile, outfile)
 if args.reverse:
-	#parse the stats
-	finalstats = [0,0,0,0,0,0]
-	for file in os.listdir(tmpdir):
-		if file.endswith('.stats'):
-			with open(os.path.join(tmpdir, file), 'rU') as statsfile:
-				line = statsfile.readline()
-				line = line.rstrip()
-				newstats = line.split(',')
-				newstats = [int(i) for i in newstats]
-				for x, num in enumerate(newstats):
-					finalstats[x] += num
-	
-	amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
-	amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1]-finalstats[3])+' valid Barcodes')
-	amptklib.log.info('{0:,}'.format(finalstats[5])+' valid output reads (Barcodes and Primers)')
+    #parse the stats
+    finalstats = [0,0,0,0,0,0]
+    for file in os.listdir(tmpdir):
+        if file.endswith('.stats'):
+            with open(os.path.join(tmpdir, file), 'rU') as statsfile:
+                line = statsfile.readline()
+                line = line.rstrip()
+                newstats = line.split(',')
+                newstats = [int(i) for i in newstats]
+                for x, num in enumerate(newstats):
+                    finalstats[x] += num
+    
+    amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
+    amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1]-finalstats[3])+' valid Barcodes')
+    amptklib.log.info('{0:,}'.format(finalstats[5])+' valid output reads (Barcodes and Primers)')
 else:
-	#parse the stats
-	finalstats = [0,0,0,0,0,0,0]
-	for file in os.listdir(tmpdir):
-		if file.endswith('.stats'):
-			with open(os.path.join(tmpdir, file), 'rU') as statsfile:
-				line = statsfile.readline()
-				line = line.rstrip()
-				newstats = line.split(',')
-				newstats = [int(i) for i in newstats]
-				for x, num in enumerate(newstats):
-					finalstats[x] += num
-			
-	amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
-	if args.reverse_barcode:
-		amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1]-finalstats[2]-finalstats[4])+' valid Fwd and Rev Barcodes')
-	else:
-		amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1])+' valid Barcode')
-		amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1]-finalstats[2])+' Fwd Primer found, {0:,}'.format(finalstats[3])+ ' Rev Primer found')
-	amptklib.log.info('{0:,}'.format(finalstats[5])+' discarded too short (< %i bp)' % args.min_len)
-	amptklib.log.info('{0:,}'.format(finalstats[6])+' valid output reads')
+    #parse the stats
+    finalstats = [0,0,0,0,0,0,0]
+    for file in os.listdir(tmpdir):
+        if file.endswith('.stats'):
+            with open(os.path.join(tmpdir, file), 'rU') as statsfile:
+                line = statsfile.readline()
+                line = line.rstrip()
+                newstats = line.split(',')
+                newstats = [int(i) for i in newstats]
+                for x, num in enumerate(newstats):
+                    finalstats[x] += num
+            
+    amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
+    if args.reverse_barcode:
+        amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1]-finalstats[2]-finalstats[4])+' valid Fwd and Rev Barcodes')
+    else:
+        amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1])+' valid Barcode')
+        amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1]-finalstats[2])+' Fwd Primer found, {0:,}'.format(finalstats[3])+ ' Rev Primer found')
+    amptklib.log.info('{0:,}'.format(finalstats[5])+' discarded too short (< %i bp)' % args.min_len)
+    amptklib.log.info('{0:,}'.format(finalstats[6])+' valid output reads')
 
 
 #clean up tmp folder
@@ -373,7 +377,7 @@ if not args.mapping_file:
     #create a generic mappingfile for downstream processes
     amptklib.CreateGenericMappingFile(Barcodes, RevBarcodes, FwdPrimer, RevPrimer, genericmapfile, BarcodeCount)
 else:
-	amptklib.updateMappingFile(args.mapping_file, BarcodeCount, genericmapfile)
+    amptklib.updateMappingFile(args.mapping_file, BarcodeCount, genericmapfile)
 #compress the output to save space
 FinalDemux = catDemux+'.gz'
 amptklib.Fzip(catDemux, FinalDemux, cpus)
