@@ -219,17 +219,17 @@ else: #no mapping file, so create dictionaries from barcode fasta files
         #check for multi_samples and add if necessary
         if args.multi == 'False':
             shutil.copyfile(args.barcode_fasta, barcode_file)
-            if args.reverse_barcodes:
-                shutil.copyfile(args.reverse_barcodes,rev_barcode_file)
+            if args.reverse_barcode:
+                shutil.copyfile(args.reverse_barcode,rev_barcode_file)
         else:
             with open(barcode_file, 'w') as barcodeout:
                 with open(args.barcode_fasta, 'rU') as input:
                     for rec in SeqIO.parse(input, 'fasta'):
                         outname = args.multi+'.'+rec.id
                         barcodeout.write(">%s\n%s\n" % (outname, rec.seq))
-            if args.reverse_barcodes:
+            if args.reverse_barcode:
                 with open(rev_barcode_file, 'w') as barcodeout:
-                    with open(args.reverse_barcodes, 'rU') as input:
+                    with open(args.reverse_barcode, 'rU') as input:
                         for rec in SeqIO.parse(input, 'fasta'):
                             outname = args.multi+'.'+rec.id
                             barcodeout.write(">%s\n%s\n" % (outname, rec.seq))                   
