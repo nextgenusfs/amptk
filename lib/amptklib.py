@@ -988,7 +988,7 @@ def fasta2barcodes(input, revcomp):
     return BC
             
 def AlignBarcode(Seq, BarcodeDict, mismatch):
-    besthit = ('', '', '')
+    besthit = []
     for BL in list(BarcodeDict.keys()):
         B = BarcodeDict[BL]
         #apparently people use N's in barcode sequences, this doesn't work well with
@@ -1001,36 +1001,50 @@ def AlignBarcode(Seq, BarcodeDict, mismatch):
             newSeq = Seq[lenDiff:]
         else:
             newSeq = Seq
-        align = edlib.align(B, newSeq, mode="SHW", k=int(mismatch))
-        if align["editDistance"] == 0:
-            return B, BL
-        elif int(mismatch) == 0:
+        align = edlib.align(B, newSeq, mode="SHW", k=mismatch, additionalEqualities=degenNuc)
+        if align["editDistance"] < 0:
             continue
-        elif align["editDistance"] > 0:
-            if besthit[2] != '' and align["editDistance"] < int(besthit[2]):
-                besthit = (B,BL,align["editDistance"])
-    if besthit[2] != '' and int(besthit[2]) <= int(mismatch):
+        elif align["editDistance"] == 0:
+            return B, BL
+        elif align["editDistance"] > 0 and mismatch == 0:
+            continue
+        else:
+            if len(besthit) < 3:
+                besthit = [B, BL, align["editDistance"]]
+            else:
+                if align["editDistance"] < int(besthit[2]):
+                    besthit = [B, BL, align["editDistance"]]
+    if len(besthit) == 3:
         return besthit[0], besthit[1]
-    return "", ""
+    else:
+        return "", ""
     
 def AlignRevBarcode(Seq, BarcodeDict, mismatch):
-    besthit = ('', '', '')
+    besthit = []
     for BL in list(BarcodeDict.keys()):
         B = BarcodeDict[BL]
         if B.endswith('N'):
             B = B.rstrip('N')
-        align = edlib.align(B, Seq, mode="HW", k=int(mismatch), additionalEqualities=degenNuc)
-        if align["editDistance"] == 0:
+        align = edlib.align(B, Seq, mode="HW", k=mismatch, additionalEqualities=degenNuc)
+        if align["editDistance"] < 0:
+            continue
+        elif align["editDistance"] == 0:
             return B, BL
-        elif align["editDistance"] > 0:
-            if besthit[2] != '' and align["editDistance"] < int(besthit[2]):
-                besthit = (B,BL,align["editDistance"])
-    if besthit[2] != '' and int(besthit[2]) <= int(mismatch):
+        elif align["editDistance"] > 0 and mismatch == 0:
+            continue
+        else:
+            if len(besthit) < 3:
+                besthit = [B, BL, align["editDistance"]]
+            else:
+                if align["editDistance"] < int(besthit[2]):
+                    besthit = [B, BL, align["editDistance"]]
+    if len(besthit) == 3:
         return besthit[0], besthit[1]
-    return "", ""
+    else:
+        return "", ""
 
 def AlignBarcode2(Seq, BarcodeDict, mismatch):
-    besthit = ('', '', '')
+    besthit = []
     for BL in list(BarcodeDict.keys()):
         B = BarcodeDict[BL]
         #apparently people use N's in barcode sequences, this doesn't work well with
@@ -1043,17 +1057,23 @@ def AlignBarcode2(Seq, BarcodeDict, mismatch):
             newSeq = Seq[lenDiff:]
         else:
             newSeq = Seq
-        align = edlib.align(B, newSeq, mode="HW", k=int(mismatch))
-        if align["editDistance"] == 0:
-            return B, BL
-        elif int(mismatch) == 0:
+        align = edlib.align(B, newSeq, mode="HW", k=int(mismatch), additionalEqualities=degenNuc)
+        if align["editDistance"] < 0:
             continue
-        elif align["editDistance"] > 0:
-            if besthit[2] != '' and align["editDistance"] < int(besthit[2]):
-                besthit = (B,BL,align["editDistance"])
-    if besthit[2] != '' and int(besthit[2]) <= int(mismatch):
+        elif align["editDistance"] == 0:
+            return B, BL
+        elif align["editDistance"] > 0 and mismatch == 0:
+            continue
+        else:
+            if len(besthit) < 3:
+                besthit = [B, BL, align["editDistance"]]
+            else:
+                if align["editDistance"] < int(besthit[2]):
+                    besthit = [B, BL, align["editDistance"]]
+    if len(besthit) == 3:
         return besthit[0], besthit[1]
-    return "", ""
+    else:
+        return "", ""
     
 def findFwdPrimer(primer, sequence, mismatch, equalities):
     #trim position
