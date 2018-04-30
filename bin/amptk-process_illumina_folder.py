@@ -138,9 +138,12 @@ def processPEreads(input):
     '''
     function for multiprocessing of the data, so take file list as input, need global forward/reverse list available
     '''
-    amptklib.log.debug(input)
     for_reads, rev_reads = input
-    name = os.path.basename(for_reads).split("_")[0]
+    if '_' in os.path.basename(for_reads):
+    	name = os.path.basename(for_reads).split("_")[0]
+    else:
+    	name = os.path.basename(for_reads)
+    amptklib.log.debug('{:}: {:} {:}'.format(name, for_reads, rev_reads))
     #for_reads = os.path.join(args.input, forwardRead)
     #rev_reads = os.path.join(args.input, reverseRead)
     StatsOut = os.path.join(args.out, name+'.stats')
