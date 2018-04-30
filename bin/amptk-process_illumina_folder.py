@@ -69,10 +69,11 @@ def processSEreads(input):
     Sample = Name.split('_')[0]
     StatsOut = os.path.join(args.out, Name+'.stats')
     Total = 0
-    NoPrimer = 0
+    ForPrimerFound = 0
     TooShort = 0
     RevPrimerFound = 0
     ValidSeqs = 0
+    multiHits = 0
     RCRevPrimer = amptklib.RevComp(RevPrimer)
     with open(StatsOut, 'w') as counts:
         with open(DemuxOut, 'w') as out:
@@ -82,6 +83,9 @@ def processSEreads(input):
                 foralign = edlib.align(FwdPrimer, seq, mode="HW", k=args.primer_mismatch, additionalEqualities=amptklib.degenNuc)
                 #if require primer is on make finding primer in amplicon required if amplicon is larger than read length
                 #if less than read length, can't enforce primer because could have been trimmed via staggered trim in fastq_mergepairs
+                if len(foralign['locations']) > 1:
+                	multiHits += 1
+                	continue
                 if args.primer == 'on':
                     if foralign["editDistance"] < 0:
                         NoPrimer += 1
@@ -132,7 +136,8 @@ def processSEreads(input):
                 Title = 'R_'+str(ValidSeqs)+';barcodelabel='+Sample+';'
                 #now write to file
                 out.write("@%s\n%s\n+\n%s\n" % (Title, Seq, Qual))
-            counts.write("%i,%i,%i,%i,%i\n" % (Total, NoPrimer, RevPrimerFound, TooShort, ValidSeqs))
+            ForPrimerFound = Total - NoPrimer - multiHits
+            counts.write("%i,%i,%i,%i,%i,%i\n" % (Total, ForPrimerFound, RevPrimerFound, multiHits, TooShort, ValidSeqs))
 
 def processPEreads(input):
     '''
@@ -156,13 +161,13 @@ def processPEreads(input):
     trimR2 = os.path.join(args.out, name+'_R2.fq')
     mergedReads = os.path.join(args.out, name+'.merged.fq')
     demuxReads = os.path.join(args.out, name+'.demux.fq')
-    TotalCount, Written, DropMulti, DropPrimer = amptklib.stripPrimersPE(for_reads, rev_reads, read_length, name, FwdPrimer, RevPrimer, args.primer_mismatch, args.primer, trimR1, trimR2)
+    TotalCount, Written, DropMulti, FindForPrimer, FindRevPrimer = amptklib.stripPrimersPE(for_reads, rev_reads, read_length, name, FwdPrimer, RevPrimer, args.primer_mismatch, args.primer, trimR1, trimR2)
     MergedCount, PhixCleanedCount = amptklib.MergeReadsSimple(trimR1, trimR2, args.out, name+'.merged.fq', args.min_len, usearch, args.rescue_forward, args.merge_method)
     amptklib.losslessTrim(mergedReads, FwdPrimer, RevPrimer, args.primer_mismatch, args.trim_len, args.pad, args.min_len, demuxReads)
     FinalCount = amptklib.countfastq(demuxReads)
     TooShort = PhixCleanedCount - FinalCount
     with open(StatsOut, 'w') as counts:
-        counts.write("%i,%i,%i,%i,%i\n" % (TotalCount, DropPrimer, DropMulti, TooShort, FinalCount))
+        counts.write("%i,%i,%i,%i,%i,%i\n" % (TotalCount, FindForPrimer, FindRevPrimer, DropMulti, TooShort, FinalCount))
 
 def safe_run(*args, **kwargs):
     """Call run(), catch exceptions."""
@@ -256,12 +261,16 @@ else: #if not then search through and find all the files you can in the folder
     #look up primer db otherwise default to entry
     if args.F_primer in amptklib.primer_db:
         FwdPrimer = amptklib.primer_db.get(args.F_primer)
+        amptklib.log.info("{:} fwd primer found in AMPtk primer db, setting to: {:}".format(args.F_primer, FwdPrimer))
     else:
         FwdPrimer = args.F_primer
+        amptklib.log.info("{:} fwd primer not found in AMPtk primer db, assuming it is actual primer sequence.".format(args.F_primer))
     if args.R_primer in amptklib.primer_db:
         RevPrimer = amptklib.primer_db.get(args.R_primer)
+        amptklib.log.info("{:} rev primer found in AMPtk primer db, setting to: {:}".format(args.R_primer, RevPrimer))
     else:
         RevPrimer = args.R_primer
+        amptklib.log.info("{:} rev primer not found in AMPtk primer db, assuming it is actual primer sequence.".format(args.R_primer))
 
 #if files are from SRA, then do something different as they are already merged
 if args.sra:
@@ -346,8 +355,8 @@ with open(catDemux, 'w') as outfile:
             shutil.copyfileobj(readfile, outfile)
 
 #parse the stats
-#(Total, NoPrimer, RevPrimerFound, TooShort, ValidSeqs))
-finalstats = [0,0,0,0,0]
+#(Total, ForPrimerFound, RevPrimerFound, multiHits, TooShort, ValidSeqs))
+finalstats = [0,0,0,0,0,0]
 for file in os.listdir(args.out):
     if file.endswith('.stats'):
         with open(os.path.join(args.out, file), 'rU') as statsfile:
@@ -357,18 +366,11 @@ for file in os.listdir(args.out):
             newstats = [int(i) for i in newstats]
             for x, num in enumerate(newstats):
                 finalstats[x] += num           
-if args.reads == 'paired':
-	#output stats of the run
-	amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
-	amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1])+' Fwd/Rev Primer found')
-	amptklib.log.info('{0:,}'.format(finalstats[2])+ ' discarded Primer incompatibility')
-	amptklib.log.info('{0:,}'.format(finalstats[3])+' discarded too short (< %i bp)' % args.min_len)
-	amptklib.log.info('{0:,}'.format(finalstats[4])+' valid output reads')
-else:
-    amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
-    amptklib.log.info('{0:,}'.format(finalstats[0]-finalstats[1])+' Fwd Primer found, {0:,}'.format(finalstats[2])+ ' Rev Primer found')
-    amptklib.log.info('{0:,}'.format(finalstats[3])+' discarded too short (< %i bp)' % args.min_len)
-    amptklib.log.info('{0:,}'.format(finalstats[4])+' valid output reads')
+amptklib.log.info('{0:,}'.format(finalstats[0])+' total reads')
+amptklib.log.info('{0:,}'.format(finalstats[1])+' Fwd Primer found, {0:,}'.format(finalstats[2])+ ' Rev Primer found')
+amptklib.log.info('{0:,}'.format(finalstats[3])+ ' discarded Primer incompatibility')
+amptklib.log.info('{0:,}'.format(finalstats[4])+' discarded too short (< %i bp)' % args.min_len)
+amptklib.log.info('{0:,}'.format(finalstats[5])+' valid output reads')
 
 
 #now loop through data and find barcoded samples, counting each.....
