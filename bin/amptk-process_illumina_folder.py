@@ -138,10 +138,11 @@ def processPEreads(input):
     '''
     function for multiprocessing of the data, so take file list as input, need global forward/reverse list available
     '''
-    forwardRead, reverseRead = input
-    name = forwardRead.split("_")[0]
-    for_reads = os.path.join(args.input, forwardRead)
-    rev_reads = os.path.join(args.input, reverseRead)
+    amptklib.log.debug(input)
+    for_reads, rev_reads = input
+    name = os.path.basename(for_reads).split("_")[0]
+    #for_reads = os.path.join(args.input, forwardRead)
+    #rev_reads = os.path.join(args.input, reverseRead)
     StatsOut = os.path.join(args.out, name+'.stats')
     #if read length explicity passed use it otherwise measure it
     if args.read_length:
@@ -287,9 +288,9 @@ else:
         map_file.write("Name\t[i5]\t[i7]\tLane\tSet_num\n")
         for item in sorted(filenames):
             if '_R1' in item:
-                fastq_for.append(item)
+                fastq_for.append(os.path.join(args.input, item))
             if '_R2' in item:
-                fastq_rev.append(item)
+                fastq_rev.append(os.path.join(args.input, item))
             column = item.split("_")
             if column[0] not in uniq_names:
                 uniq_names.append(column[0])

@@ -685,6 +685,7 @@ def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch
                 R1Qual = read1[2][:RL]
                 R2Seq = read2[1][:RL]
                 R2Qual = read2[2][:RL]
+                ForTrim, RevTrim = (0,)*2
                 #look for forward primer in forward read
                 R1foralign = edlib.align(fwdprimer, R1Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
                 if R1foralign['editDistance'] < 0 and require_primer == 'on': #not found
@@ -712,8 +713,14 @@ def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch
                 else:
                     R2RevCut = R2revalign["locations"][0][0]                
                 #if here, then get trim locations
-                ForTrim = R1foralign["locations"][0][1]+1
-                RevTrim = R2foralign["locations"][0][1]+1               
+                try:
+                	ForTrim = R1foralign["locations"][0][1]+1
+                except IndexError:
+                	pass
+                try:
+                	RevTrim = R2foralign["locations"][0][1]+1
+                except IndexError:
+                	pass             
                 header = 'R_{:};barcodelabel={:};'.format(counter,samplename)
                 outfile1.write('@%s\n%s\n+\n%s\n' % (header, R1Seq[ForTrim:R1RevCut], R1Qual[ForTrim:R1RevCut]))
                 outfile2.write('@%s\n%s\n+\n%s\n' % (header, R2Seq[RevTrim:R2RevCut], R2Qual[RevTrim:R2RevCut]))
