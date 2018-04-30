@@ -665,7 +665,7 @@ def DemuxIllumina(R1, R2, I1, mapDict, mismatch, fwdprimer, revprimer, primer_mi
                     counter += 1
     return Total, BCFound, FPrimer, RPrimer
                     
-def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch, require_primer, outR1, outR2):
+def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch, require_primer, full_length, outR1, outR2):
     try:
         from itertools import zip_longest
     except ImportError:
@@ -682,6 +682,8 @@ def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch
         with open(outR2, 'w') as outfile2:
             for read1, read2 in zip(file1, file2):
                 Total += 1
+                ffp = False
+                frp = False
                 R1Seq = read1[1][:RL]
                 R1Qual = read1[2][:RL]
                 R2Seq = read2[1][:RL]
@@ -689,40 +691,48 @@ def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch
                 ForTrim, RevTrim = (0,)*2
                 #look for forward primer in forward read
                 R1foralign = edlib.align(fwdprimer, R1Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)            
-                if R1foralign['editDistance'] < 0 and require_primer == 'on': #not found
-                    continue
-                if len(R1foralign['locations']) > 1: #multiple hits
-                    multihits += 1
-                    continue
-                try:
-                    ForTrim = R1foralign["locations"][0][1]+1
-                    findForPrimer += 1
-                except IndexError:
-                    pass
+                if R1foralign['editDistance'] < 0:
+                    if require_primer == 'on' or full_length: #not found
+                        continue
+                else:
+                    if len(R1foralign['locations']) > 1: #multiple hits
+                        multihits += 1
+                        continue
+                    try:
+                        ForTrim = R1foralign["locations"][0][1]+1
+                        findForPrimer += 1
+                        ffp = True
+                    except IndexError:
+                        pass
                 R1revalign = edlib.align(RevComp(revprimer), R1Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
                 if R1revalign['editDistance'] < 0:
                     R1RevCut = RL
                 else:
                     R1RevCut = R1revalign["locations"][0][0]
                     findRevPrimer += 1
+                    frp = True
                 #look for reverse primer in reverse read
                 R2foralign = edlib.align(revprimer, R2Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
-                if R2foralign['editDistance'] < 0 and require_primer == 'on': #not found
-                    continue
-                if len(R2foralign['locations']) > 1: #multiple hits
-                    multihits += 1
-                    continue
-                try:
-                    RevTrim = R2foralign["locations"][0][1]+1
-                    findRevPrimer += 1
-                except IndexError:
-                    pass        
+                if R2foralign['editDistance'] < 0:
+                    if require_primer == 'on' or full_length: #not found
+                        continue
+                else:
+                    if len(R2foralign['locations']) > 1: #multiple hits
+                        multihits += 1
+                        continue
+                    try:
+                        RevTrim = R2foralign["locations"][0][1]+1
+                        if not frp:
+                        	findRevPrimer += 1
+                    except IndexError:
+                        pass        
                 R2revalign = edlib.align(RevComp(fwdprimer), R2Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
                 if R2revalign['editDistance'] < 0:
                     R2RevCut = RL
                 else:
                     R2RevCut = R2revalign["locations"][0][0]
-                    findForPrimer += 1               
+                    if not ffp:
+                    	findForPrimer += 1               
                 header = 'R_{:};barcodelabel={:};'.format(counter,samplename)
                 outfile1.write('@%s\n%s\n+\n%s\n' % (header, R1Seq[ForTrim:R1RevCut], R1Qual[ForTrim:R1RevCut]))
                 outfile2.write('@%s\n%s\n+\n%s\n' % (header, R2Seq[RevTrim:R2RevCut], R2Qual[RevTrim:R2RevCut]))

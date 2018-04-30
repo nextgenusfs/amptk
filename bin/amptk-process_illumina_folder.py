@@ -161,7 +161,7 @@ def processPEreads(input):
     trimR2 = os.path.join(args.out, name+'_R2.fq')
     mergedReads = os.path.join(args.out, name+'.merged.fq')
     demuxReads = os.path.join(args.out, name+'.demux.fq')
-    TotalCount, Written, DropMulti, FindForPrimer, FindRevPrimer = amptklib.stripPrimersPE(for_reads, rev_reads, read_length, name, FwdPrimer, RevPrimer, args.primer_mismatch, args.primer, trimR1, trimR2)
+    TotalCount, Written, DropMulti, FindForPrimer, FindRevPrimer = amptklib.stripPrimersPE(for_reads, rev_reads, read_length, name, FwdPrimer, RevPrimer, args.primer_mismatch, args.primer, args.full_length, trimR1, trimR2)
     MergedCount, PhixCleanedCount = amptklib.MergeReadsSimple(trimR1, trimR2, args.out, name+'.merged.fq', args.min_len, usearch, args.rescue_forward, args.merge_method)
     amptklib.losslessTrim(mergedReads, FwdPrimer, RevPrimer, args.primer_mismatch, args.trim_len, args.pad, args.min_len, demuxReads)
     FinalCount = amptklib.countfastq(demuxReads)
@@ -325,6 +325,10 @@ else:
                     sampleDict[column[0]] = i5+'-'+i7
                 else:
                     sampleDict[column[0]] = i5
+
+if args.full_length and args.primer == 'off':
+	amptklib.log.info('--full_length is not compatible with --require_primer off, turning --full_length off')
+	args.full_length = False
 
 #zip read lists into a single list of tuples
 if args.reads == 'paired':

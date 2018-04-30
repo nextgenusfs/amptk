@@ -238,12 +238,16 @@ else: #no mapping file, so create dictionaries from barcode fasta files
     #look up primer db otherwise default to entry
     if args.F_primer in amptklib.primer_db:
         FwdPrimer = amptklib.primer_db.get(args.F_primer)
+        amptklib.log.info("{:} fwd primer found in AMPtk primer db, setting to: {:}".format(args.F_primer, FwdPrimer))
     else:
         FwdPrimer = args.F_primer
+        amptklib.log.info("{:} fwd primer not found in AMPtk primer db, assuming it is actual primer sequence.".format(args.F_primer))
     if args.R_primer in amptklib.primer_db:
         RevPrimer = amptklib.primer_db.get(args.R_primer)
+        amptklib.log.info("{:} rev primer found in AMPtk primer db, setting to: {:}".format(args.R_primer, RevPrimer))
     else:
-        RevPrimer = args.R_primer 
+        RevPrimer = args.R_primer
+        amptklib.log.info("{:} rev primer not found in AMPtk primer db, assuming it is actual primer sequence.".format(args.R_primer))
 
 #check if input is compressed
 gzip_list = []
