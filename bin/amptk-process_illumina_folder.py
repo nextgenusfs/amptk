@@ -63,13 +63,13 @@ args=parser.parse_args()
 def processSEreads(input):
     #input is expected to be a FASTQ file
     #local variables that need to be previously declared: FwdPrimer, RevPrimer
-    inputPath = os.path.join(args.input, input)
+    inputPath = os.path.abspath(input)
     Name = os.path.basename(inputPath).split(".fq",-1)[0]
     DemuxOut = os.path.join(args.out, Name + '.demux.fq')
     Sample = Name.split('_')[0]
     StatsOut = os.path.join(args.out, Name+'.stats')
     Total = 0
-    ForPrimerFound = 0
+    NoPrimer = 0
     TooShort = 0
     RevPrimerFound = 0
     ValidSeqs = 0
@@ -276,21 +276,21 @@ else: #if not then search through and find all the files you can in the folder
 if args.sra:
     #take list of filenames, move over to output folder
     sampleDict = {}
+    fastq_for = []
     for x in filenames:
-        rename = os.path.basename(x).split(".fastq",-1)[0]
+        rename = os.path.basename(x).split(".f",-1)[0]
         sampleDict[rename] = 'unknown'
         shutil.copyfile(os.path.join(args.input, x), os.path.join(args.out, rename+'.fq'))
-    ReadLen = args.min_len
+        fastq_for.append(os.path.join(args.out, rename+'.fq'))
+	args.reads = 'forward'
 else:
     if len(filenames) % 2 != 0:
         print("Check your input files, they do not seem to be properly paired")
         sys.exit(1)
-
     #check list for files, i.e. they need to have _R1 and _R2 in the filenames, otherwise throw exception
     if not any('_R1' in x for x in filenames):
         amptklib.log.error("Did not find valid FASTQ files.  Your files must have _R1 and _R2 in filename, rename your files and restart script.")
         sys.exit(1)
-
     uniq_names = []
     fastq_for = []
     fastq_rev = []
@@ -333,10 +333,8 @@ if args.reads == 'paired':
 	amptklib.runMultiProgress(safe_run, readList, cpus)
 else:
 	amptklib.log.info("Strip Primers. FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))
-	readList = fastq_for
-	amptklib.runMultiProgress(safe_run2, readList, cpus)
+	amptklib.runMultiProgress(safe_run2, fastq_for, cpus)
 	
-
 #cleanup to save space
 if gzip_list:
     for file in gzip_list:

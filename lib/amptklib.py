@@ -695,15 +695,16 @@ def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch
                     multihits += 1
                     continue
                 try:
-                	ForTrim = R1foralign["locations"][0][1]+1
-                	findForPrimer += 1
+                    ForTrim = R1foralign["locations"][0][1]+1
+                    findForPrimer += 1
                 except IndexError:
-                	pass
+                    pass
                 R1revalign = edlib.align(RevComp(revprimer), R1Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
                 if R1revalign['editDistance'] < 0:
                     R1RevCut = RL
                 else:
                     R1RevCut = R1revalign["locations"][0][0]
+                    findRevPrimer += 1
                 #look for reverse primer in reverse read
                 R2foralign = edlib.align(revprimer, R2Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
                 if R2foralign['editDistance'] < 0 and require_primer == 'on': #not found
@@ -712,15 +713,16 @@ def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch
                     multihits += 1
                     continue
                 try:
-                	RevTrim = R2foralign["locations"][0][1]+1
-                	findRevPrimer += 1
+                    RevTrim = R2foralign["locations"][0][1]+1
+                    findRevPrimer += 1
                 except IndexError:
-                	pass        
+                    pass        
                 R2revalign = edlib.align(RevComp(fwdprimer), R2Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
                 if R2revalign['editDistance'] < 0:
                     R2RevCut = RL
                 else:
-                    R2RevCut = R2revalign["locations"][0][0]                 
+                    R2RevCut = R2revalign["locations"][0][0]
+                    findForPrimer += 1               
                 header = 'R_{:};barcodelabel={:};'.format(counter,samplename)
                 outfile1.write('@%s\n%s\n+\n%s\n' % (header, R1Seq[ForTrim:R1RevCut], R1Qual[ForTrim:R1RevCut]))
                 outfile2.write('@%s\n%s\n+\n%s\n' % (header, R2Seq[RevTrim:R2RevCut], R2Qual[RevTrim:R2RevCut]))
