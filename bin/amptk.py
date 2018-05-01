@@ -19,10 +19,10 @@ try:
 except ImportError:
     from urllib2 import urlopen
 
-URL = { 'ITS': 'https://osf.io/pbtyh/download?version=4',
-        '16S': 'https://osf.io/m7v5q/download?version=1', 
-        'LSU': 'https://osf.io/sqn5r/download?version=1', 
-        'COI': 'https://osf.io/pax79/download?version=2' }
+URL = { 'ITS': 'https://osf.io/pbtyh/download?version=5',
+        '16S': 'https://osf.io/m7v5q/download?version=2', 
+        'LSU': 'https://osf.io/sqn5r/download?version=2', 
+        'COI': 'https://osf.io/pax79/download?version=3' }
 
 def download(url, name):
     file_name = name
@@ -92,7 +92,10 @@ Utilities:   filter      OTU table filtering
 
 Setup:       install     Download/install pre-formatted taxonomy DB. Only need to run once.
              database    Format Reference Databases for Taxonomy
+             info        List software version and installed databases
              primers     List primers hard-coded in AMPtk. Can use in pre-processing steps.
+             version	 List version
+             citation	 List citation
              
 Written by Jon Palmer (2015-2017) nextgenusfs@gmail.com
         """ % version
@@ -150,25 +153,25 @@ Description: Script takes Illumina data that is not de-multiplexed and has read 
              4) trim/pad reads to a set length.  This script can handle dual barcodes 
              (3' barcodes using the --reverse_barcode option or mapping file). 
     
-Arguments:   -i, --fastq         	Illumina R1 (PE forward) reads (Required)
-             --reverse           	Illumina R2 (PE reverse) reads.
-             -o, --out           	Output base name. Default: illumina2
-             -m, --mapping_file  	QIIME-like mapping file
-             -f, --fwd_primer    	Forward primer sequence. Default: fITS7
-             -r, --rev_primer    	Reverse primer sequence Default: ITS4
-             -n, --name_prefix   	Prefix for re-naming reads. Default: R_
-             -l, --trim_len      	Length to trim/pad reads. Default: 300
-             -p, --pad           	Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
-             --min_len           	Minimum length read to keep. Default: 100
-             --barcode_fasta     	FASTA file containing barcodes.
-             --reverse_barcode   	FASTA file containing R2 barcodes.
-             --barcode_mismatch   	Number of mismatches in barcode to allow. Default: 0
-             --barcode_not_anchored	Barcodes are not anchored to start of read.
-             --full_length       	Keep only full length sequences.
-             --primer_mismatch   	Number of mismatches in primers to allow. Default: 2
-             --merge_method      	Software to use for PE merging. Default: usearch [usearch,vsearch]
-             --cpus              	Number of CPUs to use. Default: all
-             -u, --usearch       	USEARCH executable. Default: usearch9
+Arguments:   -i, --fastq            Illumina R1 (PE forward) reads (Required)
+             --reverse              Illumina R2 (PE reverse) reads.
+             -o, --out              Output base name. Default: illumina2
+             -m, --mapping_file     QIIME-like mapping file
+             -f, --fwd_primer       Forward primer sequence. Default: fITS7
+             -r, --rev_primer       Reverse primer sequence Default: ITS4
+             -n, --name_prefix      Prefix for re-naming reads. Default: R_
+             -l, --trim_len         Length to trim/pad reads. Default: 300
+             -p, --pad              Pad reads with Ns if shorter than --trim_len. Default: off [on,off]
+             --min_len              Minimum length read to keep. Default: 100
+             --barcode_fasta        FASTA file containing barcodes.
+             --reverse_barcode      FASTA file containing R2 barcodes.
+             --barcode_mismatch     Number of mismatches in barcode to allow. Default: 0
+             --barcode_not_anchored Barcodes are not anchored to start of read.
+             --full_length          Keep only full length sequences.
+             --primer_mismatch      Number of mismatches in primers to allow. Default: 2
+             --merge_method         Software to use for PE merging. Default: usearch [usearch,vsearch]
+             --cpus                 Number of CPUs to use. Default: all
+             -u, --usearch          USEARCH executable. Default: usearch9
         """ % (sys.argv[1], version)
         
         arguments = sys.argv[2:]
@@ -357,6 +360,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              --unoise            Run De-noising pre-clustering (UNOISE). Default: off
              --debug             Keep intermediate files.
+             --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch9
         """ % (sys.argv[1], version)
        
@@ -394,6 +398,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              --closed_ref_only   Run only closed reference clustering.
              --map_filtered      Map quality filtered reads back to OTUs. Default: off
              --debug             Keep intermediate files.
+             --cpus              Number of CPUs to use. Default: all
              -u, --usearch       USEARCH executable. Default: usearch9
         """ % (sys.argv[1], version)
        
@@ -428,6 +433,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              --platform          Sequencing platform. [ion, illumina, 454]. Default: ion
              --pool              Pool all samples together for DADA2. Default: off
              --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
+             --cpus              Number of CPUs to use. Default: all
              --debug             Keep intermediate files.
         """ % (sys.argv[1], version)
        
@@ -458,6 +464,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -u, --usearch       Path to USEARCH9. Default: usearch9
              --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
+             --cpus              Number of CPUs to use. Default: all
              --debug             Keep intermediate files.
         """ % (sys.argv[1], version)
         arguments = sys.argv[2:]
@@ -487,6 +494,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              -u, --usearch       Path to USEARCH9. Default: usearch9
              --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
+             --cpus              Number of CPUs to use. Default: all
              --debug             Keep intermediate files.
         """ % (sys.argv[1], version)
         arguments = sys.argv[2:]
@@ -788,6 +796,35 @@ Required:    -i, --input     Input OTU file (.cluster.otus.fa) (FASTA)
         else:
             print(help)
             sys.exit(1)
+    elif sys.argv[1] == 'info':
+        db_list = []
+        okay_list = []
+        search_path = os.path.join(parentdir, 'DB')
+        for file in os.listdir(search_path):
+            if file.endswith(".udb"):
+                okay_list.append(file)
+                info_file = file + '.txt'
+                with open(os.path.join(search_path, info_file), 'rU') as info:
+                    line = info.readlines()
+                    line = [words for segments in line for words in segments.split()]
+                    line.insert(0, file)
+                    db_list.append(line)    
+
+        if len(db_list) < 2:
+            db_print = "No DB configured, run 'amptk database' or 'amptk install' command."
+        else:
+            df = pd.DataFrame(db_list)
+            df.columns = ['DB_name', 'DB_type', 'FASTA originated from', 'Fwd Primer', 'Rev Primer', 'Records', 'Date']
+            dfsort = df.sort_values(by='DB_name')
+            db_print = dfsort.to_string(index=False,justify='center')
+            print('------------------------------')
+            print('Running AMPtk v {:}'.format(version))
+            print('------------------------------')
+            print('Taxonomy Databases Installed:')
+            print('------------------------------')
+            print(db_print)
+            print('------------------------------')
+            sys.exit(1)     
     elif sys.argv[1] == 'taxonomy':
         db_list = []
         okay_list = []
@@ -806,8 +843,9 @@ Required:    -i, --input     Input OTU file (.cluster.otus.fa) (FASTA)
             db_print = "No DB configured, run 'amptk database' or 'amptk install' command."
         else:
             df = pd.DataFrame(db_list)
-            df.columns = ['DB_name', 'DB_type', 'FASTA originated from', 'Fwd Primer', 'Rev Primer', 'Records']
-            db_print = df.to_string(index=False,justify='center')
+            df.columns = ['DB_name', 'DB_type', 'FASTA originated from', 'Fwd Primer', 'Rev Primer', 'Records', 'Date']
+            dfsort = df.sort_values(by='DB_name')
+            db_print = dfsort.to_string(index=False,justify='center')
         
         help = """
 Usage:       amptk %s <arguments>
@@ -840,6 +878,7 @@ Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from amptk cluster)
              --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
              --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi to keep only fungi.
              -u, --usearch       USEARCH executable. Default: usearch9
+             --cpus              Number of CPUs to use. Default: all
              --debug             Keep intermediate files
 
 Databases Configured: 

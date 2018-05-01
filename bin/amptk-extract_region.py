@@ -14,6 +14,7 @@ import codecs
 import unicodedata
 import shutil
 import multiprocessing
+import datetime
 from Bio import SeqIO
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -50,7 +51,7 @@ parser.add_argument('--create_db', dest='create_db', choices=['utax', 'usearch']
 parser.add_argument('--keep_all', dest='keep_all', action='store_true', help="Keep Seq if For primer not found Default: off")
 parser.add_argument('--derep_fulllength', action='store_true', help="De-replicate sequences. Default: off")
 parser.add_argument('--primer_mismatch', default=2, help="Max Primer Mismatch")
-parser.add_argument('--cpus', type=int, default=1, help="Number of CPUs. Default: 1")
+parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 parser.add_argument('--utax_trainlevels', default='kpcofgs', help="UTAX training parameters")
 parser.add_argument('--utax_splitlevels', default='NVkpcofgs', help="UTAX training parameters")
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
@@ -143,6 +144,8 @@ def stripPrimer(input):
                                 unite = i
                             elif i.startswith("re"):
                                 reps = i
+                            elif '_' in i:
+                            	GenusSpecies = i
                             else:
                                 gbID = i
                         taxonomy = re.sub(";", ",", tax)
@@ -184,7 +187,7 @@ def stripPrimer(input):
                             reformat_tax.append(g)
                         if not any(x in s for x in sp_removal):
                             reformat_tax.append(s)
-                        rec.id = gbID+";tax="+",".join(reformat_tax)
+                        rec.id = gbID+'|'+unite+";tax="+",".join(reformat_tax)
                         rec.id = re.sub(",s:$", "", rec.id)
                         rec.id = re.sub("=s:$", "=", rec.id)
                         if rec.id.endswith(";tax="): #if there is no taxonomy, get rid of it
@@ -342,7 +345,7 @@ def makeDB(input):
     if args.trimming:
         args.F_primer = 'None'
         args.R_primer = 'None'
-    db_string = args.create_db + ' ' + args.fasta + ' ' + args.F_primer + ' ' + args.R_primer + ' ' + str(Total)
+    db_string = '{:} {:} {:} {:} {:} {:}'.format(args.create_db, args.fasta, args.F_primer, args.R_primer, str(Total), today)
     with open(db_details, 'w') as details:
         details.write(db_string)
     report = args.out + '.report.txt'
@@ -412,6 +415,9 @@ amptklib.log.debug(cmd_args)
 print("-------------------------------------------------------")
 amptklib.SystemInfo()
 
+global today
+today = datetime.datetime.today().strftime('%Y-%m-%d')
+
 #Do a version check
 usearch = args.usearch
 amptklib.versionDependencyChecks(usearch)
@@ -435,10 +441,11 @@ if not args.trimming:
 else:
     amptklib.log.info("Working on file: %s" % args.fasta)
 
-if not args.cpus:
-    cpus = multiprocessing.cpu_count()
+#get number of cpus
+if args.cpus:
+	cpus = args.cpus
 else:
-    cpus = args.cpus
+	cpus = amptklib.getCPUS()
 
 #create temp directory
 pid = os.getpid()

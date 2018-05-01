@@ -330,6 +330,9 @@ if args.full_length and args.primer == 'off':
 	amptklib.log.info('--full_length is not compatible with --require_primer off, turning --full_length off')
 	args.full_length = False
 
+#tell user about number of cores using
+amptklib.log.info('Demuxing data using {:} cpus'.format(cpus))
+
 #zip read lists into a single list of tuples
 if args.reads == 'paired':
 	amptklib.log.info("Strip Primers and Merge PE reads. FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))

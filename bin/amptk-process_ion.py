@@ -330,6 +330,7 @@ if not os.path.exists(tmpdir):
 
 if cpus > 1:
     #split fastq file
+    amptklib.log.info("Splitting FASTQ files over {:} cpus".format(cpus))
     amptklib.split_fastq(SeqIn, orig_total, tmpdir, cpus*2)    
     #now get file list from tmp folder
     file_list = []

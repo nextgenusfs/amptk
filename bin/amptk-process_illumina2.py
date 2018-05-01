@@ -267,6 +267,9 @@ amptklib.log.info('{:,} reads ({:})'.format(orig_total, readablesize))
 tmpdir = args.out.split('.')[0]+'_'+str(os.getpid())
 if not os.path.exists(tmpdir):
     os.makedirs(tmpdir)
+    
+#tell user about number of cores using
+amptklib.log.info("Splitting FASTQ files over {:} cpus".format(cpus))
 
 if args.reverse:
     amptklib.log.info("Demuxing PE Illumina reads; FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))

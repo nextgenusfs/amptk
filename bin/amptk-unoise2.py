@@ -48,6 +48,7 @@ parser.add_argument('-p','--pct_otu', default='97', help="Biological OTU Cluster
 parser.add_argument('--uchime_ref', help='Run UCHIME2 REF [ITS,16S,LSU,COI,custom]')
 parser.add_argument('--map_filtered', action='store_true', help='map quality filtered reads back to OTUs')
 parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
+parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 args=parser.parse_args()
 
 def checkfastqsize(input):
@@ -81,6 +82,12 @@ amptklib.SystemInfo()
 usearch = args.usearch
 amptklib.versionDependencyChecks(usearch)
 
+#get number of cpus
+if args.cpus:
+	cpus = args.cpus
+else:
+	cpus = amptklib.getCPUS()
+
 #make tmp folder
 tmp = base + '_tmp'
 if not os.path.exists(tmp):
@@ -90,7 +97,7 @@ if not os.path.exists(tmp):
 amptklib.log.info("Loading FASTQ Records")
 #convert to FASTA for mapping
 orig_fasta = os.path.join(tmp, base+'.orig.fa')
-cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '55']
+cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '55', '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 orig_total = amptklib.countfasta(orig_fasta)
 size = amptklib.checkfastqsize(args.FASTQ)
@@ -101,7 +108,7 @@ amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 filter_out = os.path.join(tmp, base + '.EE' + args.maxee + '.filter.fq')
 filter_fasta = os.path.join(tmp, base + '.EE' + args.maxee + '.filter.fa')
 amptklib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
-cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '55']
+cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '55', '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfastq(filter_out)
 amptklib.log.info('{0:,}'.format(total) + ' reads passed')
@@ -109,7 +116,7 @@ amptklib.log.info('{0:,}'.format(total) + ' reads passed')
 #now run full length dereplication
 derep_out = os.path.join(tmp, base + '.EE' + args.maxee + '.derep.fa')
 amptklib.log.info("De-replication (remove duplicate reads)")
-cmd = ['vsearch', '--derep_fulllength', filter_out, '--relabel', 'Read_', '--sizeout', '--output', derep_out]
+cmd = ['vsearch', '--derep_fulllength', filter_out, '--relabel', 'Read_', '--sizeout', '--output', derep_out, '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfasta(derep_out)
 amptklib.log.info('{0:,}'.format(total) + ' reads passed')
@@ -117,7 +124,7 @@ amptklib.log.info('{0:,}'.format(total) + ' reads passed')
 #now run de-noiser UNOISE2
 amptklib.log.info("Denoising reads with UNOISE2")
 unoise_out = os.path.join(tmp, base + '.EE' + args.maxee + '.unoise.fa')
-cmd = [usearch, '-unoise2', derep_out, '-fastaout', unoise_out, '-minampsize', args.minsize]
+cmd = [usearch, '-unoise2', derep_out, '-fastaout', unoise_out, '-minampsize', args.minsize, '-threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfasta(unoise_out)
 amptklib.log.info('{0:,}'.format(total) + ' denoised sequences')
@@ -143,7 +150,7 @@ else:
     #now run chimera filtering if all checks out
     if not os.path.isfile(uchime_out):
         amptklib.log.info("Chimera Filtering (VSEARCH)")
-        cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out]
+        cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', otu_clean, '--db', uchime_db, '--nonchimeras', uchime_out, '--threads', str(cpus)]
         amptklib.runSubprocess(cmd, amptklib.log)
         total = amptklib.countfasta(uchime_out)
         amptklib.log.info('{0:,}'.format(total) + ' OTUs passed')
@@ -167,7 +174,7 @@ if args.map_filtered:
 else:
     reads = orig_fasta
 amptklib.log.info("Mapping Reads to ASVs and Building OTU table")
-cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', passingOTUs, '--uc', uc_iSeq_out, '--otutabout', iSeq_otu_table]
+cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', passingOTUs, '--uc', uc_iSeq_out, '--otutabout', iSeq_otu_table, '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 
 #count reads mapped
@@ -178,7 +185,7 @@ amptklib.log.info('{0:,}'.format(total) + ' reads mapped to ASVs '+ '({0:.0f}%)'
 radius = float(args.pct_otu) / 100.
 amptklib.log.info("Clustering denoised sequences into biological OTUs at %s%%" % args.pct_otu)
 uclust_out = os.path.join(tmp, base + '.EE' + args.maxee + '.uclust.fa')
-cmd = ['vsearch', '--cluster_smallmem', passingOTUs, '--centroids', uclust_out, '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU', '--qmask', 'none', '--usersort']
+cmd = ['vsearch', '--cluster_smallmem', passingOTUs, '--centroids', uclust_out, '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU', '--qmask', 'none', '--usersort', '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfasta(uclust_out)
 amptklib.log.info('{0:,}'.format(total) + ' OTUs generated')
@@ -186,7 +193,7 @@ amptklib.log.info('{0:,}'.format(total) + ' OTUs generated')
 #determine where denoised sequences clustered
 ClusterComp = base+'.ASVs2clusters.txt'
 iSeqmap = base+'.unoise_map.uc'
-cmd = [usearch, '-usearch_global', passingOTUs, '-db', uclust_out, '-id', str(radius), '-uc', iSeqmap, '-strand', 'plus']
+cmd = [usearch, '-usearch_global', passingOTUs, '-db', uclust_out, '-id', str(radius), '-uc', iSeqmap, '-strand', 'plus', '-threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 iSeqMapped = {}
 with open(iSeqmap, 'rU') as mapping:
@@ -213,7 +220,7 @@ if args.map_filtered:
 else:
     reads = orig_fasta
 amptklib.log.info("Mapping Reads to OTUs and Building OTU table")
-cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', uclust_out, '--uc', uc_out, '--otutabout', otu_table]
+cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', uclust_out, '--uc', uc_out, '--otutabout', otu_table, '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 
 #count reads mapped

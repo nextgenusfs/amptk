@@ -62,6 +62,7 @@ parser.add_argument('--utax_level', default='k', choices=['k','p','c','o','f','g
 parser.add_argument('--mock', default='synmock', help='Spike-in mock community (fasta)')
 parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
 parser.add_argument('--closed_ref_only', action='store_true', help='Only run closed reference clustering')
+parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 args=parser.parse_args()
 
 def checkfastqsize(input):
@@ -96,6 +97,12 @@ amptklib.SystemInfo()
 #Do a version check
 usearch = args.usearch
 amptklib.versionDependencyChecks(usearch)
+
+#get number of cpus
+if args.cpus:
+	cpus = args.cpus
+else:
+	cpus = amptklib.getCPUS()
 
 #make tmp folder
 tmp = base + '_tmp'
@@ -151,7 +158,7 @@ else:
 amptklib.log.info("Loading FASTQ Records")
 #convert to FASTA for mapping
 orig_fasta = os.path.join(tmp, base+'.orig.fa')
-cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '55']
+cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastaout', orig_fasta, '--fastq_qmax', '55', '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 orig_total = amptklib.countfasta(orig_fasta)
 size = amptklib.checkfastqsize(args.FASTQ)
@@ -162,14 +169,14 @@ amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 filter_out = os.path.join(tmp, base + '.EE' + args.maxee + '.filter.fq')
 filter_fasta = os.path.join(tmp, base + '.EE' + args.maxee + '.filter.fa')
 amptklib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
-cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '55']
+cmd = ['vsearch', '--fastq_filter', args.FASTQ, '--fastq_maxee', str(args.maxee), '--fastqout', filter_out, '--fastaout', filter_fasta, '--fastq_qmax', '55', '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 qtrimtotal = amptklib.countfastq(filter_out)
 amptklib.log.info('{0:,}'.format(qtrimtotal) + ' reads passed')
 #now run full length dereplication
 derep_out = os.path.join(tmp, base + '.EE' + args.maxee + '.derep.fa')
 amptklib.log.info("De-replication (remove duplicate reads)")
-cmd = ['vsearch', '--derep_fulllength', filter_fasta, '--sizeout', '--output', derep_out]
+cmd = ['vsearch', '--derep_fulllength', filter_fasta, '--sizeout', '--output', derep_out, '--threads', str(cpus), '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfasta(derep_out)
 amptklib.log.info('{0:,}'.format(total) + ' reads passed')
@@ -177,7 +184,7 @@ amptklib.log.info('{0:,}'.format(total) + ' reads passed')
 #now run sort by size
 sort_out = os.path.join(tmp, base + '.EE' + args.maxee + '.sort.fa')
 amptklib.log.info("Sorting reads by size: removing reads seen less than %s times" % args.minsize)
-cmd = ['vsearch', '--sortbysize', derep_out, '--minsize', args.minsize, '--output', sort_out]
+cmd = ['vsearch', '--sortbysize', derep_out, '--minsize', args.minsize, '--output', sort_out, '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfasta(sort_out)
 amptklib.log.info('{0:,}'.format(total) + ' reads passed')
@@ -186,7 +193,7 @@ amptklib.log.info('{0:,}'.format(total) + ' reads passed')
 #first run through de novo chimera detection
 amptklib.log.info("De novo chimera detection (VSEARCH)")
 chimera_out = os.path.join(tmp, base + '.EE' + args.maxee + '.chimera_check.fa')
-cmd = ['vsearch', '--uchime_denovo', sort_out, '--relabel', 'Seq', '--sizeout', '--nonchimeras', chimera_out]
+cmd = ['vsearch', '--uchime_denovo', sort_out, '--relabel', 'Seq', '--sizeout', '--nonchimeras', chimera_out, '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfasta(chimera_out)
 amptklib.log.info('{0:,}'.format(total) + ' reads passed')
@@ -195,7 +202,7 @@ amptklib.log.info('{0:,}'.format(total) + ' reads passed')
 uchime_out = os.path.join(tmp, base + '.EE' + args.maxee + '.uchime.otus.fa')
 #now run chimera filtering if all checks out
 amptklib.log.info("Chimera Filtering (VSEARCH)")
-cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', chimera_out, '--db', refDB, '--sizeout', '--nonchimeras', uchime_out]
+cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', chimera_out, '--db', refDB, '--sizeout', '--nonchimeras', uchime_out, '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfasta(uchime_out)
 amptklib.log.info('{0:,}'.format(total) + ' OTUs passed')
@@ -204,7 +211,7 @@ amptklib.log.info('{0:,}'.format(total) + ' OTUs passed')
 align_out = os.path.join(tmp, base + '.align.uc')
 pident = int(args.id) * 0.01
 amptklib.log.info("Reference Clustering using Global Alignment, %s%% identity" % args.id)
-cmd = ['vsearch', '--usearch_global', uchime_out, '--db', refDB, '--id', str(pident), '--output_no_hits', '--top_hits_only', '--notrunclabels', '--uc', align_out]
+cmd = ['vsearch', '--usearch_global', uchime_out, '--db', refDB, '--id', str(pident), '--output_no_hits', '--top_hits_only', '--notrunclabels', '--uc', align_out, '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 
 #parse results
@@ -262,7 +269,7 @@ if not args.closed_ref_only:
 
     #input needs to be sorted, so 
     ref_sort = os.path.join(tmp, base+'.utax_ref.sorted.fa')
-    cmd = ['vsearch', '--sortbysize', utax_ref, '--minsize', args.minsize, '--output', ref_sort]
+    cmd = ['vsearch', '--sortbysize', utax_ref, '--minsize', args.minsize, '--output', ref_sort, '--threads', str(cpus)]
     amptklib.runSubprocess(cmd, amptklib.log)
            
     #now run clustering algorithm on those not found in reference database
@@ -318,7 +325,7 @@ if args.map_filtered:
 else:
     reads = orig_fasta
 amptklib.log.info("Mapping Reads to OTUs and Building OTU table")
-cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', otu_clean, '--uc', uc_out, '--otutabout', otu_table]
+cmd = ['vsearch', '--usearch_global', reads, '--strand', 'plus', '--id', '0.97', '--db', otu_clean, '--uc', uc_out, '--otutabout', otu_table, '--threads', str(cpus)]
 amptklib.runSubprocess(cmd, amptklib.log)
 
 #count reads mapped

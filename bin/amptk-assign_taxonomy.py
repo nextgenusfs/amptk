@@ -59,6 +59,7 @@ parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='
 parser.add_argument('--tax_filter', help='Retain only OTUs with match in OTU table')
 parser.add_argument('--sintax_cutoff', default=0.8, type=restricted_float, help='SINTAX threshold.')
 parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
+parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 args=parser.parse_args()
 
 if not args.out:
@@ -88,6 +89,12 @@ amptklib.SystemInfo()
 #Do a version check
 usearch = args.usearch
 amptklib.versionDependencyChecks(usearch)
+
+#get number of cpus
+if args.cpus:
+	cpus = args.cpus
+else:
+	cpus = amptklib.getCPUS()
 
 #Setup DB locations and names, etc
 DBdir = os.path.join(parentdir, 'DB')
@@ -171,7 +178,6 @@ if not args.taxonomy:
         outformat = "6 qseqid sseqid pident stitle"
         if args.local_blast:
             #get number of cpus
-            cpus = multiprocessing.cpu_count() - 2
             amptklib.log.info("Running local BLAST using db: %s" % args.local_blast)
             cmd = ['blastn', '-num_threads', str(cpus), '-query', args.fasta, '-db', os.path.abspath(args.local_blast), '-max_target_seqs', '1', '-outfmt', outformat, '-out', blast_out]
             amptklib.runSubprocess(cmd, amptklib.log)
@@ -239,18 +245,18 @@ if not args.taxonomy:
             if args.fasta_db:
                 #now run through usearch global
                 amptklib.log.info("Global alignment OTUs with usearch_global (VSEARCH)")
-                cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(args.fasta_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--maxaccepts', '0', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels']
+                cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(args.fasta_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--maxaccepts', '0', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels', '--threads', str(cpus)]
                 amptklib.runSubprocess(cmd, amptklib.log)
             elif custom_db:
                 #now run through usearch global
                 amptklib.log.info("Global alignment OTUs with usearch_global (VSEARCH) using custom DB")
-                cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(custom_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--maxaccepts', '0', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels']
+                cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(custom_db), '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both', '--output_no_hits', '--maxaccepts', '0', '--top_hits_only', '--userfields', 'query+target+id', '--notrunclabels', '--threads', str(cpus)]
                 amptklib.runSubprocess(cmd, amptklib.log)
             else:
                 if usearch_db:
                     #run through USEARCH
                     amptklib.log.info("Global alignment OTUs with usearch_global (USEARCH)")
-                    cmd = [usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-maxaccepts', '0', '-top_hits_only', '-userfields', 'query+target+id']
+                    cmd = [usearch, '-usearch_global', args.fasta, '-db', usearch_db, '-userout', usearch_out, '-id', str(args.usearch_cutoff), '-strand', 'both', '-output_no_hits', '-maxaccepts', '0', '-top_hits_only', '-userfields', 'query+target+id', '-threads', str(cpus)]
                     amptklib.runSubprocess(cmd, amptklib.log)
                 else:
                     amptklib.log.error("USEARCH DB %s not found, skipping" % usearch_db)
@@ -261,7 +267,7 @@ if not args.taxonomy:
                 utax_out = base + '.utax.txt'
                 amptklib.log.info("Classifying OTUs with UTAX (USEARCH)")
                 cutoff = str(args.utax_cutoff)
-                cmd = [usearch, '-utax', args.fasta, '-db', utax_db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus', '-notrunclabels']
+                cmd = [usearch, '-utax', args.fasta, '-db', utax_db, '-utaxout', utax_out, '-utax_cutoff', cutoff, '-strand', 'plus', '-notrunclabels', '-threads', str(cpus)]
                 amptklib.runSubprocess(cmd, amptklib.log)
             else:
                 amptklib.log.error("UTAX DB %s not found, skipping" % utax_db)
@@ -271,7 +277,7 @@ if not args.taxonomy:
                 sintax_db = args.fasta_db
             #now run sintax
             amptklib.log.info("Classifying OTUs with SINTAX (USEARCH)")
-            cmd = [usearch, '-sintax', args.fasta, '-db', os.path.abspath(sintax_db), '-tabbedout', sintax_out, '-sintax_cutoff', str(args.sintax_cutoff), '-strand', 'both']
+            cmd = [usearch, '-sintax', args.fasta, '-db', os.path.abspath(sintax_db), '-tabbedout', sintax_out, '-sintax_cutoff', str(args.sintax_cutoff), '-strand', 'both', '-threads', str(cpus)]
             amptklib.runSubprocess(cmd, amptklib.log)
 
         #now process results, load into dictionary - slightly different depending on which classification was run.

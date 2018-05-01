@@ -45,6 +45,7 @@ parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom
 parser.add_argument('--pool', action='store_true', help='Pool all sequences together for DADA2')
 parser.add_argument('--debug', action='store_true', help='Keep all intermediate files')
 parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
+parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
 args=parser.parse_args()
 
 dada2script = os.path.join(parentdir, 'bin', 'dada2_pipeline_nofilt.R')
@@ -109,7 +110,10 @@ usearch = args.usearch
 amptklib.versionDependencyChecks(usearch)
 
 #get number of cores
-CORES = str(amptklib.getCPUS())
+if args.cpus:
+	CORES = str(args.cpus)
+else:
+	CORES = str(amptklib.getCPUS())
 
 #check dependencies
 programs = ['Rscript']
@@ -135,7 +139,7 @@ else:
 	fastqInput = os.path.abspath(args.fastq)
 amptklib.fastq_strip_padding(os.path.basename(fastqInput), no_ns)
 demuxtmp = base+'.original.fa'
-cmd = ['vsearch', '--fastq_filter', os.path.abspath(no_ns),'--fastq_qmax', '55', '--fastaout', demuxtmp]
+cmd = ['vsearch', '--fastq_filter', os.path.abspath(no_ns),'--fastq_qmax', '55', '--fastaout', demuxtmp, '--threads', CORES]
 amptklib.runSubprocess(cmd, amptklib.log)
 orig_total = amptklib.countfasta(demuxtmp)
 size = amptklib.checkfastqsize(no_ns)
@@ -145,7 +149,7 @@ amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
 #quality filter
 amptklib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
 derep = base+'.qual-filtered.fq'
-filtercmd = ['vsearch', '--fastq_filter', no_ns, '--fastq_maxee', str(args.maxee), '--fastqout', derep, '--fastq_qmax', '55', '--fastq_maxns', '0']
+filtercmd = ['vsearch', '--fastq_filter', no_ns, '--fastq_maxee', str(args.maxee), '--fastqout', derep, '--fastq_qmax', '55', '--fastq_maxns', '0', '--threads', CORES]
 amptklib.runSubprocess(filtercmd, amptklib.log)
 total = amptklib.countfastq(derep)
 amptklib.log.info('{0:,}'.format(total) + ' reads passed')
@@ -243,7 +247,7 @@ else:
     #now run chimera filtering if all checks out
     if not os.path.isfile(uchime_out):
         amptklib.log.info("Chimera Filtering (VSEARCH) using %s DB" % args.uchime_ref)
-        cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', fastaout, '--db', uchime_db, '--nonchimeras', uchime_out]
+        cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', fastaout, '--db', uchime_db, '--nonchimeras', uchime_out, '--threads', CORES]
         amptklib.runSubprocess(cmd, amptklib.log)
         total = amptklib.countfasta(uchime_out)
         uchime_chimeras = validSeqs - total
@@ -277,7 +281,7 @@ amptklib.SafeRemove(iSeqs+'.bak')
 
 #map reads to DADA2 OTUs
 amptklib.log.info("Mapping reads to DADA2 ASVs")
-cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', iSeqs, '--id', '0.97', '--uc', dadademux, '--strand', 'plus', '--otutabout', chimeraFreeTable ]
+cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', iSeqs, '--id', '0.97', '--uc', dadademux, '--strand', 'plus', '--otutabout', chimeraFreeTable, '--threads', CORES]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.line_count2(dadademux)
 amptklib.log.info('{0:,}'.format(total) + ' reads mapped to ASVs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
@@ -285,14 +289,14 @@ amptklib.log.info('{0:,}'.format(total) + ' reads mapped to ASVs '+ '({0:.0f}%)'
 #cluster
 amptklib.log.info("Clustering ASVs at %s%% to generate biological OTUs" % args.pct_otu)
 radius = float(args.pct_otu) / 100.
-cmd = ['vsearch', '--cluster_smallmem', iSeqs, '--centroids', bioSeqs, '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU', '--qmask', 'none', '--usersort']
+cmd = ['vsearch', '--cluster_smallmem', iSeqs, '--centroids', bioSeqs, '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU', '--qmask', 'none', '--usersort', '--threads', CORES]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.countfasta(bioSeqs)
 amptklib.log.info('{0:,}'.format(total) + ' OTUs generated')
 
 #determine where iSeqs clustered
 iSeqmap = base+'.ASV_map.uc'
-cmd = ['vsearch', '--usearch_global', iSeqs, '--db', bioSeqs, '--id', str(radius), '--uc', iSeqmap, '--strand', 'plus']
+cmd = ['vsearch', '--usearch_global', iSeqs, '--db', bioSeqs, '--id', str(radius), '--uc', iSeqmap, '--strand', 'plus', '--threads', CORES]
 amptklib.runSubprocess(cmd, amptklib.log)
 iSeqMapped = {}
 with open(iSeqmap, 'rU') as mapping:
@@ -311,7 +315,7 @@ with open(ClusterComp, 'w') as clusters:
         clusters.write('%s\t%s\n' % (k, ', '.join(v)))
 #create OTU table
 amptklib.log.info("Mapping reads to OTUs")
-cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', bioSeqs, '--id', '0.97', '--uc', uctmp, '--strand', 'plus', '--otutabout', bioTable]
+cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', bioSeqs, '--id', '0.97', '--uc', uctmp, '--strand', 'plus', '--otutabout', bioTable, '--threads', CORES]
 amptklib.runSubprocess(cmd, amptklib.log)
 total = amptklib.line_count2(uctmp)
 amptklib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
