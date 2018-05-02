@@ -68,7 +68,7 @@ def processReadsPE(input):
     trim_reverse = os.path.join(tmpdir, base+'_R2.trimmed.fq')
     merged_reads = os.path.join(tmpdir, base+'.merged.fq')
     DemuxOut = os.path.join(tmpdir, base+'.demux.fq')
-    Total, BCFound, ForPrimerCount, RevPrimerCount = amptklib.DemuxIllumina(forward_reads, reverse_reads, index_reads, mapdict, args.barcode_mismatch, FwdPrimer, RevPrimer, args.primer_mismatch, trim_forward, trim_reverse)
+    Total, BCFound, ForPrimerCount, RevPrimerCount = amptklib.DemuxIllumina(forward_reads, reverse_reads, index_reads, Barcodes, args.barcode_mismatch, FwdPrimer, RevPrimer, args.primer_mismatch, trim_forward, trim_reverse)
     amptklib.MergeReadsSimple(trim_forward, trim_reverse, '.', merged_reads, args.min_len, usearch, args.rescue_forward, args.merge_method)
     MergeCount = amptklib.countfastq(merged_reads)
     amptklib.losslessTrim(merged_reads, FwdPrimer, RevPrimer, args.primer_mismatch, args.trim_len, args.pad, args.min_len, DemuxOut)
@@ -120,19 +120,25 @@ if os.path.isfile(barcode_file):
     os.remove(barcode_file)
 
 #check if mapping file passed, use this if present, otherwise use command line arguments
+SampleData = {}
+Barcodes = {}
+RevBarcodes = {}
+FwdPrimer = ''
+RevPrimer = ''
 if args.mapping_file:
     if not os.path.isfile(args.mapping_file):
-        amptklib.log.error("Mapping file is not valid: %s" % args.mapping_file)
+        amptklib.log.error("Mapping file not found: %s" % args.mapping_file)
         sys.exit(1)
-    mapdata = amptklib.parseMappingFile(args.mapping_file, barcode_file)
-    #forward primer in first item in tuple, reverse in second
-    FwdPrimer = mapdata[0]
-    RevPrimer = mapdata[1]
-    genericmapfile = args.mapping_file
-else:
-    FwdPrimer,RevPrimer = (None,)*2
+    SampleData, Barcodes, RevBarcodes, FwdPrimer, RevPrimer = amptklib.parseMappingFileNEW(args.mapping_file)  
+else: #no mapping file, so create dictionaries from barcode fasta files
+    if not args.barcode_fasta:
+        amptklib.log.error("You did not specify a --barcode_fasta or --mapping_file, one is required")
+        sys.exit(1)
+    else:
+        shutil.copyfile(args.barcode_fasta, barcode_file)
+        Barcodes = amptklib.fasta2barcodes(barcode_file, False)                
         
-if not FwdPrimer or not RevPrimer:
+if FwdPrimer == '' or RevPrimer == '':
     #parse primers here so doesn't conflict with mapping primers
     #look up primer db otherwise default to entry
     if args.F_primer in amptklib.primer_db:
@@ -148,39 +154,22 @@ if not FwdPrimer or not RevPrimer:
         RevPrimer = args.R_primer
         amptklib.log.info("{:} rev primer not found in AMPtk primer db, assuming it is actual primer sequence.".format(args.R_primer))
 
-
 #if still no primers set, then exit
-if not FwdPrimer or not RevPrimer:
+if FwdPrimer == '' or RevPrimer == '':
     amptklib.log.error("Please provide primer sequences via --fwd_primer and --rev_primer")
     sys.exit(1)
-
-#setup 
-if args.mapping_file:
-    mapdict = amptklib.mapping2dict(args.mapping_file)
-else:
-    if not args.barcode_fasta:
-        amptklib.log.error("A -m,--mapping_file or --barcode_fasta are required")
-        sys.exit(1)
-    else:
-        mapdict = {}
-        shutil.copyfile(args.barcode_fasta, barcode_file)
-        with open(barcode_file, 'rU') as infile:
-            for rec in SeqIO.parse(infile, 'fasta'):
-                Seq = str(rec.seq)
-                if not Seq in mapdict:
-                    mapdict[Seq] = rec.id
 
 #if barcodes_rev_comp passed then reverse complement the keys in mapdict
 if args.barcode_rev_comp:
     amptklib.log.info("Reverse complementing barcode sequences")
-    backupDict = mapdict
-    mapdict = {}
+    backupDict = Barcodes
+    Barcodes = {}
     for k,v in list(backupDict.items()):
-        RCkey = amptklib.RevComp(k)
-        if not RCkey in mapdict:
-            mapdict[RCkey] = v
+        RCkey = amptklib.RevComp(v)
+        Barcodes[k] = RCkey
 
-amptklib.log.info("Loading %i samples from mapping file, checking FASTQ input" % len(mapdict))
+amptklib.log.info("Loading %i samples from mapping file" % len(Barcodes))
+amptklib.log.info('FwdPrimer: {:}  RevPrimer: {:}'.format(FwdPrimer, RevPrimer))
 
 #rename reads according to indexes
 if not amptklib.PEandIndexCheck(args.fastq, args.reverse, args.index[0]): #check they are all same length
@@ -262,7 +251,6 @@ amptklib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_
 
 #create mapping file if one doesn't exist
 genericmapfile = args.out + '.mapping_file.txt'
-Barcodes = amptklib.fasta2barcodes(barcode_file, False)
 amptklib.CreateGenericMappingFile(Barcodes, {}, FwdPrimer, RevPrimer, genericmapfile, BarcodeCount)
 
 #compress the output to save space

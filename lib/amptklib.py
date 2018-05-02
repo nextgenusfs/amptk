@@ -604,25 +604,24 @@ def PEandIndexCheck(R1, R2, R3):
         return False
 
 def mapIndex(seq, mapDict, bcmismatch):
-    BC = (None, None)
-    if seq in mapDict:
-        BC = (mapDict.get(seq), 0)
-    else:
-        if bcmismatch > 0:
-            hit = [None, None, None]
-            for k,v in list(mapDict.items()):
-                alignment = edlib.align(k, seq, mode="NW", k=bcmismatch, additionalEqualities=degenNuc)
-                if alignment["editDistance"] >= 0:
-                    if hit[0]:
-                        oldhit = hit[2]
-                        if alignment["editDistance"] < oldhit:
-                            hit = [v, k, alignment["editDistance"]]
-                    else:
-                        hit = [v, k, alignment["editDistance"]]
-            if hit[0]: #found a match
-                BC = (hit[0], hit[2])
-    return BC
-   
+	besthit = []
+	for index_name,index in mapDict.items():
+		align = edlib.align(index, seq, mode="SHW", k=bcmismatch, additionalEqualities=degenNuc)
+		if align["editDistance"] < 0:
+			continue
+		elif align["editDistance"] == 0:
+			return (index_name, 0)
+		else:
+			if len(besthit) < 3:
+				besthit = [index, index_name, align["editDistance"]]
+			else:
+				if align["editDistance"] < int(besthit[2]):
+					besthit = [index, index_name, align["editDistance"]]
+	if len(besthit) == 3:
+		return (besthit[1], besthit[2])
+	else:
+		return (None,None)
+ 
     
 def DemuxIllumina(R1, R2, I1, mapDict, mismatch, fwdprimer, revprimer, primer_mismatch, outR1, outR2):
     try:
@@ -642,12 +641,7 @@ def DemuxIllumina(R1, R2, I1, mapDict, mismatch, fwdprimer, revprimer, primer_mi
         with open(outR2, 'w') as outfile2:
             for read1, read2, index in zip(file1, file2, file3):
                 Total += 1
-                #see if index is valid
-                if index[0].split(' ')[1].startswith('2'):
-                    Seq = RevComp(index[1])
-                else:
-                    Seq = index[1]
-                Name,Diffs = mapIndex(Seq, mapDict, mismatch)
+                Name,Diffs = mapIndex(index[1], mapDict, mismatch)
                 if Name:
                     BCFound += 1
                     #strip primers if found
@@ -659,7 +653,7 @@ def DemuxIllumina(R1, R2, I1, mapDict, mismatch, fwdprimer, revprimer, primer_mi
                         FPrimer += 1
                     if R1RevPos > 0:
                         RPrimer += 1
-                    header = 'Read_'+str(counter)+';barcodelabel='+Name+';bcseq='+index[1]+';bcdiffs='+str(Diffs)+';'
+                    header = 'R_'+str(counter)+';barcodelabel='+Name+';bcseq='+index[1]+';bcdiffs='+str(Diffs)+';'
                     outfile1.write('@%s\n%s\n+\n%s\n' % (header, read1[1][R1ForPos:R1RevPos], read1[2][R1ForPos:R1RevPos]))
                     outfile2.write('@%s\n%s\n+\n%s\n' % (header, read2[1][R2ForPos:R2RevPos], read2[2][R2ForPos:R2RevPos]))
                     counter += 1
@@ -723,7 +717,7 @@ def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch
                     try:
                         RevTrim = R2foralign["locations"][0][1]+1
                         if not frp:
-                        	findRevPrimer += 1
+                            findRevPrimer += 1
                     except IndexError:
                         pass        
                 R2revalign = edlib.align(RevComp(fwdprimer), R2Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
@@ -732,7 +726,7 @@ def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch
                 else:
                     R2RevCut = R2revalign["locations"][0][0]
                     if not ffp:
-                    	findForPrimer += 1               
+                        findForPrimer += 1               
                 header = 'R_{:};barcodelabel={:};'.format(counter,samplename)
                 outfile1.write('@%s\n%s\n+\n%s\n' % (header, R1Seq[ForTrim:R1RevCut], R1Qual[ForTrim:R1RevCut]))
                 outfile2.write('@%s\n%s\n+\n%s\n' % (header, R2Seq[RevTrim:R2RevCut], R2Qual[RevTrim:R2RevCut]))
