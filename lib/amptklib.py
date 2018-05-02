@@ -823,12 +823,13 @@ def demuxIlluminaPE(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarco
                     if foralign['editDistance'] < 0: #not found
                         NoPrimer += 1
                         continue
-                    #look for valid revbarcodes
                     if len(revbarcodes) > 0:
-                        revBC, revBCLabel = AlignBarcode(read2[1], revbarcodes, barcode_mismatch)
-                        if revBC == '':
-                            NoRevBarcode += 1
-                            continue
+						#look for valid revbarcodes
+						if len(revbarcodes) > 0:
+							revBC, revBCLabel = AlignBarcode(read2[1], revbarcodes, barcode_mismatch)
+							if revBC == '':
+								NoRevBarcode += 1
+								continue
                     #look for reverse primer in reverse read
                     revalign = edlib.align(revprimer, read2[1], mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
                     if revalign['editDistance'] < 0: #not found
@@ -901,12 +902,13 @@ def demuxIlluminaPE2(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarc
                     R2ForTrim = trimForPrimer(revprimer, read2[1], primer_mismatch)
                     if R2ForTrim == 0:
                         continue
-                    #look for reverse barcode
-                    R2BCTrim = R2ForTrim - len(revprimer)
-                    revBC, revBCLabel = AlignBarcode2(read2[1][:R2BCTrim], revbarcodes, barcode_mismatch)
-                    if revBC == '':
-                        NoRevBarcode += 1
-                        continue
+                    if len(revbarcodes) > 0:
+						#look for reverse barcode
+						R2BCTrim = R2ForTrim - len(revprimer)
+						revBC, revBCLabel = AlignBarcode2(read2[1][:R2BCTrim], revbarcodes, barcode_mismatch)
+						if revBC == '':
+							NoRevBarcode += 1
+							continue
                     #okay, found both primers and barcodes, now 1 more cleanup step trip revcomped primers
                     R1RevTrim = trimRevPrimer(revprimer, read1[1], primer_mismatch) 
                     R2RevTrim = trimRevPrimer(fwdprimer, read2[1], primer_mismatch)                     
@@ -1907,6 +1909,8 @@ def parseMappingFileNEW(input):
     if not any([IDx, FBCx, FPx, RPx]):
         log.error('Mapping file incorrectly formatted, headers should be (RevBarcodeSequence is optional):\n{:}'.format(exampleMapFile))
         sys.exit(1)
+    if not RBCx:
+    	log.debug('Mapping file missing header: "RevBarcodeSequence", skipping reverse barcodes')
     with open(input, 'rU') as inputfile:
         for line in inputfile:
             line = line.rstrip()

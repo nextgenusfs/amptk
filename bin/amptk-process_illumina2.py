@@ -239,7 +239,6 @@ else: #no mapping file, so create dictionaries from barcode fasta files
         RevPrimer = args.R_primer
         amptklib.log.info("{:} rev primer not found in AMPtk primer db, assuming it is actual primer sequence.".format(args.R_primer))
 
-
 #check if input is compressed
 gzip_list = []
 if args.fastq.endswith('.gz'):
@@ -263,6 +262,9 @@ size = amptklib.checkfastqsize(args.fastq)
 readablesize = amptklib.convertSize(size*2)
 amptklib.log.info('{:,} reads ({:})'.format(orig_total, readablesize))
 
+#output barcodes/samples
+amptklib.log.info('Searching for {:} forward barcodes and {:} reverse barcodes'.format(len(Barcodes), len(RevBarcodes)))
+
 #create tmpdir and split input into n cpus
 tmpdir = args.out.split('.')[0]+'_'+str(os.getpid())
 if not os.path.exists(tmpdir):
@@ -278,7 +280,7 @@ else:
 
 if cpus > 1:
     if args.reverse:
-        amptklib.split_fastqPE(args.fastq, args.reverse, orig_total, tmpdir, cpus*2)
+        amptklib.split_fastqPE(args.fastq, args.reverse, orig_total, tmpdir, cpus*4)
         file_list = []
         for file in os.listdir(tmpdir):
             if file.endswith('.fq'):
@@ -288,7 +290,7 @@ if cpus > 1:
         amptklib.runMultiProgress(processReadsPE, file_list, cpus)               
     else:
         #split fastq file
-        amptklib.split_fastq(args.fastq, orig_total, tmpdir, cpus*2)    
+        amptklib.split_fastq(args.fastq, orig_total, tmpdir, cpus*4)    
         #now get file list from tmp folder
         file_list = []
         for file in os.listdir(tmpdir):
