@@ -33,9 +33,10 @@ parser.add_argument('-i','--input', dest='FASTQ', required=True, help='Input FAS
 parser.add_argument('-o','--out', dest='out', help='Basename for output folder/files')
 parser.add_argument('--min_len', default=50, type=int, help='Minimum length of read to keep')
 parser.add_argument('-b','--barcode_fasta', dest='barcodes', help='Multi-fasta file containing barcodes used')
+parser.add_argument('--reverse_barcode', help='Reverse barcode fasta file')
 parser.add_argument('-s','--biosample', dest='biosample', help='BioSample file from NCBI')
 parser.add_argument('-p','--platform', dest='platform', default='ion', choices=['ion', 'illumina', '454'], help='Sequencing platform')
-parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7-ion', help='Forward Primer (fITS7)')
+parser.add_argument('-f','--fwd_primer', dest="F_primer", default='fITS7', help='Forward Primer (fITS7)')
 parser.add_argument('-r','--rev_primer', dest="R_primer", default='ITS4', help='Reverse Primer (ITS4)')
 parser.add_argument('-n', '--names', help='CSV mapping file BC,NewName')
 parser.add_argument('-d', '--description', help='Paragraph description for SRA metadata')
@@ -89,20 +90,23 @@ if os.path.isfile(barcode_file):
     os.remove(barcode_file)
 
 #check if mapping file passed, use this if present, otherwise use command line arguments
+SampleData = {}
+Barcodes = {}
+RevBarcodes = {}
+FwdPrimer = ''
+RevPrimer = ''
 if args.mapping_file:
     if not os.path.isfile(args.mapping_file):
-        amptklib.error("Mapping file is not valid: %s" % args.mapping_file)
+        amptklib.log.error("Mapping file not found: %s" % args.mapping_file)
         sys.exit(1)
-    amptklib.log.info("Parsing mapping file: %s" % args.mapping_file)
-    mapdata = amptklib.parseMappingFile(args.mapping_file, barcode_file)
-    #forward primer in first item in tuple, reverse in second
-    FwdPrimer = mapdata[0]
-    RevPrimer = mapdata[1]
-    genericmapfile = args.mapping_file
+    SampleData, Barcodes, RevBarcodes, FwdPrimer, RevPrimer = amptklib.parseMappingFileNEW(args.mapping_file)  
 else:
-    if args.barcodes == 'pgm_barcodes.fa':
+    if args.barcode_fasta == 'ionxpress':
         #get script path and barcode file name
-        pgm_barcodes = os.path.join(parentdir, 'DB', args.barcodes)
+        pgm_barcodes = os.path.join(parentdir, 'DB', 'ionxpress_barcodes.fa')
+    elif args.barcode_fasta == 'ioncode':
+        pgm_barcodes = os.path.join(parentdir, 'DB', 'ioncode_barcodes.fa')
+    if args.barcode_fasta == 'ionxpress' or args.barcode_fasta == 'ioncode':
         if args.barcodes == "all":
             if args.multi == 'False':
                 shutil.copyfile(pgm_barcodes, barcode_file)
@@ -128,25 +132,53 @@ else:
             outputSeqFile.close()
             inputSeqFile.close()
     else:
-        if args.barcodes:
-            shutil.copyfile(args.barcodes, barcode_file)
+        #check for multi_samples and add if necessary
+        if args.multi == 'False':
+            shutil.copyfile(args.barcode_fasta, barcode_file)
+            if args.reverse_barcode:
+                shutil.copyfile(args.reverse_barcode,rev_barcode_file)
+        else:
+            with open(barcode_file, 'w') as barcodeout:
+                with open(args.barcode_fasta, 'rU') as input:
+                    for rec in SeqIO.parse(input, 'fasta'):
+                        outname = args.multi+'.'+rec.id
+                        barcodeout.write(">%s\n%s\n" % (outname, rec.seq))
+            if args.reverse_barcode:
+                with open(rev_barcode_file, 'w') as barcodeout:
+                    with open(args.reverse_barcode, 'rU') as input:
+                        for rec in SeqIO.parse(input, 'fasta'):
+                            outname = args.multi+'.'+rec.id
+                            barcodeout.write(">%s\n%s\n" % (outname, rec.seq))                   
     
-    #parse primers here so doesn't conflict with mapping primers
-    #look up primer db otherwise default to entry
-    if args.F_primer in amptklib.primer_db:
-        FwdPrimer = amptklib.primer_db.get(args.F_primer)
-    else:
-        FwdPrimer = args.F_primer
-    if args.R_primer in amptklib.primer_db:
-        RevPrimer = amptklib.primer_db.get(args.R_primer)
-    else:
-        RevPrimer = args.R_primer
+#parse primers here so doesn't conflict with mapping primers
+#look up primer db otherwise default to entry
+if FwdPrimer == '':
+	if args.F_primer in amptklib.primer_db:
+		FwdPrimer = amptklib.primer_db.get(args.F_primer)
+		amptklib.log.info("{:} fwd primer found in AMPtk primer db, setting to: {:}".format(args.F_primer, FwdPrimer))
+	else:
+		FwdPrimer = args.F_primer
+		amptklib.log.info("{:} fwd primer not found in AMPtk primer db, assuming it is actual primer sequence.".format(args.F_primer))
+if RevPrimer == '':
+	if args.R_primer in amptklib.primer_db:
+		RevPrimer = amptklib.primer_db.get(args.R_primer)
+		amptklib.log.info("{:} rev primer found in AMPtk primer db, setting to: {:}".format(args.R_primer, RevPrimer))
+	else:
+		RevPrimer = args.R_primer
+		amptklib.log.info("{:} rev primer not found in AMPtk primer db, assuming it is actual primer sequence.".format(args.R_primer))
 
-    #because we use an 'A' linker between barcode and primer sequence, add an A if ion is chemistry
-    if args.platform == 'ion':
-        Adapter = 'CCATCTCATCCCTGCGTGTCTCCGACTCAG'
-    else:
-        Adapter = ''
+
+#then setup barcode dictionary
+if len(Barcodes) < 1:
+    Barcodes = amptklib.fasta2barcodes(barcode_file, False)
+
+#setup for looking for reverse barcode
+if len(RevBarcodes) < 1 and args.reverse_barcode:
+    if not os.path.isfile(args.reverse_barcode):
+        amptklib.log.info("Reverse barcode is not a valid file, exiting")
+        sys.exit(1) 
+    shutil.copyfile(args.reverse_barcode, rev_barcode_file)
+    RevBarcodes = amptklib.fasta2barcodes(rev_barcode_file, True)
 
 
 if args.platform != 'illumina':
@@ -163,7 +195,7 @@ if args.platform == 'illumina':
     rawlist = []
     filelist = []
     for file in os.listdir(args.FASTQ):
-        if file.endswith(".fastq.gz"):
+        if file.endswith(".fastq.gz") or file.endswith('.fastq') or file.endswith('.fq'):
             rawlist.append(file)
     if len(rawlist) > 0:
         if not '_R2' in sorted(rawlist)[1]:
@@ -192,24 +224,6 @@ else:
                 cols = line.split(',')
                 if not cols[0] in namesDict:
                     namesDict[cols[0]] = cols[1]
-
-    #load barcode fasta file into dictonary
-    Barcodes = {}
-    with open(barcode_file, 'rU') as input:
-        for line in input:
-            if line.startswith('>'):
-                ID = line[1:-1].replace(' ', '')
-                if args.names:
-                    name = namesDict.get(ID)
-                    if not name:
-                        amptklib.log.error("%s not found in --names, keeping original name" % ID)
-                        name = ID + ".fastq"
-                    else:
-                        name = name + ".fastq"          
-                else:
-                    name = ID + ".fastq"
-                continue
-            Barcodes[name]=line.strip()
     
     #check for compressed input file
     if args.FASTQ.endswith('.gz'):
@@ -232,7 +246,7 @@ else:
     elif args.require_primer == 'forward':
         amptklib.log.info("Looking for %i barcodes that must have FwdPrimer: %s" % (len(Barcodes), FwdPrimer))
     elif args.require_primer == 'both':
-        amptklib.log.info("Looking for %i barcodes that must have FwdPrimer: %s and  RevPrimer: %s" % (len(Barcodes), FwdPrimer, RevPrimer))
+        amptklib.log.info("Looking for %i barcodes that must have FwdPrimer: %s and RevPrimer: %s" % (len(Barcodes), FwdPrimer, RevPrimer))
     
     #this will loop through FASTQ file once, splitting those where barcodes are found, and primers trimmed
     runningTotal = 0
@@ -260,7 +274,7 @@ else:
             if len(seq) < args.min_len: #filter out sequences less than minimum length.
                 continue
             runningTotal += 1
-            fileout = os.path.join(base, BarcodeLabel)
+            fileout = os.path.join(base, BarcodeLabel+'.fastq')
             with open(fileout, 'a') as output:
                 output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
                 
@@ -303,20 +317,17 @@ if args.biosample:
         except ValueError:
             host = header.index('Organism')
         BioDict = {col[sample]:(col[acc],col[bio],col[host]) for col in reader}
-    #print BioDict
     #set some defaults based on the platform
+    header = 'bioproject_accession\tbiosample_accession\tlibrary_ID\ttitle\tlibrary_strategy\tlibrary_source\tlibrary_selection\tlibrary_layout\tplatform\tinstrument_model\tdesign_description\tfiletype\tfilename\tfilename2\tforward_barcode\treverse_barcode\tforward_primer\treverse_primer\n'
     if args.platform == 'ion':
-        header = 'bioproject_accession\tsample_name\tlibrary_ID\ttitle\tlibrary_strategy\tlibrary_source\tlibrary_selection\tlibrary_layout\tplatform\tinstrument_model\tdesign_description\tfiletype\tfilename\tbarcode\tforward_primer\treverse_primer\n'
         sequencer = 'ION_TORRENT'
         model = 'Ion Torrent PGM' 
         lib_layout = 'single'
     elif args.platform == '454':
-        header = 'bioproject_accession\tsample_name\tlibrary_ID\ttitle\tlibrary_strategy\tlibrary_source\tlibrary_selection\tlibrary_layout\tplatform\tinstrument_model\tdesign_description\tfiletype\tfilename\tbarcode\tforward_primer\treverse_primer\n'
         sequencer = '_LS454'
         model = '454 GS FLX Titanium'
         lib_layout = 'single'
     elif args.platform == 'illumina':
-        header = 'bioproject_accession\tsample_name\tlibrary_ID\ttitle\tlibrary_strategy\tlibrary_source\tlibrary_selection\tlibrary_layout\tplatform\tinstrument_model\tdesign_description\tfiletype\tfilename\tfilename2\tforward_barcode\treverse_barcode\tforward_primer\treverse_primer\n'
         sequencer = 'ILLUMINA'
         model = 'Illumina MiSeq'
         lib_layout = 'paired'
@@ -333,6 +344,8 @@ if args.biosample:
     with open(sub_out, 'w') as output:
         output.write(header)
         for file in filelist:
+            barcode_for = ''
+            barcode_rev = ''
             if not args.description:
                 description = '%s amplicon library was created using a barcoded fusion primer PCR protocol using Pfx50 polymerase (Thermo Fisher Scientific), size selected, and sequenced on the %s platform.  Sequence data was minimally processed, sequences were exported directly from the sequencing platform and only the barcode (index sequence) was trimmed prior to SRA submission. SRA submission generated with AMPtk %s' % (args.title, model, amptkversion.split(' ')[-1])
             else:
@@ -351,8 +364,11 @@ if args.biosample:
                     bioproject = 'PRJNA'+bioproject
                 sample_name = BioDict.get(searchname)[0]
                 title = '%s amplicon sequencing of %s: sample %s' % (args.title, BioDict.get(name)[2], name)
-                bc_name = file.split(".gz")[0]
-                barcode_seq = Barcodes.get(bc_name)
+                bc_name = file.split(".f")[0]
+                if bc_name in Barcodes:
+                	barcode_for = Barcodes.get(bc_name)
+                if bc_name in RevBarcodes:
+                	barcode_rev = RevBarcodes.get(bc_name)
                 if args.append:
                     finalname = name+'_'+args.append
                     #also need to change the name for output files
@@ -361,7 +377,7 @@ if args.biosample:
                 else:
                     finalname = name
                     newfile = file
-                line = [bioproject,sample_name,finalname,title,lib_strategy,lib_source,lib_selection,lib_layout,sequencer,model,description,filetype,newfile,barcode_seq,FwdPrimer,RevPrimer]
+                line = [bioproject,sample_name,finalname,title,lib_strategy,lib_source,lib_selection,lib_layout,sequencer,model,description,filetype,newfile,'',barcode_for,barcode_rev,FwdPrimer,RevPrimer]
             elif args.platform == 'illumina':
                 name = file.split("_")[0]
                 if not name in BioDict:
@@ -374,15 +390,13 @@ if args.biosample:
                 file2 = file.replace('_R1', '_R2')             
                 #count number of _ in name, determines the dataformat
                 fields = file.count("_")
-                barcode_for = 'missing'
-                barcode_rev = 'missing'
                 if fields > 3: #this is full illumina name with dual barcodes
                     dualBC = file.split("_")[1]
                     if '-' in dualBC:
                         barcode_for = dualBC.split('-')[0]
                         barcode_rev = dualBC.split('-')[1]
                 elif fields == 3: #this is older reverse barcoded name
-                    barcode_for = 'None'
+                    barcode_for = ''
                     barcode_rev = file.split("_")[1]
                 if args.append:
                     finalname = name+'_'+args.append
