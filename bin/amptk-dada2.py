@@ -86,12 +86,12 @@ def getAvgLength(input):
 
 #get basename if not args.out passed
 if args.out:
-	base = args.out
+    base = args.out
 else:
-	if 'demux' in args.fastq:
-		base = os.path.basename(args.fastq).split('.demux')[0]
-	else:
-		base = os.path.basename(args.fastq).split('.f')[0]
+    if 'demux' in args.fastq:
+        base = os.path.basename(args.fastq).split('.demux')[0]
+    else:
+        base = os.path.basename(args.fastq).split('.f')[0]
 
 #remove logfile if exists
 log_name = base + '.amptk-dada2.log'
@@ -111,9 +111,9 @@ amptklib.versionDependencyChecks(usearch)
 
 #get number of cores
 if args.cpus:
-	CORES = str(args.cpus)
+    CORES = str(args.cpus)
 else:
-	CORES = str(amptklib.getCPUS())
+    CORES = str(amptklib.getCPUS())
 
 #check dependencies
 programs = ['Rscript']
@@ -133,10 +133,10 @@ amptklib.log.info("R v%s; DADA2 v%s" % (Rversions[0], Rversions[1]))
 amptklib.log.info("Loading FASTQ Records")
 no_ns = base+'.cleaned_input.fq'
 if args.fastq.endswith('.gz'):
-	fastqInput = args.fastq.replace('.gz', '')
-	amptklib.Funzip(os.path.abspath(args.fastq), os.path.basename(fastqInput), CORES)
+    fastqInput = args.fastq.replace('.gz', '')
+    amptklib.Funzip(os.path.abspath(args.fastq), os.path.basename(fastqInput), CORES)
 else:
-	fastqInput = os.path.abspath(args.fastq)
+    fastqInput = os.path.abspath(args.fastq)
 amptklib.fastq_strip_padding(os.path.basename(fastqInput), no_ns)
 demuxtmp = base+'.original.fa'
 cmd = ['vsearch', '--fastq_filter', os.path.abspath(no_ns),'--fastq_qmax', '55', '--fastaout', demuxtmp, '--threads', CORES]
@@ -206,7 +206,7 @@ with open(fastaout, 'w') as writefasta:
             counts = sum(countList)
             ID = 'ASV'+str(counter)
             if not ID in OTUCounts:
-            	OTUCounts[ID] = counts
+                OTUCounts[ID] = counts
             writefasta.write(">%s\n%s\n" % (ID, Seq))
             counter += 1
 
@@ -230,8 +230,8 @@ if not args.uchime_ref:
     os.rename(fastaout, iSeqs)
 else:
     #check if file is present, remove from previous run if it is.
-    if os.path.isfile(uchime_out):
-        amptklib.removefile(uchime_out)
+    if os.path.isfile(iSeqs):
+        amptklib.removefile(iSeqs)
     #R. Edgar now says using largest DB is better for UCHIME, so use the one distributed with taxonomy
     if args.uchime_ref in ['ITS', '16S', 'LSU', 'COI']: #test if it is one that is setup, otherwise default to full path
         uchime_db = os.path.join(parentdir, 'DB', args.uchime_ref+'.extracted.fa')
@@ -243,25 +243,15 @@ else:
             uchime_db = os.path.abspath(args.uchime_ref)
         else:
             amptklib.log.error("%s is not a valid file, skipping reference chimera filtering" % args.uchime_ref)
-            uchime_out = fastaout
+            iSeqs = fastaout
     #now run chimera filtering if all checks out
-    if not os.path.isfile(uchime_out):
+    if not os.path.isfile(iSeqs):
         amptklib.log.info("Chimera Filtering (VSEARCH) using %s DB" % args.uchime_ref)
-        cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', fastaout, '--db', uchime_db, '--nonchimeras', uchime_out, '--threads', CORES]
+        cmd = ['vsearch', '--mindiv', '1.0', '--uchime_ref', fastaout, '--db', uchime_db, '--nonchimeras', iSeqs, '--threads', CORES]
         amptklib.runSubprocess(cmd, amptklib.log)
-        total = amptklib.countfasta(uchime_out)
+        total = amptklib.countfasta(iSeqs)
         uchime_chimeras = validSeqs - total
         amptklib.log.info('{0:,}'.format(total) + ' ASVs passed, ' + '{0:,}'.format(uchime_chimeras) + ' ref chimeras removed')
-
-    #now reformat OTUs and OTU table, dropping chimeric OTUs from table, sorting the output as well
-    nonchimeras = amptklib.fasta2list(uchime_out)
-    inferredSeqs = SeqIO.index(uchime_out, 'fasta')
-    with open(iSeqs, 'w') as iSeqout:
-        for x in natsorted(nonchimeras):
-            SeqIO.write(inferredSeqs[x], iSeqout, 'fasta')
-    if not args.debug:
-        #clean up chimeras fasta
-        amptklib.removefile(uchime_out)
         if os.path.isfile(fastaout):
             amptklib.removefile(fastaout)
 
@@ -346,8 +336,8 @@ print("-------------------------------------------------------")
 otu_print = bioSeqs.split('/')[-1]
 tab_print = bioTable.split('/')[-1]
 if 'darwin' in sys.platform:
-	print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
+    print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))
 else:
-	print("\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))   
+    print("\nExample of next cmd: amptk filter -i %s -f %s -b <mock barcode>\n" % (tab_print, otu_print))   
 
         
