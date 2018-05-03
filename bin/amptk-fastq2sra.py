@@ -32,7 +32,7 @@ parser=argparse.ArgumentParser(prog='amptk-fastq2sra.py', usage="%(prog)s [optio
 parser.add_argument('-i','--input', dest='FASTQ', required=True, help='Input FASTQ file or folder')
 parser.add_argument('-o','--out', dest='out', help='Basename for output folder/files')
 parser.add_argument('--min_len', default=50, type=int, help='Minimum length of read to keep')
-parser.add_argument('-b','--barcode_fasta', dest='barcodes', help='Multi-fasta file containing barcodes used')
+parser.add_argument('-b','--barcode_fasta', help='Multi-fasta file containing barcodes used')
 parser.add_argument('--reverse_barcode', help='Reverse barcode fasta file')
 parser.add_argument('-s','--biosample', dest='biosample', help='BioSample file from NCBI')
 parser.add_argument('-p','--platform', dest='platform', default='ion', choices=['ion', 'illumina', '454'], help='Sequencing platform')
@@ -86,6 +86,7 @@ else:
 #parse a mapping file or a barcode fasta file, primers, etc get setup
 #dealing with Barcodes, get ion barcodes or parse the barcode_fasta argument
 barcode_file = os.path.join(base, base + ".barcodes_used.fa")
+rev_barcode_file = os.path.join(base, base + ".revbarcodes_used.fa")
 if os.path.isfile(barcode_file):
     os.remove(barcode_file)
 
@@ -101,71 +102,35 @@ if args.mapping_file:
         sys.exit(1)
     SampleData, Barcodes, RevBarcodes, FwdPrimer, RevPrimer = amptklib.parseMappingFileNEW(args.mapping_file)  
 else:
-    if args.barcode_fasta == 'ionxpress':
-        #get script path and barcode file name
-        pgm_barcodes = os.path.join(parentdir, 'DB', 'ionxpress_barcodes.fa')
-    elif args.barcode_fasta == 'ioncode':
-        pgm_barcodes = os.path.join(parentdir, 'DB', 'ioncode_barcodes.fa')
-    if args.barcode_fasta == 'ionxpress' or args.barcode_fasta == 'ioncode':
-        if args.barcodes == "all":
-            if args.multi == 'False':
-                shutil.copyfile(pgm_barcodes, barcode_file)
-            else:
-                with open(barcode_file, 'w') as barcodeout:
-                    with open(pgm_barcodes, 'rU') as input:
-                        for rec in SeqIO.parse(input, 'fasta'):
-                            outname = args.multi+'.'+rec.id
-                            barcodeout.write(">%s\n%s\n" % (outname, rec.seq))
-        else:
-            bc_list = args.barcodes.split(",")
-            inputSeqFile = open(pgm_barcodes, "rU")
-            SeqRecords = SeqIO.to_dict(SeqIO.parse(inputSeqFile, "fasta"))
-            for rec in bc_list:
-                name = "BC." + rec
-                seq = SeqRecords[name].seq
-                if args.multi != 'False':
-                    outname = args.multi+'.'+name
-                else:
-                    outname = name
-                outputSeqFile = open(barcode_file, "a")
-                outputSeqFile.write(">%s\n%s\n" % (outname, seq))
-            outputSeqFile.close()
-            inputSeqFile.close()
-    else:
-        #check for multi_samples and add if necessary
-        if args.multi == 'False':
-            shutil.copyfile(args.barcode_fasta, barcode_file)
-            if args.reverse_barcode:
-                shutil.copyfile(args.reverse_barcode,rev_barcode_file)
-        else:
-            with open(barcode_file, 'w') as barcodeout:
-                with open(args.barcode_fasta, 'rU') as input:
-                    for rec in SeqIO.parse(input, 'fasta'):
-                        outname = args.multi+'.'+rec.id
-                        barcodeout.write(">%s\n%s\n" % (outname, rec.seq))
-            if args.reverse_barcode:
-                with open(rev_barcode_file, 'w') as barcodeout:
-                    with open(args.reverse_barcode, 'rU') as input:
-                        for rec in SeqIO.parse(input, 'fasta'):
-                            outname = args.multi+'.'+rec.id
-                            barcodeout.write(">%s\n%s\n" % (outname, rec.seq))                   
+    if args.barcode_fasta:
+        with open(barcode_file, 'w') as barcodeout:
+            with open(args.barcode_fasta, 'rU') as input:
+                for rec in SeqIO.parse(input, 'fasta'):
+                    outname = args.multi+'.'+rec.id
+                    barcodeout.write(">%s\n%s\n" % (outname, rec.seq))
+    if args.reverse_barcode:
+        with open(rev_barcode_file, 'w') as barcodeout:
+            with open(args.reverse_barcode, 'rU') as input:
+                for rec in SeqIO.parse(input, 'fasta'):
+                    outname = args.multi+'.'+rec.id
+                    barcodeout.write(">%s\n%s\n" % (outname, rec.seq))                   
     
 #parse primers here so doesn't conflict with mapping primers
 #look up primer db otherwise default to entry
 if FwdPrimer == '':
-	if args.F_primer in amptklib.primer_db:
-		FwdPrimer = amptklib.primer_db.get(args.F_primer)
-		amptklib.log.info("{:} fwd primer found in AMPtk primer db, setting to: {:}".format(args.F_primer, FwdPrimer))
-	else:
-		FwdPrimer = args.F_primer
-		amptklib.log.info("{:} fwd primer not found in AMPtk primer db, assuming it is actual primer sequence.".format(args.F_primer))
+    if args.F_primer in amptklib.primer_db:
+        FwdPrimer = amptklib.primer_db.get(args.F_primer)
+        amptklib.log.info("{:} fwd primer found in AMPtk primer db, setting to: {:}".format(args.F_primer, FwdPrimer))
+    else:
+        FwdPrimer = args.F_primer
+        amptklib.log.info("{:} fwd primer not found in AMPtk primer db, assuming it is actual primer sequence.".format(args.F_primer))
 if RevPrimer == '':
-	if args.R_primer in amptklib.primer_db:
-		RevPrimer = amptklib.primer_db.get(args.R_primer)
-		amptklib.log.info("{:} rev primer found in AMPtk primer db, setting to: {:}".format(args.R_primer, RevPrimer))
-	else:
-		RevPrimer = args.R_primer
-		amptklib.log.info("{:} rev primer not found in AMPtk primer db, assuming it is actual primer sequence.".format(args.R_primer))
+    if args.R_primer in amptklib.primer_db:
+        RevPrimer = amptklib.primer_db.get(args.R_primer)
+        amptklib.log.info("{:} rev primer found in AMPtk primer db, setting to: {:}".format(args.R_primer, RevPrimer))
+    else:
+        RevPrimer = args.R_primer
+        amptklib.log.info("{:} rev primer not found in AMPtk primer db, assuming it is actual primer sequence.".format(args.R_primer))
 
 
 #then setup barcode dictionary
@@ -366,9 +331,9 @@ if args.biosample:
                 title = '%s amplicon sequencing of %s: sample %s' % (args.title, BioDict.get(name)[2], name)
                 bc_name = file.split(".f")[0]
                 if bc_name in Barcodes:
-                	barcode_for = Barcodes.get(bc_name)
+                    barcode_for = Barcodes.get(bc_name)
                 if bc_name in RevBarcodes:
-                	barcode_rev = RevBarcodes.get(bc_name)
+                    barcode_rev = RevBarcodes.get(bc_name)
                 if args.append:
                     finalname = name+'_'+args.append
                     #also need to change the name for output files
@@ -381,6 +346,7 @@ if args.biosample:
             elif args.platform == 'illumina':
                 name = file.split("_")[0]
                 if not name in BioDict:
+                    amptklib.log.info('{:} not found in BioSample text file'.format(name))
                     continue
                 bioproject = BioDict.get(name)[1]
                 if not bioproject.startswith('PRJNA'):
