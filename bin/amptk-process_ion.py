@@ -328,6 +328,8 @@ tmpdir = args.out.split('.')[0]+'_'+str(os.getpid())
 if not os.path.exists(tmpdir):
     os.makedirs(tmpdir)
 
+amptklib.log.info('Dropping reads less than {:} bp and setting lossless trimming to {:} bp.'.format(args.min_len, args.trim_len))
+
 if cpus > 1:
     #split fastq file
     amptklib.log.info("Splitting FASTQ files over {:} cpus".format(cpus))

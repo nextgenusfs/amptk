@@ -170,6 +170,7 @@ if args.barcode_rev_comp:
 
 amptklib.log.info("Loading %i samples from mapping file" % len(Barcodes))
 amptklib.log.info('FwdPrimer: {:}  RevPrimer: {:}'.format(FwdPrimer, RevPrimer))
+amptklib.log.info('Dropping reads less than {:} bp and setting lossless trimming to {:} bp.'.format(args.min_len, args.trim_len))
 
 #rename reads according to indexes
 if not amptklib.PEandIndexCheck(args.fastq, args.reverse, args.index[0]): #check they are all same length

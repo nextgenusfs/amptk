@@ -332,6 +332,7 @@ if args.full_length and args.primer == 'off':
 
 #tell user about number of cores using
 amptklib.log.info('Demuxing data using {:} cpus'.format(cpus))
+amptklib.log.info('Dropping reads less than {:} bp and setting lossless trimming to {:} bp.'.format(args.min_len, args.trim_len))
 
 #zip read lists into a single list of tuples
 if args.reads == 'paired':

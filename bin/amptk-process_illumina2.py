@@ -278,6 +278,8 @@ if args.reverse:
 else:
     amptklib.log.info("Demuxing SE Illumina reads; FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, amptklib.RevComp(RevPrimer)))
 
+amptklib.log.info('Dropping reads less than {:} bp and setting lossless trimming to {:} bp.'.format(args.min_len, args.trim_len))
+
 if cpus > 1:
     if args.reverse:
         amptklib.split_fastqPE(args.fastq, args.reverse, orig_total, tmpdir, cpus*4)
