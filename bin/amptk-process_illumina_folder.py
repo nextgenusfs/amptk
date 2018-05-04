@@ -84,8 +84,8 @@ def processSEreads(input):
                 #if require primer is on make finding primer in amplicon required if amplicon is larger than read length
                 #if less than read length, can't enforce primer because could have been trimmed via staggered trim in fastq_mergepairs
                 if len(foralign['locations']) > 1:
-                	multiHits += 1
-                	continue
+                    multiHits += 1
+                    continue
                 if args.primer == 'on':
                     if foralign["editDistance"] < 0:
                         NoPrimer += 1
@@ -145,18 +145,18 @@ def processPEreads(input):
     '''
     for_reads, rev_reads = input
     if '_' in os.path.basename(for_reads):
-    	name = os.path.basename(for_reads).split("_")[0]
+        name = os.path.basename(for_reads).split("_")[0]
     else:
-    	name = os.path.basename(for_reads)
+        name = os.path.basename(for_reads)
     amptklib.log.debug('{:}: {:} {:}'.format(name, for_reads, rev_reads))
     #for_reads = os.path.join(args.input, forwardRead)
     #rev_reads = os.path.join(args.input, reverseRead)
     StatsOut = os.path.join(args.out, name+'.stats')
     #if read length explicity passed use it otherwise measure it
     if args.read_length:
-    	read_length = args.read_length
+        read_length = args.read_length
     else:
-    	read_length = amptklib.GuessRL(for_reads)
+        read_length = amptklib.GuessRL(for_reads)
     trimR1 = os.path.join(args.out, name+'_R1.fq')
     trimR2 = os.path.join(args.out, name+'_R2.fq')
     mergedReads = os.path.join(args.out, name+'.merged.fq')
@@ -282,7 +282,7 @@ if args.sra:
         sampleDict[rename] = 'unknown'
         shutil.copyfile(os.path.join(args.input, x), os.path.join(args.out, rename+'.fq'))
         fastq_for.append(os.path.join(args.out, rename+'.fq'))
-	args.reads = 'forward'
+    args.reads = 'forward'
 else:
     if len(filenames) % 2 != 0:
         print("Check your input files, they do not seem to be properly paired")
@@ -327,8 +327,8 @@ else:
                     sampleDict[column[0]] = i5
 
 if args.full_length and args.primer == 'off':
-	amptklib.log.info('--full_length is not compatible with --require_primer off, turning --full_length off')
-	args.full_length = False
+    amptklib.log.info('--full_length is not compatible with --require_primer off, turning --full_length off')
+    args.full_length = False
 
 #tell user about number of cores using
 amptklib.log.info('Demuxing data using {:} cpus'.format(cpus))
@@ -336,13 +336,13 @@ amptklib.log.info('Dropping reads less than {:} bp and setting lossless trimming
 
 #zip read lists into a single list of tuples
 if args.reads == 'paired':
-	amptklib.log.info("Strip Primers and Merge PE reads. FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))
-	readList = list(zip(fastq_for, fastq_rev))
-	amptklib.runMultiProgress(safe_run, readList, cpus)
+    amptklib.log.info("Strip Primers and Merge PE reads. FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))
+    readList = list(zip(fastq_for, fastq_rev))
+    amptklib.runMultiProgress(safe_run, readList, cpus)
 else:
-	amptklib.log.info("Strip Primers. FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))
-	amptklib.runMultiProgress(safe_run2, fastq_for, cpus)
-	
+    amptklib.log.info("Strip Primers. FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))
+    amptklib.runMultiProgress(safe_run2, fastq_for, cpus)
+    
 #cleanup to save space
 if gzip_list:
     for file in gzip_list:
