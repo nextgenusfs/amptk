@@ -73,10 +73,10 @@ def checkfastqsize(input):
 if args.out:
 	base = args.out
 else:
-	if 'demux' in args.fastq:
-		base = os.path.basename(args.fastq).split('.demux')[0]
+	if 'demux' in args.FASTQ:
+		base = os.path.basename(args.FASTQ).split('.demux')[0]
 	else:
-		base = os.path.basename(args.fastq).split('.f')[0]
+		base = os.path.basename(args.FASTQ).split('.f')[0]
 
 
 taxonomyLookup = {'k': 'Kingdom', 'p': 'Phylum', 'c': 'Class', 'o': 'Order', 'f': 'Family', 'g': 'Genus', 's': 'Species'}
