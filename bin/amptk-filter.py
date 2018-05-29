@@ -548,12 +548,12 @@ final3 = final3.astype(int)
 #get the actual read counts from binary table
 merge = {}
 for index, row in final3.items():
-	merge[index] = []
-	for i in range(0, len(row)):
-		if row[i] == 0:
-			merge[index].append(row[i])
-		else:
-			merge[index].append(SortedTable[index][row.index[i]])
+    merge[index] = []
+    for i in range(0, len(row)):
+        if row[i] == 0:
+            merge[index].append(row[i])
+        else:
+            merge[index].append(SortedTable[index][row.index[i]])
 
 FiltTable = pd.DataFrame(merge, index=list(final3.index))
 FiltTable.index.name = '#OTU ID'
@@ -682,7 +682,7 @@ else: #proceed with rest of script
     print("-------------------------------------------------------")
 
     if 'darwin' in sys.platform:
-    	print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table))
+        print(colr.WARN + "\nExample of next cmd:" + colr.END + " amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table))
     else:
-    	print("\nExample of next cmd: amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table))
+        print("\nExample of next cmd: amptk taxonomy -f %s -i %s -m mapping_file.txt -d ITS2\n" % (otu_new, final_table))
         
