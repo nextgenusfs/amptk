@@ -94,8 +94,8 @@ Setup:       install     Download/install pre-formatted taxonomy DB. Only need t
              database    Format Reference Databases for Taxonomy
              info        List software version and installed databases
              primers     List primers hard-coded in AMPtk. Can use in pre-processing steps.
-             version	 List version
-             citation	 List citation
+             version     List version
+             citation    List citation
              
 Written by Jon Palmer (2015-2018) nextgenusfs@gmail.com
         """ % version
@@ -1097,14 +1097,11 @@ Arguments:   -i, --biom          Input BIOM file with taxonomy and metadata (Req
         print("AMPtk v%s" % version)
     elif sys.argv[1] == 'citation' or sys.argv[1] == '-citation' or sys.argv[1] == '--citation':
         print("\nPalmer JM, Jusino MA, Banik MT, Lindner DL. 2018. Non-biological synthetic spike-in controls and the\n\tAMPtk software pipeline improve mycobiome data. PeerJ 6:e4925; DOI 10.7717/peerj.4925\n")
-    	print("*** Please also cite the specific tools that you used in AMPtk: ***")
-    	print('\t  USEARCH/UPARSE, VSEARCH, DADA2, LULU, etc.\n')
-    	
+        print("*** Please also cite the specific tools that you used in AMPtk: ***\n\tUSEARCH/UPARSE, VSEARCH, DADA2, LULU, etc.\n") 
     else:
         print("%s option not recognized" % sys.argv[1])
         print(default_help)
         sys.exit(1)
-    
 else:
     print(default_help)
         
