@@ -134,7 +134,7 @@ if RevPrimer == '':
 
 
 #then setup barcode dictionary
-if len(Barcodes) < 1:
+if len(Barcodes) < 1 and os.path.isfile(barcode_file):
     Barcodes = amptklib.fasta2barcodes(barcode_file, False)
 
 #setup for looking for reverse barcode
