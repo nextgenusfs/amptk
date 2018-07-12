@@ -31,12 +31,14 @@ is.installed <- function(mypkg){
 
 #check for LULU package, install if not there
 if (!is.installed('lulu')) {
+	install.packages.auto("plyr")
     install.packages.auto("dplyr")
     install.packages.auto("devtools")
     install_github("tobiasgf/lulu")
 }
 
 #import necessary packages
+library("plyr"); packageVersion("plyr")
 library("dplyr"); packageVersion("dplyr")
 library("lulu"); packageVersion("lulu")
 
