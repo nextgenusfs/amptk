@@ -147,7 +147,7 @@ if len(RevBarcodes) < 1 and args.reverse_barcode:
 
 
 if args.platform != 'illumina':
-    if not args.barcodes and not args.mapping_file:
+    if not args.mapping_file and not args.barcode_fasta:
         amptklib.log.error("For ion, 454, or illumina2 datasets you must specificy a multi-fasta file containing barcodes with -b, --barcode_fasta, or -m/--mapping_file")
         sys.exit(1)
 
