@@ -32,7 +32,7 @@ parser=argparse.ArgumentParser(prog='amptk-stats.py',
 parser.add_argument('-i','--biom', required=True, help='Input BIOM file (OTU table + metadata)')
 parser.add_argument('-t','--tree', required=True, help='Phylogentic tree from AMPtk taxonomy')
 parser.add_argument('-o','--out', default='amptk_stats', help='Output folder basename')
-parser.add_argument('-d','--distance', default='raupcrick', choices=['raupcrick','bray','unifrac','wunifrac','jaccard','all'], help="Distance metric")
+parser.add_argument('-d','--distance', default='raupcrick', choices=['raupcrick','bray','unifrac','wunifrac','jaccard','aitchison', 'all'], help="Distance metric")
 parser.add_argument('--indicator_species', action='store_true', help='Run indicator species analysis')
 parser.add_argument('--ignore_otus', nargs="+", help='OTUs to drop from table and run stats')
 parser.add_argument('--ord_method', default='NMDS', choices=["DCA", "CCA", "RDA", "DPCoA", "NMDS", "MDS", "PCoA"], help='Ordination method')

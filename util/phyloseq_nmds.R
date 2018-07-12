@@ -30,12 +30,14 @@ install.packages.auto("plyr")
 install.packages.auto("vegan")
 install.packages.auto("RColorBrewer")
 
+
 #experimenting with phyloseq, import necessary packages
+library("plyr"); packageVersion("plyr")
 library("phyloseq"); packageVersion("phyloseq")
 library("ggplot2"); packageVersion("ggplot2")
-library("plyr"); packageVersion("plyr")
 library("vegan"); packageVersion("vegan")
 library("RColorBrewer"); packageVersion("RColorBrewer")
+
 
 #setup arguments, first is path to folder, second is path to output csv
 args = commandArgs(trailingOnly=TRUE)
@@ -62,6 +64,21 @@ nmds_pretty <- function(physeq, ord, dataset, variable, colors, heading, custom_
     centroids <- setNames(aggregate(scrs, by=list(dataset[[variable]]), FUN=mean), c(variable, "NMDS1", "NMDS2"))
     stdev <- setNames(aggregate(scrs, by=list(dataset[[variable]]), FUN=sd), c(variable, "sd1", "sd2"))
     combined <- setNames(merge(centroids, stdev, by=variable), c(variable, "NMDS1", "NMDS2", "sd1", "sd2"))
+    p <- plot_ordination(physeq, ord, type="samples", color=variable)
+    p <- p + ggtitle(paste(heading)) + theme(plot.title = element_text(hjust = 0.5)) + custom_theme
+    p <- p + xlim(min(scrs[,1]),max(scrs[,1])) + ylim(min(scrs[,2]),max(scrs[,2]))
+    p <- p + geom_point(data=combined, size=4)
+    p <- p + geom_errorbar(data=combined, aes(ymin=NMDS2-sd2, ymax=NMDS2+sd2), width=0.1) 
+    p <- p + geom_errorbarh(data=combined, aes(xmin=NMDS1-sd1, xmax=NMDS1+sd1), height=0.1)
+    p <- p + scale_color_manual(values=colors)
+    return(p)
+}
+
+cca_pretty <- function(physeq, ord, dataset, variable, colors, heading, custom_theme) { 
+    scrs <- scores(ord)
+    centroids <- setNames(aggregate(scrs, by=list(dataset[[variable]]), FUN=mean), c(variable, "CCA1", "CCA2"))
+    stdev <- setNames(aggregate(scrs, by=list(dataset[[variable]]), FUN=sd), c(variable, "sd1", "sd2"))
+    combined <- setNames(merge(centroids, stdev, by=variable), c(variable, "CCA1", "CCA2", "sd1", "sd2"))
     p <- plot_ordination(physeq, ord, type="samples", color=variable)
     p <- p + ggtitle(paste(heading)) + theme(plot.title = element_text(hjust = 0.5)) + custom_theme
     p <- p + xlim(min(scrs[,1]),max(scrs[,1])) + ylim(min(scrs[,2]),max(scrs[,2]))
@@ -122,7 +139,7 @@ t1 <-theme(
 )
 
 binary_distances <- c("unifrac", "jaccard")
-special_distances <- c("raupcrick")
+special_distances <- c("raupcrick", "aitchison")
 abundance_distances <- c("bray", "wunifrac")
 
 
@@ -146,14 +163,18 @@ for (y in 1:length(treatments)) {
     
         #convert to vegan OTU matrix for hypothesis test
         votuRaup <- veganotu(PhyRaup)
+        votuBray <- veganotu(PhyBray)
     
         #run distance for raupcrick
         if ( is.element(args[4], special_distances) ) {
-            dist <- raupcrick(votuRaup, null="r1", nsimul=999, chase=FALSE)
+        	if ( args[4]=='raupcrick'){
+        		d <- raupcrick(votuRaup, null="r1", nsimul=999, chase=FALSE)
+        	} else
+        		d <- aDist(votuBray)
         } else if ( is.element(args[4], binary_distances) ) {
-            dist <- distance(PhyRaup, method=args[4])
+            d <- distance(PhyRaup, method=args[4])
         } else if ( is.element(args[4], abundance_distances) )  {
-            dist <- distance(PhyBray, method=args[4])
+            d <- distance(PhyBray, method=args[4])
         } else 
             print("Distance not supported")
         
@@ -161,8 +182,8 @@ for (y in 1:length(treatments)) {
         statsout <- paste(paste(dirname(args[1]), args[3], args[3], sep='/'),'.', treatments[y],'.adonis-', args[4], '.txt', sep='')
     
         #hypothesis test for significance
-        testA <- adonis(dist~metadata[[treatments[y]]], permutations=9999)
-        betaA <- betadisper(dist, metadata[[treatments[y]]])
+        testA <- adonis(d~metadata[[treatments[y]]], permutations=9999)
+        betaA <- betadisper(d, metadata[[treatments[y]]])
         pA <- permutest(betaA, permutations=9999)
         capture.output(testA,file=statsout)
         capture.output(pA,file=statsout, append=TRUE)
@@ -179,9 +200,12 @@ for (y in 1:length(treatments)) {
             colors = getPalette(num_colors)
         
         #run ordination on previously computed distances, then save in a 2x2 image with shared legend.  
-        ord <- ordinate(PhyRaup, method=args[5], distance=dist)
+        ord <- ordinate(PhyRaup, method=args[5], distance=d)
         capture.output(ord, file=statsout, append=TRUE)
-        p <- nmds_pretty(PhyRaup, ord, metadata, treatments[y], colors, args[4], t1)
+        if ( args[5]== 'NMDS'){
+        	p <- nmds_pretty(PhyRaup, ord, metadata, treatments[y], colors, args[4], t1)
+        } else
+        	p <- cca_pretty(PhyRaup, ord, metadata, treatments[y], colors, args[4], t1)
         ggsave(paste(paste(dirname(args[1]),args[3], args[3], sep='/'),'.', treatments[y],'.',args[4],'.ordination.pdf', sep=''), plot=p)
     
         #alpha diversity
