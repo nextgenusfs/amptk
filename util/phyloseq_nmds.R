@@ -29,6 +29,9 @@ install.packages.auto("ggplot2")
 install.packages.auto("plyr")
 install.packages.auto("vegan")
 install.packages.auto("RColorBrewer")
+install.packages.auto("plotly")
+install.packages.auto("htmltools")
+install.packages.auto("DT")
 
 
 #experimenting with phyloseq, import necessary packages
@@ -37,7 +40,9 @@ library("phyloseq"); packageVersion("phyloseq")
 library("ggplot2"); packageVersion("ggplot2")
 library("vegan"); packageVersion("vegan")
 library("RColorBrewer"); packageVersion("RColorBrewer")
-
+library("plotly"); packageVersion("plotly")
+library("htmltools"); packageVersion("htmltools")
+library("DT"); packageVersion("DT")
 
 #setup arguments, first is path to folder, second is path to output csv
 args = commandArgs(trailingOnly=TRUE)
@@ -78,17 +83,23 @@ phyloseq_richness_filter <- function(physeq, mintaxa = 10){
 }
 
 #function to draw phyloseq object into NMDS ordination with centroids and standard deviation error bars
-nmds_pretty <- function(physeq, ord, dataset, variable, colors, heading, custom_theme) { 
-    scrs <- scores(ord)
-    centroids <- setNames(aggregate(scrs, by=list(dataset[[variable]]), FUN=mean), c(variable, "NMDS1", "NMDS2"))
-    stdev <- setNames(aggregate(scrs, by=list(dataset[[variable]]), FUN=sd), c(variable, "sd1", "sd2"))
-    combined <- setNames(merge(centroids, stdev, by=variable), c(variable, "NMDS1", "NMDS2", "sd1", "sd2"))
+nmds_pretty <- function(physeq, ord, dataset, variable, colors, heading, custom_theme, centroids = TRUE) { 
     p <- plot_ordination(physeq, ord, type="samples", color=variable)
+    p <- p + geom_point(aes(text=sprintf("ID: %s", sample_names(physeq))))
     p <- p + ggtitle(paste(heading)) + theme(plot.title = element_text(hjust = 0.5)) + custom_theme
-    p <- p + xlim(min(scrs[,1]),max(scrs[,1])) + ylim(min(scrs[,2]),max(scrs[,2]))
-    p <- p + geom_point(data=combined, size=4)
-    p <- p + geom_errorbar(data=combined, aes(ymin=NMDS2-sd2, ymax=NMDS2+sd2), width=0.1) 
-    p <- p + geom_errorbarh(data=combined, aes(xmin=NMDS1-sd1, xmax=NMDS1+sd1), height=0.1)
+    if (centroids == TRUE) {
+      scrs <- scores(ord)
+      centroids <- setNames(aggregate(scrs, by=list(dataset[[variable]]), FUN=mean), c(variable, "NMDS1", "NMDS2"))
+      stdev <- setNames(aggregate(scrs, by=list(dataset[[variable]]), FUN=sd), c(variable, "sd1", "sd2"))
+      combined <- setNames(merge(centroids, stdev, by=variable), c(variable, "NMDS1", "NMDS2", "sd1", "sd2"))
+      p <- p + xlim(min(scrs[,1]),max(scrs[,1])) + ylim(min(scrs[,2]),max(scrs[,2]))
+      p <- p + geom_point(data=combined, size=4)
+      p <- p + geom_errorbar(data=combined, aes(ymin=NMDS2-sd2, ymax=NMDS2+sd2), width=0.1) 
+      p <- p + geom_errorbarh(data=combined, aes(xmin=NMDS1-sd1, xmax=NMDS1+sd1), height=0.1)
+    } else {
+      p <- p + stat_ellipse(type = "norm", linetype = 2)
+      p <- p + stat_ellipse(type = "t")
+    }
     p <- p + scale_color_manual(values=colors)
     return(p)
 }
@@ -117,6 +128,26 @@ t1 <-theme(
   axis.line = element_line(size=.4),
   panel.border = element_rect(color = "black", fill=NA, size=0.4)
 )
+
+#function to output html page
+save_tags <- function (tags, file, selfcontained = F, libdir = "./lib") 
+{
+  if (is.null(libdir)) {
+    libdir <- paste(tools::file_path_sans_ext(basename(file)), 
+                    "_files", sep = "")
+  }
+  htmltools::save_html(tags, file = file, libdir = libdir)
+  if (selfcontained) {
+    if (!htmlwidgets:::pandoc_available()) {
+      stop("Saving a widget with selfcontained = TRUE requires pandoc. For details see:\n", 
+           "https://github.com/rstudio/rmarkdown/blob/master/PANDOC.md")
+    }
+    htmlwidgets:::pandoc_self_contained_html(file, file)
+    unlink(libdir, recursive = TRUE)
+  }
+  return(htmltools::tags$iframe(src= file, height = "400px", width = "100%", style="border:0;"))
+}
+
 
 #######Start here#########
 
@@ -205,17 +236,19 @@ for (y in 1:length(treatments)) {
             PhyORD = PhyBray
         } else 
             print("Distance not supported")
-        
-        #setup output stats file
-        statsout <- paste(paste(dirname(args[1]), args[3], args[3], sep='/'),'.', treatments[y],'.adonis-', args[4], '.txt', sep='')
-    
+            
         #hypothesis test for significance
         testA <- adonis(d~metadata[[treatments[y]]], permutations=9999)
         betaA <- betadisper(d, metadata[[treatments[y]]])
         pA <- permutest(betaA, permutations=9999)
-        capture.output(testA,file=statsout)
-        capture.output(pA,file=statsout, append=TRUE)
-
+        
+        #create dataframe of stats from tests
+        Df <- c(testA$aov.tab$Df[1], pA$tab$Df[1])
+		Fstat <- c(testA$aov.tab$F.Model[1], pA$tab$F[1])
+		R2 <- c(testA$aov.tab$R2[1], 'NA')
+		Pvalue <- c(testA$aov.tab$`Pr(>F)`[1], pA$tab$`Pr(>F)`[1])
+		xTab <- data.frame(Df,Fstat,R2,Pvalue, row.names=c('Adonis', 'Betadisper'))
+		
         #setup color palette, if more than 15 don't even draw it as it is dumb
         num_colors = length(unique(get_variable(PhyBray, treatments[y])))
         print(num_colors)
@@ -229,18 +262,23 @@ for (y in 1:length(treatments)) {
         
         #run ordination on previously computed distances, then save in a 2x2 image with shared legend.  
         ord <- ordinate(PhyORD, method=args[5], distance=d)
-        capture.output(ord, file=statsout, append=TRUE)
         if ( args[5]== 'NMDS'){
         	p <- nmds_pretty(PhyORD, ord, metadata, treatments[y], colors, args[4], t1)
         } else
         	p <- cca_pretty(PhyORD, ord, metadata, treatments[y], colors, args[4], t1)
-        ggsave(paste(paste(dirname(args[1]),args[3], args[3], sep='/'),'.', treatments[y],'.',args[4],'.ordination.pdf', sep=''), plot=p)
     
         #alpha diversity
-        pr <- plot_richness(PhyBray, x=treatments[y], color=treatments[y], measures=c("Observed", "Chao1", "Shannon"))
-        pr = pr + geom_point(size=3, alpha=0.4)
-        pr = pr + scale_color_manual(values=colors)
-        ggsave(paste(paste(dirname(args[1]),args[3], args[3], sep='/'),'.', treatments[y],'.alpha_diversity.pdf', sep=''), plot=pr)
+        pr <- plot_richness(PhyBray, x=treatments[y], color=treatments[y], measures="Observed")
+        pr <- pr + geom_point(size=3, alpha=0.4)
+        pr <- pr + scale_color_manual(values=colors)
+        
+        #now create html of plotly outputs
+        combined <- tags$div(
+        	style = "display: flex; flex-wrap: wrap",
+  			tags$div(ggplotly(p), style = "width: 90%; padding: 1em;"),
+  			tags$div(ggplotly(pr), style = "width: 75%; padding: 1em;"),
+  			tags$div(datatable(xTab), style = "width: 75%; padding: 1em;"))
+        save_tags(combined, paste(paste(dirname(args[1]),args[3], args[3], sep='/'),'.', treatments[y],'.',args[4],'.html', sep=''))
         
     } else
         print("skipping")

@@ -56,6 +56,8 @@ Results = {}
 headers = []
 samples = []
 for file in natsorted(os.listdir(input)):
+    adonisp = '1.00'
+    betap = '1.00'
     if 'adonis-' in file:
         basename = file.split('.')[0]
         variable = file.split('.')[1]

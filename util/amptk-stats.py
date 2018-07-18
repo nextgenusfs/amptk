@@ -94,6 +94,7 @@ else:
     amptklib.runSubprocess3(cmd, amptklib.log, args.out, phylolog)
     
 #parse the adonis output
-amptklib.log.info("Parsing p-values from hyopthesis tests generated in R")
-subprocess.call([parse_adonis, args.out])
+#amptklib.log.info("Parsing p-values from hyopthesis tests generated in R")
+#subprocess.call([parse_adonis, args.out])
+amptklib.log.info('HTML output files were generated for each treatment: {:}'.format(args.out))
 print("-------------------------------------------------------")
