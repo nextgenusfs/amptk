@@ -58,6 +58,25 @@ veganotu = function(physeq) {
     return(as(OTU, "matrix"))
 }
 
+#richness filter to drop samples if less than n taxa
+phyloseq_richness_filter <- function(physeq, mintaxa = 10){
+  sp <- estimate_richness(physeq, measures = "Observed")
+  samples_to_keep <- rownames(sp)[ which(sp$Observed >= mintaxa) ]
+  if(length(samples_to_keep) == 0){
+    stop("All samples will be removed.\n")  
+  }
+  if(length(samples_to_keep) == nsamples(physeq)){
+    cat("All samples will be preserved\n")
+    res <- physeq
+  }
+  if(length(samples_to_keep) < nsamples(physeq)){
+    removed <- setdiff(sample_names(physeq), samples_to_keep)
+    cat("Removing", length(removed), "samples with fewer than", mintaxa, "taxa:", removed, "\n")
+    res <- filter_taxa(prune_samples(samples = samples_to_keep, x = physeq), function(x) sum(x) > 1, TRUE)
+  }
+  return(res)
+}
+
 #function to draw phyloseq object into NMDS ordination with centroids and standard deviation error bars
 nmds_pretty <- function(physeq, ord, dataset, variable, colors, heading, custom_theme) { 
     scrs <- scores(ord)
@@ -89,6 +108,18 @@ cca_pretty <- function(physeq, ord, dataset, variable, colors, heading, custom_t
     return(p)
 }
 
+#all white theme
+t1 <-theme(                              
+  plot.background = element_blank(),
+  panel.grid.major = element_blank(),
+  panel.grid.minor = element_blank(),
+  panel.background = element_blank(),
+  axis.line = element_line(size=.4),
+  panel.border = element_rect(color = "black", fill=NA, size=0.4)
+)
+
+#######Start here#########
+
 #load in biom and tree file
 physeqLoad <- import_biom(args[1], treefilename=args[2])
 
@@ -110,33 +141,26 @@ if ( lenArgs > 5 ) {
     physeq <- physeqLoad 
 }
 
+#remove samples if less than 3 taxa -- these likely to be outliers
+physeqfilt <- phyloseq_richness_filter(physeq, mintaxa = 2)
+
 #print the sample variables
-sample_variables(physeq)
+sample_variables(physeqfilt)
 
 #get vegan OTU table
-votu <- veganotu(physeq)
+votu <- veganotu(physeqfilt)
 
 #make sure vegan OTU is binary (this is necessary for RaupCrick)
 votu[votu>0] <-1
 
 #recreate binary table as phyloseq object
 OTU = otu_table(t(votu), taxa_are_rows = TRUE)
-physeq2 = phyloseq(OTU, tax_table(physeq), sample_data(physeq), phy_tree(physeq))
+physeq2 = phyloseq(OTU, tax_table(physeqfilt), sample_data(physeqfilt), phy_tree(physeqfilt))
 
 #loop through treatments, remove the non treatment options in biom that are relic of 
 remove <- c("LinkerPrimerSequence","phinchID","RevBarcodeSequence","DemuxReads","BarcodeSequence","ReversePrimer")
-treatments <- setdiff(sample_variables(physeq), remove)
+treatments <- setdiff(sample_variables(physeqfilt), remove)
 print(treatments)
-
-#all white theme
-t1 <-theme(                              
-  plot.background = element_blank(),
-  panel.grid.major = element_blank(),
-  panel.grid.minor = element_blank(),
-  panel.background = element_blank(),
-  axis.line = element_line(size=.4),
-  panel.border = element_rect(color = "black", fill=NA, size=0.4)
-)
 
 binary_distances <- c("unifrac", "jaccard")
 special_distances <- c("raupcrick", "aitchison")
@@ -147,15 +171,15 @@ abundance_distances <- c("bray", "wunifrac")
 for (y in 1:length(treatments)) {
     #first need to check if for this treatment we have no_data, if so need to drop
     print(treatments[y])
-    variables = get_variable(physeq, treatments[y])
+    variables = get_variable(physeqfilt, treatments[y])
     num_variables = length(unique(variables))
     if ( is.element('no_data',variables) ) {
         num_variables <- num_variables - 1
         }
     if ( num_variables > 1 ) {
-        remove_idx = as.character(get_variable(physeq, treatments[y])) != "no_data"
-        PhyBray = prune_samples(remove_idx, physeq)
-        PhyRaup = prune_samples(remove_idx, physeq2)
+        remove_idx = as.character(get_variable(physeqfilt, treatments[y])) != "no_data"
+        PhyBray <- filter_taxa(prune_samples(remove_idx, physeqfilt), function(x) sum(x) > 1, TRUE)
+        PhyRaup <- filter_taxa(prune_samples(remove_idx, physeq2), function(x) sum(x) > 1, TRUE)
         print(PhyBray)
         
         #get metadata again for updated phyloseq object
@@ -169,12 +193,16 @@ for (y in 1:length(treatments)) {
         if ( is.element(args[4], special_distances) ) {
         	if ( args[4]=='raupcrick'){
         		d <- raupcrick(votuRaup, null="r1", nsimul=999, chase=FALSE)
+        		PhyORD = PhyRaup
         	} else
         		d <- aDist(votuBray)
+        		PhyORD = PhyBray
         } else if ( is.element(args[4], binary_distances) ) {
             d <- distance(PhyRaup, method=args[4])
+            PhyORD = PhyRaup
         } else if ( is.element(args[4], abundance_distances) )  {
             d <- distance(PhyBray, method=args[4])
+            PhyORD = PhyBray
         } else 
             print("Distance not supported")
         
@@ -200,12 +228,12 @@ for (y in 1:length(treatments)) {
             colors = getPalette(num_colors)
         
         #run ordination on previously computed distances, then save in a 2x2 image with shared legend.  
-        ord <- ordinate(PhyRaup, method=args[5], distance=d)
+        ord <- ordinate(PhyORD, method=args[5], distance=d)
         capture.output(ord, file=statsout, append=TRUE)
         if ( args[5]== 'NMDS'){
-        	p <- nmds_pretty(PhyRaup, ord, metadata, treatments[y], colors, args[4], t1)
+        	p <- nmds_pretty(PhyORD, ord, metadata, treatments[y], colors, args[4], t1)
         } else
-        	p <- cca_pretty(PhyRaup, ord, metadata, treatments[y], colors, args[4], t1)
+        	p <- cca_pretty(PhyORD, ord, metadata, treatments[y], colors, args[4], t1)
         ggsave(paste(paste(dirname(args[1]),args[3], args[3], sep='/'),'.', treatments[y],'.',args[4],'.ordination.pdf', sep=''), plot=p)
     
         #alpha diversity
