@@ -48,8 +48,8 @@ library("DT"); packageVersion("DT")
 args = commandArgs(trailingOnly=TRUE)
 print(args)
 lenArgs <- length(args)
-if ( lenArgs > 5) {
-    dropOTUs <- args[6:lenArgs]
+if ( lenArgs > 6) {
+    dropOTUs <- args[7:lenArgs]
 } 
 
 #functions
@@ -64,7 +64,7 @@ veganotu = function(physeq) {
 }
 
 #richness filter to drop samples if less than n taxa
-phyloseq_richness_filter <- function(physeq, mintaxa = 10){
+phyloseq_richness_filter <- function(physeq, mintaxa = 10) {
   sp <- estimate_richness(physeq, measures = "Observed")
   samples_to_keep <- rownames(sp)[ which(sp$Observed >= mintaxa) ]
   if(length(samples_to_keep) == 0){
@@ -86,7 +86,7 @@ phyloseq_richness_filter <- function(physeq, mintaxa = 10){
 nmds_pretty <- function(physeq, ord, dataset, variable, colors, heading, custom_theme, centroids = TRUE) { 
     p <- plot_ordination(physeq, ord, type="samples", color=variable)
     p <- p + geom_point(aes(text=sprintf("ID: %s", sample_names(physeq))))
-    p <- p + ggtitle(paste(heading)) + theme(plot.title = element_text(hjust = 0.5)) + custom_theme
+    p <- p + ggtitle(paste('Distance Metric:', heading)) + theme(plot.title = element_text(hjust = 0.5)) + custom_theme
     if (centroids == TRUE) {
       scrs <- scores(ord)
       centroids <- setNames(aggregate(scrs, by=list(dataset[[variable]]), FUN=mean), c(variable, "NMDS1", "NMDS2"))
@@ -130,8 +130,7 @@ t1 <-theme(
 )
 
 #function to output html page
-save_tags <- function (tags, file, selfcontained = F, libdir = "./lib") 
-{
+save_tags <- function (tags, file, selfcontained = F, libdir = file.path('.', 'lib')) {
   if (is.null(libdir)) {
     libdir <- paste(tools::file_path_sans_ext(basename(file)), 
                     "_files", sep = "")
@@ -165,7 +164,7 @@ if ( numRanks > 7 ) {
 }
 
 #check if OTUs to drop
-if ( lenArgs > 5 ) {
+if ( lenArgs > 6 ) {
     goodTaxa <- setdiff(taxa_names(physeqLoad), dropOTUs)
     physeq <- prune_taxa(goodTaxa, physeqLoad)
 } else {
@@ -204,9 +203,11 @@ for (y in 1:length(treatments)) {
     print(treatments[y])
     variables = get_variable(physeqfilt, treatments[y])
     num_variables = length(unique(variables))
+    
     if ( is.element('no_data',variables) ) {
         num_variables <- num_variables - 1
         }
+        
     if ( num_variables > 1 ) {
         remove_idx = as.character(get_variable(physeqfilt, treatments[y])) != "no_data"
         PhyBray <- filter_taxa(prune_samples(remove_idx, physeqfilt), function(x) sum(x) > 1, TRUE)
@@ -222,21 +223,18 @@ for (y in 1:length(treatments)) {
     
         #run distance for raupcrick
         if ( is.element(args[4], special_distances) ) {
-        	if ( args[4]=='raupcrick'){
-        		d <- raupcrick(votuRaup, null="r1", nsimul=999, chase=FALSE)
-        		PhyORD = PhyRaup
-        	} else
-        		d <- aDist(votuBray)
-        		PhyORD = PhyBray
+        	d <- raupcrick(votuRaup, null="r1", nsimul=999, chase=FALSE)
+        	PhyORD = PhyRaup
         } else if ( is.element(args[4], binary_distances) ) {
             d <- distance(PhyRaup, method=args[4])
-            PhyORD = PhyRaup
-        } else if ( is.element(args[4], abundance_distances) )  {
+            PhyORD = PhyRaup    
+        } else if ( is.element(args[4], abundance_distances) ) {
             d <- distance(PhyBray, method=args[4])
             PhyORD = PhyBray
-        } else 
-            print("Distance not supported")
-            
+        } else {
+        	print('Distance not supported')
+        }
+   
         #hypothesis test for significance
         testA <- adonis(d~metadata[[treatments[y]]], permutations=9999)
         betaA <- betadisper(d, metadata[[treatments[y]]])
@@ -257,16 +255,22 @@ for (y in 1:length(treatments)) {
             colors = brewer.pal(9, "Set1")
         } else if ( num_colors > 15) {
             next
-        } else 
+        } else {
             colors = getPalette(num_colors)
+		}
         
         #run ordination on previously computed distances, then save in a 2x2 image with shared legend.  
         ord <- ordinate(PhyORD, method=args[5], distance=d)
-        if ( args[5]== 'NMDS'){
-        	p <- nmds_pretty(PhyORD, ord, metadata, treatments[y], colors, args[4], t1)
-        } else
+        if ( args[5] == 'NMDS') {
+        	if ( args[6] == 'True' ) {
+        		p <- nmds_pretty(PhyORD, ord, metadata, treatments[y], colors, args[4], t1, centroids = FALSE)
+        	} else {
+        		p <- nmds_pretty(PhyORD, ord, metadata, treatments[y], colors, args[4], t1)
+        	}
+        } else {
         	p <- cca_pretty(PhyORD, ord, metadata, treatments[y], colors, args[4], t1)
-    
+        }
+        
         #alpha diversity
         pr <- plot_richness(PhyBray, x=treatments[y], color=treatments[y], measures="Observed")
         pr <- pr + geom_point(size=3, alpha=0.4)
@@ -278,9 +282,9 @@ for (y in 1:length(treatments)) {
   			tags$div(ggplotly(p), style = "width: 90%; padding: 1em;"),
   			tags$div(ggplotly(pr), style = "width: 75%; padding: 1em;"),
   			tags$div(datatable(xTab), style = "width: 75%; padding: 1em;"))
-        save_tags(combined, paste(paste(dirname(args[1]),args[3], args[3], sep='/'),'.', treatments[y],'.',args[4],'.html', sep=''))
-        
-    } else
+        save_tags(combined, file.path(dirname(args[1]), args[3], paste(treatments[y],'.',args[4],'.html', sep='')))      
+    } else {
         print("skipping")
-        next             
+        next            
+	}
 }
