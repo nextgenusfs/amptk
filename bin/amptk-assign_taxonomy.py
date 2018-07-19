@@ -117,6 +117,10 @@ if args.db in DataBase:
 else:
     utax_db = args.utax_db
     usearch_db = args.usearch_db
+    if args.fasta_db:
+    	sintax_db = args.fasta_db
+    else:
+    	sintax_db = args.usearch_db
 
 if args.method in ['hybrid', 'usearch', 'utax']:
     if not utax_db and not usearch_db and not args.fasta_db:
@@ -416,6 +420,7 @@ if not args.taxonomy:
 else:
     taxFinal = args.taxonomy    
 #convert taxonomy to qiime format for biom
+qiimeTax = None
 if not args.method == 'blast':
     qiimeTax = base + '.qiime.taxonomy.txt'
     amptklib.utax2qiime(taxFinal, qiimeTax)
@@ -466,7 +471,10 @@ if args.otu_table and not args.method == 'blast':
             elif len(repeatSamples) > 0:
             	amptklib.log.error('%s duplicate sample IDs in mapping file, skipping biom file creation' % ', '.join(repeatSamples))
             else:
-            	cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '-m', args.mapping_file, '--sc-separated', 'taxonomy', '--output-as-json']
+            	if qiimeTax:
+            		cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '-m', args.mapping_file, '--sc-separated', 'taxonomy', '--output-as-json']
+            	else:
+            		cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '-m', args.mapping_file, '--output-as-json']
             	amptklib.runSubprocess(cmd, amptklib.log)
         else:
             cmd = ['biom', 'add-metadata', '-i', outBiom+'.tmp', '-o', outBiom, '--observation-metadata-fp', qiimeTax, '--sc-separated',  'taxonomy', '--output-as-json']
@@ -481,5 +489,6 @@ amptklib.log.info("OTU phylogeny: %s" % tree_out)
 #clean up intermediate files
 if not args.debug:
     for i in [utax_out, usearch_out, sintax_out, qiimeTax, base+'.otu_table.tmp']:
-        amptklib.removefile(i)   
+    	if i:
+        	amptklib.removefile(i)   
 print("-------------------------------------------------------")
