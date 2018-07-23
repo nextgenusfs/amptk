@@ -147,6 +147,66 @@ save_tags <- function (tags, file, selfcontained = F, libdir = file.path('.', 'l
   return(htmltools::tags$iframe(src= file, height = "400px", width = "100%", style="border:0;"))
 }
 
+#function for pairwise adonis test, run if p is significant
+modified.pairwise.adonis <- function(x, factors, sim.function = "vegdist", sim.method = "bray", 
+    p.adjust.m = "bonferroni", reduce = NULL) {
+    
+    co <- combn(unique(as.character(factors)), 2)
+    pairs <- c()
+    total.DF <- c()
+    F.Model <- c()
+    R2 <- c()
+    p.value <- c()
+    
+    
+    for (elem in 1:ncol(co)) {
+        if (sim.function == "daisy") {
+            x1 = daisy(x[factors %in% c(co[1, elem], co[2, elem]), ], metric = sim.method)
+        } else if (sim.method == 'raupcrick') {
+			x1 = raupcrick(x[factors %in% c(co[1, elem], co[2, elem]), ], null="r1", nsimul=999, chase=FALSE)
+		} else {
+            x1 = vegdist(x[factors %in% c(co[1, elem], co[2, elem]), ], method = sim.method)
+        }
+        
+        ad <- adonis(x1 ~ factors[factors %in% c(co[1, elem], co[2, elem])])
+        pairs <- c(pairs, paste(co[1, elem], "vs", co[2, elem]))
+        total.DF <- c(total.DF, ad$aov.tab['Total',1])
+        F.Model <- c(F.Model, ad$aov.tab[1, 4])
+        R2 <- c(R2, ad$aov.tab[1, 5])
+        p.value <- c(p.value, ad$aov.tab[1, 6])
+    }
+    p.adjusted <- p.adjust(p.value, method = p.adjust.m)
+    
+    sig = c(rep("", length(p.adjusted)))
+    sig[p.adjusted <= 0.05] <- "."
+    sig[p.adjusted <= 0.01] <- "*"
+    sig[p.adjusted <= 0.001] <- "**"
+    sig[p.adjusted <= 1e-04] <- "***"
+    pairw.res <- data.frame(pairs, total.DF, F.Model, R2, p.value, p.adjusted, sig)
+    
+    if (!is.null(reduce)) {
+        pairw.res <- subset(pairw.res, grepl(reduce, pairs))
+        pairw.res$p.adjusted <- p.adjust(pairw.res$p.value, method = p.adjust.m)
+        
+        sig = c(rep("", length(pairw.res$p.adjusted)))
+        sig[pairw.res$p.adjusted <= 0.05] <- "."
+        sig[pairw.res$p.adjusted <= 0.01] <- "*"
+        sig[pairw.res$p.adjusted <= 0.001] <- "**"
+        sig[pairw.res$p.adjusted <= 1e-04] <- "***"
+        pairw.res <- data.frame(pairw.res[, 1:5], sig)
+    }
+    class(pairw.res) <- c("pwadonis", "data.frame")
+    return(pairw.res)
+}
+
+### Method summary
+summary.pwadonis = function(object, ...) {
+    cat("Result of pairwise.adonis:\n")
+    cat("\n")
+    print(object, ...)
+    cat("\n")
+    cat("Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
+}
 
 #######Start here#########
 
@@ -225,12 +285,15 @@ for (y in 1:length(treatments)) {
         if ( is.element(args[4], special_distances) ) {
         	d <- raupcrick(votuRaup, null="r1", nsimul=999, chase=FALSE)
         	PhyORD = PhyRaup
+        	veganData = votuRaup
         } else if ( is.element(args[4], binary_distances) ) {
             d <- distance(PhyRaup, method=args[4])
-            PhyORD = PhyRaup    
+            PhyORD = PhyRaup
+            veganData = votuRaup
         } else if ( is.element(args[4], abundance_distances) ) {
             d <- distance(PhyBray, method=args[4])
             PhyORD = PhyBray
+            veganData = votuBray
         } else {
         	print('Distance not supported')
         }
@@ -242,10 +305,13 @@ for (y in 1:length(treatments)) {
         
         #create dataframe of stats from tests
         Df <- c(testA$aov.tab$Df[1], pA$tab$Df[1])
-		Fstat <- c(testA$aov.tab$F.Model[1], pA$tab$F[1])
-		R2 <- c(testA$aov.tab$R2[1], 'NA')
-		Pvalue <- c(testA$aov.tab$`Pr(>F)`[1], pA$tab$`Pr(>F)`[1])
-		xTab <- data.frame(Df,Fstat,R2,Pvalue, row.names=c('Adonis', 'Betadisper'))
+		    Fstat <- c(testA$aov.tab$F.Model[1], pA$tab$F[1])
+		    R2 <- c(testA$aov.tab$R2[1], 'NA')
+		    Pvalue <- c(testA$aov.tab$`Pr(>F)`[1], pA$tab$`Pr(>F)`[1])
+		    xTab <- data.frame(Df,Fstat,R2,Pvalue, row.names=c('Adonis', 'Betadisper'))
+		    if (Pvalue <= 0.05) {
+		      postTest <- modified.pairwise.adonis(veganData, metadata[[treatments[y]]], sim.method=args[4])
+		    }
 		
         #setup color palette, if more than 15 don't even draw it as it is dumb
         num_colors = length(unique(get_variable(PhyBray, treatments[y])))
@@ -277,11 +343,26 @@ for (y in 1:length(treatments)) {
         pr <- pr + scale_color_manual(values=colors)
         
         #now create html of plotly outputs
-        combined <- tags$div(
-        	style = "display: flex; flex-wrap: wrap",
-  			tags$div(ggplotly(p), style = "width: 90%; padding: 1em;"),
-  			tags$div(ggplotly(pr), style = "width: 75%; padding: 1em;"),
-  			tags$div(datatable(xTab), style = "width: 75%; padding: 1em;"))
+        if (Pvalue <= 0.05) {
+          combined <- tags$div(style = "display: flex; flex-wrap: wrap",
+            tags$h2('NMDS Ordination'),
+  			    tags$div(ggplotly(p), style = "width: 90%; padding: 1em;"),
+  			    tags$h2('Alpha Diversity Plot'),
+  			    tags$div(ggplotly(pr), style = "width: 75%; padding: 1em;"),
+  			    tags$h2('Permanova test and BetaDispersion test'),
+  			    tags$div(datatable(xTab), style = "width: 75%; padding: 1em;"),
+  			    tags$h2('Permanova Pairwise post-hoc Test using Bonferonni correction'),
+  			    tags$div(datatable(postTest), style = "width: 75%; padding: 1em;"))
+        } else {
+          combined <- tags$div(style = "display: flex; flex-wrap: wrap",
+            tags$h2('NMDS Ordination'),
+  			    tags$div(ggplotly(p), style = "width: 90%; padding: 1em;"),
+  			    tags$h2('Alpha Diversity Plot'),
+  			    tags$div(ggplotly(pr), style = "width: 75%; padding: 1em;"),
+  			    tags$h2('Permanova test and BetaDispersion test'),
+  			    tags$div(datatable(xTab), style = "width: 75%; padding: 1em;"))
+        }
+        #save output
         save_tags(combined, file.path(dirname(args[1]), args[3], paste(treatments[y],'.',args[4],'.html', sep='')))      
     } else {
         print("skipping")
