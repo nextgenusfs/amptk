@@ -93,6 +93,22 @@ def git_version():
         GIT_REVISION = False
     return GIT_REVISION
 
+def getSize(filename):
+    st = os.stat(filename)
+    return st.st_size
+
+def checkfile(input):
+    if os.path.isfile(input):
+        filesize = getSize(input)
+        if int(filesize) < 1:
+            return False
+        else:
+            return True
+    elif os.path.islink(input):
+        return True
+    else:
+        return False
+
 def SafeRemove(input):
     if os.path.isdir(input):
         shutil.rmtree(input)
