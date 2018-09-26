@@ -169,6 +169,7 @@ rdp_out = base + '.rdp.txt'
 utax_out = base + '.usearch.txt'
 usearch_out = base + '.usearch.txt'
 sintax_out = base + '.sintax.txt'
+otuDict = {}
 
 if not args.taxonomy:
     #start with less common uses, i.e. Blast, rdp
