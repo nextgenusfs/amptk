@@ -237,7 +237,8 @@ def mod_versions():
             hit = "%s NOT installed!" % x
         results.append(hit)
         if x == 'edlib':
-            vers = vers.replace('.post2', '')
+            if '.post' in vers:
+                vers = vers.split('.post')[0]
             if not gvc(vers, '1.2.1'):
                 log.error("Edlib v%s detected, at least v1.2.1 required for degenerate nucleotide search, please upgrade.  e.g. pip install -U edlib or conda install edlib" % vers)
                 sys.exit(1)
