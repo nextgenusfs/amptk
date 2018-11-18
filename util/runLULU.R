@@ -1,42 +1,6 @@
 #!/usr/bin/env Rscript
 #script to run LULU on OTU table in R
 
-country.code <- 'us'  # use yours
-url.pattern <- 'https://'  # use http if you want
-repo.data.frame <- subset(getCRANmirrors(), CountryCode == country.code & grepl(url.pattern, URL))
-options(repos = repo.data.frame$URL)
-
-#check for required packages, install if necessary
-install.packages.auto <- function(x) { 
-  x <- as.character(substitute(x)) 
-  if(isTRUE(x %in% .packages(all.available=TRUE))) { 
-    eval(parse(text = sprintf("require(\"%s\")", x)))
-  } else { 
-    #update.packages(ask= FALSE) #update installed packages.
-    eval(parse(text = sprintf("install.packages(\"%s\", dependencies = TRUE)", x)))
-  }
-  if(isTRUE(x %in% .packages(all.available=TRUE))) { 
-    eval(parse(text = sprintf("require(\"%s\")", x)))
-  } else {
-    source("http://bioconductor.org/biocLite.R")
-    #biocLite(character(), ask=FALSE) #update installed packages.
-    eval(parse(text = sprintf("biocLite(\"%s\")", x)))
-    eval(parse(text = sprintf("require(\"%s\")", x)))
-  }
-}
-
-is.installed <- function(mypkg){
-    is.element(mypkg, installed.packages()[,1])
-  } 
-
-#check for LULU package, install if not there
-if (!is.installed('lulu')) {
-	install.packages.auto("plyr")
-    install.packages.auto("dplyr")
-    install.packages.auto("devtools")
-    install_github("tobiasgf/lulu")
-}
-
 #import necessary packages
 library("plyr"); packageVersion("plyr")
 library("dplyr"); packageVersion("dplyr")

@@ -49,7 +49,7 @@ def download(url, name):
     f.close()
 
 git_version = amptklib.git_version()
-base_version = '1.2.4'
+base_version = '1.2.5'
 if git_version:
     version = base_version+'-'+git_version
 else:
@@ -1071,7 +1071,6 @@ Arguments:   -i, --biom          Input BIOM file with taxonomy and metadata (Req
              -t, --tree          Phylogeny of OTUs (from amptk taxonomy) (Required)
              -d, --distance      Distance metric. Default: raupcrick [raupcrick,jaccard,bray,unifrac,wunifrac]
              -o, --out           Output base name. Default: amptk_stats
-             --indicator_species Run indicator species analysis
              --ignore_otus       Drop OTUs from table before running stats
         """ % (sys.argv[1], version)
    

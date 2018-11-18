@@ -1,39 +1,5 @@
 #!/usr/bin/env Rscript
 
-country.code <- 'us'  # use yours
-url.pattern <- 'https://'  # use http if you want
-repo.data.frame <- subset(getCRANmirrors(), CountryCode == country.code & grepl(url.pattern, URL))
-options(repos = repo.data.frame$URL)
-
-#check for required packages, install if necessary
-install.packages.auto <- function(x) { 
-  x <- as.character(substitute(x)) 
-  if(isTRUE(x %in% .packages(all.available=TRUE))) { 
-    eval(parse(text = sprintf("require(\"%s\")", x)))
-  } else { 
-    #update.packages(ask= FALSE) #update installed packages.
-    eval(parse(text = sprintf("install.packages(\"%s\", dependencies = TRUE)", x)))
-  }
-  if(isTRUE(x %in% .packages(all.available=TRUE))) { 
-    eval(parse(text = sprintf("require(\"%s\")", x)))
-  } else {
-    source("http://bioconductor.org/biocLite.R")
-    #biocLite(character(), ask=FALSE) #update installed packages.
-    eval(parse(text = sprintf("biocLite(\"%s\")", x)))
-    eval(parse(text = sprintf("require(\"%s\")", x)))
-  }
-}
-
-install.packages.auto("phyloseq")
-install.packages.auto("ggplot2")
-install.packages.auto("plyr")
-install.packages.auto("vegan")
-install.packages.auto("RColorBrewer")
-install.packages.auto("plotly")
-install.packages.auto("htmltools")
-install.packages.auto("DT")
-
-
 #experimenting with phyloseq, import necessary packages
 library("plyr"); packageVersion("plyr")
 library("phyloseq"); packageVersion("phyloseq")
@@ -348,7 +314,7 @@ for (y in 1:length(treatments)) {
             tags$h2('NMDS Ordination'),
   			    tags$div(ggplotly(p), style = "width: 90%; padding: 1em;"),
   			    tags$h2('Alpha Diversity Plot'),
-  			    tags$div(ggplotly(pr), style = "width: 75%; padding: 1em;"),
+  			    tags$div(ggplotly(pr), style = "width: 60%; padding: 1em;"),
   			    tags$h2('Permanova test and BetaDispersion test'),
   			    tags$div(datatable(xTab), style = "width: 75%; padding: 1em;"),
   			    tags$h2('Permanova Pairwise post-hoc Test using Bonferonni correction'),
@@ -358,7 +324,7 @@ for (y in 1:length(treatments)) {
             tags$h2('NMDS Ordination'),
   			    tags$div(ggplotly(p), style = "width: 90%; padding: 1em;"),
   			    tags$h2('Alpha Diversity Plot'),
-  			    tags$div(ggplotly(pr), style = "width: 75%; padding: 1em;"),
+  			    tags$div(ggplotly(pr), style = "width: 60%; padding: 1em;"),
   			    tags$h2('Permanova test and BetaDispersion test'),
   			    tags$div(datatable(xTab), style = "width: 75%; padding: 1em;"))
         }
