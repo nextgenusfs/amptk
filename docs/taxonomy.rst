@@ -92,19 +92,20 @@ These databases were created from Unite v7.2.2 (released June 28th, 2017), first
 
     #Create full length ITS USEARCH Database, convert taxonomy, and create USEARCH database
     amptk database -i UNITE_public_28.06.2017.fasta -o ITS -f ITS1-F -r ITS4 \
-        --create_db usearch --keep_all
+        --create_db usearch --keep_all --install 
 
     #Create UTAX Databases
     amptk database -i sh_general_release_dynamic_28.06.2017_dev.fasta  \
         -o ITS_UTAX --create_db utax -f ITS1-F -r ITS4 --keep_all
-        --derep_fulllength --lca
+        --derep_fulllength --lca --install 
         
     amptk database -i sh_general_release_dynamic_s_28.06.2017_dev.fasta \
         -o ITS1_UTAX --create_db utax -f ITS1-F -r ITS2 --keep_all
-        --derep_fulllength --lca
+        --derep_fulllength --lca --install 
         
     amptk database -i sh_general_release_dynamic_s_28.06.2017_dev.fasta \
-        -o ITS2_UTAX --create_db utax -f fITS7 -r ITS4 --derep_fulllength --lca
+        -o ITS2_UTAX --create_db utax -f fITS7 -r ITS4 --derep_fulllength \
+        --lca --install 
 
 **Arthropod/Chordate mtCOI DB**
 
@@ -115,26 +116,26 @@ The TSV output files (~ 6GB) where then each formatted using the following metho
 .. code-block:: none
 
     #reformat taxonomy
-    amptk/util/bold2utax.py -i Arthropoda_bold_data.txt -o arthropoda.bold.bins.fa
-    amptk/util/bold2utax.py -i Chordata_bold_data.txt -o chordata.bold.bins.fa
+    bold2utax.py -i Arthropoda_bold_data.txt -o arthropoda.bold.bins.fa
+    bold2utax.py -i Chordata_bold_data.txt -o chordata.bold.bins.fa
 
     #combine datasets
     cat arthropoda.bold.bins.fa chordata.bold.bins.fa > all.data.bins.fa
     
     #generate global alignment database
     amptk database -i all.data.bins.fa --skip_trimming --keep_all --min_len 125 \
-        --derep_fulllength --create_db usearch -o COI --format off
+        --derep_fulllength --create_db usearch -o COI --format off --install
 
 The data is then further processed with a second script that will search for priming sites and then randomly subsample the data down to a number of records that can be used to train UTAX and then database was created.
 
 .. code-block:: none
 
  #searches for priming sites and subsamples to 90,000 records
- amptk/util/bold2amptk.py -i all.data.bins.fa -o arthropods.chordates
+ bold2amptk.py -i all.data.bins.fa -o arthropods.chordates
  
  #generate utax database
  amptk database -i arthropods.chordates.genus4utax.fa -o COI_UTAX \
-    --format off --create_db utax --skip_trimming
+    --format off --create_db utax --skip_trimming --install
 
 **LSU database**
 
@@ -143,14 +144,14 @@ The fungal 28S database (LSU) was downloaded from `RDP <http://rdp.cme.msu.edu/d
 .. code-block:: none
 
  amptk database -i fungi.unaligned.fa -o LSU --format rdp2utax \
-    --skip_trimming --create_db usearch --derep_fulllength --keep_all
+    --skip_trimming --create_db usearch --derep_fulllength --keep_all --install
 
 To generate a training set for UTAX, the sequences were first dereplicated, and clustered at 97% to get representative sequences for training.  This training set was then converted to a UTAX database:
 
 .. code-block:: none
 
  amptk database -i fungi.trimmed.fa -o LSU_UTAX --format off \
-    --skip_trimming --create_db utax --keep_all
+    --skip_trimming --create_db utax --keep_all --install
 
 **16S database**
 This is downloaded from `R. Edgar's website <http://drive5.com/utax/data/rdp_v16.tar.gz>`_ and then formatted for AMPtk.  Note there is room for substantial improvement here, I just don't typically work on 16S - so please let me know if you want some suggestions on what to do here.
@@ -158,56 +159,26 @@ This is downloaded from `R. Edgar's website <http://drive5.com/utax/data/rdp_v16
 .. code-block:: none
 
  amptk database -i rdp_v16.fa -o 16S --format off --create_db utax \
-    --skip_trimming --keep_all
+    --skip_trimming --keep_all --install
 
 Checking Installed Databases
 -------------------------------------
-A simple ``amptk taxonomy`` command will show you all the arguments as well as display which databases have been installed.
+A simple ``amptk info`` command will show you all the arguments as well as display which databases have been installed.
 
 .. code-block:: none
 
-    amptk taxonomy
+    amptk info
 
-    Usage:       amptk taxonomy <arguments>
-    version:     1.0.0
-
-    Description: Script maps OTUs to taxonomy information and can append to an OTU table (optional).  
-                 By default the script uses a hybrid approach, e.g. gets taxonomy information from 
-                 SINTAX, UTAX, and global alignment hits from the larger UNITE-INSD database, and 
-                 then parses results to extract the most taxonomy information that it can at 'trustable' 
-                 levels. SINTAX/UTAX results are used if BLAST-like search pct identity is less than 97%.  
-                 If % identity is greater than 97%, the result with most taxonomy levels is retained.
-    
-    Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from amptk cluster) (Required)
-                 -i, --otu_table     Input OTU table file (i.e. otu_table from amptk cluster)
-                 -o, --out           Base name for output file. Default: amptk-taxonomy.<method>.txt
-                 -d, --db            Select Pre-installed database [ITS1, ITS2, ITS, 16S, LSU, COI]. Default: ITS2
-                 -m, --mapping_file  QIIME-like mapping file
-                 -t, --taxonomy      Taxonomy calculated elsewhere. 2 Column file.
-                 --method            Taxonomy method. Default: hybrid [utax, sintax, usearch, hybrid, rdp, blast]
-                 --add2db            Add FASTA files to DB on the fly.
-                 --fasta_db          Alternative database of fasta sequenes to use for global alignment.
-                 --utax_db           UTAX formatted database. Default: ITS2.udb [See configured DB's below]
-                 --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
-                 --usearch_db        USEARCH formatted database. Default: USEARCH.udb
-                 --usearch_cutoff    USEARCH threshold percent identity. Default 0.7
-                 --sintax_cutoff     SINTAX confidence value threshold. Default: 0.8 [0 to 0.9]
-                 -r, --rdp           Path to RDP Classifier. Required if --method rdp
-                 --rdp_db            RDP Classifer DB set. [fungalits_unite, fungalits_warcup. fungallsu, 16srrna]  
-                 --rdp_cutoff        RDP Classifer confidence value threshold. Default: 0.8 [0 to 1.0]
-                 --local_blast       Local Blast database (full path) Default: NCBI remote nt database   
-                 --tax_filter        Remove OTUs from OTU table that do not match filter, i.e. Fungi to keep only fungi.
-                 -u, --usearch       USEARCH executable. Default: usearch9
-                 --debug             Keep intermediate files
-
-    Databases Configured: 
-    DB_name         DB_type   FASTA originated from                               Fwd Primer   Rev Primer   Records  
-    16S.udb         utax      rdp_16s_v16s_sp.fa                                  None         None         13143    
-    COI.udb         usearch   arthropods_chordates.bold.fa                        None         None         423813   
-    COI_UTAX.udb    utax      coi.genus4utax.fa                                   None         None         60000    
-    ITS.udb         usearch   UNITE_public_28.06.2017.fasta                       ITS1-F       ITS4         592807   
-    ITS1_UTAX.udb   utax      sh_general_release_dynamic_s_28.06.2017_dev.fasta   ITS1-F       ITS2         57343    
-    ITS2_UTAX.udb   utax      sh_general_release_dynamic_s_28.06.2017_dev.fasta   fITS7        ITS4         56015    
-    ITS_UTAX.udb    utax      sh_general_release_dynamic_28.06.2017_dev.fasta     ITS1-F       ITS4         30437    
-    LSU.udb         usearch   current_Fungi_unaligned.fa                          None         None         92378     
+	------------------------------
+	Running AMPtk v 1.3.0
+	------------------------------
+	Taxonomy Databases Installed:
+	------------------------------
+	   DB_name     DB_type                FASTA originated from                Fwd Primer Rev Primer Records     Date   
+		   ITS.udb  usearch                      UNITE_public_01.12.2017.fasta   ITS1-F      ITS4     532025  2018-05-01
+	 ITS1_UTAX.udb     utax  sh_general_release_dynamic_s_01.12.2017_dev.fasta   ITS1-F      ITS2      57293  2018-05-01
+	 ITS2_UTAX.udb     utax  sh_general_release_dynamic_s_01.12.2017_dev.fasta    fITS7      ITS4      55962  2018-05-01
+	  ITS_UTAX.udb     utax    sh_general_release_dynamic_01.12.2017_dev.fasta   ITS1-F      ITS4      30580  2018-05-01
+	------------------------------
+   
     
