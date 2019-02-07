@@ -174,11 +174,11 @@ A simple ``amptk info`` command will show you all the arguments as well as displ
     ------------------------------
     Taxonomy Databases Installed:
     ------------------------------
-       DB_name     DB_type                FASTA originated from                Fwd Primer Rev Primer Records     Date   
-           ITS.udb  usearch                      UNITE_public_01.12.2017.fasta   ITS1-F      ITS4     532025  2018-05-01
-     ITS1_UTAX.udb     utax  sh_general_release_dynamic_s_01.12.2017_dev.fasta   ITS1-F      ITS2      57293  2018-05-01
-     ITS2_UTAX.udb     utax  sh_general_release_dynamic_s_01.12.2017_dev.fasta    fITS7      ITS4      55962  2018-05-01
-      ITS_UTAX.udb     utax    sh_general_release_dynamic_01.12.2017_dev.fasta   ITS1-F      ITS4      30580  2018-05-01
+     DB_name         DB_type              FASTA originated from                Fwd Primer Rev Primer Records     Date   
+     ITS.udb         usearch                   UNITE_public_01.12.2017.fasta   ITS1-F      ITS4     532025  2018-05-01
+     ITS1_UTAX.udb   utax  sh_general_release_dynamic_s_01.12.2017_dev.fasta   ITS1-F      ITS2      57293  2018-05-01
+     ITS2_UTAX.udb   utax  sh_general_release_dynamic_s_01.12.2017_dev.fasta    fITS7      ITS4      55962  2018-05-01
+     ITS_UTAX.udb    utax    sh_general_release_dynamic_01.12.2017_dev.fasta   ITS1-F      ITS4      30580  2018-05-01
     ------------------------------
    
     
