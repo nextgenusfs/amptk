@@ -19,24 +19,24 @@ AMPtk can assign taxonomy using Blast, RDP Classifier, Global Alignment, UTAX, a
 
 .. code-block:: none
 
-    #OTUID	taxonomy
-    OTU1	GSL|100.0|KP776995;k:Fungi,p:Ascomycota,c:Sordariomycetes,o:Coniochaetales,f:Coniochaetaceae,g:Coniochaeta
-    OTU2	US|0.9389|HF674734;k:Fungi,p:Ascomycota
-    OTU3	GS|100.0|AY465463;k:Fungi,p:Ascomycota,c:Eurotiomycetes,o:Chaetothyriales,f:Herpotrichiellaceae,g:Phialophora
-    OTU4	GS|98.0|KX222656;k:Fungi,p:Ascomycota,c:Sordariomycetes,o:Sordariales,f:Lasiosphaeriaceae
-    OTU5	US|1.0000|FM200433;k:Fungi
-    OTU6	GS|100.0|KF850373;k:Fungi,p:Ascomycota,c:Sordariomycetes,o:Sordariales,f:Chaetomiaceae,g:Trichocladium,s:Trichocladium opacum
-    OTU7	GDL|100.0|KF660573;k:Fungi,p:Ascomycota,c:Dothideomycetes,o:Pleosporales
-    OTU8	GS|100.0|KX611531;k:Fungi,p:Ascomycota,c:Leotiomycetes,o:Helotiales,f:Helotiaceae,g:Varicosporium,s:Varicosporium elodeae
-    OTU9	GSL|100.0|JN655624;k:Fungi,p:Ascomycota,c:Sordariomycetes,o:Hypocreales,g:Ilyonectria
-    OTU10	SS|0.9000|KT197416;k:Fungi,p:Ascomycota,c:Leotiomycetes,o:Helotiales
+    #OTUID  taxonomy
+    OTU1    GSL|100.0|KP776995;k:Fungi,p:Ascomycota,c:Sordariomycetes,o:Coniochaetales,f:Coniochaetaceae,g:Coniochaeta
+    OTU2    US|0.9389|HF674734;k:Fungi,p:Ascomycota
+    OTU3    GS|100.0|AY465463;k:Fungi,p:Ascomycota,c:Eurotiomycetes,o:Chaetothyriales,f:Herpotrichiellaceae,g:Phialophora
+    OTU4    GS|98.0|KX222656;k:Fungi,p:Ascomycota,c:Sordariomycetes,o:Sordariales,f:Lasiosphaeriaceae
+    OTU5    US|1.0000|FM200433;k:Fungi
+    OTU6    GS|100.0|KF850373;k:Fungi,p:Ascomycota,c:Sordariomycetes,o:Sordariales,f:Chaetomiaceae,g:Trichocladium,s:Trichocladium opacum
+    OTU7    GDL|100.0|KF660573;k:Fungi,p:Ascomycota,c:Dothideomycetes,o:Pleosporales
+    OTU8    GS|100.0|KX611531;k:Fungi,p:Ascomycota,c:Leotiomycetes,o:Helotiales,f:Helotiaceae,g:Varicosporium,s:Varicosporium elodeae
+    OTU9    GSL|100.0|JN655624;k:Fungi,p:Ascomycota,c:Sordariomycetes,o:Hypocreales,g:Ilyonectria
+    OTU10   SS|0.9000|KT197416;k:Fungi,p:Ascomycota,c:Leotiomycetes,o:Helotiales
 
 Taxonomy information follows the ; in the string. The pre-taxonomy identifiers are coded to mean the following:
 
 .. code-block:: none
 
-    #OTUID	taxonomy
-    OTU1	Method|Pident/Score|Ref_DB ID;
+    #OTUID  taxonomy
+    OTU1    Method|Pident/Score|Ref_DB ID;
 
 Coding for the different methods:
 
@@ -169,16 +169,16 @@ A simple ``amptk info`` command will show you all the arguments as well as displ
 
     amptk info
 
-	------------------------------
-	Running AMPtk v 1.3.0
-	------------------------------
-	Taxonomy Databases Installed:
-	------------------------------
-	   DB_name     DB_type                FASTA originated from                Fwd Primer Rev Primer Records     Date   
-		   ITS.udb  usearch                      UNITE_public_01.12.2017.fasta   ITS1-F      ITS4     532025  2018-05-01
-	 ITS1_UTAX.udb     utax  sh_general_release_dynamic_s_01.12.2017_dev.fasta   ITS1-F      ITS2      57293  2018-05-01
-	 ITS2_UTAX.udb     utax  sh_general_release_dynamic_s_01.12.2017_dev.fasta    fITS7      ITS4      55962  2018-05-01
-	  ITS_UTAX.udb     utax    sh_general_release_dynamic_01.12.2017_dev.fasta   ITS1-F      ITS4      30580  2018-05-01
-	------------------------------
+    ------------------------------
+    Running AMPtk v 1.3.0
+    ------------------------------
+    Taxonomy Databases Installed:
+    ------------------------------
+       DB_name     DB_type                FASTA originated from                Fwd Primer Rev Primer Records     Date   
+           ITS.udb  usearch                      UNITE_public_01.12.2017.fasta   ITS1-F      ITS4     532025  2018-05-01
+     ITS1_UTAX.udb     utax  sh_general_release_dynamic_s_01.12.2017_dev.fasta   ITS1-F      ITS2      57293  2018-05-01
+     ITS2_UTAX.udb     utax  sh_general_release_dynamic_s_01.12.2017_dev.fasta    fITS7      ITS4      55962  2018-05-01
+      ITS_UTAX.udb     utax    sh_general_release_dynamic_01.12.2017_dev.fasta   ITS1-F      ITS4      30580  2018-05-01
+    ------------------------------
    
     
