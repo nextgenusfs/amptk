@@ -17,12 +17,12 @@ DESCRIPTION = 'AMPtk: amplicon tool kit'
 URL = 'https://github.com/nextgenusfs/amptk'
 EMAIL = 'nextgenusfs@gmail.com'
 AUTHOR = 'Jon Palmer'
-REQUIRES_PYTHON = '>=2.7.0'
+REQUIRES_PYTHON = '>=2.7.0, !=3.0.*, !=3.1.*, !=3.2.*, <4'
 VERSION = None
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-	'edlib', 'numpy',
+    'edlib', 'numpy',
     'biopython', 'matplotlib',
     'seaborn','psutil',
     'pandas','matplotlib',
@@ -117,8 +117,18 @@ setup(
     extras_require=EXTRAS,
     include_package_data=True,
     license='BSD-2',
-	scripts=['scripts/amptk', 'scripts/bold2amptk.py', 'scripts/bold2utax.py', 'scripts/amptk_synthetic_mock.py'],
-    # $ setup.py publish support.
+    scripts=['scripts/amptk', 'scripts/bold2amptk.py', 'scripts/bold2utax.py', 'scripts/amptk_synthetic_mock.py'],
+    classifiers=[
+        # Trove classifiers
+        # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
+        'Development Status :: 4 - Beta',
+        'License :: OSI Approved :: BSD License',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 3',
+        'Operating System :: Unix',
+        'Intended Audience :: Science/Research',
+        'Topic :: Scientific/Engineering :: Bio-Informatics'],
     cmdclass={
         'upload': UploadCommand,
     },
