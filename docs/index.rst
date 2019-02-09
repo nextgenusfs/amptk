@@ -47,7 +47,12 @@ There are several ways to install AMPtk, the easiest and recommended way is with
 	conda create -n amptk amptk
 	
 	#UPDATE 2/9/2019: Conda solver seems to hang, if taking forever try this
-	conda create -n amptk 
+	conda create -n amptk
+	conda create -n amptk bioconductor-dada2 bioconductor-phyloseq biom-format \
+	     biopython matplotlib natsort numpy pandas pigz psutil python-edlib r-base r-dt \
+	     r-htmltools r-plotly seaborn vsearch
+	conda activate amptk
+	conda install amptk
 	
 	#to run amptk, activate the environment
 	source activate amptk
