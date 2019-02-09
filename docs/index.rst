@@ -67,7 +67,7 @@ Users can also install manually, download a `release <https://github.com/nextgen
 .. code-block:: none
 	
 	#clone the repository
-    git clone https://github.com/nextgenusfs/amptk.git
+	git clone https://github.com/nextgenusfs/amptk.git
 	
 	#then install, optional add --prefix to control location 
 	python setup.py install --prefix /User/Tools/amptk
