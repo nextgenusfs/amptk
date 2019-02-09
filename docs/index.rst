@@ -39,7 +39,6 @@ There are several ways to install AMPtk, the easiest and recommended way is with
 .. code-block:: none
      
 	#setup your conda env with bioconda, type the following in order to setup channels
-	conda config --add channels r
 	conda config --add channels defaults
 	conda config --add channels conda-forge
 	conda config --add channels bioconda
@@ -47,33 +46,31 @@ There are several ways to install AMPtk, the easiest and recommended way is with
 	#create amptk env (optional)
 	conda create -n amptk amptk
 	
+	#UPDATE 2/9/2019: Conda solver seems to hang, if taking forever try this
+	conda create -n amptk 
+	
 	#to run amptk, activate the environment
 	source activate amptk
-	
 
-Homebrew users can install AMPtk and its dependencies is with `HomeBrew <https://brew.sh>`_. For example:
+
+You can install the python portion of AMPtk with pip, to use DADA2 or the amptk stats script will need to install R dependencies.
 
 .. code-block:: none
 
-    #install homebrew
-    /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-    
-    #setup homebrew and link repositories
-    brew doctor; brew tap brewsci/bio; brew tap brewsci/science; brew tap nextgenusfs/tap
-    
-    #install python dependencies
-    pip install -U biopython natsort pandas numpy matplotlib seaborn edlib biom-format psutil
-    
-    #install AMPtk and dependencies
-    brew install amptk
-
-
+	pip install amptk 
+	
+	
 Users can also install manually, download a `release <https://github.com/nextgenusfs/amptk/releases>`_. You can also build the latest unreleased version from github:
 
 .. code-block:: none
-
+	
+	#clone the repository
     git clone https://github.com/nextgenusfs/amptk.git
-    export PATH="/path/to/amptk/bin:$PATH"
+	
+	#then install, optional add --prefix to control location 
+	python setup.py install --prefix /User/Tools/amptk
+	
+	
 
 
 Dependencies Requiring Manual Install
