@@ -54,9 +54,6 @@ There are several ways to install AMPtk, the easiest and recommended way is with
 	conda activate amptk
 	conda install amptk
 	
-	#to run amptk, activate the environment
-	source activate amptk
-
 
 You can install the python portion of AMPtk with pip, to use DADA2 or the amptk stats script will need to install R dependencies.
 
