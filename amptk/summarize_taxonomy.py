@@ -9,7 +9,6 @@ with warnings.catch_warnings():
     warnings.simplefilter('ignore')
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
-    from matplotlib.ticker import MaxNLocator
     import seaborn as sns
 import pandas as pd
 import numpy as np
