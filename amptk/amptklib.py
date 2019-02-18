@@ -1401,15 +1401,18 @@ def classifier2dict(input, pcutoff):
             ID = cols[0]
             tax = cols[1].split(',')
             passtax = []
-            for level in tax:
+            scores = []
+            hit = False
+            for i,level in enumerate(tax):
                 if '(' in level:
                     score = level.split('(')[-1].replace(')', '')
                     if float(score) >= float(pcutoff):
+                        hit = True
                         passtax.append(level.split('(')[0])
-                    else:
-                        break
-            if not ID in ClassyDict:
-                ClassyDict[ID] = (score, passtax)
+                        scores.append(score)
+            if hit:
+                if not ID in ClassyDict:
+                    ClassyDict[ID] = (scores[-1], passtax)
     return ClassyDict
 
 def usearchglobal2dict(input):
@@ -1467,9 +1470,12 @@ def bestclassifier(utax, sintax, otus):
     #both are dictionaries from classifier2dict, otus is a list of OTUs in order
     BestClassify = {}
     for otu in otus:
-        sintaxhit = sintax.get(otu) #this should be okay...
+        sintaxhit, utaxhit = (None,)*2
+        if otu in sintax:
+            sintaxhit = sintax.get(otu) #this should be okay...
         if otu in utax:
-            utaxhit = utax.get(otu) #returns tuple of (score, [taxlist])
+            utaxhit = utax.get(otu) #returns tuple of (score, [taxlist]
+        if sintaxhit and utaxhit: 
             if len(utaxhit[1]) > len(sintaxhit[1]):
                 hit = (utaxhit[0], 'U', utaxhit[1])
             elif len(utaxhit[1]) == len(sintaxhit[1]):
@@ -1479,7 +1485,9 @@ def bestclassifier(utax, sintax, otus):
                     hit = (sintaxhit[0], 'S', sintaxhit[1])
             else:
                 hit = (sintaxhit[0], 'S', sintaxhit[1])
-        else:
+        elif not sintaxhit and utaxhit:
+            hit = (utaxhit[0], 'U', utaxhit[1])
+        elif sintaxhit and not utaxhit:
             hit = (sintaxhit[0], 'S', sintaxhit[1])
         BestClassify[otu] = hit
     return BestClassify

@@ -130,10 +130,17 @@ def main(args):
 		uchime_out = os.path.join(tmp, base + '.EE' + args.maxee + '.uchime.otus.fa')
 		#R. Edgar now says using largest DB is better for UCHIME, so use the one distributed with taxonomy
 		if args.uchime_ref in ['ITS', '16S', 'LSU', 'COI']: #test if it is one that is setup, otherwise default to full path
-			uchime_db = os.path.join(parentdir, 'DB', args.uchime_ref+'.extracted.fa')
+			uchime_db = os.path.join(parentdir, 'DB', args.uchime_ref+'.udb')
 			if not os.path.isfile(uchime_db):
 				amptklib.log.error("Database not properly configured, run `amptk install` to setup DB, skipping chimera filtering")
 				uchime_out = otu_clean
+			#since uchime cannot work with udb database, need to extract fasta sequences, do this if 
+			if not amptklib.checkfile(os.path.join(parentdir, 'DB',args.uchime_ref+'.extracted.fa')):
+				uchime_db = os.path.join(parentdir, 'DB',args.uchime_ref+'.extracted.fa')
+				cmd = ['vsearch', '--udb2fasta', os.path.join(parentdir, 'DB', args.uchime_ref+'.udb'), '--output', uchime_db]
+				amptklib.runSubprocess(cmd, amptklib.log)
+			else:
+				uchime_db = os.path.join(parentdir, 'DB',args.uchime_ref+'.extracted.fa')
 		else:
 			uchime_db = os.path.abspath(args.uchime_ref)
 		#now run chimera filtering if all checks out

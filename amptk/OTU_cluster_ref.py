@@ -99,12 +99,20 @@ def main(args):
 
 	#Setup DB locations and names, etc
 	DBdir = os.path.join(parentdir, 'DB')   
-	DataBase = { 'ITS1': (os.path.join(DBdir,'ITS.extracted.fa'), os.path.join(DBdir, 'ITS1_UTAX.udb')), 'ITS2': (os.path.join(DBdir,'ITS.extracted.fa'), os.path.join(DBdir, 'ITS2_UTAX.udb')), 'ITS': (os.path.join(DBdir,'ITS.extracted.fa'), os.path.join(DBdir, 'ITS_UTAX.udb')), '16S': (os.path.join(DBdir,'16S.extracted.fa'), os.path.join(DBdir, '16S.udb')), 'LSU': (os.path.join(DBdir, 'LSU.extracted.fa'), os.path.join(DBdir, 'LSU_UTAX.udb')), 'COI': (os.path.join(DBdir,'COI.extracted.fa'), os.path.join(DBdir, 'COI_UTAX.udb'))}
+	DataBase = {'ITS1': (os.path.join(DBdir, 'ITS.udb'), os.path.join(DBdir, 'ITS1_UTAX.udb')), 
+				'ITS2': (os.path.join(DBdir, 'ITS.udb'), os.path.join(DBdir, 'ITS2_UTAX.udb')), 
+				'ITS': (os.path.join(DBdir, 'ITS.udb'), os.path.join(DBdir, 'ITS_UTAX.udb')), 
+				'16S': (os.path.join(DBdir, '16S.udb'), os.path.join(DBdir, '16S.udb')), 
+				'LSU': (os.path.join(DBdir, 'LSU.udb'), os.path.join(DBdir, 'LSU_UTAX.udb')), 
+				'COI': (os.path.join(DBdir, 'COI.udb'), os.path.join(DBdir, 'COI_UTAX.udb'))}
 
 	#setup refDB
 	amptklib.log.info("Checking Reference Database")
 	if args.db in DataBase:
-		DB = DataBase.get(args.db)[0]
+		#need to write to fasta from vsearch UDB
+		DB = os.path.join(tmp, args.db+'.extracted.fa')
+		cmd = ['vsearch', '--udb2fasta', DataBase.get(args.db)[0], '--output', DB]
+		amptklib.runSubprocess(cmd, amptklib.log)
 	else:
 		DB = os.path.abspath(args.db)
 	refDB = os.path.join(tmp, 'reference_DB.fa')
@@ -161,6 +169,7 @@ def main(args):
 	amptklib.runSubprocess(cmd, amptklib.log)
 	qtrimtotal = amptklib.countfastq(filter_out)
 	amptklib.log.info('{0:,}'.format(qtrimtotal) + ' reads passed')
+	
 	#now run full length dereplication
 	derep_out = os.path.join(tmp, base + '.EE' + args.maxee + '.derep.fa')
 	amptklib.log.info("De-replication (remove duplicate reads)")

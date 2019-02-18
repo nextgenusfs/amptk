@@ -9,25 +9,21 @@ with warnings.catch_warnings():
     warnings.simplefilter('ignore')
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
+    from matplotlib.ticker import MaxNLocator
     import seaborn as sns
 import pandas as pd
 import numpy as np
-import csv
 import argparse
 import os
 import sys
+from collections import OrderedDict
+from natsort import natsorted
 from amptk import amptklib
 from amptk import stackedBarGraph
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
-
-def try_int(x):
-    try:
-        return int(x)
-    except ValueError:
-        return x       
 
 def flatten(l):
     flatList = []
@@ -40,44 +36,7 @@ def flatten(l):
         else:
             flatList.append(elem)
     return flatList
-
-def tally(x):
-    from collections import Counter
-    tally = Counter()
-    for i in x:
-        tally[i] += 1
-    return tally
-
-def getClassCounts(table):
-    global k,p,c,o,f,g,s
-    k = []
-    p = []
-    c = []
-    o = []
-    f = []
-    g = []
-    s = []   
-    for item in table:
-        tax = item
-        tax = tax.replace(';', ',')
-        tax = tax.split(",")
-        for i in tax:
-            if i.startswith("k:"):
-                k.append(i.rsplit(":", 1)[-1].split(" (")[0])
-            if i.startswith("p:"):
-                p.append(i.rsplit(":", 1)[-1].split(" (")[0])
-            if i.startswith("c:"):
-                c.append(i.rsplit(":", 1)[-1].split(" (")[0])
-            if i.startswith("o:"):
-                o.append(i.rsplit(":", 1)[-1].split(" (")[0])
-            if i.startswith("f:"):
-                f.append(i.rsplit(":", 1)[-1].split(" (")[0])
-            if i.startswith("g:"):
-                g.append(i.rsplit(":", 1)[-1].split(" (")[0])
-            if i.startswith("s:"):
-                s.append(i.rsplit(":", 1)[-1].split(" (")[0])
-    return k,p,c,o,f,g,s
-
+    
 def get_colors(num_colors):
     import colorsys
     colors=[]
@@ -90,50 +49,16 @@ def get_colors(num_colors):
         hex.upper()
         colors.append(hex)
     return colors
-
-def processTax(uniq, L, name, args=False):
-    FinalTab = []
-    OutputTable = []
-    for i in range(len(allSamples)):
-        finalLine = []
-        printLine = [allSamples[i]]
-        for x in range(len(uniq)):
-            countTax = L[i].get(uniq[x]) or 0
-            finalLine.append(countTax)
-            printLine.append(countTax)
-        FinalTab.append(finalLine)
-        OutputTable.append(printLine)
-    Tax = ['Sample']
-    Tax.append(uniq)
-    Tax = flatten(Tax)
-    OutputTable.insert(0,Tax)
-    table_out = args.out + '.tax.' + name + '.csv'
-    with open(table_out, 'w') as tableOut:
-        for line in OutputTable:
-            new_line = ','.join(str(x) for x in line)+'\n'
-            tableOut.write(new_line)    
-    #check if not drawing charts
-    if args.graphs:
-        percent_table = []
-        if args.percent:
-            for line in FinalTab:
-                new_line = []
-                sums = sum(line)
-                new_line.append([x/float(sums) * 100 for x in line])
-                new_line = flatten(new_line)
-                percent_table.append(new_line)
-        else:
-            percent_table = FinalTab
-        out = args.out + '.tax.' + name + '.' + args.format
+  
+def drawBarGraph(df, output, args=False):
         SBG = stackedBarGraph.StackedBarGrapher()
-        #load pd df
-        df = pd.DataFrame(percent_table)
         #work on colors, 12 preferred, add to those if necessary
         pref_colors=["#023FA5","#7D87B9","#BEC1D4","#D6BCC0",
                 "#BB7784","#4A6FE3","#8595E1","#B5BBE3",
                 "#E6AFB9","#E07B91","#D33F6A","#11C638","#8DD593",
                 "#C6DEC7","#EAD3C6","#F0B98D","#EF9708","#0FCFC0",
                 "#9CDED6","#D5EAE7","#F3E1EB","#F6C4E1","#F79CD4"]
+        uniq = df.columns.values.tolist()
         length = len(uniq)
         if length > len(pref_colors):
             extra = length - len(pref_colors) - 1
@@ -150,14 +75,13 @@ def processTax(uniq, L, name, args=False):
         d_colors = flatten(pref_colors)
 
         #labels
-        d_labels = allSamples
         fig = plt.figure()
         ax = fig.add_subplot(111)
         if args.percent:
             YLabel = "Percent of Community"
         else:
             YLabel = "Number of OTUs per taxonomy level"
-        SBG.stackedBarPlot(ax,df,d_colors,edgeCols=['#000000']*length,xLabels=allSamples,gap=0.25,endGaps=True,xlabel="Samples", ylabel=YLabel)
+        SBG.stackedBarPlot(ax,df,d_colors,edgeCols=['#000000']*length,xLabels=df.index.values.tolist(),gap=0.25,endGaps=True,xlabel="Samples", ylabel=YLabel)
         plt.title("Taxonomy Summary")
         #get the legend
         legends = [] 
@@ -174,108 +98,96 @@ def processTax(uniq, L, name, args=False):
 
         #setup the plot
         fig.subplots_adjust(bottom=0.4)
-        fig.savefig(out, format=args.format, bbox_extra_artists=(lgd,), bbox_inches='tight')
+        fig.savefig(output, format=args.format, bbox_extra_artists=(lgd,), bbox_inches='tight')
         plt.close(fig)
 
+
 def main(args):
-	global allSamples
-	parser=argparse.ArgumentParser(prog='amptk-summarize_taxonomy.py', usage="%(prog)s -i amptk.otu_table.taxonomy.txt\n%(prog)s -h for help menu",
-		description='''Script that produces summary figures and data tables from AMPtk taxonomy OTU table.''',
-		epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
-		formatter_class=MyFormatter)
-	parser.add_argument('-i','--table', dest="table", required=True, help='OTU Table (Required)')
-	parser.add_argument('-o','--out', dest="out", default='amptk-summary', help='Base name of Output Files')
-	parser.add_argument('--graphs', dest="graphs", action="store_true", help='Create Stacked Bar Graphs')
-	parser.add_argument('--format', dest="format", default='eps', choices=['eps','svg','png','pdf'], help='Image format')
-	parser.add_argument('--percent', dest="percent", action="store_true", help='Convert to Pct of Sample')
-	parser.add_argument('--font_size', dest="size", type=int, default=8, help='Font Size')
-	args=parser.parse_args(args)
-
-	sub_table = []
-	with open(args.table, 'r') as inTable:
-		#guess the delimiter format
-		firstline = inTable.readline()
-		dialect = amptklib.guess_csv_dialect(firstline)
-		inTable.seek(0)
-		#parse OTU table
-		reader = csv.reader(inTable, dialect)
-		for line in reader:
-			sub_table.append([try_int(x) for x in line]) #convert to integers
-	
-	header = sub_table[:1] #pull out header row
-	header = header[0] #just get first list, double check
-	headerCount = len(header) - 1
-
-	allSamples, Lk, Lp, Lc, Lo, Lf, Lg, Ls, Tk, Tp, Tc, To, Tf, Tg, Ts = ([] for i in range(15))
-	for i in range(1,headerCount):
-		allSamples.append(header[i])
-		tab = []
-		OTUs = 0
-		for line in sub_table:
-			if i > 0:
-				OTUs += 1
-				tab.append(line[-1])
-	
-		getClassCounts(tab)    
-		Kingdom = tally(k)
-		Kingdom['unclassified'] = OTUs - sum(Kingdom.values())
-		Lk.append(dict(Kingdom))
-		Tk.append(list(set(Kingdom)))    
-		Phylum = tally(p)
-		Phylum['unclassified'] = OTUs - sum(Phylum.values())
-		Lp.append(dict(Phylum))
-		Tp.append(list(set(Phylum)))
-		Class = tally(c)
-		Class['unclassified'] = OTUs - sum(Class.values())
-		Lc.append(dict(Class))
-		Tc.append(list(set(Class)))
-		Order = tally(o)
-		Order['unclassified'] = OTUs - sum(Order.values())
-		Lo.append(dict(Order))
-		To.append(list(set(Order)))
-		Family = tally(f)
-		Family['unclassified'] = OTUs - sum(Family.values())
-		Lf.append(dict(Family))
-		Tf.append(list(set(Family)))
-		Genus = tally(g)
-		Genus['unclassified'] = OTUs - sum(Genus.values())
-		Lg.append(dict(Genus))
-		Tg.append(list(set(Genus)))   
-		'''
-		Species = tally(s)
-		Species['unclassified'] = OTUs - sum(Species.values())
-		Ls.append(dict(Species))
-		Ts.append(list(set(Species)))
-		'''
-	#kingdom
-	uniqK = list(set(flatten(Tk)))
-	uniqK.sort()
-	processTax(uniqK, Lk, 'kingdom', args=args)
-
-	#phylum
-	uniqP = list(set(flatten(Tp)))
-	uniqP.sort()
-	processTax(uniqP, Lp, 'phylum', args=args)
-
-	#class
-	uniqC = list(set(flatten(Tc)))
-	uniqC.sort()
-	processTax(uniqC, Lc, 'class', args=args)
-
-	#order
-	uniqO = list(set(flatten(To)))
-	uniqO.sort()
-	processTax(uniqO, Lo, 'order', args=args)
-
-	#family
-	uniqF = list(set(flatten(Tf)))
-	uniqF.sort()
-	processTax(uniqF, Lf, 'family', args=args)
-
-	#genus
-	uniqG = list(set(flatten(Tg)))
-	uniqG.sort()
-	processTax(uniqG, Lg, 'genus', args=args)
-	
+    parser=argparse.ArgumentParser(prog='amptk-summarize_taxonomy.py', usage="%(prog)s -i amptk.otu_table.taxonomy.txt\n%(prog)s -h for help menu",
+        description='''Script that produces summary figures and data tables from AMPtk taxonomy OTU table.''',
+        epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
+        formatter_class=MyFormatter)
+    parser.add_argument('-i','--table', dest="table", required=True, help='OTU Table (Required)')
+    parser.add_argument('-o','--out', dest="out", default='amptk-summary', help='Base name of Output Files')
+    parser.add_argument('--graphs', dest="graphs", action="store_true", help='Create Stacked Bar Graphs')
+    parser.add_argument('--format', dest="format", default='eps', choices=['eps','svg','png','pdf'], help='Image format')
+    parser.add_argument('--percent', dest="percent", action="store_true", help='Convert to Pct of Sample')
+    parser.add_argument('--counts', default='binary', choices=['actual', 'binary'], help='Use actual abundance or binary')
+    parser.add_argument('--font_size', dest="size", type=int, default=8, help='Font Size')
+    args=parser.parse_args(args)
+    
+    #rewrite as I don't know what is going on with old script and why it is now failing
+    #goal is just to loop through the taxonomy and create CSV and optional graph of each taxonomy level
+    taxLookup = {'d': 'domain', 'k': 'kingdom', 'p': 'phylum', 'c': 'class', 'o':'order', 'f': 'family', 'g': 'genus', 's': 'species'}
+    
+    #lets create an OTU : taxonomy dictionary and then a sample : OTU dictionary
+    otuDict = OrderedDict()
+    sampleDict = OrderedDict()
+    delim = '\t'
+    header = []
+    with open(args.table, 'r') as infile:
+        for line in infile:
+            line = line.strip()
+            if line.startswith('#OTU'): #header row
+                if line.count('\t') > line.count(','):
+                    delim = '\t'
+                else:
+                    delim = ','
+                header = line.split(delim)
+                if not 'Taxonomy' in header:
+                    print('Error: Taxonomy not found in header of OTU table')
+                    sys.exit(1)
+                for i,x in enumerate(header):
+                    if i == 0 or x == 'Taxonomy' or x == 'taxonomy':
+                        continue
+                    sampleDict[i] = {'sample': x, 'OTUs': {}}   
+                continue
+            cols = line.split(delim)
+            #populate OTU dict
+            #GS|100.0|GQ253122_S001576427;k:Bacteria,p:"Proteobacteria",c:Alphaproteobacteria,o:Sphingomonadales,f:Sphingomonadaceae,g:Sphingomonas,s:Sphingomonas_glacialis;
+            if not cols[-1].startswith('No'):
+                score, tax = cols[-1].split(';', 1)
+                tax = tax.rstrip(';')
+                otuDict[cols[0]] = {'score': score, 'domain': None, 'kingdom': None, 'phylum': None, 'class': None, 'order': None,
+                                    'family': None, 'genus': None, 'species': None}
+                for w in tax.split(','):
+                    level, value = w.split(':')
+                    otuDict[cols[0]][taxLookup[level]] = value
+            #now populate sample dictionary
+            for z,y in enumerate(cols):
+                if z == 0 or z == len(cols)-1:
+                    continue
+                sampleDict[z]['OTUs'][cols[0]] = int(y)
+    
+    #we can now loop through each taxonomic level constructing the taxonomy summary into pandas dataframe
+    for taxLevel in ['domain', 'kingdom', 'phylum', 'class', 'order', 'family', 'genus']: #, , 'species']:
+        taxSummary = OrderedDict()
+        for k,v in sampleDict.items():
+            sampleID = v['sample']
+            for t in natsorted(v['OTUs'].items()):
+                otuName, Count = t
+                if args.counts == 'binary':
+                    if Count > 0:
+                        Count = 1
+                taxInfo = otuDict[otuName][taxLevel]
+                #print(sampleID, otuName, Count, taxInfo)
+                if not taxInfo:
+                    taxInfo = 'Unclassified'
+                if not sampleID in taxSummary:
+                    taxSummary[sampleID] =  {taxInfo: Count}
+                else:
+                    if not taxInfo in taxSummary[sampleID]:
+                        taxSummary[sampleID][taxInfo] = Count
+                    else:
+                        taxSummary[sampleID][taxInfo] += Count
+        df = pd.DataFrame(taxSummary)
+        if len(df.index.values.tolist()) == 1 and 'Unclassified' == df.index.values.tolist()[0]:
+        	continue
+        if args.percent:
+            df = (100. * df / df.sum())
+        df.transpose().to_csv(args.out+'.'+taxLevel+'.csv')
+        if args.graphs:
+        	drawBarGraph(df.transpose(), args.out+'.'+taxLevel+'.'+args.format, args=args)
+            
 if __name__ == "__main__":
-    main(args)
+    main(sys.argv[1:])

@@ -530,7 +530,7 @@ Description: Script maps OTUs to taxonomy information and can append to an OTU t
              By default the script uses a hybrid approach, e.g. gets taxonomy information from 
              SINTAX, UTAX, and global alignment hits from the larger UNITE-INSD database, and 
              then parses results to extract the most taxonomy information that it can at 'trustable' 
-             levels. SINTAX/UTAX results are used if BLAST-like search pct identity is less than 97%%.  
+             levels. SINTAX/UTAX results are used if global alignment pct identity is less than 97%.  
              If % identity is greater than 97%, the result with most taxonomy levels is retained.
              Run amptk info to see taxonomy databases installed. 
     
@@ -570,7 +570,7 @@ Arguments:   -i, --fasta         Input FASTA file
              -r, --rev_primer    Reverse primer. Default: ITS4
              --format            Reformat FASTA headers to UTAX format. Default: unite2utax [unite2utax, rdp2utax, off]
              --drop_ns           Removal sequences that have > x N's. Default: 8
-             --create_db         Create a DB. Default: usearch [utax, usearch]
+             --create_db         Create a DB. Default: usearch [utax, usearch, sintax]
              --skip_trimming     Keep full length sequences. Default: off
              --derep_fulllength  Remove identical sequences.
              --lca               Run LCA (last common ancestor) on taxonomy if dereplicating sequences.
@@ -579,7 +579,7 @@ Arguments:   -i, --fasta         Input FASTA file
              --trunclen          Truncate records to length.
              --subsample         Random subsample reads.
              --primer_mismatch   Max Primer Mismatch. Default: 2
-             --keep_all          Keep Sequence if forward primer not found.
+             --primer_required   Keep Sequence if primer found. Default: for [for,rev,none]
              --utax_trainlevels  UTAX custom parameters. Default: kpcofgs
              --utax_splitlevels  UTAX custom parameters. Default: NVkpcofgs
              --cpus              Number of CPUs to use. Default: all
@@ -598,6 +598,7 @@ Description: Script traverses the taxonomy information and creates an OTU table 
     
 Arguments:   -i, --table     OTU Table containing Taxonomy information (Required)
              -o, --out       Base name for output files. Default: amptk-summary
+             --counts        Method to count taxa. Default: binary [binary,actual]
              --graphs        Create stacked Bar Graphs.
              --format        Image output format. Default: eps [eps, svg, png, pdf]
              --percent       Convert numbers to Percent for Graphs. Default: off

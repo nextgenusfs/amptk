@@ -91,8 +91,8 @@ These databases were created from Unite v7.2.2 (released June 28th, 2017), first
 .. code-block:: none
 
     #Create full length ITS USEARCH Database, convert taxonomy, and create USEARCH database
-    amptk database -i UNITE_public_28.06.2017.fasta -o ITS -f ITS1-F -r ITS4 \
-        --create_db usearch --keep_all --install 
+	amptk database -i UNITE_public_all_02.02.2019.fasta -f ITS1-F -r ITS4 \
+		--primer_required none -o ITS --create_db usearch --install
 
     #Create UTAX Databases
     amptk database -i sh_general_release_dynamic_28.06.2017_dev.fasta  \

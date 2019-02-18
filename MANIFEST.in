@@ -1,6 +1,7 @@
 include README.md
 include LICENSE.md
-include docs/*.rst
+include docs/*
 include amptk/DB/*
 include amptk/*.R
 include test_data/*
+include scripts/*

@@ -14,10 +14,10 @@ try:
 except ImportError:
     from urllib2 import urlopen
 
-URL = { 'ITS': 'https://osf.io/pbtyh/download?version=5',
-        '16S': 'https://osf.io/m7v5q/download?version=2', 
-        'LSU': 'https://osf.io/sqn5r/download?version=2', 
-        'COI': 'https://osf.io/pax79/download?version=3' }
+URL = { 'ITS': 'https://osf.io/pbtyh/download?version=6',
+        '16S': 'https://osf.io/m7v5q/download?version=3', 
+        'LSU': 'https://osf.io/sqn5r/download?version=3', 
+        'COI': 'https://osf.io/pax79/download?version=4' }
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):

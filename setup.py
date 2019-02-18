@@ -108,7 +108,7 @@ setup(
     url=URL,
     packages=find_packages(exclude=('tests',)),
     # If your package is a single module, use this instead of 'packages':
-    # py_modules=['mypackage'],
+    #py_modules=['amptk'],
 
     # entry_points={
     #     'console_scripts': ['mycli=mymodule:cli'],
@@ -128,7 +128,8 @@ setup(
         'Programming Language :: Python :: 3',
         'Operating System :: Unix',
         'Intended Audience :: Science/Research',
-        'Topic :: Scientific/Engineering :: Bio-Informatics'],
+        'Topic :: Scientific/Engineering :: Bio-Informatics'
+        ],
     cmdclass={
         'upload': UploadCommand,
     },

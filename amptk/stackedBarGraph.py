@@ -209,7 +209,7 @@ class StackedBarGrapher(object):
                 real_ticks = False
 
             if not real_ticks:
-                yTicks = float(yTicks)
+                yTicks = int(yTicks)
                 if scale:
                     # make the ticks line up to 100 %
                     y_ticks_at = old_div(np.arange(yTicks),(yTicks-1))
@@ -217,7 +217,7 @@ class StackedBarGrapher(object):
                 else:
                     # space the ticks along the y axis
                     y_ticks_at = np.arange(yTicks)/(yTicks-1)*np.max(data_stack)
-                    y_tick_labels = np.array([str(i) for i in y_ticks_at])
+                    y_tick_labels = np.array([str(int(i)) for i in y_ticks_at])
                 yTicks=(y_ticks_at, y_tick_labels)
 
 #------------------------------------------------------------------------------
