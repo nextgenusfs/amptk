@@ -126,20 +126,20 @@ def main(args):
             amptklib.log.error("You have not selected a database, need either --db, --utax_db, --usearch_db, or --fasta_db")
             sys.exit(1)
         else: #check that the DB exists
-            if usearch_db:
+            if args.method == 'usearch' and usearch_db:
                 if not amptklib.checkfile(usearch_db):
                     amptklib.log.error('USEARCH DB not found: {:}'.format(usearch_db))
                     amptklib.log.derror('Use `amptk install` to install pre-formatted databases or `amptk database` to create custom DB')
                     sys.exit(1)
-            if sintax_db:
+            if args.method == 'sintax' and sintax_db:
                 if not amptklib.checkfile(sintax_db):
                     amptklib.log.error('SINTAX DB not found: {:}'.format(sintax_db))
                     amptklib.log.derror('Use `amptk install` to install pre-formatted databases or `amptk database` to create custom DB')
                     sys.exit(1)
-            if utax_db:
+            if args.method == 'utax' and utax_db:
                 if not amptklib.checkfile(utax_db):
                     amptklib.log.error('UTAX DB not found: {:}'.format(utax_db))
-                    amptklib.log.derror('Use `amptk install` to install pre-formatted databases or `amptk database` to create custom DB')
+                    amptklib.log.error('Use `amptk install` to install pre-formatted databases or `amptk database` to create custom DB')
                     sys.exit(1)
         
 
