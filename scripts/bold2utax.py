@@ -10,7 +10,6 @@ import subprocess
 import shutil
 import io
 from natsort import natsorted
-from Bio import pairwise2
 from Bio.SeqIO.FastaIO import FastaIterator
 from amptk import amptklib
 
@@ -24,7 +23,8 @@ def main():
         epilog="""Written by Jon Palmer (2016) nextgenusfs@gmail.com""",
         formatter_class = MyFormatter)
     parser.add_argument('-i','--input', required=True, help='Bold data dump TSV format')
-    parser.add_argument('-o','--out', required=True, help='UTAX formated FASTA output')
+    parser.add_argument('-o','--out', required=True, help='Basename for UTAX formated FASTA output')
+    parser.add_argument('--cluster', type=int, help='Post processsing cluster') 
     parser.add_argument('--require_genbank', action='store_true', help='Require output to have GenBank Accessions')
     args=parser.parse_args()
 
@@ -40,7 +40,8 @@ def main():
 
     #store taxonomy in dictionary
     BINtax = {}
-    with open(os.path.join(tmp, 'first-pass.fa'), 'w') as output:
+    allOut = args.out+'.bold-reformated.fasta'
+    with open(os.path.join(allOut), 'w') as output:
         with io.open(args.input, encoding="latin", errors='ignore') as input:
             for line in input:
                 Total += 1
@@ -143,29 +144,32 @@ def main():
     print("%i non COI records dropped" % nonCOI)
     print("%i records without a BIN dropped" % noBIN)
     print("%i records written to BINs" % count)
-    print("Now looping through BINs and clustering with VSEARCH @ 99%")
-    FNULL = open(os.devnull, 'w')
-    cluster_out = os.path.join(tmp, 'consensus.fa')
-    subprocess.call(['vsearch', '--cluster_fast', os.path.join(tmp, 'first-pass.fa'), 
-    				'--id', '0.99', '--consout', cluster_out, '--notrunclabels'], stdout = FNULL, stderr = FNULL)
+    print("Output file: %s" % allOut)
+    if args.cluster:
+        print("Now looping through BINs and clustering with VSEARCH @ {:}%".format(args.cluster))
+        FNULL = open(os.devnull, 'w')
+        cluster_out = os.path.join(tmp, 'consensus.fa')
+        pident = args.cluster / float(100)
+        subprocess.call(['vsearch', '--cluster_fast', allOut, 
+                        '--id', str(pident), '--consout', cluster_out, '--notrunclabels'], stdout = FNULL, stderr = FNULL)
 
-    print("Updating taxonomy")
-    #finally loop through centroids and get taxonomy from dictionary 
-    finalcount = 0
-    with open(args.out, 'w') as outputfile:
-        for record in FastaIterator(open(cluster_out)):
-            record.id = record.id.replace('consensus=', '')
-            finalcount += 1
-            fullname = record.id.split(';')[0]
-            ID = fullname.split('_')[0]
-            if ID in BINtax:
-            	tax = BINtax.get(ID)
-            else:
-            	print('{:} not found in taxonomy dictionary'.format(ID))
-            	continue
-            outputfile.write('>{:};tax={:}\n{:}\n'.format(ID, tax, amptklib.softwrap(str(record.seq))))
+        print("Updating taxonomy")
+        #finally loop through centroids and get taxonomy from dictionary 
+        finalcount = 0
+        with open(args.out, 'w') as outputfile:
+            for record in FastaIterator(open(cluster_out)):
+                record.id = record.id.replace('consensus=', '')
+                finalcount += 1
+                fullname = record.id.split(';')[0]
+                ID = fullname.split('_')[0]
+                if ID in BINtax:
+                    tax = BINtax.get(ID)
+                else:
+                    print('{:} not found in taxonomy dictionary'.format(ID))
+                    continue
+                outputfile.write('>{:};tax={:}\n{:}\n'.format(ID, tax, amptklib.softwrap(str(record.seq))))
 
-    print("Wrote %i consensus seqs for each BIN to %s" % (finalcount, args.out))
+        print("Wrote %i consensus seqs for each BIN to %s" % (finalcount, args.out))
     shutil.rmtree(tmp)
 
 if __name__ == "__main__":

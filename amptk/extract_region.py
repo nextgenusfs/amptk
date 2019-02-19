@@ -452,7 +452,7 @@ def main(args):
     parser.add_argument('--create_db', dest='create_db', choices=['utax', 'usearch', 'sintax'], help="Create USEARCH DB")
     parser.add_argument('--primer_required', dest='keep', default='for', choices=['none', 'for', 'rev'], help="Keep Seq if primer found Default: for")
     parser.add_argument('--derep_fulllength', action='store_true', help="De-replicate sequences. Default: off")
-    parser.add_argument('--primer_mismatch', default=2, help="Max Primer Mismatch")
+    parser.add_argument('--primer_mismatch', default=2, type=int, help="Max Primer Mismatch")
     parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
     parser.add_argument('--install', action='store_true', help="Install into AMPtk database")
     parser.add_argument('--source', default=':', help="DB source and version separated by :")

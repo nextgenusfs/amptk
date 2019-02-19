@@ -1149,7 +1149,7 @@ def findFwdPrimer(primer, sequence, mismatch, equalities):
     #trim position
     TrimPos = None
     #search for match
-    align = edlib.align(primer, sequence, mode="HW", k=mismatch, additionalEqualities=equalities)
+    align = edlib.align(primer, sequence, mode="HW", k=int(mismatch), additionalEqualities=equalities)
     if align["editDistance"] >= 0: #we found a hit
         TrimPos = align["locations"][0][1]+1
     #return position will be None if not found
@@ -1159,7 +1159,7 @@ def findRevPrimer(primer, sequence, mismatch, equalities):
     #trim position
     TrimPos = None
     #search for match
-    align = edlib.align(primer, sequence, mode="HW", task="locations", k=mismatch, additionalEqualities=equalities)
+    align = edlib.align(primer, sequence, mode="HW", task="locations", k=int(mismatch), additionalEqualities=equalities)
     if align["editDistance"] >= 0: #we found a hit
         TrimPos = align["locations"][0][0] 
     #return position will be None if not found
@@ -1419,7 +1419,7 @@ def usearchglobal2dict(input):
     GlobalDict = {}
     with open(input, 'r') as infile:
         for line in infile:
-            line = line.replace('\n', '')
+            line = line.rstrip()
             cols = line.split('\t')
             ID = cols[0]
             if cols[1] != '*':
@@ -1438,7 +1438,7 @@ def usearchglobal2dict(input):
             else:
                 GlobalDict[ID].append((pident, besthit, '', tax))
     Results = {}
-    for k,v in natsorted(list(GlobalDict.items())):
+    for k,v in natsorted(GlobalDict.items()):
         mostTax = []
         lcaTax = []
         mt = 0
