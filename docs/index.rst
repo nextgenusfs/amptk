@@ -55,7 +55,7 @@ There are several ways to install AMPtk, the easiest and recommended way is with
 	conda install amptk
 	
 
-You can install the python portion of AMPtk with pip, to use DADA2 or the amptk stats script will need to install R dependencies.
+You can install the python portion of AMPtk with pip, but you will need to then install the external dependencies such as usearch, vsearch, DADA2 and the amptk stats script will need to install R dependencies.
 
 .. code-block:: none
 
