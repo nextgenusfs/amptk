@@ -134,12 +134,18 @@ def main():
                     if newtax_count > oldtax_count:
                         BINtax[BIN] = tax_fmt
                 #just write to fasta file first
-                count += 1
-                if GB:
-                    output.write('>{:}_{:};tax={:}\n{:}\n'.format(BIN, GB, tax_fmt, amptklib.softwrap(Seq)))
-                else:
-                    output.write('>{:}_NA;tax={:}\n{:}\n'.format(BIN, tax_fmt, amptklib.softwrap(Seq)))
-                    
+                #now write to individual BIN for clustering
+                BINout = os.path.join(tmp, BIN+'.fasta')
+                with open(BINout, 'a') as output2:
+					count += 1
+					if GB:
+						output.write('>{:}_{:};tax={:}\n{:}\n'.format(BIN, GB, tax_fmt, amptklib.softwrap(Seq)))
+						output2.write('>{:}_{:};tax={:}\n{:}\n'.format(BIN, GB, tax_fmt, amptklib.softwrap(Seq)))
+					else:
+						output.write('>{:}_NA;tax={:}\n{:}\n'.format(BIN, tax_fmt, amptklib.softwrap(Seq)))
+						output2.write('>{:}_NA;tax={:}\n{:}\n'.format(BIN, tax_fmt, amptklib.softwrap(Seq)))
+
+                	
     print("%i total records processed" % Total)
     print("%i non COI records dropped" % nonCOI)
     print("%i records without a BIN dropped" % noBIN)
@@ -148,28 +154,33 @@ def main():
     if args.cluster:
         print("Now looping through BINs and clustering with VSEARCH @ {:}%".format(args.cluster))
         FNULL = open(os.devnull, 'w')
-        cluster_out = os.path.join(tmp, 'consensus.fa')
-        pident = args.cluster / float(100)
-        subprocess.call(['vsearch', '--cluster_fast', allOut, 
+        for file in os.path.listdir(tmp):
+        	if file.endswith('.fasta'):
+        		
+        		cluster_out = os.path.join(tmp, file.split('.fasta')[0]+'.consensus.fa')
+        		pident = args.cluster / float(100)
+        		subprocess.call(['vsearch', '--cluster_fast', os.path.join(tmp, file), 
                         '--id', str(pident), '--consout', cluster_out, '--notrunclabels'], stdout = FNULL, stderr = FNULL)
 
         print("Updating taxonomy")
-        #finally loop through centroids and get taxonomy from dictionary 
+        #finally loop through centroids and get taxonomy from dictionary
         finalcount = 0
-        with open(args.out, 'w') as outputfile:
-            for record in FastaIterator(open(cluster_out)):
-                record.id = record.id.replace('consensus=', '')
-                finalcount += 1
-                fullname = record.id.split(';')[0]
-                ID = fullname.split('_')[0]
-                if ID in BINtax:
-                    tax = BINtax.get(ID)
-                else:
-                    print('{:} not found in taxonomy dictionary'.format(ID))
-                    continue
-                outputfile.write('>{:};tax={:}\n{:}\n'.format(ID, tax, amptklib.softwrap(str(record.seq))))
+		with open(args.out+'.BIN-consensus.fa', 'w') as outputfile:
+			for file in os.path.listdir(tmp):
+				if file.endswith('.consensus.fa'):
+					for record in FastaIterator(open(os.path.join(tmp, file))):
+						record.id = record.id.replace('consensus=', '')
+						finalcount += 1
+						fullname = record.id.split(';')[0]
+						ID = fullname.split('_')[0]
+						if ID in BINtax:
+							tax = BINtax.get(ID)
+						else:
+							print('{:} not found in taxonomy dictionary'.format(ID))
+							continue
+						outputfile.write('>{:};tax={:}\n{:}\n'.format(ID, tax, amptklib.softwrap(str(record.seq))))
 
-        print("Wrote %i consensus seqs for each BIN to %s" % (finalcount, args.out))
+        print("Wrote %i consensus seqs for each BIN to %s" % (finalcount, args.out+'.BIN-consensus.fa'))
     shutil.rmtree(tmp)
 
 if __name__ == "__main__":
