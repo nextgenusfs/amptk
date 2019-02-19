@@ -52,7 +52,9 @@ primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG',
             'COI-R': 'GGWACTAATCAATTTCCAAATCC', 
             '515FB': 'GTGYCAGCMGCCGCGGTAA', 
             '806RB': 'GGACTACNVGGGTWTCTAAT', 
-            'ITS4-B21': 'CAGGAGACTTGTACACGGTCC'}
+            'ITS4-B21': 'CAGGAGACTTGTACACGGTCC',
+            'LCO1490': 'GGTCAACAAATCATAAAGATATTGG',
+            'mlCOIintR': 'GGRGGRTASACSGTTCASCCSGTSCC'}
 
 
 degenNuc = [("R", "A"), ("R", "G"), 

@@ -24,7 +24,8 @@ def main():
         formatter_class = MyFormatter)
     parser.add_argument('-i','--input', required=True, help='Bold data dump TSV format')
     parser.add_argument('-o','--out', required=True, help='Basename for UTAX formated FASTA output')
-    parser.add_argument('--cluster', type=int, help='Post processsing cluster') 
+    parser.add_argument('--cluster', type=int, help='Post processsing cluster')
+    parser.add_argument('--drop_suppressed', action='store_true', help='Drop IDs if SUPPRESSED in header') 
     parser.add_argument('--require_genbank', action='store_true', help='Require output to have GenBank Accessions')
     args=parser.parse_args()
 
@@ -110,6 +111,9 @@ def main():
                             pass
                     else:
                         continue
+                if args.drop_suppressed:
+                	if 'SUPPRESSED' in GB:
+                		continue
                 #clean up sequence, remove any gaps, remove terminal N's
                 Seq = col[seqid].replace('-', '')
                 Seq = Seq.strip('N')
@@ -135,17 +139,17 @@ def main():
                         BINtax[BIN] = tax_fmt
                 #just write to fasta file first
                 #now write to individual BIN for clustering
-                BINout = os.path.join(tmp, BIN+'.fasta')
+                BINout = os.path.join(tmp, BIN.split(':')[-1]+'.fasta')
                 with open(BINout, 'a') as output2:
-					count += 1
-					if GB:
-						output.write('>{:}_{:};tax={:}\n{:}\n'.format(BIN, GB, tax_fmt, amptklib.softwrap(Seq)))
-						output2.write('>{:}_{:};tax={:}\n{:}\n'.format(BIN, GB, tax_fmt, amptklib.softwrap(Seq)))
-					else:
-						output.write('>{:}_NA;tax={:}\n{:}\n'.format(BIN, tax_fmt, amptklib.softwrap(Seq)))
-						output2.write('>{:}_NA;tax={:}\n{:}\n'.format(BIN, tax_fmt, amptklib.softwrap(Seq)))
+                    count += 1
+                    if GB:
+                        output.write('>{:}_{:};tax={:}\n{:}\n'.format(BIN, GB, tax_fmt, amptklib.softwrap(Seq)))
+                        output2.write('>{:}_{:};tax={:}\n{:}\n'.format(BIN, GB, tax_fmt, amptklib.softwrap(Seq)))
+                    else:
+                        output.write('>{:}_NA;tax={:}\n{:}\n'.format(BIN, tax_fmt, amptklib.softwrap(Seq)))
+                        output2.write('>{:}_NA;tax={:}\n{:}\n'.format(BIN, tax_fmt, amptklib.softwrap(Seq)))
 
-                	
+                    
     print("%i total records processed" % Total)
     print("%i non COI records dropped" % nonCOI)
     print("%i records without a BIN dropped" % noBIN)
@@ -154,31 +158,30 @@ def main():
     if args.cluster:
         print("Now looping through BINs and clustering with VSEARCH @ {:}%".format(args.cluster))
         FNULL = open(os.devnull, 'w')
-        for file in os.path.listdir(tmp):
-        	if file.endswith('.fasta'):
-        		
-        		cluster_out = os.path.join(tmp, file.split('.fasta')[0]+'.consensus.fa')
-        		pident = args.cluster / float(100)
-        		subprocess.call(['vsearch', '--cluster_fast', os.path.join(tmp, file), 
+        for file in os.listdir(tmp):
+            if file.endswith('.fasta'):
+                cluster_out = os.path.join(tmp, file.split('.fasta')[0]+'.consensus.fa')
+                pident = args.cluster / float(100)
+                subprocess.call(['vsearch', '--cluster_fast', os.path.join(tmp, file), 
                         '--id', str(pident), '--consout', cluster_out, '--notrunclabels'], stdout = FNULL, stderr = FNULL)
 
         print("Updating taxonomy")
         #finally loop through centroids and get taxonomy from dictionary
         finalcount = 0
-		with open(args.out+'.BIN-consensus.fa', 'w') as outputfile:
-			for file in os.path.listdir(tmp):
-				if file.endswith('.consensus.fa'):
-					for record in FastaIterator(open(os.path.join(tmp, file))):
-						record.id = record.id.replace('consensus=', '')
-						finalcount += 1
-						fullname = record.id.split(';')[0]
-						ID = fullname.split('_')[0]
-						if ID in BINtax:
-							tax = BINtax.get(ID)
-						else:
-							print('{:} not found in taxonomy dictionary'.format(ID))
-							continue
-						outputfile.write('>{:};tax={:}\n{:}\n'.format(ID, tax, amptklib.softwrap(str(record.seq))))
+        with open(args.out+'.BIN-consensus.fa', 'w') as outputfile:
+            for file in os.listdir(tmp):
+                if file.endswith('.consensus.fa'):
+                    for record in FastaIterator(open(os.path.join(tmp, file))):
+                        record.id = record.id.replace('consensus=', '')
+                        finalcount += 1
+                        fullname = record.id.split(';')[0]
+                        ID = fullname.split('_')[0]
+                        if ID in BINtax:
+                            tax = BINtax.get(ID)
+                        else:
+                            print('{:} not found in taxonomy dictionary'.format(ID))
+                            continue
+                        outputfile.write('>{:};tax={:}\n{:}\n'.format(ID, tax, amptklib.softwrap(str(record.seq))))
 
         print("Wrote %i consensus seqs for each BIN to %s" % (finalcount, args.out+'.BIN-consensus.fa'))
     shutil.rmtree(tmp)
