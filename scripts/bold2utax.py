@@ -112,8 +112,8 @@ def main():
                     else:
                         continue
                 if args.drop_suppressed:
-                	if 'SUPPRESSED' in GB:
-                		continue
+                    if 'SUPPRESSED' in GB:
+                        continue
                 #clean up sequence, remove any gaps, remove terminal N's
                 Seq = col[seqid].replace('-', '')
                 Seq = Seq.strip('N')
@@ -168,11 +168,15 @@ def main():
         print("Updating taxonomy")
         #finally loop through centroids and get taxonomy from dictionary
         finalcount = 0
+        seen = set()
         with open(args.out+'.BIN-consensus.fa', 'w') as outputfile:
             for file in os.listdir(tmp):
                 if file.endswith('.consensus.fa'):
                     for record in FastaIterator(open(os.path.join(tmp, file))):
-                        record.id = record.id.replace('consensus=', '')
+                        if 'consensus=' in record.id:
+                            record.id = record.id.replace('consensus=', '')
+                        elif 'centroid=' in record.id:
+                            record.id = record.id.replace('centroid=', '')
                         finalcount += 1
                         fullname = record.id.split(';')[0]
                         ID = fullname.split('_')[0]
@@ -181,7 +185,9 @@ def main():
                         else:
                             print('{:} not found in taxonomy dictionary'.format(ID))
                             continue
-                        outputfile.write('>{:};tax={:}\n{:}\n'.format(ID, tax, amptklib.softwrap(str(record.seq))))
+                        if not fullname in seen:
+                        	outputfile.write('>{:};tax={:}\n{:}\n'.format(fullname, tax, amptklib.softwrap(str(record.seq))))
+                        	seen.add(fullname)
 
         print("Wrote %i consensus seqs for each BIN to %s" % (finalcount, args.out+'.BIN-consensus.fa'))
     shutil.rmtree(tmp)
