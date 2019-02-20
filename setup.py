@@ -117,7 +117,7 @@ setup(
     extras_require=EXTRAS,
     include_package_data=True,
     license='BSD-2',
-    scripts=['scripts/amptk', 'scripts/bold2amptk.py', 'scripts/bold2utax.py', 'scripts/amptk_synthetic_mock.py'],
+    scripts=['scripts/amptk', 'scripts/bold2utax.py', 'scripts/amptk_synthetic_mock.py'],
     classifiers=[
         # Trove classifiers
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers

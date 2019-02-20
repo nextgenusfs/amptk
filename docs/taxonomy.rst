@@ -91,22 +91,22 @@ These databases were created from Unite v8.0, first downloading two databases fr
 .. code-block:: none
 
     #Create full length ITS USEARCH Database, convert taxonomy, and create USEARCH database
-	amptk database -i UNITE_public_all_02.02.2019.fasta -f ITS1-F -r ITS4 \
-		--primer_required none -o ITS --create_db usearch --install --source UNITE:8.0
-		
-	#create SINTAX database
+    amptk database -i UNITE_public_all_02.02.2019.fasta -f ITS1-F -r ITS4 \
+        --primer_required none -o ITS --create_db usearch --install --source UNITE:8.0
+        
+    #create SINTAX database
     amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta \
         -o ITS_SINTAX --create_db utax -f ITS1-F -r ITS4 --derep_fulllength \
-         --install --source UNITE:8.0 --primer_required none	
+        --install --source UNITE:8.0 --primer_required none    
 
     #Create UTAX Databases
     amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta  \
         -o ITS_UTAX --create_db utax -f ITS1-F -r ITS4 \
         --derep_fulllength --install --source UNITE:8.0 --primer_required none
         
-	amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta \
-		-o ITS1_UTAX -f ITS1-F -r ITS2 --primer_required rev --derep_fulllength \
-		--create_db utax --install --subsample 65000 --source UNITE:8.0
+    amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta \
+        -o ITS1_UTAX -f ITS1-F -r ITS2 --primer_required rev --derep_fulllength \
+        --create_db utax --install --subsample 65000 --source UNITE:8.0
         
     amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta \
         -o ITS2_UTAX --create_db utax -f fITS7 -r ITS4 --derep_fulllength \
@@ -130,26 +130,26 @@ Since it can literally take days to download the arthropod dataset, if you'd lik
     cat arthropods.bold-reformated.fa chordates.bold-reformated.fa > arth-chord.bold-reformated.fasta
     
     #generate global alignment database
-	amptk database -i arth-chord.bold.reformated.fasta -f LCO1490 -r mlCOIintR --primer_required none \
-		--derep_fulllength --format off --primer_mismatch 4 -o COI --min_len 200 --create_db usearch \
-		--install --source BOLD:20190219
+    amptk database -i arth-chord.bold.reformated.fasta -f LCO1490 -r mlCOIintR --primer_required none \
+        --derep_fulllength --format off --primer_mismatch 4 -o COI --min_len 200 --create_db usearch \
+        --install --source BOLD:20190219
 
 The second set of output files from `bold2utax.py` are named with `.BIN-consensus.fa` which are the result of 99% clustering for each BIN. We will combine those for the two datasets and then use those data to generate the SINTAX and UTAX databases.
 
 .. code-block:: none
 
- 	#combine datasets
- 	cat arthropods.BIN-consensus.fa chordates.BIN-consensus.fa > arth-chord.bold.BIN-consensus.fasta
+    #combine datasets
+    cat arthropods.BIN-consensus.fa chordates.BIN-consensus.fa > arth-chord.bold.BIN-consensus.fasta
  
- 	#generate SINTAX database
-	amptk database -i arth-chord.bold.BIN-consensus.fasta -f LCO1490 -r mlCOIintR --primer_required none \
-  		--derep_fulllength --format off --primer_mismatch 4 -o COI_SINTAX --min_len 200 --create_db sintax \
-  		--install --source BOLD:20190219
-  		
- 	#generate UTAX database, need to subsample for memory issues with 32 bit usearch and we require rev primer match here
-	amptk database -i arth-chord.bold.BIN-consensus.fasta -f LCO1490 -r mlCOIintR --primer_required rev \
-		--derep_fulllength --format off --subsample 30000 --primer_mismatch 4 -o COI_UTAX --min_len 200 \
-		--create_db utax --install --source BOLD:20190219
+    #generate SINTAX database
+    amptk database -i arth-chord.bold.BIN-consensus.fasta -f LCO1490 -r mlCOIintR --primer_required none \
+        --derep_fulllength --format off --primer_mismatch 4 -o COI_SINTAX --min_len 200 --create_db sintax \
+        --install --source BOLD:20190219
+        
+    #generate UTAX database, need to subsample for memory issues with 32 bit usearch and we require rev primer match here
+    amptk database -i arth-chord.bold.BIN-consensus.fasta -f LCO1490 -r mlCOIintR --primer_required rev \
+        --derep_fulllength --format off --subsample 00000 --primer_mismatch 4 -o COI_UTAX --min_len 200 \
+        --create_db utax --install --source BOLD:20190219
 
 **LSU database**
 
@@ -157,36 +157,36 @@ The fungal 28S database (LSU) was downloaded from `RDP <http://rdp.cme.msu.edu/d
 
 .. code-block:: none
 
- 	amptk database -i RDP_v8.0_fungi.fa -o LSU --format rdp2utax --primer_required none \
-    	--skip_trimming --create_db usearch --derep_fulllength --install --source RDP:8
+    amptk database -i RDP_v8.0_fungi.fa -o LSU --format rdp2utax --primer_required none \
+        --skip_trimming --create_db usearch --derep_fulllength --install --source RDP:8
 
- 	amptk database -i RDP_v8.0_fungi.fa -o LSU_SINTAX --format rdp2utax --primer_required none \
-    	--skip_trimming --create_db sintax --derep_fulllength --install --source RDP:8
+    amptk database -i RDP_v8.0_fungi.fa -o LSU_SINTAX --format rdp2utax --primer_required none \
+        --skip_trimming --create_db sintax --derep_fulllength --install --source RDP:8
 
- 	amptk database -i RDP_v8.0_fungi.fa -o LSU_UTAX --format rdp2utax --primer_required none \
-    	--skip_trimming --create_db utax --derep_fulllength --install --source RDP:8 --subsample 4500
-    	
-    	  	
+    amptk database -i RDP_v8.0_fungi.fa -o LSU_UTAX --format rdp2utax --primer_required none \
+        --skip_trimming --create_db utax --derep_fulllength --install --source RDP:8 --subsample 45000
+        
+            
 To generate a training set for UTAX, the sequences were first dereplicated, and clustered at 97% to get representative sequences for training.  This training set was then converted to a UTAX database:
 
 .. code-block:: none
 
- 	amptk database -i fungi.trimmed.fa -o LSU_UTAX --format off \
-    	--skip_trimming --create_db utax --keep_all --install
+    amptk database -i fungi.trimmed.fa -o LSU_UTAX --format off \
+        --skip_trimming --create_db utax --keep_all --install
 
 **16S database**
 This is downloaded from `R. Edgar's website <http://drive5.com/utax/data/rdp_v16.tar.gz>`_ and then formatted for AMPtk.  Note there is room for substantial improvement here, I just don't typically work on 16S - so please let me know if you want some suggestions on what to do here.  Here I reformatted the "domain" taxonomy level to "kingdom" for simplicity (even though I know it is taxonomically incorrect).
 
 .. code-block:: none
 
- 	amptk database -i rdp_16s_v16_sp.kingdom.fa -o 16S --format off --create_db usearch \
-    	--skip_trimming --install --primer_required none --derep_fulllength
-    	
-    amptk database -i rdp_16s_v16_sp.kingdom.fa -o 16S --format off --create_db sintax \
-    	-f 515FB -r 806RB --install --primer_required for --derep_fulllength
-    	
-    
-    
+    amptk database -i rdp_16s_v16_sp.kingdom.fa -o 16S --format off --create_db usearch \
+        --skip_trimming --install --primer_required none --derep_fulllength
+        
+    amptk database -i rdp_16s_v16_sp.kingdom.fa -o 16S_SINTAX --format off --create_db sintax \
+        -f 515FB -r 806RB --install --primer_required for --derep_fulllength
+        
+    amptk database -i rdp_16s_v16_sp.kingdom.fa -o 16S_UTAX --format off --create_db sintax \
+        -f 515FB -r 806RB --install --primer_required for --derep_fulllength    
 
 
 Checking Installed Databases
