@@ -71,6 +71,7 @@ def main(args):
 	parser.add_argument('-e','--maxee', default='1.0', help='MaxEE quality filtering')
 	parser.add_argument('-p','--pct_otu', default='97', help="Biological OTU Clustering Percent")
 	parser.add_argument('--platform', default='ion', choices=['ion', 'illumina', '454'], help='Sequencing platform')
+	parser.add_argument('--chimera_method', default='consensus', choices=['consensus', 'pooled', 'per-sample'], help='bimera removal method')
 	parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom]')
 	parser.add_argument('--pool', action='store_true', help='Pool all sequences together for DADA2')
 	parser.add_argument('--debug', action='store_true', help='Keep all intermediate files')
@@ -180,7 +181,7 @@ def main(args):
 	else:
 		POOL = 'FALSE'
 	with open(dada2log, 'w') as logfile:
-		subprocess.call(['Rscript', '--vanilla', dada2script, filtfolder, dada2out, args.platform, POOL, CORES], stdout = logfile, stderr = logfile)
+		subprocess.call(['Rscript', '--vanilla', dada2script, filtfolder, dada2out, args.platform, POOL, CORES, args.chimera_method], stdout = logfile, stderr = logfile)
 
 	#check for results
 	if not os.path.isfile(dada2out):

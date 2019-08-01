@@ -57,7 +57,7 @@ if (args[3] == 'illumina') {
 	if (args[4] == 'TRUE') {
 		dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=TRUE, HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
 	} else {
-		dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=FALSE, HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=FALSE, multithread=CORES)
+		dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=FALSE, HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
 	}
 }
 
@@ -65,7 +65,7 @@ if (args[3] == 'illumina') {
 seqtab <- makeSequenceTable(dadaSeqs, orderBy = "abundance")
 
 #remove chimeras
-seqtab.nochim <- removeBimeraDenovo(seqtab, verbose=TRUE)
+seqtab.nochim <- removeBimeraDenovo(seqtab, method=args[6], verbose=TRUE, multithread=CORES)
 
 #transpose
 transTable <- t(seqtab.nochim)

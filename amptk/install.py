@@ -35,7 +35,8 @@ def main(args):
 	parentdir = os.path.join(os.path.dirname(amptklib.__file__))
 	
 	for x in args.input:
-		if os.path.isfile(os.path.join(parentdir, 'DB', x+'.udb')):
+		udbfile = os.path.join(parentdir, 'DB', x+'.udb')
+		if os.path.isfile(udbfile):
 			if not args.force:
 				print("A formated database was found, to overwrite use '--force'. You can add more custom databases by using the `amptk database` command.")
 				sys.exit(1)
@@ -54,7 +55,11 @@ def main(args):
 			shutil.move(os.path.join(x,file), os.path.join(parentdir, 'DB', file))
 		shutil.rmtree(x)
 		os.remove(x+'.amptk.tar.gz')
-		print("%s taxonomy database installed" % x)
+		print('Extracting FASTA files for {:}'.format(x))
+		extracted = os.path.join(parentdir, 'DB', x+'.extracted.fa')
+		cmd = ['vsearch', '--udb2fasta', udbfile, '--output', extracted]
+		amptklib.runSubprocess5(cmd)
+		print("{:} taxonomy database installed to {:}".format(x, os.path.join(parentdir, 'DB')))
 
 if __name__ == "__main__":
 	main()

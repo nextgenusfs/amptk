@@ -456,6 +456,12 @@ def runSubprocess4(cmd, logfile, logfile2):
         if stderr[0] != None:
             logfile.debug(stderr)
 
+def runSubprocess5(cmd):
+    #function where no logfile and stdout/stderr to fnull
+    FNULL = open(os.devnull, 'w')
+    #print(' '.join(cmd))
+    subprocess.call(cmd, stdout=FNULL, stderr=FNULL)
+
 def getSize(filename):
     st = os.stat(filename)
     return st.st_size

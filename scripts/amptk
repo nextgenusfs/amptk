@@ -301,6 +301,7 @@ Arguments:   -i, --fastq         Input FASTQ file (Required)
              -e, --maxee         Expected error quality trimming. Default: 1.0
              -p, --pct_otu       OTU Clustering Radius (percent). Default: 97
              --platform          Sequencing platform. [ion, illumina, 454]. Default: ion
+             --chimera_method    DADA2 de novo chimera method. Default: consensus [consensus,pooled,per-sample]
              --pool              Pool all samples together for DADA2. Default: off
              --uchime_ref        Run Ref Chimera filtering. Default: off [ITS, LSU, COI, 16S, custom path]
              --cpus              Number of CPUs to use. Default: all
