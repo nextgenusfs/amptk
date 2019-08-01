@@ -150,8 +150,11 @@ def main(args):
                 otuDict[cols[0]] = {'score': score, 'domain': None, 'kingdom': None, 'phylum': None, 'class': None, 'order': None,
                                     'family': None, 'genus': None, 'species': None}
                 for w in tax.split(','):
-                    level, value = w.split(':')
-                    otuDict[cols[0]][taxLookup[level]] = value
+                    try:
+                        level, value = w.split(':')
+                        otuDict[cols[0]][taxLookup[level]] = value
+                    except ValueError:
+                        pass
             #now populate sample dictionary
             for z,y in enumerate(cols):
                 if z == 0 or z == len(cols)-1:
@@ -181,12 +184,12 @@ def main(args):
                         taxSummary[sampleID][taxInfo] += Count
         df = pd.DataFrame(taxSummary)
         if len(df.index.values.tolist()) == 1 and 'Unclassified' == df.index.values.tolist()[0]:
-        	continue
+            continue
         if args.percent:
             df = (100. * df / df.sum())
         df.transpose().to_csv(args.out+'.'+taxLevel+'.csv')
         if args.graphs:
-        	drawBarGraph(df.transpose(), args.out+'.'+taxLevel+'.'+args.format, args=args)
+            drawBarGraph(df.transpose(), args.out+'.'+taxLevel+'.'+args.format, args=args)
             
 if __name__ == "__main__":
     main(sys.argv[1:])
