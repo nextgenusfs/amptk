@@ -40,8 +40,8 @@ There are several ways to install AMPtk, the easiest and recommended way is with
      
 	#setup your conda env with bioconda, type the following in order to setup channels
 	conda config --add channels defaults
-	conda config --add channels conda-forge
 	conda config --add channels bioconda
+	conda config --add channels conda-forge
 	
 	#create amptk env (optional)
 	conda create -n amptk amptk
