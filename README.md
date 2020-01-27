@@ -1,4 +1,5 @@
 [![DOI](https://zenodo.org/badge/39147824.svg)](https://zenodo.org/badge/latestdoi/39147824)
+![Conda](https://img.shields.io/conda/dn/bioconda/amptk)
 # AMPtk
 ### NGS AMPlicon Tool Kit:
 
