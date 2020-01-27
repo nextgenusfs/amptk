@@ -47,19 +47,27 @@ names(derepSeqs) <- sample.names
 #Sample inference
 print("-------------")
 print("Sample inference")
+print(args[4])
 if (args[3] == 'illumina') {
 	if (args[4] == 'TRUE') {
     	dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=TRUE, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
+    } else if (args[4] == 'PSEUDO') {
+    	dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool="pseudo", BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
     } else {
     	dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=FALSE, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
     }
 } else if (args[3] == 'ion') {
 	if (args[4] == 'TRUE') {
 		dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=TRUE, HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
+	} else if (args[4] == 'PSEUDO') {
+		dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool="pseudo", HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
 	} else {
 		dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=FALSE, HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
 	}
 }
+
+features <- attributes(dadaSeqs)
+print(features)
 
 #make sequence table
 seqtab <- makeSequenceTable(dadaSeqs, orderBy = "abundance")

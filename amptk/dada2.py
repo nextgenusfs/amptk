@@ -74,6 +74,7 @@ def main(args):
 	parser.add_argument('--chimera_method', default='consensus', choices=['consensus', 'pooled', 'per-sample'], help='bimera removal method')
 	parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom]')
 	parser.add_argument('--pool', action='store_true', help='Pool all sequences together for DADA2')
+	parser.add_argument('--pseudopool', action='store_true', help='Use DADA2 pseudopooling')
 	parser.add_argument('--debug', action='store_true', help='Keep all intermediate files')
 	parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
 	parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
@@ -172,16 +173,23 @@ def main(args):
 			os.remove(os.path.join(filtfolder, y))
 
 	#now run DADA2 on filtered folder
-	amptklib.log.info("Running DADA2 pipeline")
-	dada2log = base+'.dada2.Rscript.log'
-	dada2out = base+'.dada2.csv'
-	#check pooling vs notpooled, default is not pooled.
+	#check pooling pseudopooling or notpooled, default is not pooled.
 	if args.pool:
 		POOL = 'TRUE'
+		amptklib.log.info("Running DADA2 pipeline using pooling of samples")
+	elif args.pseudopool:
+		POOL = 'PSEUDO'
+		amptklib.log.info("Running DADA2 pipeline using pseudopooling of samples")
 	else:
 		POOL = 'FALSE'
+		amptklib.log.info("Running DADA2 pipeline on each sample")
+	dada2log = base+'.dada2.Rscript.log'
+	dada2out = base+'.dada2.csv'
+
+	dada2cmd = ['Rscript', '--vanilla', dada2script, filtfolder, dada2out, args.platform, POOL, CORES, args.chimera_method]
+	amptklib.log.debug(' '.join(dada2cmd))
 	with open(dada2log, 'w') as logfile:
-		subprocess.call(['Rscript', '--vanilla', dada2script, filtfolder, dada2out, args.platform, POOL, CORES, args.chimera_method], stdout = logfile, stderr = logfile)
+		subprocess.call(dada2cmd, stdout = logfile, stderr = logfile)
 
 	#check for results
 	if not os.path.isfile(dada2out):
