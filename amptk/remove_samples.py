@@ -22,7 +22,7 @@ def countBarcodes(file):
                 BarcodeCount[ID] += 1
     return BarcodeCount
 
-def filter_sample(file, output):
+def filter_sample(file, keep_list, output):
     keep_count = 0
     total_count = 0
     with open(output, 'w') as out:
@@ -89,7 +89,7 @@ def main(args):
 	else:
 		outfile = args.out
 	#run filtering
-	keep_count, total_count = filter_sample(SeqIn, outfile)
+	keep_count, total_count = filter_sample(SeqIn, keep_list, outfile)
 	#compress and clean
 	if args.out.endswith('.gz'): #compress in place
 		amptklib.Fzip_inplace(outfile)
