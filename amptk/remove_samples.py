@@ -23,7 +23,8 @@ def countBarcodes(file):
     return BarcodeCount
 
 def filter_sample(file, output):
-    global keep_count, total_count
+    keep_count = 0
+    total_count = 0
     with open(output, 'w') as out:
         for title, seq, qual in FastqGeneralIterator(open(file)):
             total_count += 1
@@ -34,6 +35,7 @@ def filter_sample(file, output):
                     out.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
                 elif args.format == 'fasta':
                     out.write(">%s\n%s\n" % (title, seq))
+    return keep_count, total_count
 
 def main(args):
 	parser=argparse.ArgumentParser(prog='amptk-remove_samples.py',
@@ -81,17 +83,13 @@ def main(args):
 	keep_list = set(remove)
 	count = len(keep_list)
 
-	#now run filtering 
-	keep_count = 0
-	total_count = 0
-
 	#rename to base
 	if args.out.endswith('.gz'):
 		outfile = args.out.replace('.gz', '')
 	else:
 		outfile = args.out
 	#run filtering
-	filter_sample(SeqIn, outfile)
+	keep_count, total_count = filter_sample(SeqIn, outfile)
 	#compress and clean
 	if args.out.endswith('.gz'): #compress in place
 		amptklib.Fzip_inplace(outfile)
