@@ -26,7 +26,7 @@ def countBarcodes(file):
                 BarcodeCount[ID] += 1
     return BarcodeCount
 
-def filter_sample(file, keep_list, output):
+def filter_sample(file, keep_list, output, format='fastq'):
     keep_count = 0
     total_count = 0
     with open(output, 'w') as out:
@@ -35,9 +35,9 @@ def filter_sample(file, keep_list, output):
             sample = title.split('=',1)[1].split(';')[0]
             if sample in keep_list:
                 keep_count += 1
-                if args.format == 'fastq':
+                if format == 'fastq':
                     out.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
-                if args.format == 'fasta':
+                if format == 'fasta':
                     out.write(">%s\n%s\n" % (title, seq))
     return keep_count, total_count
 
@@ -93,7 +93,7 @@ def main(args):
 	else:
 		outfile = args.out
 	#run filtering
-	keep_count, total_count = filter_sample(SeqIn, keep_list, outfile)
+	keep_count, total_count = filter_sample(SeqIn, keep_list, outfile, format=args.format)
 	#compress and clean
 	if args.out.endswith('.gz'): #compress in place
 		amptklib.Fzip_inplace(outfile)
