@@ -39,7 +39,7 @@ Clustering:  cluster     cluster OTUs (using UPARSE algorithm)
              cluster_ref closed/open reference based clustering (EXPERIMENTAL)
 
 Utilities:   filter      OTU table filtering
-             lulu        LULU amplicon curation of OTU table
+             lulu        LULU amplicon curation of OTU table (Manual R package install)
              taxonomy    Assign taxonomy to OTUs
              show        show number or reads per barcode from de-multiplexed data
              select      select reads (samples) from de-multiplexed data
@@ -355,7 +355,8 @@ Description: Script is a wrapper for the LULU OTU table post-clustering curation
              data. The script calculates pairwise identity between the OTUs and then filters
              the OTU table based on whether closely related OTUs that share the same/similar
              distributions in the data are "daughters" of the "parent" OTU. Requires R and the
-             LULU R package. doi:10.1038/s41467-017-01312-x
+             LULU R package. doi:10.1038/s41467-017-01312-x.  Note: it cannot be installed with
+             conda, therefore you need to manually install LULU R package.
                  
 Arguments:   -i, --otu_table            Input OTU table (Required)
              -f, --fasta                Input OTUs in FASTA format (Required)

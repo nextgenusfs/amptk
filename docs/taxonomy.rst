@@ -96,7 +96,7 @@ These databases were created from Unite v8.0, first downloading two databases fr
         
     #create SINTAX database
     amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta \
-        -o ITS_SINTAX --create_db utax -f ITS1-F -r ITS4 --derep_fulllength \
+        -o ITS_SINTAX --create_db sintax -f ITS1-F -r ITS4 --derep_fulllength \
         --install --source UNITE:8.0 --primer_required none    
 
     #Create UTAX Databases
