@@ -26,13 +26,14 @@ def checkfastqsize(input):
 
 def main(args):
 	parser=argparse.ArgumentParser(prog='amptk-unoise3.py', usage="%(prog)s [options] -i file.demux.fq\n%(prog)s -h for help menu",
-		description='''Script runs UNOISE2 algorithm.
+		description='''Script runs UNOISE3 algorithm.
 		Requires USEARCH9 by Robert C. Edgar: http://drive5.com/usearch''',
 		epilog="""Written by Jon Palmer (2016) nextgenusfs@gmail.com""",
 		formatter_class=MyFormatter)
 
 	parser.add_argument('-i','--fastq', dest="FASTQ", required=True, help='FASTQ file (Required)')
 	parser.add_argument('-o','--out', help='Base output name')
+	parser.add_argument('--method', choices=['vsearch', 'usearch'], default='vsearch', help='Program to use')
 	parser.add_argument('-e','--maxee', default='1.0', help='Quality trim EE value')
 	parser.add_argument('-m','--minsize', default='8', help='Min size to keep for denoising')
 	parser.add_argument('-u','--usearch', dest="usearch", default='usearch10', help='USEARCH10 EXE')
@@ -69,7 +70,8 @@ def main(args):
 	amptklib.SystemInfo()
 	#Do a version check
 	usearch = args.usearch
-	amptklib.checkusearch10(usearch)
+	if args.method == 'usearch':
+		amptklib.checkusearch10(usearch)
 
 	#get number of cpus
 	if args.cpus:
@@ -111,9 +113,12 @@ def main(args):
 	amptklib.log.info('{0:,}'.format(total) + ' reads passed')
 
 	#now run de-noiser UNOISE3
-	amptklib.log.info("Denoising reads with UNOISE3")
 	unoise_out = os.path.join(tmp, base + '.EE' + args.maxee + '.unoise.fa')
-	cmd = [usearch, '-unoise3', derep_out, '-zotus', unoise_out, '-minsize', args.minsize, '-threads', str(cpus)]
+	if args.method == 'usearch':
+		amptklib.log.info("Denoising reads with UNOISE3")
+		cmd = [usearch, '-unoise3', derep_out, '-zotus', unoise_out, '-minsize', args.minsize, '-threads', str(cpus)]
+	else:
+		cmd = ['vsearch', '--cluster_unoise', derep_out, '--minsize', args.minsize, '--threads', str(cpus), '--centroids', unoise_out]
 	amptklib.runSubprocess(cmd, amptklib.log)
 	total = amptklib.countfasta(unoise_out)
 	amptklib.log.info('{0:,}'.format(total) + ' denoised sequences')
@@ -152,13 +157,13 @@ def main(args):
 			amptklib.log.info('{0:,}'.format(total) + ' OTUs passed')
 
 	#inferred sequences
-	iSeqs = base+'.ASVs.fa'
+	iSeqs = os.path.join(tmp, base+'.renamed.asvs.fa')
 	amptklib.fastarename(uchime_out, 'ASV', iSeqs)
 
 	#Filter out ASVs in wrong orientation
 	amptklib.log.info('Validating ASV orientation')
-	passingOTUs = os.path.join(tmp, base+'.passed.asvs.fa')
-	numKept, numDropped = amptklib.validateorientation(tmp, derep_out, uchime_out, passingOTUs)
+	passingOTUs = base+'.ASVs.fa'
+	numKept, numDropped = amptklib.validateorientation(tmp, derep_out, iSeqs, passingOTUs)
 	amptklib.log.info('{:,} ASVs validated ({:,} dropped)'.format(numKept, numDropped))
 
 	#build OTU table with iSeqs
