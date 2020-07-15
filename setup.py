@@ -22,7 +22,7 @@ VERSION = None
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    'edlib', 'numpy',
+    'edlib', 'numpy', 'pyfastx',
     'biopython', 'matplotlib',
     'seaborn','psutil',
     'pandas','matplotlib',
@@ -91,7 +91,7 @@ class UploadCommand(Command):
         self.status('Pushing git tags…')
         os.system('git tag v{0}'.format(about['__version__']))
         os.system('git push --tags')
-        
+
         sys.exit()
 
 
