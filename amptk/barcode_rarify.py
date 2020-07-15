@@ -15,7 +15,7 @@ from amptk import amptklib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
-        super(MyFormatter,self).__init__(prog,max_help_position=50)      
+        super(MyFormatter,self).__init__(prog,max_help_position=50)
 
 def countBarcodes(file):
     global BarcodeCount
@@ -48,61 +48,62 @@ def filterSeqs(file, lst, out):
                output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
 
 def main(args):
-	parser=argparse.ArgumentParser(prog='amptk-barcode_rarify.py',
-		description='''Script to sub-sample reads down to the same number for each sample (barcode)''',
-		epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
-		formatter_class=MyFormatter)
-	parser.add_argument('-i','--input', required=True, help='Input FASTQ')
-	parser.add_argument('-n','--num_reads', required=True, type=int, help='Number of reads to rarify down to')
-	parser.add_argument('-o','--out', required=True, help='Output name')
-	args=parser.parse_args(args)
+    parser=argparse.ArgumentParser(prog='amptk-barcode_rarify.py',
+        description='''Script to sub-sample reads down to the same number for each sample (barcode)''',
+        epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
+        formatter_class=MyFormatter)
+    parser.add_argument('-i','--input', required=True, help='Input FASTQ')
+    parser.add_argument('-n','--num_reads', required=True, type=int, help='Number of reads to rarify down to')
+    parser.add_argument('-o','--out', required=True, help='Output name')
+    args=parser.parse_args(args)
 
-	#check if input compressed, incompress if it is
-	if args.input.endswith('.gz'):
-		SeqIn = args.input.replace('.gz', '')
-		amptklib.Funzip(args.input, SeqIn, multiprocessing.cpu_count())
-	else:
-		SeqIn = args.input
-	if args.out.endswith('.gz'):
-		outfile = args.out.replace('.gz', '')
-	else:
-		outfile = args.out
+    #check if input compressed, incompress if it is
+    if args.input.endswith('.gz'):
+        SeqIn = args.input.replace('.gz', '')
+        amptklib.Funzip(args.input, SeqIn, multiprocessing.cpu_count())
+    else:
+        SeqIn = args.input
+    if args.out.endswith('.gz'):
+        outfile = args.out.replace('.gz', '')
+    else:
+        outfile = args.out
 
-	IndexSeqs(SeqIn)
-	countBarcodes(SeqIn)
-	print("----------------------------------")
-	print("Now sub-sampling reads down to a max of %s per sample" % args.num_reads)
-	Reads = []
-	for key, value in list(BarcodeCount.items()):
-		sample = []
-		for rec in SeqIndex:
-			ID = rec.split("=")[-1].split(";")[0]
-			if key == ID:
-				sample.append(rec)
-		Reads.append(sample)
-	print("Finished indexing reads, split up by barcodelabel")
-	Subsample = []
-	for line in Reads:
-		if len(line) > int(args.num_reads):
-			line = random.sample(line, int(args.num_reads))
-		Subsample.append(line)
+    IndexSeqs(SeqIn)
+    countBarcodes(SeqIn)
+    print("----------------------------------")
+    print("Now sub-sampling reads down to a max of %s per sample" % args.num_reads)
+    Reads = []
+    for key, value in list(BarcodeCount.items()):
+        sample = []
+        for rec in SeqIndex:
+            ID = rec.split("=")[-1].split(";")[0]
+            if key == ID:
+                sample.append(rec)
+        Reads.append(sample)
+    print("Finished indexing reads, split up by barcodelabel")
+    Subsample = []
+    for line in Reads:
+        if len(line) > int(args.num_reads):
+            line = random.sample(line, int(args.num_reads))
+        Subsample.append(line)
 
-	Subsample = [item for sublist in Subsample for item in sublist]
+    Subsample = [item for sublist in Subsample for item in sublist]
 
-	#convert list to set for faster lookup
-	Lookup = set(Subsample)
+    #convert list to set for faster lookup
+    Lookup = set(Subsample)
 
-	print("Finished randomly sampling reads, now writing %i sequences to %s" % (len(Lookup), outfile))
-	filterSeqs(SeqIn, Lookup, outfile)
-	print("----------------------------------")
-	countBarcodes(outfile)
-	#compress and clean
-	if args.out.endswith('.gz'): #compress in place
-		amptklib.Fzip_inplace(outfile)
-	if args.input.endswith('.gz'):
-		amptklib.removefile(SeqIn)
-	print("----------------------------------")
-	print("Sub-sampling done: %s" % args.out)
+    print("Finished randomly sampling reads, now writing %i sequences to %s" % (len(Lookup), outfile))
+    filterSeqs(SeqIn, Lookup, outfile)
+    print("----------------------------------")
+    countBarcodes(outfile)
+    #compress and clean
+    if args.out.endswith('.gz'): #compress in place
+        amptklib.Fzip_inplace(outfile)
+    if args.input.endswith('.gz'):
+        amptklib.removefile(SeqIn)
+    print("----------------------------------")
+    print("Sub-sampling done: %s" % args.out)
+
 
 if __name__ == "__main__":
-	main(args)
+    main(args)

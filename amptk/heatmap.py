@@ -7,7 +7,6 @@ import pandas as pd
 import numpy as np
 import csv
 import argparse
-import os
 import sys
 from natsort import natsorted
 try:
@@ -43,7 +42,7 @@ def flatten(l):
     flatList = []
     for elem in l:
         # if an element of a list is a list
-        # iterate over this list and add elements to flatList 
+        # iterate over this list and add elements to flatList
         if type(elem) == list:
             for e in elem:
                 flatList.append(e)
@@ -70,7 +69,7 @@ if args.table.rsplit(".", 1)[1] == 'txt':
     delim = "\t"
 if args.table.rsplit(".", 1)[1] == 'csv':
     delim = ","
-    
+
 #open OTU table
 #get the OTU header info (depending on how OTU table was constructed, this might be different, so find it as you need for indexing)
 with open(args.table, 'rU') as f:
@@ -110,7 +109,7 @@ for line in taxTable:
     new_table.append([try_int(x) for x in line]) #convert to integers
 header = new_table[:1]
 header = header[0]
-    
+
 if args.min_num > 1:
     min_table.append(header)
     for line in new_table[1:]:
@@ -130,7 +129,7 @@ if args.percent:
     for line in min_table[1:]:
         new_line = []
         new_line.insert(0,line[0])
-        new_line.append([x/y * 100 for x,y in zip(line[1:], sums[1:])])     
+        new_line.append([x/y * 100 for x,y in zip(line[1:], sums[1:])])
         new_line = flatten(new_line)
         binary_table.append(new_line)
     binary_table.insert(0,header)
@@ -152,7 +151,7 @@ sortHead.insert(0, sortHead.pop(otu)) #re-insert the OTU header in first column
 sortTable = natsorted(binary_table[1:]) #sort the table without header row
 sortTable.insert(0,header) #now add back header row
 
-#get index of the sorted header list 
+#get index of the sorted header list
 listIndex = []
 for i in sortHead:
     listIndex.append(header.index(i))
@@ -176,7 +175,7 @@ if count >= 100:
 
 #Ok, now convert the sorted table to a panda data frame
 Cols = finalTable[0][1:] #get column names
-Index = [] 
+Index = []
 Index.append([item[0] for item in finalTable]) #remove first column
 del Index[0][0]
 finalTable = finalTable[1:]
@@ -186,7 +185,7 @@ for x in finalTable:
 for item in Index[0]:
     taxon = otuDict.get(item)
     #print item,taxon.split(",")[-1] #print the OTU and lowest taxonomic classification
-    
+
 #construct panda dataframe with appropriate headers and index
 df = pd.DataFrame(finalTable, index=Index, columns=Cols)
 print(df)

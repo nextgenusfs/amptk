@@ -9,10 +9,7 @@ import argparse
 import logging
 import shutil
 import subprocess
-import numpy as np
-from natsort import natsorted
-from Bio.SeqIO.QualityIO import FastqGeneralIterator
-from Bio import SeqIO
+import pyfastx
 from amptk import amptklib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -36,41 +33,49 @@ def folder2list(input, ending):
     return names
 
 def splitDemux2(input, outputdir, args=False):
-    for title, seq, qual in FastqGeneralIterator(open(input)):
+    for title, seq, qual in pyfastx.Fastq(input, build_index=False):
         sample = title.split('barcodelabel=')[1].split(';')[0]
         sample = sample.replace(';', '')
-        if not args.length:
-            with open(os.path.join(outputdir, sample+'.fastq'), 'a') as output:
-                output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
-        else:
-            if len(seq) >= int(args.length):
-                with open(os.path.join(outputdir, sample+'.fastq'), 'a') as output:
-                    output.write("@%s\n%s\n+\n%s\n" % (title, seq[:int(args.length):], qual[:int(args.length)]))
+        with open(os.path.join(outputdir, sample+'.fastq'), 'a') as output:
+            output.write("@%s\n%s\n+\n%s\n" % (title, seq, qual))
 
-def getAvgLength(input):
-    AvgLength = []
-    for title, seq, qual in FastqGeneralIterator(open(input)):
-        AvgLength.append(len(seq))
-    Average = sum(AvgLength) / float(len(AvgLength))
-    Min = min(AvgLength)
-    Max = max(AvgLength)
-    a = np.array(AvgLength)
-    nintyfive = np.percentile(a, 5)
-    return (Average, Min, Max, int(nintyfive))
+
+def pb_qualityfilter(input, output, min_rq=0.98, min_bq=80):
+    total = 0
+    passed = 0
+    with open(output, 'w') as outfile:
+        for header, seq, qual in pyfastx.Fastq(input, build_index=False):
+            total += 1
+            rq, bq = (None,)*2
+            if ';' in header:
+                tags = header.split(';')
+                for x in tags:
+                    if x.startswith('rq='):
+                        rq = float(x.replace('rq=', ''))
+                    elif x.startswith('bq='):
+                        bq = int(x.replace('bq=', ''))
+                if any(elem is None for elem in [rq, bq]):
+                    continue
+                if rq >= min_rq and bq >= min_bq:
+                    passed += 1
+                    outfile.write('@{:}\n{:}\n+\n{:}\n'.format(header,
+                                                                seq, qual))
+    return total, passed
+
 
 def main(args):
     parser=argparse.ArgumentParser(prog='amptk-dada2.py',
-        description='''Script takes output from amptk pre-processing and runs DADA2''',
+        description='''Script takes output from amptk pre-processing and runs pacbio DADA2''',
         epilog="""Written by Jon Palmer (2016) nextgenusfs@gmail.com""",
         formatter_class=MyFormatter)
 
     parser.add_argument('-i','--fastq', required=True, help='Input Demuxed containing FASTQ')
     parser.add_argument('-o','--out', help='Output Basename')
     parser.add_argument('-m','--min_reads', default=10, type=int, help="Minimum number of reads after Q filtering to run DADA2 on")
-    parser.add_argument('-l','--length', type=int, help='Length to truncate reads')
-    parser.add_argument('-e','--maxee', default='1.0', help='MaxEE quality filtering')
+    parser.add_argument('-q','--read_qual', default='0.98', help='Read Quality threshold')
+    parser.add_argument('-b','--barcode_qual', default=80, type=int, help='Barcode Quality threshold')
     parser.add_argument('-p','--pct_otu', default='97', help="Biological OTU Clustering Percent")
-    parser.add_argument('--platform', default='ion', choices=['ion', 'illumina', '454'], help='Sequencing platform')
+    parser.add_argument('--platform', default='pacbio', choices=['pacbio'], help='Sequencing platform')
     parser.add_argument('--chimera_method', default='consensus', choices=['consensus', 'pooled', 'per-sample'], help='bimera removal method')
     parser.add_argument('--uchime_ref', help='Run UCHIME REF [ITS,16S,LSU,COI,custom]')
     parser.add_argument('--pool', action='store_true', help='Pool all sequences together for DADA2')
@@ -128,33 +133,20 @@ def main(args):
         sys.exit(1)
     amptklib.log.info("R v%s; DADA2 v%s" % (Rversions[0], Rversions[1]))
 
-    #Count FASTQ records and remove 3' N's as dada2 can't handle them
-    amptklib.log.info("Loading FASTQ Records")
-    no_ns = base+'.cleaned_input.fq'
-    if args.fastq.endswith('.gz'):
-        fastqInput = args.fastq.replace('.gz', '')
-        amptklib.Funzip(os.path.abspath(args.fastq), os.path.basename(fastqInput), CORES)
-    else:
-        fastqInput = os.path.abspath(args.fastq)
-    amptklib.fastq_strip_padding(os.path.basename(fastqInput), no_ns)
-    demuxtmp = base+'.original.fa'
-    cmd = ['vsearch', '--fastq_filter', os.path.abspath(no_ns),'--fastq_qmax', '55', '--fastaout', demuxtmp, '--threads', CORES]
-    amptklib.runSubprocess(cmd, amptklib.log)
-    orig_total = amptklib.countfasta(demuxtmp)
-    size = amptklib.checkfastqsize(no_ns)
-    readablesize = amptklib.convertSize(size)
-    amptklib.log.info('{0:,}'.format(orig_total) + ' reads (' + readablesize + ')')
-
-    #quality filter
-    amptklib.log.info("Quality Filtering, expected errors < %s" % args.maxee)
+    #filter FASTQ data
+    amptklib.log.info("Loading FASTQ Records and quality filtering")
     derep = base+'.qual-filtered.fq'
-    filtercmd = ['vsearch', '--fastq_filter', no_ns, '--fastq_maxee', str(args.maxee), '--fastqout', derep, '--fastq_qmax', '55', '--fastq_maxns', '0', '--threads', CORES]
-    amptklib.runSubprocess(filtercmd, amptklib.log)
-    total = amptklib.countfastq(derep)
-    amptklib.log.info('{0:,}'.format(total) + ' reads passed')
+    totalReads, passedReads = pb_qualityfilter(args.fastq, derep,
+                                               min_rq=float(args.read_qual),
+                                               min_bq=args.barcode_qual)
+    amptklib.log.info('{:,} total reads'.format(totalReads))
+    pctPass = passedReads / totalReads
+    amptklib.log.info(
+        '{:,} [{:.2%}] reads passed quality filtering (RQ>={} & BQ>={})'.format(
+            passedReads, pctPass, args.read_qual, args.barcode_qual))
 
     #split into individual files
-    amptklib.log.info("Splitting FASTQ file by Sample into individual files")
+    amptklib.log.info("Splitting FASTQ file by Sample/Barcodes into individual files for DADA2")
     filtfolder = base+'_filtered'
     if os.path.isdir(filtfolder):
         shutil.rmtree(filtfolder)
@@ -186,7 +178,8 @@ def main(args):
     dada2log = base+'.dada2.Rscript.log'
     dada2out = base+'.dada2.csv'
 
-    dada2cmd = ['Rscript', '--vanilla', dada2script, filtfolder, dada2out, args.platform, POOL, CORES, args.chimera_method]
+    dada2cmd = ['Rscript', '--vanilla', dada2script, filtfolder, dada2out,
+                args.platform, POOL, CORES, args.chimera_method]
     amptklib.log.debug(' '.join(dada2cmd))
     with open(dada2log, 'w') as logfile:
         subprocess.call(dada2cmd, stdout = logfile, stderr = logfile)
@@ -283,54 +276,30 @@ def main(args):
     amptklib.SafeRemove(iSeqs+'.bak')
 
     #map reads to DADA2 OTUs
-    amptklib.log.info("Mapping reads to DADA2 ASVs")
-    cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', iSeqs, '--id', '0.97', '--uc', dadademux, '--strand', 'plus', '--otutabout', chimeraFreeTable, '--threads', CORES]
-    amptklib.runSubprocess(cmd, amptklib.log)
-    total = amptklib.line_count2(dadademux)
-    amptklib.log.info('{0:,}'.format(total) + ' reads mapped to ASVs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
+    amptklib.log.info("Mapping reads to DADA2 ASVs with minimap2")
+    amptklib.minimap_otutable(iSeqs, args.fastq, chimeraFreeTable,
+                              method='pacbio', cpus=CORES)
 
     #cluster
     amptklib.log.info("Clustering ASVs at %s%% to generate biological OTUs" % args.pct_otu)
     radius = float(args.pct_otu) / 100.
-    cmd = ['vsearch', '--cluster_smallmem', iSeqs, '--centroids', bioSeqs, '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU', '--qmask', 'none', '--usersort', '--threads', CORES]
+    cmd = ['vsearch', '--cluster_smallmem', iSeqs, '--centroids', bioSeqs,
+           '--id', str(radius), '--strand', 'plus', '--relabel', 'OTU',
+           '--qmask', 'none', '--usersort', '--threads', CORES]
     amptklib.runSubprocess(cmd, amptklib.log)
     total = amptklib.countfasta(bioSeqs)
     amptklib.log.info('{0:,}'.format(total) + ' OTUs generated')
 
-    #determine where iSeqs clustered
-    iSeqmap = base+'.ASV_map.uc'
-    cmd = ['vsearch', '--usearch_global', iSeqs, '--db', bioSeqs, '--id', str(radius), '--uc', iSeqmap, '--strand', 'plus', '--threads', CORES]
-    amptklib.runSubprocess(cmd, amptklib.log)
-    iSeqMapped = {}
-    with open(iSeqmap, 'r') as mapping:
-        for line in mapping:
-            line = line.replace('\n', '')
-            cols = line.split('\t')
-            OTU = cols[9]
-            Hit = cols[8]
-            if not OTU in iSeqMapped:
-                iSeqMapped[OTU] = [Hit]
-            else:
-                iSeqMapped[OTU].append(Hit)
-    with open(ClusterComp, 'w') as clusters:
-        clusters.write('OTU\tASVs\n')
-        for k,v in natsorted(list(iSeqMapped.items())):
-            clusters.write('%s\t%s\n' % (k, ', '.join(v)))
     #create OTU table
-    amptklib.log.info("Mapping reads to OTUs")
-    cmd = ['vsearch', '--usearch_global', demuxtmp, '--db', bioSeqs, '--id', '0.97', '--uc', uctmp, '--strand', 'plus', '--otutabout', bioTable, '--threads', CORES]
-    amptklib.runSubprocess(cmd, amptklib.log)
-    total = amptklib.line_count2(uctmp)
-    amptklib.log.info('{0:,}'.format(total) + ' reads mapped to OTUs '+ '({0:.0f}%)'.format(total/float(orig_total)* 100))
+    amptklib.log.info("Mapping reads to OTUs with minimap2")
+    amptklib.minimap_otutable(bioSeqs, args.fastq, bioTable,
+                              method='pacbio', cpus=CORES)
 
     if not args.debug:
-        amptklib.removefile(no_ns)
         shutil.rmtree(filtfolder)
         amptklib.removefile(dada2out)
         amptklib.removefile(derep)
-        amptklib.removefile(demuxtmp)
         amptklib.removefile(uctmp)
-        amptklib.removefile(iSeqmap)
         amptklib.removefile(dadademux)
 
     #Print location of files to STDOUT
@@ -343,7 +312,6 @@ def main(args):
     print("ASV OTU Table: %s" % chimeraFreeTable)
     print("Clustered OTUs: %s" % bioSeqs)
     print("OTU Table: %s" % bioTable)
-    print("ASVs 2 OTUs: %s" % ClusterComp)
     print("-------------------------------------------------------")
 
     otu_print = bioSeqs.split('/')[-1]
@@ -355,4 +323,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    main(args)
+    main(sys.argv[1:])

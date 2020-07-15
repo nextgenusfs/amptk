@@ -49,21 +49,25 @@ print("-------------")
 print("Sample inference")
 print(args[4])
 if (args[3] == 'illumina') {
-	if (args[4] == 'TRUE') {
-    	dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=TRUE, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
+  if (args[4] == 'TRUE') {
+      dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=TRUE, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
     } else if (args[4] == 'PSEUDO') {
-    	dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool="pseudo", BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
+      dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool="pseudo", BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
     } else {
-    	dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=FALSE, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
+      dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=FALSE, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
     }
 } else if (args[3] == 'ion') {
-	if (args[4] == 'TRUE') {
-		dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=TRUE, HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
-	} else if (args[4] == 'PSEUDO') {
-		dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool="pseudo", HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
-	} else {
-		dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=FALSE, HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
-	}
+  if (args[4] == 'TRUE') {
+    dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=TRUE, HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
+  } else if (args[4] == 'PSEUDO') {
+    dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool="pseudo", HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
+  } else {
+    dadaSeqs <- dada(derepSeqs, err=NULL, selfConsist=TRUE, pool=FALSE, HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32, USE_QUALS=TRUE, multithread=CORES)
+  }
+} else if (args[3] == 'pacbio') {
+    err <- learnErrors(derepSeqs, BAND_SIZE=32, multithread=CORES, errorEstimationFunction=dada2:::PacBioErrfun)
+    dadaSeqs <- dada(derepSeqs, err=err, BAND_SIZE=32, multithread=CORES)
+
 }
 
 features <- attributes(dadaSeqs)
@@ -73,7 +77,12 @@ print(features)
 seqtab <- makeSequenceTable(dadaSeqs, orderBy = "abundance")
 
 #remove chimeras
-seqtab.nochim <- removeBimeraDenovo(seqtab, method=args[6], verbose=TRUE, multithread=CORES)
+if (args[3] == 'pacbio'){
+    seqtab.nochim <- removeBimeraDenovo(seqtab, method=args[6], verbose=TRUE, minFoldParentOverAbundance=3.5, multithread=CORES)
+} else {
+    seqtab.nochim <- removeBimeraDenovo(seqtab, method=args[6], verbose=TRUE, multithread=CORES)
+}
+
 
 #transpose
 transTable <- t(seqtab.nochim)

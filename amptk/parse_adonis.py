@@ -15,17 +15,17 @@ import pandas as pd
 '''
 
 Call:
-adonis(formula = rp ~ metadata[[treatments[y]]], permutations = 9999) 
+adonis(formula = rp ~ metadata[[treatments[y]]], permutations = 9999)
 
 Permutation: free
 Number of permutations: 9999
 
 Terms added sequentially (first to last)
 
-                           Df SumsOfSqs MeanSqs F.Model      R2 Pr(>F)  
+                           Df SumsOfSqs MeanSqs F.Model      R2 Pr(>F)
 metadata[[treatments[y]]]   1     0.868 0.86802  4.2181 0.02987 0.0192 *
-Residuals                 137    28.193 0.20579         0.97013         
-Total                     138    29.061                 1.00000         
+Residuals                 137    28.193 0.20579         0.97013
+Total                     138    29.061                 1.00000
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
@@ -36,7 +36,7 @@ Number of permutations: 9999
 Response: Distances
            Df  Sum Sq   Mean Sq      F N.Perm Pr(>F)
 Groups      1 0.00137 0.0013715 0.0648   9999 0.8026
-Residuals 137 2.89871 0.0211585                     
+Residuals 137 2.89871 0.0211585
 '''
 
 #the name of the test is in the filename, and variable is also in the filename
@@ -45,7 +45,7 @@ mhc.location.adonis-raupcrick.txt
 mhc.DNA_quant_mean.adonis-braycurtis.txt
 
 '''
-    
+
 #pass name of folder to script
 input = sys.argv[1]
 if not os.path.isdir(input):
@@ -101,4 +101,3 @@ if len(sys.argv) > 2:
         transposed.to_csv(sys.argv[2])
 else:
     print(transposed.to_string())
-

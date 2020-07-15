@@ -15,14 +15,14 @@ except ImportError:
     from urllib2 import urlopen
 
 URL = { 'ITS': 'https://osf.io/pbtyh/download?version=6',
-        '16S': 'https://osf.io/m7v5q/download?version=3', 
-        'LSU': 'https://osf.io/sqn5r/download?version=3', 
+        '16S': 'https://osf.io/m7v5q/download?version=3',
+        'LSU': 'https://osf.io/sqn5r/download?version=3',
         'COI': 'https://osf.io/pax79/download?version=4' }
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
-        super(MyFormatter,self).__init__(prog,max_help_position=50) 
-    
+        super(MyFormatter,self).__init__(prog,max_help_position=50)
+
 def main(args):
     parser=argparse.ArgumentParser(prog='amptk-install.py',
         description='''Script to download preformatted databases''',
@@ -31,9 +31,9 @@ def main(args):
     parser.add_argument('-i','--input', nargs='+', required=True, choices=['ITS', '16S', 'LSU', 'COI'], help='Install Databases')
     parser.add_argument('-f','--force', action='store_true', help='Overwrite existing databases')
     args=parser.parse_args(args)
-    
+
     parentdir = os.path.join(os.path.dirname(amptklib.__file__))
-    
+
     for x in args.input:
         udbfile = os.path.join(parentdir, 'DB', x+'.udb')
         if os.path.isfile(udbfile):
@@ -61,6 +61,7 @@ def main(args):
         cmd = ['vsearch', '--udb2fasta', udbfile, '--output', extracted]
         amptklib.runSubprocess5(cmd)
         print("{:} taxonomy database installed to {:}".format(x, os.path.join(parentdir, 'DB')))
+
 
 if __name__ == "__main__":
     main()

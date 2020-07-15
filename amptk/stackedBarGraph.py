@@ -291,7 +291,6 @@ class StackedBarGrapher(object):
 ###############################################################################
 
 if __name__ == '__main__':
-
     SBG = StackedBarGrapher()
     SBG.demo()
 

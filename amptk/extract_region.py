@@ -403,19 +403,21 @@ def makeDB(input, args=False):
             amptklib.log.info("Database %s created successfully" % usearch_db)
         else:
             amptklib.log.error("There was a problem creating the DB, check the log file %s" % usearch_log)
+            
     elif args.create_db == 'sintax':
         sintax_log = basename + '.sintax.log'
         if os.path.isfile(sintax_log):
             os.remove(sintax_log)
         amptklib.log.info("Creating SINTAX Database, this may take awhile")
-        amptklib.log.debug("%s -makeudb_sintax %s -output %s" % (usearch, input, usearch_db))
-        with open(sintax_log, 'w') as utaxLog:
-            subprocess.call([usearch, '-makeudb_sintax', input, '-output', usearch_db, '-notrunclabels'], stdout = utaxLog, stderr = utaxLog)
+        amptklib.log.debug("vsearch --makeudb_usearch %s --output %s" % (input, usearch_db))
+        with open(sintax_log, 'w') as sintaxlog:
+            #subprocess.call([usearch, '-makeudb_sintax', input, '-output', usearch_db, '-notrunclabels'], stdout = utaxLog, stderr = utaxLog)
+            subprocess.call(['vsearch', '--makeudb_usearch', input, '--output', usearch_db, '--notrunclabels'], stdout = sintaxlog, stderr = sintaxlog)
         #check if file is actually there
         if os.path.isfile(usearch_db):
             amptklib.log.info("Database %s created successfully" % usearch_db)
         else:
-            amptklib.log.error("There was a problem creating the DB, check the UTAX log file %s" % utax_log)
+            amptklib.log.error("There was a problem creating the DB, check the UTAX log file %s" % sintaxlog)
             
 def decodeFasta(input, output):
     '''
@@ -492,7 +494,8 @@ def main(args):
 
     #Do a version check
     usearch = args.usearch
-    amptklib.versionDependencyChecks(usearch)
+    if args.create_db == 'utax':
+    	amptklib.versionDependencyChecks(usearch)
     
     amptklib.log.info('Base name set to: {:}'.format(base))
 
@@ -600,7 +603,7 @@ def main(args):
             noTax, noID, tooShort, ambig, noPrimer))
 
     #dereplicate if argument passed
-    if args.derep_fulllength:
+    if args.derep_fulllength or args.create_db == 'sintax' or args.create_db == 'utax':
         amptklib.log.info("Now dereplicating sequences (collapsing identical sequences)")
         derep_tmp = base + '.derep.extracted.fa'
         os.rename(OutName, derep_tmp)

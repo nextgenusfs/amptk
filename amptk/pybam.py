@@ -110,7 +110,7 @@ Github:     http://github.com/JohnLonginotto/pybam
 
 [ Custom Decompressor (from file object) Example ]
   my_bam = pybam.read(sys.stdin,decompressor='lzma --decompress --stdout') # data given to lzma via stdin
-    
+
 [ Force Internal bgzip Decompressor ]
   my_bam = pybam.read('/my/data.bam',decompressor='internal')
 
@@ -140,7 +140,7 @@ class read(object):
 
     [ Custom Decompressor (from file object) Example ]
     my_bam = pybam.read(sys.stdin,decompressor='lzma --decompress --stdout') # data given to lzma via stdin
-    
+
     [ Force Internal bgzip Decompressor ]
     my_bam = pybam.read('/my/data.bam',decompressor='internal')
 
@@ -308,7 +308,7 @@ class read(object):
 
             elif decompressor is not False and decompressor is not 'internal':
                 # It wouldn't be safe to just print to the shell four random bytes from the beginning of a file, so instead it's
-                # written to a temp file and cat'd. The idea here being that we trust the decompressor string as it was written by 
+                # written to a temp file and cat'd. The idea here being that we trust the decompressor string as it was written by
                 # someone with access to python, so it has system access anyway. The file/data, however, should not be trusted.
                 magic_file = os.path.join(tempfile.mkdtemp(),'magic')
                 with open(magic_file,'wb') as mf: mf.write(magic)
@@ -347,7 +347,7 @@ class read(object):
         p_from = p_to; p_to += 4
         while len(header_cache) < p_to: header_cache += next(self._generator)
         number_of_reference_sequences = unpack('<i',header_cache[p_from:p_to])[0]
-        
+
         for _ in range(number_of_reference_sequences):
             p_from = p_to; p_to += 4
             while len(header_cache) < p_to: header_cache += next(self._generator)
@@ -608,39 +608,39 @@ class read(object):
 
     ## Methods to pull out raw bam data from entry (so still in its binary encoding). This can be helpful in some scenarios.
     @property
-    def bam_block_size(self):   return               self.bam[                        : 4                         ] 
+    def bam_block_size(self):   return               self.bam[                        : 4                         ]
     @property
-    def bam_refID(self):        return               self.bam[ 4                      : 8                         ] 
+    def bam_refID(self):        return               self.bam[ 4                      : 8                         ]
     @property
     def bam_pos(self):          return               self.bam[ 8                      : 12                        ]
     @property
-    def bam_l_read_name(self):  return               self.bam[ 12                     : 13                        ] 
+    def bam_l_read_name(self):  return               self.bam[ 12                     : 13                        ]
     @property
-    def bam_mapq(self):         return               self.bam[ 13                     : 14                        ] 
+    def bam_mapq(self):         return               self.bam[ 13                     : 14                        ]
     @property
-    def bam_bin(self):          return               self.bam[ 14                     : 16                        ] 
+    def bam_bin(self):          return               self.bam[ 14                     : 16                        ]
     @property
-    def bam_n_cigar_op(self):   return               self.bam[ 16                     : 18                        ] 
+    def bam_n_cigar_op(self):   return               self.bam[ 16                     : 18                        ]
     @property
-    def bam_flag(self):         return               self.bam[ 18                     : 20                        ] 
+    def bam_flag(self):         return               self.bam[ 18                     : 20                        ]
     @property
-    def bam_l_seq(self):        return               self.bam[ 20                     : 24                        ] 
+    def bam_l_seq(self):        return               self.bam[ 20                     : 24                        ]
     @property
-    def bam_next_refID(self):   return               self.bam[ 24                     : 28                        ] 
+    def bam_next_refID(self):   return               self.bam[ 24                     : 28                        ]
     @property
-    def bam_pnext(self):        return               self.bam[ 28                     : 32                        ] 
+    def bam_pnext(self):        return               self.bam[ 28                     : 32                        ]
     @property
-    def bam_tlen(self):         return               self.bam[ 32                     : 36                        ] 
+    def bam_tlen(self):         return               self.bam[ 32                     : 36                        ]
     @property
-    def bam_qname(self):        return               self.bam[ 36                     : self._end_of_qname        ] 
+    def bam_qname(self):        return               self.bam[ 36                     : self._end_of_qname        ]
     @property
-    def bam_cigar(self):        return               self.bam[ self._end_of_qname     : self._end_of_cigar        ] 
+    def bam_cigar(self):        return               self.bam[ self._end_of_qname     : self._end_of_cigar        ]
     @property
-    def bam_seq(self):          return               self.bam[ self._end_of_cigar     : self._end_of_seq          ] 
+    def bam_seq(self):          return               self.bam[ self._end_of_cigar     : self._end_of_seq          ]
     @property
-    def bam_qual(self):         return               self.bam[ self._end_of_seq       : self._end_of_qual         ] 
+    def bam_qual(self):         return               self.bam[ self._end_of_seq       : self._end_of_qual         ]
     @property
-    def bam_tags(self):         return               self.bam[ self._end_of_qual      :                           ] 
+    def bam_tags(self):         return               self.bam[ self._end_of_qual      :                           ]
 
     @property
     def sam_refID(self):        return unpack( '<i', self.bam[ 4                      :  8                        ] )[0]
@@ -701,7 +701,7 @@ class read(object):
         return result
     @property
     def sam_tags_string(self):
-        return '\t'.join(A + ':' + ('i' if B in 'cCsSI' else B)  + ':' + ((C.typecode + ',' + ','.join(map(str,C))) if type(C)==array else str(C)) for A,B,C in self.sam_tags_list)    
+        return '\t'.join(A + ':' + ('i' if B in 'cCsSI' else B)  + ':' + ((C.typecode + ',' + ','.join(map(str,C))) if type(C)==array else str(C)) for A,B,C in self.sam_tags_list)
 
     ## BONUS methods - methods that mimic how samtools works.
     @property
@@ -723,7 +723,7 @@ class read(object):
             ('=' if self.bam_refID == self.bam_next_refID else self.sam_rnext) + '\t' +
             str(self.sam_pnext1)                                               + '\t' +
             str(self.sam_tlen)                                                 + '\t' +
-            self.sam_seq                                                       + '\t' + 
+            self.sam_seq                                                       + '\t' +
             self.sam_qual                                                      + '\t' +
             self.sam_tags_string
         )
@@ -741,7 +741,6 @@ class read(object):
     def __del__(self):
         if self._subprocess.returncode is None: self._subprocess.kill()
         self._file.close()
-
 
 class PybamWarn(Exception): pass
 class PybamError(Exception): pass

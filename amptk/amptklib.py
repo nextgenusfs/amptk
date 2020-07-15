@@ -11,7 +11,7 @@ import time
 import shutil
 import gzip
 import edlib
-import ast
+import pandas as pd
 from builtins import range
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
@@ -21,7 +21,7 @@ try:
     from urllib.request import urlopen
 except ImportError:
     from urllib2 import urlopen
-    
+
 parentdir = os.path.join(os.path.dirname(__file__))
 
 ASCII = {'!':'0','"':'1','#':'2','$':'3','%':'4','&':'5',
@@ -36,28 +36,29 @@ ASCII = {'!':'0','"':'1','#':'2','$':'3','%':'4','&':'5',
 
 primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG',
             'fITS7-ion': 'AGTGARTCATCGAATCTTTG',
-            'ITS4': 'TCCTCCGCTTATTGATATGC', 
-            'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA', 
-            'ITS2': 'GCTGCGTTCTTCATCGATGC', 
-            'ITS3': 'GCATCGATGAAGAACGCAGC', 
-            'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG', 
-            'ITS1': 'TCCGTAGGTGAACCTGCGG', 
-            'LR0R': 'ACCCGCTGAACTTAAGC', 
-            'LR2R': 'AAGAACTTTGAAAAGAG', 
-            'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC', 
-            '16S_V3': 'CCTACGGGNGGCWGCAG', 
-            '16S_V4': 'GACTACHVGGGTATCTAATCC', 
-            'ITS3_KYO2': 'GATGAAGAACGYAGYRAA', 
-            'COI-F': 'GGTCAACAAATCATAAAGATATTGG', 
-            'COI-R': 'GGWACTAATCAATTTCCAAATCC', 
-            '515FB': 'GTGYCAGCMGCCGCGGTAA', 
-            '806RB': 'GGACTACNVGGGTWTCTAAT', 
+            'ITS4': 'TCCTCCGCTTATTGATATGC',
+            'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA',
+            'ITS2': 'GCTGCGTTCTTCATCGATGC',
+            'ITS3': 'GCATCGATGAAGAACGCAGC',
+            'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG',
+            'ITS1': 'TCCGTAGGTGAACCTGCGG',
+            'LR0R': 'ACCCGCTGAACTTAAGC',
+            'LR2R': 'AAGAACTTTGAAAAGAG',
+            'LR3': 'CCGTGTTTCAAGACGGG',
+            'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC',
+            '16S_V3': 'CCTACGGGNGGCWGCAG',
+            '16S_V4': 'GACTACHVGGGTATCTAATCC',
+            'ITS3_KYO2': 'GATGAAGAACGYAGYRAA',
+            'COI-F': 'GGTCAACAAATCATAAAGATATTGG',
+            'COI-R': 'GGWACTAATCAATTTCCAAATCC',
+            '515FB': 'GTGYCAGCMGCCGCGGTAA',
+            '806RB': 'GGACTACNVGGGTWTCTAAT',
             'ITS4-B21': 'CAGGAGACTTGTACACGGTCC',
             'LCO1490': 'GGTCAACAAATCATAAAGATATTGG',
             'mlCOIintR': 'GGRGGRTASACSGTTCASCCSGTSCC'}
 
 
-degenNuc = [("R", "A"), ("R", "G"), 
+degenNuc = [("R", "A"), ("R", "G"),
             ("M", "A"), ("M", "C"),
             ("W", "A"), ("W", "T"),
             ("S", "C"), ("S", "G"),
@@ -70,7 +71,7 @@ degenNuc = [("R", "A"), ("R", "G"),
             ("N", "G"), ("N", "A"), ("N", "T"), ("N", "C"),
             ("X", "G"), ("X", "A"), ("X", "T"), ("X", "C")]
 
-degenNucSimple = [("R", "A"), ("R", "G"), 
+degenNucSimple = [("R", "A"), ("R", "G"),
             ("M", "A"), ("M", "C"),
             ("W", "A"), ("W", "T"),
             ("S", "C"), ("S", "G"),
@@ -128,6 +129,74 @@ def getSize(filename):
     st = os.stat(filename)
     return st.st_size
 
+def execute(cmd):
+    DEVNULL = open(os.devnull, 'w')
+    popen = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                             universal_newlines=True, stderr=DEVNULL)
+    for stdout_line in iter(popen.stdout.readline, ""):
+        yield stdout_line
+    popen.stdout.close()
+    return_code = popen.wait()
+    if return_code:
+        raise subprocess.CalledProcessError(return_code, cmd)
+
+
+def minimap_otutable(otus, fastq, output, method='ont', min_mapq=1, cpus=1,
+                     min_pident=90.0):
+    # function to map reads with minimap2 and create OTU table
+    # requires barcodelable= or barcode= or sample= in fastq header
+    if method == 'pacbio':
+        cmd = ['minimap2', '-x', 'map-pb', '-c', '-t', str(cpus),
+               '--secondary=no', otus, fastq]
+    else:
+        cmd = ['minimap2', '-x', 'map-ont', '-c', '-t', str(cpus),
+               '--secondary=no', otus, fastq]
+    tmpOut = 'minimap2_{}.paf'.format(os.getpid())
+    runSubprocess2(cmd, log, tmpOut)
+    Results = {}
+    with open(tmpOut, 'r') as infile:
+        for line in infile:
+            line = line.rstrip()
+            qname, qlen, qstart, qend, strand, tname, tlen, tstart, tend, match, alnlen, mapq = line.split('\t')[:12]
+            theRest = line.split('\t')[12:]
+            pident = 0.0
+            barcodelabel = None
+            if int(mapq) < min_mapq:
+                continue
+            if ';' not in qname:
+                continue
+            for x in qname.split(';'):
+                if x.startswith('barcodelabel='):
+                    barcodelabel = x.replace('barcodelabel=', '')
+                    break
+                elif x.startswith('barcode='):
+                    barcodelabel = x.replace('barcode=', '')
+                    break
+                elif x.startswith('sample='):
+                    barcodelabel = x.replace('sample=', '')
+                    break
+            if not barcodelabel:
+                continue
+            for y in theRest:
+                if y.startswith('de:f:'):
+                    pident = 1 - float(y.replace('de:f:', ''))
+            if pident < min_pident:
+                continue
+            #print(tname, barcodelabel, str(pident))
+            if barcodelabel not in Results:
+                Results[barcodelabel] = {tname: 1}
+            else:
+                if tname not in Results[barcodelabel]:
+                    Results[barcodelabel][tname] = 1
+                else:
+                    Results[barcodelabel][tname] += 1
+    os.remove(tmpOut)
+    df = pd.DataFrame(Results)
+    df.index.rename('#OTU ID', inplace=True)
+    df.fillna(0, inplace=True)
+    df.to_csv(output, sep='\t')
+
+
 def checkfile(input):
     if os.path.isfile(input):
         filesize = getSize(input)
@@ -150,7 +219,7 @@ def SafeRemove(input):
 
 def number_present(s):
     return any(i.isdigit() for i in s)
-    
+
 def get_version():
     if git_version():
         version = __version__+'-'+git_version
@@ -186,20 +255,24 @@ def gvc(input, check):
     else:
         return False
 
-def versionDependencyChecks(usearch):
+def versionDependencyChecks(usearch, method='vsearch'):
     #to run amptk need usearch > 9.0.2132 and vsearch > 2.2.0
-    amptk_version = get_version()
-    usearch_version = get_usearch_version(usearch)
-    vsearch_version = get_vsearch_version()
     usearch_pass = '9.0.2132'
     vsearch_pass = '2.2.0'
-    if not gvc(usearch_version, usearch_pass):
-        log.error("USEARCH v%s detected, needs to be atleast v%s" % (usearch_version, usearch_pass))
-        sys.exit(1)
+    amptk_version = get_version()
+    if method == 'usearch':
+        usearch_version = get_usearch_version(usearch)
+        if not gvc(usearch_version, usearch_pass):
+            log.error("USEARCH v%s detected, needs to be atleast v%s" % (usearch_version, usearch_pass))
+            sys.exit(1)
+    vsearch_version = get_vsearch_version()
     if not gvc(vsearch_version, vsearch_pass):
         log.error("VSEARCH v%s detected, needs to be atleast v%s" % (vsearch_version, vsearch_pass))
         sys.exit(1)
-    log.info("AMPtk v%s, USEARCH v%s, VSEARCH v%s" % (amptk_version, usearch_version, vsearch_version))
+    if method == 'usearch':
+        log.info("AMPtk v%s, USEARCH v%s, VSEARCH v%s" % (amptk_version, usearch_version, vsearch_version))
+    else:
+        log.info("AMPtk v%s, VSEARCH v%s" % (amptk_version, vsearch_version))
 
 def checkusearch10(usearch):
     #to run amptk need usearch > 10.0.2132 and vsearch > 2.2.0
@@ -214,7 +287,7 @@ def checkusearch10(usearch):
     if not gvc(vsearch_version, vsearch_pass):
         log.error("VSEARCH v%s detected, needs to be atleast v%s" % (vsearch_version, vsearch_pass))
         sys.exit(1)
-    log.info("AMPtk v%s, USEARCH v%s, VSEARCH v%s" % (amptk_version, usearch_version, vsearch_version))
+    #log.info("AMPtk v%s, USEARCH v%s, VSEARCH v%s" % (amptk_version, usearch_version, vsearch_version))
 
 def checkRversion():
     #need to have R version > 3.2
@@ -241,7 +314,7 @@ def MemoryCheck():
     mem = psutil.virtual_memory()
     RAM = int(mem.total)
     return round(RAM / 1024000000)
-                   
+
 def systemOS():
     if sys.platform == 'darwin':
         system_os = 'MacOSX '+ platform.mac_ver()[0]
@@ -254,11 +327,11 @@ def systemOS():
 
 def SystemInfo():
     system_os = systemOS()
-    python_vers = str(sys.version_info[0])+'.'+str(sys.version_info[1])+'.'+str(sys.version_info[2])   
+    python_vers = str(sys.version_info[0])+'.'+str(sys.version_info[1])+'.'+str(sys.version_info[2])
     log.info("OS: %s, %i cores, ~ %i GB RAM. Python: %s" % (system_os, multiprocessing.cpu_count(), MemoryCheck(), python_vers))
     #print python modules to logfile
     mod_versions()
-    
+
 def mod_versions():
     import pkg_resources
     modules = ['numpy', 'pandas', 'matplotlib', 'psutil', 'natsort', 'biopython', 'edlib', 'biom-format']
@@ -277,8 +350,8 @@ def mod_versions():
                 log.error("Edlib v%s detected, at least v1.2.1 required for degenerate nucleotide search, please upgrade.  e.g. pip install -U edlib or conda install edlib" % vers)
                 sys.exit(1)
     log.debug("Python Modules: %s" % ', '.join(results))
- 
-  
+
+
 class gzopen(object):
     def __init__(self, fname):
         f = open(fname)
@@ -310,7 +383,7 @@ class gzopen(object):
         return iter(self.f)
     def __next__(self):
         return next(self.f)
-      
+
 def Funzip(input, output, cpus):
     '''
     function to unzip as fast as it can, pigz -> bgzip -> gzip
@@ -381,7 +454,7 @@ def countfasta(input):
             if line.startswith(">"):
                 count += 1
     return count
-    
+
 def countfastq(input):
     lines = sum(1 for line in gzopen(input))
     count = int(lines) // 4
@@ -393,7 +466,7 @@ def line_count(fname):
         for i, l in enumerate(f):
             pass
     return i + 1
-    
+
 def softwrap(string, every=80):
     lines = []
     for i in range(0, len(string), every):
@@ -407,7 +480,7 @@ def line_count2(fname):
             if not '*' in line:
                 count += 1
     return count
-    
+
 def getreadlength(input):
     with gzopen(input) as fp:
         for i, line in enumerate(fp):
@@ -416,15 +489,15 @@ def getreadlength(input):
             elif i > 2:
                 break
     return read_length
-    
+
 def runSubprocess(cmd, logfile):
     logfile.debug(' '.join(cmd))
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = proc.communicate()
     if stdout:
-        logfile.debug(stdout)
+        logfile.debug(stdout.decode("utf-8"))
     if stderr:
-        logfile.debug(stderr)
+        logfile.debug(stderr.decode("utf-8"))
 
 def runSubprocess2(cmd, logfile, output):
     #function where output of cmd is STDOUT, capture STDERR in logfile
@@ -434,7 +507,7 @@ def runSubprocess2(cmd, logfile, output):
     stderr = proc.communicate()
     if stderr:
         if stderr[0] != None:
-            logfile.debug(stderr)
+            logfile.debug(stderr.decode("utf-8"))
 
 def runSubprocess3(cmd, logfile, folder, output):
     #function where output of cmd is STDOUT, capture STDERR in logfile
@@ -444,8 +517,8 @@ def runSubprocess3(cmd, logfile, folder, output):
     stderr = proc.communicate()
     if stderr:
         if stderr[0] != None:
-            logfile.debug(stderr)
-            
+            logfile.debug(stderr.decode("utf-8"))
+
 def runSubprocess4(cmd, logfile, logfile2):
     #function where cmd is issued in logfile, and log captured in logfile 2
     logfile.debug(' '.join(cmd))
@@ -454,7 +527,7 @@ def runSubprocess4(cmd, logfile, logfile2):
     stderr = proc.communicate()
     if stderr:
         if stderr[0] != None:
-            logfile.debug(stderr)
+            logfile.debug(stderr.decode("utf-8"))
 
 def runSubprocess5(cmd):
     #function where no logfile and stdout/stderr to fnull
@@ -475,7 +548,7 @@ def check_valid_file(input):
             return True
     else:
         return False
-        
+
 def bam2fastq(input, output):
     from . import pybam
     with open(output, 'w') as fastqout:
@@ -487,7 +560,7 @@ def scan_linepos(path):
     """return a list of seek offsets of the beginning of each line"""
     linepos = []
     offset = 0
-    with gzopen(path) as inf:     
+    with gzopen(path) as inf:
         # WARNING: CPython 2.7 file.tell() is not accurate on file.next()
         for line in inf:
             linepos.append(offset)
@@ -502,7 +575,7 @@ def return_lines(path, linepos, nstart, nstop):
         for offset in offsets:
             inf.seek(offset)
             lines.append(inf.readline())
-    return lines     
+    return lines
 
 def split_fastq(input, numseqs, outputdir, chunks):
     #get number of sequences and then number of sequences in each chunk
@@ -531,7 +604,7 @@ def split_fastq(input, numseqs, outputdir, chunks):
         with open(os.path.join(outputdir, 'chunk_'+str(num)+'.fq'), 'w') as output:
             lines = return_lines(input, linepos, x[0], x[1])
             output.write('%s' % ''.join(lines))
-            
+
 def split_fastqPE(R1, R2, numseqs, outputdir, chunks):
     #get number of sequences and then number of sequences in each chunk
     numlines = numseqs*4
@@ -561,7 +634,7 @@ def split_fastqPE(R1, R2, numseqs, outputdir, chunks):
                 lines1 = return_lines(R1, linepos, x[0], x[1])
                 output1.write('%s' % ''.join(lines1))
                 lines2 = return_lines(R2, linepos, x[0], x[1])
-                output2.write('%s' % ''.join(lines2))   
+                output2.write('%s' % ''.join(lines2))
 
 def split_fastqPEandI(R1, R2, I1, numseqs, outputdir, chunks):
     #get number of sequences and then number of sequences in each chunk
@@ -684,8 +757,8 @@ def mapIndex(seq, mapDict, bcmismatch):
         return (besthit[1], besthit[2])
     else:
         return (None,None)
- 
-    
+
+
 def DemuxIllumina(R1, R2, I1, mapDict, mismatch, fwdprimer, revprimer, primer_mismatch, outR1, outR2):
     try:
         from itertools import zip_longest
@@ -721,7 +794,7 @@ def DemuxIllumina(R1, R2, I1, mapDict, mismatch, fwdprimer, revprimer, primer_mi
                     outfile2.write('@%s\n%s\n+\n%s\n' % (header, read2[1][R2ForPos:R2RevPos], read2[2][R2ForPos:R2RevPos]))
                     counter += 1
     return Total, BCFound, FPrimer, RPrimer
-                    
+
 def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch, require_primer, full_length, outR1, outR2):
     try:
         from itertools import zip_longest
@@ -747,7 +820,7 @@ def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch
                 R2Qual = read2[2][:RL]
                 ForTrim, RevTrim = (0,)*2
                 #look for forward primer in forward read
-                R1foralign = edlib.align(fwdprimer, R1Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)            
+                R1foralign = edlib.align(fwdprimer, R1Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
                 if R1foralign['editDistance'] < 0:
                     if require_primer == 'on' or full_length: #not found
                         continue
@@ -782,14 +855,14 @@ def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch
                         if not frp:
                             findRevPrimer += 1
                     except IndexError:
-                        pass        
+                        pass
                 R2revalign = edlib.align(RevComp(fwdprimer), R2Seq, mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
                 if R2revalign['editDistance'] < 0:
                     R2RevCut = RL
                 else:
                     R2RevCut = R2revalign["locations"][0][0]
                     if not ffp:
-                        findForPrimer += 1               
+                        findForPrimer += 1
                 header = 'R_{:};barcodelabel={:};'.format(counter,samplename)
                 outfile1.write('@%s\n%s\n+\n%s\n' % (header, R1Seq[ForTrim:R1RevCut], R1Qual[ForTrim:R1RevCut]))
                 outfile2.write('@%s\n%s\n+\n%s\n' % (header, R2Seq[RevTrim:R2RevCut], R2Qual[RevTrim:R2RevCut]))
@@ -835,7 +908,7 @@ def illuminaReorient(R1, R2, fwdprimer, revprimer, mismatch, ReadLength, outR1, 
                 else:
                     Dropped += 1
     return Total, Correct, Flipped, Dropped
-        
+
 
 def demuxIlluminaPE(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarcodes, barcode_mismatch, primer_mismatch, outR1, outR2, stats):
     try:
@@ -868,7 +941,7 @@ def demuxIlluminaPE(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarco
                     foralign = edlib.align(FwdPrimer, read1[1], mode="HW", k=primer_mismatch, additionalEqualities=degenNuc)
                     if foralign['editDistance'] < 0: #not found
                         NoPrimer += 1
-                        continue                    
+                        continue
                     stringent = {}
                     stringent[BCLabel] = samples[BCLabel]['RevBarcode']
                     revBC, revBCLabel = AlignBarcode(read2[1], stringent, barcode_mismatch)
@@ -911,7 +984,7 @@ def demuxIlluminaPE(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarco
                 counter += 1
                 ValidSeqs += 1
     with open(stats, 'w') as statsout:
-        statsout.write('%i,%i,%i,%i,%i,%i\n' % (Total, NoBarcode, NoPrimer, NoRevBarcode, NoRevPrimer, ValidSeqs)) 
+        statsout.write('%i,%i,%i,%i,%i,%i\n' % (Total, NoBarcode, NoPrimer, NoRevBarcode, NoRevPrimer, ValidSeqs))
 
 def demuxIlluminaPE2(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarcodes, barcode_mismatch, primer_mismatch, outR1, outR2, stats):
     try:
@@ -941,10 +1014,10 @@ def demuxIlluminaPE2(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarc
                     BC, BCLabel = AlignBarcode2(read1[1][:R1BCtrim], forbarcodes, barcode_mismatch)
                     if BC == '':
                         NoBarcode += 1
-                        continue                
+                        continue
                 if len(samples) > 0: #sample dictionary so enforce primers and barcodes from here
                     FwdPrimer = samples[BCLabel]['ForPrimer']
-                    RevPrimer = samples[BCLabel]['RevPrimer']             
+                    RevPrimer = samples[BCLabel]['RevPrimer']
                     stringent = {}
                     stringent[BCLabel] = samples[BCLabel]['RevBarcode']
                     #find rev primer in reverse read
@@ -958,7 +1031,7 @@ def demuxIlluminaPE2(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarc
                         NoRevBarcode += 1
                         continue
                     #okay, found both primers and barcodes, now 1 more cleanup step trip revcomped primers
-                    R1RevTrim = trimRevPrimer(RevPrimer, read1[1], primer_mismatch) 
+                    R1RevTrim = trimRevPrimer(RevPrimer, read1[1], primer_mismatch)
                     R2RevTrim = trimRevPrimer(FwdPrimer, read2[1], primer_mismatch)
                 else:
                     #no samples dictionary, so allow all combinations of matches
@@ -973,8 +1046,8 @@ def demuxIlluminaPE2(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarc
                             NoRevBarcode += 1
                             continue
                     #okay, found both primers and barcodes, now 1 more cleanup step trip revcomped primers
-                    R1RevTrim = trimRevPrimer(revprimer, read1[1], primer_mismatch) 
-                    R2RevTrim = trimRevPrimer(fwdprimer, read2[1], primer_mismatch)                     
+                    R1RevTrim = trimRevPrimer(revprimer, read1[1], primer_mismatch)
+                    R2RevTrim = trimRevPrimer(fwdprimer, read2[1], primer_mismatch)
 
                 #if get here, then all is well, construct new header and trim reads
                 if BCLabel == revBCLabel:
@@ -987,7 +1060,7 @@ def demuxIlluminaPE2(R1, R2, fwdprimer, revprimer, samples, forbarcodes, revbarc
                 counter += 1
                 ValidSeqs += 1
     with open(stats, 'w') as statsout:
-        statsout.write('%i,%i,%i,%i,%i,%i\n' % (Total, NoBarcode, NoPrimer, NoRevBarcode, NoRevPrimer, ValidSeqs)) 
+        statsout.write('%i,%i,%i,%i,%i,%i\n' % (Total, NoBarcode, NoPrimer, NoRevBarcode, NoRevPrimer, ValidSeqs))
 
 
 def trimForPrimer(primer, seq, primer_mismatch):
@@ -1006,7 +1079,7 @@ def trimRevPrimer(primer, seq, primer_mismatch):
     else:
         CutPos = revalign["locations"][0][0]
         return CutPos
-        
+
 def losslessTrim(input, fwdprimer, revprimer, mismatch, trimLen, padding, minlength, output):
     '''
     function to trim primers if found from SE reads
@@ -1064,7 +1137,7 @@ def fasta2barcodes(input, revcomp):
                     Seq = str(rec.seq)
                 BC[rec.id] = Seq
     return BC
-            
+
 def AlignBarcode(Seq, BarcodeDict, mismatch):
     besthit = []
     for BL in list(BarcodeDict.keys()):
@@ -1096,7 +1169,7 @@ def AlignBarcode(Seq, BarcodeDict, mismatch):
         return besthit[0], besthit[1]
     else:
         return "", ""
-    
+
 def AlignRevBarcode(Seq, BarcodeDict, mismatch):
     besthit = []
     for BL in list(BarcodeDict.keys()):
@@ -1152,7 +1225,7 @@ def AlignBarcode2(Seq, BarcodeDict, mismatch):
         return besthit[0], besthit[1]
     else:
         return "", ""
-    
+
 def findFwdPrimer(primer, sequence, mismatch, equalities):
     #trim position
     TrimPos = None
@@ -1169,10 +1242,10 @@ def findRevPrimer(primer, sequence, mismatch, equalities):
     #search for match
     align = edlib.align(primer, sequence, mode="HW", task="locations", k=int(mismatch), additionalEqualities=equalities)
     if align["editDistance"] >= 0: #we found a hit
-        TrimPos = align["locations"][0][0] 
+        TrimPos = align["locations"][0][0]
     #return position will be None if not found
     return TrimPos
-    
+
 def MergeReadsSimple(R1, R2, tmpdir, outname, minlen, usearch, rescue, method):
     #check that num sequences is identical
     if not PEsanitycheck(R1, R2):
@@ -1229,25 +1302,25 @@ def MergeReadsSimple(R1, R2, tmpdir, outname, minlen, usearch, rescue, method):
     SafeRemove(tmp_merge)
     return phixcount, finalcount
 
-    
+
 def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, method, index, mismatch):
     removelist = []
     if mismatch == 0 and index != '':
         if checkBCinHeader(R1):
-            log.debug("Searching for index mismatches > 0: %s" % index) 
+            log.debug("Searching for index mismatches > 0: %s" % index)
             removelist = illuminaBCmismatch(R1, R2, index)
-            log.debug("Removing %i reads with index mismatch > 0" % len(removelist))  
+            log.debug("Removing %i reads with index mismatch > 0" % len(removelist))
     pretrim_R1 = os.path.join(tmpdir, outname + '.pretrim_R1.fq')
     pretrim_R2 = os.path.join(tmpdir, outname + '.pretrim_R2.fq')
     log.debug("Removing index 3prime bp 'A' from reads")
     trim3prime(R1, read_length, pretrim_R1, removelist)
-    trim3prime(R2, read_length, pretrim_R2, removelist)  
-    
+    trim3prime(R2, read_length, pretrim_R2, removelist)
+
     #check that num sequences is identical
     if not PEsanitycheck(pretrim_R1, pretrim_R2):
         log.error("%s and %s are not properly paired, exiting" % (R1, R2))
         sys.exit(1)
-        
+
     #next run USEARCH/vsearch mergepe
     merge_out = os.path.join(tmpdir, outname + '.merged.fq')
     skip_for = os.path.join(tmpdir, outname + '.notmerged.R1.fq')
@@ -1296,7 +1369,7 @@ def MergeReads(R1, R2, tmpdir, outname, read_length, minlen, usearch, rescue, me
     origcount = countfastq(R1)
     finalcount = countfastq(final_out)
     log.debug("Removed %i reads that were phiX" % (origcount - finalcount - len(removelist)))
-    pct_out = finalcount / float(origcount) 
+    pct_out = finalcount / float(origcount)
     #clean and close up intermediate files
     os.remove(merge_out)
     os.remove(pretrim_R1)
@@ -1400,7 +1473,7 @@ def dictFlip(input):
             else:
                 print("duplicate ID found: %s" % i)
     return outDict
-    
+
 def classifier2dict(input, pcutoff):
     ClassyDict = {}
     with open(input, 'r') as infile:
@@ -1478,12 +1551,12 @@ def bestclassifier(utax, sintax, otus):
     #both are dictionaries from classifier2dict, otus is a list of OTUs in order
     BestClassify = {}
     for otu in otus:
-        sintaxhit, utaxhit = (None,)*2
+        sintaxhit, utaxhit, hit = (None,)*3
         if otu in sintax:
             sintaxhit = sintax.get(otu) #this should be okay...
         if otu in utax:
             utaxhit = utax.get(otu) #returns tuple of (score, [taxlist]
-        if sintaxhit and utaxhit: 
+        if sintaxhit and utaxhit:
             if len(utaxhit[1]) > len(sintaxhit[1]):
                 hit = (utaxhit[0], 'U', utaxhit[1])
             elif len(utaxhit[1]) == len(sintaxhit[1]):
@@ -1504,27 +1577,30 @@ def bestTaxonomy(usearch, classifier):
     Taxonomy = {}
     for k,v in natsorted(list(usearch.items())):
         globalTax = v[-1] #this should be a list
-        classiTax = classifier.get(k)[-1] #also should be list
+        try:
+            classiTax = classifier.get(k)[-1] #also should be list
+        except TypeError:
+            classiTax = None
         pident = float(v[0])
         besthitID = v[1]
         LCA = v[2]
         discrep = 'S'
-        if pident < 0.9700: #if global alignment hit is less than 97%, then default to classifier result
+        if pident < 0.9700 and classiTax: #if global alignment hit is less than 97%, then default to classifier result
             method = classifier.get(k)[1].split()[0] #get first letter, either U or S
             score = float(classifier.get(k)[0])
             tax = ','.join(classiTax)
-            fulltax = method+discrep+"|{0:.4f}".format(score)+'|'+besthitID+';'+tax     
+            fulltax = method+discrep+"|{0:.4f}".format(score)+'|'+besthitID+';'+tax
         else: #should default to global alignment with option to update taxonomy from classifier if more information
             method = 'G'
             score = pident * 100
-            if len(globalTax) < len(classiTax): #iterate through and make sure all levels match else stop where no longer matches
+            if classiTax and len(globalTax) < len(classiTax): #iterate through and make sure all levels match else stop where no longer matches
                 tax = ','.join(classiTax)
                 for lvl in globalTax:
                     if not lvl in classiTax: #now we have a problem
                         error = globalTax.index(lvl) #move one position backwards and keep only that level of taxonomy
                         discrep = 'D'
                         tax = ','.join(globalTax[:error])
-                        break             
+                        break
             else:
                 tax = ','.join(globalTax)
             if discrep == 'S' and LCA == '':
@@ -1581,7 +1657,7 @@ def utax2qiime(input, output):
                     if not levList[0].startswith('d__'):
                         levList = ['d__','p__', 'c__', 'o__', 'f__', 'g__', 's__']
                     if len(levList) < 2 and levList[0].startswith('d__'):
-                        levList.extend(['p__', 'c__', 'o__', 'f__', 'g__', 's__'])                    
+                        levList.extend(['p__', 'c__', 'o__', 'f__', 'g__', 's__'])
                     if len(levList) > 2 and not levList[2].startswith('c__'):
                         levList.insert(2,'c__')
                     if len(levList) > 3 and not levList[3].startswith('o__'):
@@ -1591,10 +1667,10 @@ def utax2qiime(input, output):
                     if len(levList) > 5 and not levList[5].startswith('g__'):
                         levList.insert(5,'g__')
                     if len(levList) > 6 and not levList[6].startswith('s__'):
-                        levList.insert(6,'s__')                             
+                        levList.insert(6,'s__')
                 outfile.write('%s\t%s\n' % (OTU, ';'.join(levList)))
 
-  
+
 def barcodes2dict(input, mapDict, bcmismatch):
     #here expecting the index reads from illumina, create dictionary for naming?
     Results = {}
@@ -1698,7 +1774,7 @@ def batch_iterator(iterator, batch_size):
 def setupLogging(LOGNAME):
     global log
     if 'darwin' in sys.platform:
-        stdoutformat = logging.Formatter(colr.GRN+'%(asctime)s'+colr.END+': %(message)s', datefmt='[%b %d %I:%M %p]')      
+        stdoutformat = logging.Formatter(colr.GRN+'%(asctime)s'+colr.END+': %(message)s', datefmt='[%b %d %I:%M %p]')
     else:
         stdoutformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='[%I:%M:%S %p]')
     fileformat = logging.Formatter('%(asctime)s: %(message)s', datefmt='[%x %H:%M:%S]')
@@ -1712,7 +1788,7 @@ def setupLogging(LOGNAME):
     fhnd.setLevel(logging.DEBUG)
     fhnd.setFormatter(fileformat)
     log.addHandler(fhnd)
-    
+
 def FastMaxEEFilter(input, trunclen, maxee, output):
     from Bio.SeqIO.QualityIO import FastqGeneralIterator
     with open(output, 'w') as out:
@@ -1741,7 +1817,7 @@ def MaxEEFilter(input, maxee):
                 rec.name = ""
                 rec.description = ""
                 yield rec
-                
+
 def dereplicate(input, output):
     from Bio.SeqIO.QualityIO import FastqGeneralIterator
     seqs = {}
@@ -1765,7 +1841,7 @@ def convertSize(num, suffix='B'):
         if abs(num) < 1024.0:
             return "%3.1f %s%s" % (num, unit, suffix)
         num /= 1024.0
-    return "%.1f%s%s" % (num, 'Y', suffix) 
+    return "%.1f%s%s" % (num, 'Y', suffix)
 
 def faqual2fastq(fasta, qual, fastq):
     global skipCount
@@ -1778,11 +1854,11 @@ def faqual2fastq(fasta, qual, fastq):
             except ValueError:
                 skipCount +1
     return skipCount
-    
+
 def checkfastqsize(input):
     filesize = os.path.getsize(input)
     return filesize
-    
+
 def fastqreindex(input, output):
     from Bio.SeqIO.QualityIO import FastqGeneralIterator
     count = 1
@@ -1822,15 +1898,17 @@ def fastarename(input, relabel, output):
     with open(output, 'w') as outfile:
         counter = 1
         for record in FastaIterator(open(input)):
-            newName = relabel+str(counter) 
+            newName = relabel+str(counter)
             outfile.write(">%s\n%s\n" % (newName, record.seq))
             counter += 1
 
-def fasta_strip_padding(file, output):
+def fasta_strip_padding(file, output, stripsize=False):
     from Bio.SeqIO.FastaIO import FastaIterator
     with open(output, 'w') as outputfile:
         for record in FastaIterator(gzopen(file)):
-            Seq = record.seq.rstrip('N')   
+            Seq = record.seq.rstrip('N')
+            if ';size=' in record.id:
+                record.id = record.id.split(';size=')[0]
             outputfile.write(">%s\n%s\n" % (record.id, Seq))
 
 def fastq_strip_padding(file, output):
@@ -1839,9 +1917,9 @@ def fastq_strip_padding(file, output):
         for title, seq, qual in FastqGeneralIterator(open(file)):
             Seq = seq.rstrip('N')
             Qual = qual[:len(Seq)]
-            assert len(Seq) == len(Qual)    
+            assert len(Seq) == len(Qual)
             outputfile.write("@%s\n%s\n+\n%s\n" % (title, Seq, Qual))
-            
+
 def ReverseComp(input, output):
     with open(output, 'w') as revcomp:
         with open(input, 'r') as fasta:
@@ -1862,7 +1940,7 @@ def guess_csv_dialect(header):
     dialect = csv.Sniffer().sniff(header, delimiters=possible_delims)
     return dialect
 
-    
+
 def fasta2list(input):
     seqlist = []
     with open(input, 'r') as inseq:
@@ -1890,7 +1968,7 @@ def updateMappingFile(mapfile, barcode_count, output):
                 else:
                     if cols[0] in barcode_count:
                         outfile.write('{:}\t{:}\t{:}\n'.format('\t'.join(cols[:loc]), str(barcode_count[cols[0]]), '\t'.join(cols[loc+1:])))
-                        
+
 def CreateGenericMappingFile(barcode_dict, revbarcode_dict, fwd_primer, rev_primer, output, barcodes_found):
     with open(output, 'w') as outfile:
         outfile.write('#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tRevBarcodeSequence\tReversePrimer\tphinchID\tDemuxReads\tTreatment\n')
@@ -1914,7 +1992,7 @@ def CreateGenericMappingFile(barcode_dict, revbarcode_dict, fwd_primer, rev_prim
                 if sample in revbarcode_dict:
                     revbarcode = revbarcode_dict[sample]
             outfile.write('%s\t%s\t%s\t%s\t%s\t%s\t%i\t%s\n' % (sample, forbarcode, fwd_primer, revbarcode, rev_primer, sample, count, 'no_data'))
-            
+
 
 def CreateGenericMappingFileIllumina(samples, fwd_primer, rev_primer, output, barcodes):
     with open(output, 'w') as outfile:
@@ -1971,14 +2049,14 @@ def getMappingHeaderIndexes(input):
     return IDx, FBCx, FPx, RBCx, RPx
 
 exampleMapFile='#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tRevBarcodeSequence\tReversePrimer\tphinchID\tTreatment\n'
-                
+
 def parseMappingFileNEW(input):
     '''
     function to parse mapping file pull out primers and barcode sequences
     '''
     results = {}
     ForBCDict = {}
-    RevBCDict = {} 
+    RevBCDict = {}
     IDx, FBCx, FPx, RBCx, RPx = getMappingHeaderIndexes(input)
     if not any([IDx, FBCx, FPx, RPx]):
         log.error('Mapping file incorrectly formatted, headers should be (RevBarcodeSequence is optional):\n{:}'.format(exampleMapFile))
@@ -2042,7 +2120,7 @@ def parseMappingFileIllumina(input):
                 fwdprimer = cols[2]
                 revprimer = cols[3]
         return (samples, fwdprimer, revprimer)
-                          
+
 def removefile(input):
     if os.path.isfile(input):
         os.remove(input)

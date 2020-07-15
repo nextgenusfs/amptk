@@ -15,7 +15,7 @@ class colr(object):
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
-        super(MyFormatter,self).__init__(prog,max_help_position=50)      
+        super(MyFormatter,self).__init__(prog,max_help_position=50)
 
 parser=argparse.ArgumentParser(prog='amptk-collapse_taxonomy.py',
     description='''.''',
@@ -98,5 +98,3 @@ with open(args.out+'.collapsed_tax.txt', 'w') as output:
         if 'tax=' in k:
             k = k.replace('tax=', '')
         output.write('%s\t%s\n' % (k, ', '.join(v)))
-        
-

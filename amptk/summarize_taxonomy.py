@@ -28,14 +28,14 @@ def flatten(l):
     flatList = []
     for elem in l:
         # if an element of a list is a list
-        # iterate over this list and add elements to flatList 
+        # iterate over this list and add elements to flatList
         if type(elem) == list:
             for e in elem:
                 flatList.append(e)
         else:
             flatList.append(elem)
     return flatList
-    
+
 def get_colors(num_colors):
     import colorsys
     colors=[]
@@ -48,7 +48,7 @@ def get_colors(num_colors):
         hex.upper()
         colors.append(hex)
     return colors
-  
+
 def drawBarGraph(df, output, args=False):
         SBG = stackedBarGraph.StackedBarGrapher()
         #work on colors, 12 preferred, add to those if necessary
@@ -64,7 +64,7 @@ def drawBarGraph(df, output, args=False):
             if extra > 0:
                 add_colors = get_colors(extra)
                 pref_colors.append(add_colors)
-                pref_colors.append('#ededed') 
+                pref_colors.append('#ededed')
             else:
                 pref_colors.append('#ededed')
         else:
@@ -83,11 +83,11 @@ def drawBarGraph(df, output, args=False):
         SBG.stackedBarPlot(ax,df,d_colors,edgeCols=['#000000']*length,xLabels=df.index.values.tolist(),gap=0.25,endGaps=True,xlabel="Samples", ylabel=YLabel)
         plt.title("Taxonomy Summary")
         #get the legend
-        legends = [] 
-        i = 0 
-        for column in df.columns: 
-            legends.append(mpatches.Patch(color=d_colors[i], label=uniq[i])) 
-            i+=1 
+        legends = []
+        i = 0
+        for column in df.columns:
+            legends.append(mpatches.Patch(color=d_colors[i], label=uniq[i]))
+            i+=1
         lgd = ax.legend(handles=legends, fontsize=6, loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0)
         ax.spines["bottom"].set_visible(True)
         ax.spines["left"].set_visible(True)
@@ -114,11 +114,11 @@ def main(args):
     parser.add_argument('--counts', default='binary', choices=['actual', 'binary'], help='Use actual abundance or binary')
     parser.add_argument('--font_size', dest="size", type=int, default=8, help='Font Size')
     args=parser.parse_args(args)
-    
+
     #rewrite as I don't know what is going on with old script and why it is now failing
     #goal is just to loop through the taxonomy and create CSV and optional graph of each taxonomy level
     taxLookup = {'d': 'domain', 'k': 'kingdom', 'p': 'phylum', 'c': 'class', 'o':'order', 'f': 'family', 'g': 'genus', 's': 'species'}
-    
+
     #lets create an OTU : taxonomy dictionary and then a sample : OTU dictionary
     otuDict = OrderedDict()
     sampleDict = OrderedDict()
@@ -139,7 +139,7 @@ def main(args):
                 for i,x in enumerate(header):
                     if i == 0 or x == 'Taxonomy' or x == 'taxonomy':
                         continue
-                    sampleDict[i] = {'sample': x, 'OTUs': {}}   
+                    sampleDict[i] = {'sample': x, 'OTUs': {}}
                 continue
             cols = line.split(delim)
             #populate OTU dict
@@ -160,7 +160,7 @@ def main(args):
                 if z == 0 or z == len(cols)-1:
                     continue
                 sampleDict[z]['OTUs'][cols[0]] = int(y)
-    
+
     #we can now loop through each taxonomic level constructing the taxonomy summary into pandas dataframe
     for taxLevel in ['domain', 'kingdom', 'phylum', 'class', 'order', 'family', 'genus']: #, , 'species']:
         taxSummary = OrderedDict()
@@ -190,6 +190,7 @@ def main(args):
         df.transpose().to_csv(args.out+'.'+taxLevel+'.csv')
         if args.graphs:
             drawBarGraph(df.transpose(), args.out+'.'+taxLevel+'.'+args.format, args=args)
-            
+
+
 if __name__ == "__main__":
     main(sys.argv[1:])

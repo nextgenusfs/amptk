@@ -16,7 +16,7 @@ from amptk import amptklib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
-        super(MyFormatter,self).__init__(prog,max_help_position=50)      
+        super(MyFormatter,self).__init__(prog,max_help_position=50)
 
 def batch_iterator(iterator, batch_size):
     entry = True #Make sure we loop once
@@ -66,7 +66,7 @@ def countBarcodes(file):
                 BarcodeCount[ID] = 1
             else:
                 BarcodeCount[ID] += 1
-            
+
 
     #now let's count the barcodes found and count the number of times they are found.
     barcode_counts = "%10s:  %s" % ('Sample', 'Count')
@@ -95,8 +95,8 @@ def getSeqLength(file):
     else:
         print("Read length average: %i" % (sum(lengthlist) / len(lengthlist)))
         print("Read length range: %i - %i bp" % (lengthlist[0], lengthlist[-1]))
-        
-    
+
+
 def filterSeqs(file, lst):
     with amptklib.gzopen(file, 'r') as input:
         SeqRecords = SeqIO.parse(input, 'fastq')
@@ -106,72 +106,73 @@ def filterSeqs(file, lst):
                 yield rec
 
 def main(args):
-	parser=argparse.ArgumentParser(prog='amptk-get_barcode_counts.py',
-		description='''Script loops through demuxed fastq file counting occurances of barcodes, can optionally quality trim and recount.''',
-		epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
-		formatter_class=MyFormatter)
-	parser.add_argument('-i','--input', required=True, help='Input demuxed FASTQ')
-	parser.add_argument('--quality_trim', action='store_true', help='Quality trim data')
-	parser.add_argument('-e','--maxee', default=1.0, type=float, help='MaxEE Q-trim threshold')
-	parser.add_argument('-l','--trunclen', default=250, type=int, help='Read truncation length')
-	parser.add_argument('-o','--out', help='Output for quality trimmed data')
-	args=parser.parse_args(args)
+    parser=argparse.ArgumentParser(prog='amptk-get_barcode_counts.py',
+        description='''Script loops through demuxed fastq file counting occurances of barcodes, can optionally quality trim and recount.''',
+        epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
+        formatter_class=MyFormatter)
+    parser.add_argument('-i','--input', required=True, help='Input demuxed FASTQ')
+    parser.add_argument('--quality_trim', action='store_true', help='Quality trim data')
+    parser.add_argument('-e','--maxee', default=1.0, type=float, help='MaxEE Q-trim threshold')
+    parser.add_argument('-l','--trunclen', default=250, type=int, help='Read truncation length')
+    parser.add_argument('-o','--out', help='Output for quality trimmed data')
+    args=parser.parse_args(args)
 
-	if args.quality_trim and not args.out:
-		print("Error, to run quality trimming you must provide -o, --output")
-		sys.exit(1)
+    if args.quality_trim and not args.out:
+        print("Error, to run quality trimming you must provide -o, --output")
+        sys.exit(1)
 
-	#main start here
-	cpus = multiprocessing.cpu_count()
-	print("----------------------------------")
-	tmpinput = 'amptk_show.tmp'
-	if args.input.endswith('.gz'):
-		amptklib.Funzip(args.input, tmpinput, cpus)
-	else:
-		tmpinput = args.input
-	countBarcodes(tmpinput)
-	print("----------------------------------")
-	getSeqLength(tmpinput)
-	print("----------------------------------")
-	if args.quality_trim:
-		#split the input FASTQ file into chunks to process
-		#split fastq file
-		SeqCount = amptklib.countfastq(tmpinput)
-		pid = os.getpid()
-		folder = 'amptk_tmp_' + str(pid)
-		amptklib.split_fastq(tmpinput, SeqCount, folder, cpus*2)    
-		#now get file list from tmp folder
-		file_list = []
-		for file in os.listdir(folder):
-			if file.endswith(".fq"):
-				file = os.path.join(folder, file)
-				file_list.append(file)
+    #main start here
+    cpus = multiprocessing.cpu_count()
+    print("----------------------------------")
+    tmpinput = 'amptk_show.tmp'
+    if args.input.endswith('.gz'):
+        amptklib.Funzip(args.input, tmpinput, cpus)
+    else:
+        tmpinput = args.input
+    countBarcodes(tmpinput)
+    print("----------------------------------")
+    getSeqLength(tmpinput)
+    print("----------------------------------")
+    if args.quality_trim:
+        #split the input FASTQ file into chunks to process
+        #split fastq file
+        SeqCount = amptklib.countfastq(tmpinput)
+        pid = os.getpid()
+        folder = 'amptk_tmp_' + str(pid)
+        amptklib.split_fastq(tmpinput, SeqCount, folder, cpus*2)
+        #now get file list from tmp folder
+        file_list = []
+        for file in os.listdir(folder):
+            if file.endswith(".fq"):
+                file = os.path.join(folder, file)
+                file_list.append(file)
 
-		p = multiprocessing.Pool(cpus)
-		for f in file_list:
-			#worker(f)
-			p.apply_async(worker, [f])
-		p.close()
-		p.join()
+        p = multiprocessing.Pool(cpus)
+        for f in file_list:
+            #worker(f)
+            p.apply_async(worker, [f])
+        p.close()
+        p.join()
 
-		#get filtered results
-		catDemux = args.out
-		with open(catDemux, 'w') as outfile:
-			for filename in glob.glob(os.path.join(folder,'*.filter.fq')):
-				if filename == catDemux:
-					continue
-				with open(filename, 'r') as readfile:
-					shutil.copyfileobj(readfile, outfile)
-		if catDemux.endswith('.gz'):
-			amptklib.Fzip_inplace(catDemux)
-		shutil.rmtree(folder)
-		print("----------------------------------")
-		countBarcodes(args.out)
-		print("----------------------------------")
-		print("Script finished, output in %s" % args.out)
+        #get filtered results
+        catDemux = args.out
+        with open(catDemux, 'w') as outfile:
+            for filename in glob.glob(os.path.join(folder,'*.filter.fq')):
+                if filename == catDemux:
+                    continue
+                with open(filename, 'r') as readfile:
+                    shutil.copyfileobj(readfile, outfile)
+        if catDemux.endswith('.gz'):
+            amptklib.Fzip_inplace(catDemux)
+        shutil.rmtree(folder)
+        print("----------------------------------")
+        countBarcodes(args.out)
+        print("----------------------------------")
+        print("Script finished, output in %s" % args.out)
 
-	if args.input.endswith('.gz'):
-		amptklib.removefile(tmpinput)
+    if args.input.endswith('.gz'):
+        amptklib.removefile(tmpinput)
+
 
 if __name__ == "__main__":
-	main(args)
+    main(args)
