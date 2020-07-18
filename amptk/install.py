@@ -7,6 +7,8 @@ import os
 import argparse
 import tarfile
 import gzip
+import json
+import requests
 import shutil
 from amptk import amptklib
 try:
@@ -14,10 +16,6 @@ try:
 except ImportError:
     from urllib2 import urlopen
 
-URL = { 'ITS': 'https://osf.io/pbtyh/download?version=6',
-        '16S': 'https://osf.io/m7v5q/download?version=3',
-        'LSU': 'https://osf.io/sqn5r/download?version=3',
-        'COI': 'https://osf.io/pax79/download?version=4' }
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -30,9 +28,23 @@ def main(args):
         formatter_class=MyFormatter)
     parser.add_argument('-i','--input', nargs='+', required=True, choices=['ITS', '16S', 'LSU', 'COI'], help='Install Databases')
     parser.add_argument('-f','--force', action='store_true', help='Overwrite existing databases')
+    parser.add_argument('-l','--local', action='store_true', help='Use local downloads.json for links')
     args=parser.parse_args(args)
 
     parentdir = os.path.join(os.path.dirname(amptklib.__file__))
+
+    # downd from github to get most recent databases
+    if not args.local:
+        try:
+            print('Retrieving download links from GitHub Repo')
+            URL = json.loads(requests.get("https://raw.githubusercontent.com/nextgenusfs/amptk/master/amptk/downloads.json").text)
+        except:
+            print('Unable to download links from GitHub, using funannotate version specific links')
+            with open(os.path.join(os.path.dirname(__file__), 'downloads.json')) as infile:
+                URL = json.load(infile)
+    else:
+        with open(os.path.join(os.path.dirname(__file__), 'downloads.json')) as infile:
+            URL = json.load(infile)
 
     for x in args.input:
         udbfile = os.path.join(parentdir, 'DB', x+'.udb')

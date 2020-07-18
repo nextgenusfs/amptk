@@ -8,6 +8,7 @@ import argparse
 import subprocess
 import edlib
 import pyfastx
+import itertools
 import amptk.amptklib as lib
 
 
@@ -391,11 +392,11 @@ def main(args):
             step1Stats.append(orientStats)
 
     combinedStats = [sum(i) for i in zip(*step1Stats)]
-    print('{:,} of {:,} reads passed'.format(
+    lib.log.info('{:,} of {:,} reads passed'.format(
         combinedStats[1]+combinedStats[2], combinedStats[0]))
-    print('  {:,} could not orient'.format(combinedStats[3]))
-    print('  {:,} too short'.format(combinedStats[4]))
-    print('  {:,} low quality'.format(combinedStats[5]))
+    lib.log.info('  {:,} could not orient'.format(combinedStats[3]))
+    lib.log.info('  {:,} too short'.format(combinedStats[4]))
+    lib.log.info('  {:,} low quality'.format(combinedStats[5]))
     # [total, found, reverse, nothing, tooshort, lowquality]
     # now combine the results of properfied data
     catDemux = args.out + '.demux.fq'
@@ -406,10 +407,38 @@ def main(args):
             with open(filename, 'r') as readfile:
                 shutil.copyfileobj(readfile, outfile)
 
+    #now loop through data and find barcoded samples, counting each.....
+    BarcodeCount = {}
+    with open(catDemux, 'r') as input:
+        header = itertools.islice(input, 0, None, 4)
+        for line in header:
+            ID = line.split("label=", 1)[-1].split(";")[0]
+            if ID not in BarcodeCount:
+                BarcodeCount[ID] = 1
+            else:
+                BarcodeCount[ID] += 1
+
+    #now let's count the barcodes found and count the number of times they are found.
+    barcode_counts = "%22s:  %s" % ('Sample', 'Count')
+    for k, v in natsorted(list(BarcodeCount.items()), key=lambda k_v: k_v[1], reverse=True):
+        barcode_counts += "\n%22s:  %s" % (k, str(BarcodeCount[k]))
+    lib.log.info("Found %i barcoded samples\n%s" % (len(BarcodeCount), barcode_counts))
+
     FinalDemux = catDemux+'.gz'
     lib.Fzip(catDemux, FinalDemux, args.cpus)
     lib.removefile(catDemux)
     shutil.rmtree(tmpdir)
+
+    #get file size
+    filesize = os.path.getsize(FinalDemux)
+    readablesize = lib.convertSize(filesize)
+    lib.log.info("Output file:  %s (%s)" % (FinalDemux, readablesize))
+
+    print("-------------------------------------------------------")
+    if 'darwin' in sys.platform:
+        print(col.WARN + "\nExample of next cmd: " + col.END + "amptk ont-extend -i %s -f seeds.fa\n" % (FinalDemux))
+    else:
+        print("\nExample of next cmd: amptk ont-extend -i %s -f seeds.fa\n" % (FinalDemux))
 
 
 if __name__ == "__main__":
