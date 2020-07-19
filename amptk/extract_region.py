@@ -7,16 +7,12 @@ import sys
 import os
 import re
 import argparse
-import logging
 import subprocess
-import inspect
 import codecs
-import unicodedata
 import shutil
-import multiprocessing
 import datetime
-from Bio import SeqIO
-from amptk import amptklib
+import pyfastx
+import amptk.amptklib as lib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -49,51 +45,50 @@ u"ö": u"o", u"÷": u"/", u"ø": u"o", u"ù": u"u", u"ú": u"u",
 u"û": u"u", u"ü": u"u", u"ý": u"y", u"þ": u"p", u"ÿ": u"y",
 u"’": u"'", u"×": u"x"}
 
+
 def latin2ascii(error):
     return latin_dict[error.object[error.start]], error.start+1
 
-#register codecs for latin conversion for strange characters
-codecs.register_error('latin2ascii', latin2ascii)
 
 def dereplicate(input, output, args=False):
     seqs = {}
     with open(output, 'w') as out:
-        with open(input, 'r') as in_file:
-            for rec in SeqIO.parse(in_file, 'fasta'):
-                sequence = str(rec.seq)
-                if not sequence in seqs:
-                    seqs[sequence] = rec.description
-                else:
-                    #check length of taxonomy string, keep one with more tax info
-                    newHeader = rec.description.split(';tax=')
-                    oldHeader = seqs.get(sequence).split(';tax=')
-                    newTax = newHeader[-1].split(',')
-                    oldTax = oldHeader[-1].split(',')
-                    newID = newHeader[0]
-                    oldID = oldHeader[0]
-                    newTaxLen = len(newTax)
-                    oldTaxLen = len(oldTax)
-                    if newTaxLen > oldTaxLen:
-                        seqs[sequence] = rec.description
-                    elif newTaxLen == oldTaxLen:
-                        if args.lca:
-                            if newTaxLen == 1: #this means we have only a single level of taxonomy, so just move to next record
-                                continue
-                            if newTax[-1] == oldTax[-1]: #so taxonomy is the same, keep current value in dict and move to next record
-                                continue
-                            else: #loop backwards through tax string find last common ancestor
-                                amptklib.log.debug("ERROR: %s and %s have identical sequences, but taxonomy doesn't agree" % (','.join(oldTax), ','.join(newTax)))
-                                lca = 0
-                                for num in range(1,newTaxLen+1):
-                                    if newTax[-num] == oldTax[-num]:
-                                        lca = num-1
-                                        break
-                                consensusTax = oldID+';tax='+','.join(oldTax[:-lca])
-                                amptklib.log.debug("setting taxonomy to %s" % (consensusTax))
-                                seqs[sequence] = consensusTax
+        for title, seq in pyfastx.Fasta(input, build_index=False):
+            sequence = seqs
+            if not sequence in seqs:
+                seqs[sequence] = title
+            else:
+                #check length of taxonomy string, keep one with more tax info
+                newHeader = title.split(';tax=')
+                oldHeader = seqs.get(sequence).split(';tax=')
+                newTax = newHeader[-1].split(',')
+                oldTax = oldHeader[-1].split(',')
+                newID = newHeader[0]
+                oldID = oldHeader[0]
+                newTaxLen = len(newTax)
+                oldTaxLen = len(oldTax)
+                if newTaxLen > oldTaxLen:
+                    seqs[sequence] = title
+                elif newTaxLen == oldTaxLen:
+                    if args.lca:
+                        if newTaxLen == 1: #this means we have only a single level of taxonomy, so just move to next record
+                            continue
+                        if newTax[-1] == oldTax[-1]: #so taxonomy is the same, keep current value in dict and move to next record
+                            continue
+                        else: #loop backwards through tax string find last common ancestor
+                            lib.log.debug("ERROR: %s and %s have identical sequences, but taxonomy doesn't agree" % (','.join(oldTax), ','.join(newTax)))
+                            lca = 0
+                            for num in range(1,newTaxLen+1):
+                                if newTax[-num] == oldTax[-num]:
+                                    lca = num-1
+                                    break
+                            consensusTax = oldID+';tax='+','.join(oldTax[:-lca])
+                            lib.log.debug("setting taxonomy to %s" % (consensusTax))
+                            seqs[sequence] = consensusTax
         #now write to file
         for key,value in seqs.items():
             out.write('>'+value+'\n'+key+'\n')
+
 
 def uniteTax(taxString):
     '''
@@ -142,17 +137,17 @@ def uniteTax(taxString):
         reformat_tax = []
         removal = ("unidentified", "Incertae", "uncultured", "Group", "incertae")
         sp_removal = (" sp", "_sp", "uncultured", "isolate", "mycorrhizae", "vouchered", "fungal", "basidiomycete", "ascomycete", "fungus", "symbiont")
-        if not any(x in k for x in removal) and not amptklib.number_present(k):
+        if not any(x in k for x in removal) and not lib.number_present(k):
             reformat_tax.append(k)
-        if not any(x in p for x in removal) and not amptklib.number_present(p):
+        if not any(x in p for x in removal) and not lib.number_present(p):
             reformat_tax.append(p)
-        if not any(x in c for x in removal) and not amptklib.number_present(c):
+        if not any(x in c for x in removal) and not lib.number_present(c):
             reformat_tax.append(c)
-        if not any(x in o for x in removal) and not amptklib.number_present(o):
+        if not any(x in o for x in removal) and not lib.number_present(o):
             reformat_tax.append(o)
-        if not any(x in f for x in removal) and not amptklib.number_present(f):
+        if not any(x in f for x in removal) and not lib.number_present(f):
             reformat_tax.append(f)
-        if not any(x in g for x in removal) and not amptklib.number_present(g):
+        if not any(x in g for x in removal) and not lib.number_present(g):
             reformat_tax.append(g)
         if not any(x in s for x in sp_removal):
             reformat_tax.append(s)
@@ -163,6 +158,7 @@ def uniteTax(taxString):
         return taxReformatString
     else:
         return None
+
 
 def rdpTax(taxString):
     '''
@@ -225,17 +221,17 @@ def rdpTax(taxString):
     reformat_tax = []
     removal = ("unidentified", "Incertae", "uncultured", "Group", "incertae", "Chloroplast", "unclassified", "Family", "leaf")
     sp_removal = (" sp", "_sp", "uncultured", "isolate", "mycorrhizae", "vouchered", "fungal", "basidiomycete", "ascomycete", "fungus", "symbiont", "unclassified", "unidentified", "bacterium", "phytoplasma", "genogroup")
-    if not any(x in k for x in removal) and k != "" and not amptklib.number_present(k):
+    if not any(x in k for x in removal) and k != "" and not lib.number_present(k):
         reformat_tax.append(k)
-    if not any(x in p for x in removal) and p != "" and not amptklib.number_present(p) and p != 'p:Fungi':
+    if not any(x in p for x in removal) and p != "" and not lib.number_present(p) and p != 'p:Fungi':
         reformat_tax.append(p)
-    if not any(x in c for x in removal) and c != "" and not amptklib.number_present(c) and c != 'c:Fungi':
+    if not any(x in c for x in removal) and c != "" and not lib.number_present(c) and c != 'c:Fungi':
         reformat_tax.append(c)
-    if not any(x in o for x in removal) and o != "" and not amptklib.number_present(o) and o != 'o:Fungi':
+    if not any(x in o for x in removal) and o != "" and not lib.number_present(o) and o != 'o:Fungi':
         reformat_tax.append(o)
-    if not any(x in f for x in removal) and f != "" and not amptklib.number_present(f) and f != 'f:Fungi':
+    if not any(x in f for x in removal) and f != "" and not lib.number_present(f) and f != 'f:Fungi':
         reformat_tax.append(f)
-    if not any(x in g for x in removal) and g != "" and not amptklib.number_present(g) and g != 'g:Fungi':
+    if not any(x in g for x in removal) and g != "" and not lib.number_present(g) and g != 'g:Fungi':
         reformat_tax.append(g)
     if not any(x in s for x in sp_removal):
         if ' cf ' in s or ' aff ' in s:
@@ -253,108 +249,105 @@ def rdpTax(taxString):
     taxReformatString = taxReformatString.strip()
     return taxReformatString
 
+
 def stripPrimer(input, args=False):
     base = os.path.basename(input).split('.')[0]
     StripOut = os.path.join(folder, base+'.extracted.fa')
     ErrorOut = os.path.join(folder, base+'.errors.fa')
     with open(StripOut, 'w') as outputfile:
         with open(ErrorOut, 'w') as errorfile:
-            with open(input, 'r') as infile:
-                for rec in SeqIO.parse(infile, 'fasta'):
-                    orig_id = rec.description
-                    if len(rec.seq) < args.min_len:
-                        errorfile.write('>ERROR:LENGTH|%s\n%s\n' % (orig_id, str(rec.seq)))
-                        continue
-                    if args.utax == 'unite2utax':
-                        newHeader = uniteTax(orig_id)
-                    elif args.utax == 'rdp2utax':
-                        newHeader = rdpTax(orig_id)
-                    else:
-                        newHeader = orig_id
-                    #quality check the new header
-                    if not newHeader:
-                        errorfile.write('>ERROR:NO_ID|%s\n%s\n' % (orig_id, str(rec.seq)))
-                        continue
-                    if newHeader.strip().endswith('tax='):
-                        errorfile.write('>ERROR:NO_TAX|%s\n%s\n' % (orig_id, str(rec.seq)))
-                        continue
-                    #rename header
-                    rec.id = newHeader
-                    rec.name = ''
-                    rec.description = ''
-                    #make sequence a string for processing
-                    Seq = str(rec.seq).upper()
-                    #remove any terminal N's
-                    Seq = Seq.strip('N')
-                    #make sure alignments are resetting
-                    StripSeq, ForCutPos, RevCutPos, ForCutPos1, RevCutPos1 = (None,)*5
-                    if not args.trimming:
-                        #look for forward primer
-                        ForCutPos = amptklib.findFwdPrimer(FwdPrimer, Seq, args.primer_mismatch, amptklib.degenNucSimple)
-                        #align reverse primer, trim if found
-                        RevCutPos = amptklib.findRevPrimer(RevPrimer, Seq, args.primer_mismatch, amptklib.degenNucSimple)
+            for title, seq in pyfastx.Fasta(input, build_index=False):
+                orig_id = title
+                if len(seq) < args.min_len:
+                    errorfile.write('>ERROR:LENGTH|%s\n%s\n' % (orig_id, seq))
+                    continue
+                if args.utax == 'unite2utax':
+                    newHeader = uniteTax(orig_id)
+                elif args.utax == 'rdp2utax':
+                    newHeader = rdpTax(orig_id)
+                else:
+                    newHeader = orig_id
+                #quality check the new header
+                if not newHeader:
+                    errorfile.write('>ERROR:NO_ID|%s\n%s\n' % (orig_id, seq))
+                    continue
+                if newHeader.strip().endswith('tax='):
+                    errorfile.write('>ERROR:NO_TAX|%s\n%s\n' % (orig_id, seq))
+                    continue
+                #make sequence a string for processing
+                Seq = seq.upper()
+                #remove any terminal N's
+                Seq = Seq.strip('N')
+                #make sure alignments are resetting
+                StripSeq, ForCutPos, RevCutPos, ForCutPos1, RevCutPos1 = (None,)*5
+                if not args.trimming:
+                    #look for forward primer
+                    ForCutPos = lib.findFwdPrimer(FwdPrimer, Seq, args.primer_mismatch, lib.degenNucSimple)
+                    #align reverse primer, trim if found
+                    RevCutPos = lib.findRevPrimer(RevPrimer, Seq, args.primer_mismatch, lib.degenNucSimple)
+                    #now check if either were found
+                    if ForCutPos and RevCutPos: #both were found, then trim and move on
+                        StripSeq = Seq[ForCutPos:RevCutPos]
+                    elif ForCutPos and not RevCutPos:
+                        if args.keep == 'rev':
+                            errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, seq))
+                            continue
+                        else:
+                            StripSeq = Seq[ForCutPos:]
+                    elif not ForCutPos and RevCutPos:
+                        if args.keep == 'for':
+                            errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, seq))
+                            continue
+                        else:
+                            StripSeq = Seq[:RevCutPos]
+                    elif not ForCutPos and not RevCutPos:
+                        #neither is found, try reverse complementing
+                        RevSeq = lib.RevComp(Seq)
+                        ForCutPos1 = lib.findFwdPrimer(FwdPrimer, RevSeq, args.primer_mismatch, lib.degenNucSimple)
+                        RevCutPos1 = lib.findRevPrimer(RevPrimer, RevSeq, args.primer_mismatch, lib.degenNucSimple)
                         #now check if either were found
-                        if ForCutPos and RevCutPos: #both were found, then trim and move on
-                            StripSeq = Seq[ForCutPos:RevCutPos]
-                        elif ForCutPos and not RevCutPos:
+                        if ForCutPos1 and RevCutPos1: #both were found, then trim and move on
+                            StripSeq = RevSeq[ForCutPos1:RevCutPos1]
+                        elif ForCutPos1 and not RevCutPos1:
                             if args.keep == 'rev':
-                                errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, str(rec.seq)))
+                                errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, seq))
                                 continue
                             else:
-                                StripSeq = Seq[ForCutPos:]
-                        elif not ForCutPos and RevCutPos:
+                                StripSeq = RevSeq[ForCutPos1:]
+                        elif not ForCutPos1 and RevCutPos1:
                             if args.keep == 'for':
-                                errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, str(rec.seq)))
+                                errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, seq))
                                 continue
                             else:
-                                StripSeq = Seq[:RevCutPos]
-                        elif not ForCutPos and not RevCutPos:
-                            #neither is found, try reverse complementing
-                            RevSeq = amptklib.RevComp(Seq)
-                            ForCutPos1 = amptklib.findFwdPrimer(FwdPrimer, RevSeq, args.primer_mismatch, amptklib.degenNucSimple)
-                            RevCutPos1 = amptklib.findRevPrimer(RevPrimer, RevSeq, args.primer_mismatch, amptklib.degenNucSimple)
-                            #now check if either were found
-                            if ForCutPos1 and RevCutPos1: #both were found, then trim and move on
-                                StripSeq = RevSeq[ForCutPos1:RevCutPos1]
-                            elif ForCutPos1 and not RevCutPos1:
-                                if args.keep == 'rev':
-                                    errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, str(rec.seq)))
-                                    continue
-                                else:
-                                    StripSeq = RevSeq[ForCutPos1:]
-                            elif not ForCutPos1 and RevCutPos1:
-                                if args.keep == 'for':
-                                    errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, str(rec.seq)))
-                                    continue
-                                else:
-                                    StripSeq = RevSeq[:RevCutPos1]
-                            elif not ForCutPos1 and not RevCutPos1: #neither is found, if keep all then return original sequence
-                                if args.keep == 'none':
-                                    StripSeq = Seq
-                                else:
-                                    errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, str(rec.seq)))
-                                    continue
-                    else:
-                        StripSeq = Seq
-                    #check for ambiguous bases
-                    if args.drop_ns != 0 and 'N'*args.drop_ns in StripSeq:
-                        errorfile.write('>ERROR:AMBIGUOUS|%s\n%s\n' % (orig_id, Seq))
-                        continue
-                    #truncate
-                    if args.trunclen:
-                        StripSeq = StripSeq[:args.trunclen]
-                    #check length
-                    SeqLength = len(StripSeq)
-                    if SeqLength >= args.min_len:
-                        outputfile.write('>%s\n%s\n' % (rec.id, StripSeq))
-                    else:
-                        errorfile.write('>ERROR:LENGTH=%i|%s\n%s\n' % (SeqLength, orig_id, Seq))
+                                StripSeq = RevSeq[:RevCutPos1]
+                        elif not ForCutPos1 and not RevCutPos1: #neither is found, if keep all then return original sequence
+                            if args.keep == 'none':
+                                StripSeq = Seq
+                            else:
+                                errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, seq))
+                                continue
+                else:
+                    StripSeq = Seq
+                #check for ambiguous bases
+                if args.drop_ns != 0 and 'N'*args.drop_ns in StripSeq:
+                    errorfile.write('>ERROR:AMBIGUOUS|%s\n%s\n' % (orig_id, Seq))
+                    continue
+                #truncate
+                if args.trunclen:
+                    StripSeq = StripSeq[:args.trunclen]
+                #check length
+                SeqLength = len(StripSeq)
+                if SeqLength >= args.min_len:
+                    outputfile.write('>%s\n%s\n' % (newHeader, StripSeq))
+                else:
+                    errorfile.write('>ERROR:LENGTH=%i|%s\n%s\n' % (SeqLength, orig_id, Seq))
+
 
 def makeDB(input, args=False):
     basename = input.replace('.extracted.fa', '')
     db_details = basename + '.udb.txt'
     usearch_db = basename + '.udb'
-    Total = amptklib.countfasta(input)
+    Total = lib.countfasta(input)
     if not ':' in args.source:
         source = args.source
         version = ''
@@ -379,59 +372,67 @@ def makeDB(input, args=False):
         utax_log = basename + '.utax.log'
         if os.path.isfile(utax_log):
             os.remove(utax_log)
-        amptklib.log.info("Creating UTAX Database, this may take awhile")
-        amptklib.log.debug("%s -makeudb_utax %s -output %s -report %s -utax_trainlevels kpcofgs -utax_splitlevels NVkpcofgs -notrunclabels" % (usearch, input, usearch_db, report))
+        lib.log.info("Creating UTAX Database, this may take awhile")
+        lib.log.debug("%s -makeudb_utax %s -output %s -report %s -utax_trainlevels kpcofgs -utax_splitlevels NVkpcofgs -notrunclabels" % (usearch, input, usearch_db, report))
         with open(utax_log, 'w') as utaxLog:
-            subprocess.call([usearch, '-makeudb_utax', input, '-output', usearch_db, '-report', report, '-utax_trainlevels', args.utax_trainlevels, '-utax_splitlevels', args.utax_splitlevels, '-notrunclabels'], stdout = utaxLog, stderr = utaxLog)
+            subprocess.call([usearch, '-makeudb_utax', input,
+                             '-output', usearch_db, '-report', report,
+                             '-utax_trainlevels', args.utax_trainlevels,
+                             '-utax_splitlevels', args.utax_splitlevels,
+                             '-notrunclabels'],
+                            stdout=utaxLog, stderr=utaxLog)
 
         #check if file is actually there
         if os.path.isfile(usearch_db):
-            amptklib.log.info("Database %s created successfully" % usearch_db)
+            lib.log.info("Database %s created successfully" % usearch_db)
         else:
-            amptklib.log.error("There was a problem creating the DB, check the UTAX log file %s" % utax_log)
+            lib.log.error("There was a problem creating the DB, check the UTAX log file %s" % utax_log)
 
     elif args.create_db == 'usearch': #note we will use vsearch here
         #create log file for this to troubleshoot
         usearch_log = basename + '.usearch.log'
         if os.path.isfile(usearch_log):
             os.remove(usearch_log)
-        amptklib.log.info("Creating USEARCH Database (VSEARCH)")
-        amptklib.log.debug("vsearch --makeudb_usearch %s --output %s --notrunclabels" % (input, usearch_db))
+        lib.log.info("Creating USEARCH Database (VSEARCH)")
+        lib.log.debug("vsearch --makeudb_usearch %s --output %s --notrunclabels" % (input, usearch_db))
         with open(usearch_log, 'w') as logfile:
-            subprocess.call(['vsearch', '--makeudb_usearch', input, '--output', usearch_db, '--notrunclabels'], stdout = logfile, stderr = logfile)
+            subprocess.call(['vsearch', '--makeudb_usearch', input,
+                             '--output', usearch_db, '--notrunclabels'],
+                            stdout=logfile, stderr=logfile)
         if os.path.isfile(usearch_db):
-            amptklib.log.info("Database %s created successfully" % usearch_db)
+            lib.log.info("Database %s created successfully" % usearch_db)
         else:
-            amptklib.log.error("There was a problem creating the DB, check the log file %s" % usearch_log)
+            lib.log.error("There was a problem creating the DB, check the log file %s" % usearch_log)
 
     elif args.create_db == 'sintax':
         sintax_log = basename + '.sintax.log'
         if os.path.isfile(sintax_log):
             os.remove(sintax_log)
-        amptklib.log.info("Creating SINTAX Database, this may take awhile")
-        amptklib.log.debug("vsearch --makeudb_usearch %s --output %s" % (input, usearch_db))
+        lib.log.info("Creating SINTAX Database, this may take awhile")
+        lib.log.debug("vsearch --makeudb_usearch %s --output %s" % (input, usearch_db))
         with open(sintax_log, 'w') as sintaxlog:
             #subprocess.call([usearch, '-makeudb_sintax', input, '-output', usearch_db, '-notrunclabels'], stdout = utaxLog, stderr = utaxLog)
             subprocess.call(['vsearch', '--makeudb_usearch', input, '--output', usearch_db, '--notrunclabels'], stdout = sintaxlog, stderr = sintaxlog)
         #check if file is actually there
         if os.path.isfile(usearch_db):
-            amptklib.log.info("Database %s created successfully" % usearch_db)
+            lib.log.info("Database %s created successfully" % usearch_db)
         else:
-            amptklib.log.error("There was a problem creating the DB, check the UTAX log file %s" % sintaxlog)
+            lib.log.error("There was a problem creating the DB, check the UTAX log file %s" % sintaxlog)
+
 
 def decodeFasta(input, output):
     '''
     the taxonomy strings from UNITE database contain invalid characters, try to fix them
     '''
     with open(output, 'w') as outfile:
-        with open(input, 'r') as infile:
-            for rec in SeqIO.parse(infile, 'fasta'):
-                try:
-                    tmpID = rec.description.decode('utf-8')
-                except AttributeError:
-                    tmpID = rec.description
-                cleanID = tmpID.encode('ascii', 'latin2ascii').decode()
-                outfile.write('>{:}\n{:}\n'.format(cleanID, str(rec.seq)))
+        for title, seq in pyfastx.Fasta(input, build_index=False):
+            try:
+                tmpID = title.decode('utf-8')
+            except AttributeError:
+                tmpID = title
+            cleanID = tmpID.encode('ascii', 'latin2ascii').decode()
+            outfile.write('>{:}\n{:}\n'.format(cleanID, seq))
+
 
 def main(args):
     global FwdPrimer, RevPrimer, today, folder, usearch
@@ -464,7 +465,10 @@ def main(args):
     parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
     args=parser.parse_args(args)
 
-    parentdir = os.path.join(os.path.dirname(amptklib.__file__))
+    #register codecs for latin conversion for strange characters
+    codecs.register_error('latin2ascii', latin2ascii)
+
+    parentdir = os.path.join(os.path.dirname(lib.__file__))
 
     #get basename if not args.out passed
     if args.out:
@@ -483,46 +487,46 @@ def main(args):
     if os.path.isfile(log_name):
         os.remove(log_name)
 
-    amptklib.setupLogging(log_name)
+    lib.setupLogging(log_name)
     FNULL = open(os.devnull, 'w')
     cmd_args = " ".join(sys.argv)+'\n'
-    amptklib.log.debug(cmd_args)
+    lib.log.debug(cmd_args)
     print("-------------------------------------------------------")
-    amptklib.SystemInfo()
+    lib.SystemInfo()
 
     today = datetime.datetime.today().strftime('%Y-%m-%d')
 
     #Do a version check
     usearch = args.usearch
     if args.create_db == 'utax':
-        amptklib.versionDependencyChecks(usearch)
+        lib.versionDependencyChecks(usearch)
 
-    amptklib.log.info('Base name set to: {:}'.format(base))
+    lib.log.info('Base name set to: {:}'.format(base))
 
     #look up primer db otherwise default to entry
-    if args.F_primer in amptklib.primer_db:
-        FwdPrimer = amptklib.primer_db.get(args.F_primer)
+    if args.F_primer in lib.primer_db:
+        FwdPrimer = lib.primer_db.get(args.F_primer)
     else:
         FwdPrimer = args.F_primer
-    if args.R_primer in amptklib.primer_db:
-        RevPrimer = amptklib.primer_db.get(args.R_primer)
+    if args.R_primer in lib.primer_db:
+        RevPrimer = lib.primer_db.get(args.R_primer)
     else:
         RevPrimer = args.R_primer
 
     #reverse complement the reverse primer and get forward length for trim function
-    RevPrimer = amptklib.RevComp(RevPrimer)
+    RevPrimer = lib.RevComp(RevPrimer)
     fwdLen = len(FwdPrimer)
 
     if not args.trimming:
-        amptklib.log.info("Searching for primers, this may take awhile: Fwd: %s  Rev: %s" % (FwdPrimer, RevPrimer))
+        lib.log.info("Searching for primers, this may take awhile: Fwd: %s  Rev: %s" % (FwdPrimer, RevPrimer))
     else:
-        amptklib.log.info("Working on file: %s" % args.fasta)
+        lib.log.info("Working on file: %s" % args.fasta)
 
     #get number of cpus
     if args.cpus:
         cpus = args.cpus
     else:
-        cpus = amptklib.getCPUS()
+        cpus = lib.getCPUS()
 
     #create temp directory
     pid = os.getpid()
@@ -532,16 +536,16 @@ def main(args):
 
     decodedFasta = os.path.join(folder, 'cleaned.fa')
     decodeFasta(args.fasta, decodedFasta)
-    SeqCount = amptklib.countfasta(decodedFasta)
-    amptklib.log.info('{0:,}'.format(SeqCount) + ' records loaded')
+    SeqCount = lib.countfasta(decodedFasta)
+    lib.log.info('{0:,}'.format(SeqCount) + ' records loaded')
     #if only 1 cpu just process data
     if cpus == 1:
         stripPrimer(decodedFasta, args=args)
     else:
-        amptklib.log.info("Using %i cpus to process data" % cpus)
+        lib.log.info("Using %i cpus to process data" % cpus)
 
         #now split it into chunks (as many cpus as are queried)
-        amptklib.split_fasta(decodedFasta, folder, cpus*2)
+        lib.split_fasta(decodedFasta, folder, cpus*2)
 
         #get list of files
         file_list = []
@@ -551,7 +555,7 @@ def main(args):
                 file_list.append(file)
 
         #finally process reads over number of cpus
-        amptklib.runMultiProgress(stripPrimer, file_list, cpus, args=args)
+        lib.runMultiProgress(stripPrimer, file_list, cpus, args=args)
 
     #now concatenate outputs together
     OutName = base + '.extracted.fa'
@@ -596,29 +600,29 @@ def main(args):
                 elif Err == 'NO_TAX':
                     noTax += 1
 
-    Passed = amptklib.countfasta(os.path.abspath(OutName))
+    Passed = lib.countfasta(os.path.abspath(OutName))
     PassedPct = Passed / SeqCount
-    amptklib.log.info('{:,} records passed ({:.2%})'.format(Passed, PassedPct))
-    amptklib.log.info('Errors: {:,} no taxonomy info, {:,} no ID, {:,} length out of range, {:,} too many ambiguous bases, {:,} no primers found'.format(
+    lib.log.info('{:,} records passed ({:.2%})'.format(Passed, PassedPct))
+    lib.log.info('Errors: {:,} no taxonomy info, {:,} no ID, {:,} length out of range, {:,} too many ambiguous bases, {:,} no primers found'.format(
             noTax, noID, tooShort, ambig, noPrimer))
 
     #dereplicate if argument passed
     if args.derep_fulllength or args.create_db == 'sintax' or args.create_db == 'utax':
-        amptklib.log.info("Now dereplicating sequences (collapsing identical sequences)")
+        lib.log.info("Now dereplicating sequences (collapsing identical sequences)")
         derep_tmp = base + '.derep.extracted.fa'
         os.rename(OutName, derep_tmp)
         dereplicate(derep_tmp, OutName, args=args)
-        Total = amptklib.countfasta(OutName)
-        amptklib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
+        Total = lib.countfasta(OutName)
+        lib.log.info('{0:,}'.format(Total) + ' records passed (%.2f%%)' % (Total*100.0/SeqCount))
         os.remove(derep_tmp)
 
     #subsample if argument passed
     if args.subsample:
-        amptklib.log.info("Random subsampling to %i records" % args.subsample)
+        lib.log.info("Random subsampling to %i records" % args.subsample)
         subsample = base + '.subsample.tmp'
         os.rename(OutName, subsample)
         cmd = ['vsearch', '--fastx_subsample', subsample, '--sample_size', str(args.subsample), '--fastaout', OutName, '--notrunclabels']
-        amptklib.runSubprocess(cmd, amptklib.log)
+        lib.runSubprocess(cmd, lib.log)
         os.remove(subsample)
 
     #create DB if argument passed

@@ -13,13 +13,15 @@ import pyfastx
 from amptk import amptklib
 
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
-    def __init__(self,prog):
-        super(MyFormatter,self).__init__(prog,max_help_position=50)
+    def __init__(self, prog):
+        super(MyFormatter,self).__init__(prog, max_help_position=50)
+
 
 class colr(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
+
 
 def folder2list(input, ending):
     names = []

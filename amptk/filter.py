@@ -10,16 +10,19 @@ from Bio import SeqIO
 from natsort import natsorted
 import pandas as pd
 import numpy as np
-from amptk import amptklib
+import amptk.amptklib as lib
+
 
 class colr(object):
     GRN = '\033[92m'
     END = '\033[0m'
     WARN = '\033[93m'
 
+
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
         super(MyFormatter,self).__init__(prog,max_help_position=50)
+
 
 def main(args):
     parser=argparse.ArgumentParser(prog='amptk-filter.py',
@@ -52,7 +55,7 @@ def main(args):
     parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
     args=parser.parse_args(args)
 
-    parentdir = os.path.join(os.path.dirname(amptklib.__file__))
+    parentdir = os.path.join(os.path.dirname(lib.__file__))
 
     if not args.out:
         #get base name of files
@@ -62,25 +65,25 @@ def main(args):
 
     #remove logfile if exists
     log_name = base + '.amptk-filter.log'
-    amptklib.removefile(log_name)
+    lib.removefile(log_name)
 
-    amptklib.setupLogging(log_name)
+    lib.setupLogging(log_name)
     FNULL = open(os.devnull, 'w')
     cmd_args = " ".join(sys.argv)+'\n'
-    amptklib.log.debug(cmd_args)
+    lib.log.debug(cmd_args)
     print("-------------------------------------------------------")
 
     #initialize script, log system info and usearch version
-    amptklib.SystemInfo()
+    lib.SystemInfo()
     #Do a version check
     usearch = args.usearch
-    amptklib.versionDependencyChecks(usearch, method='vsearch')
+    lib.versionDependencyChecks(usearch, method='vsearch')
 
     #check if otu_table is empty
-    amptklib.log.info("Loading OTU table: %s" % args.otu_table)
+    lib.log.info("Loading OTU table: %s" % args.otu_table)
     check = os.stat(args.otu_table).st_size
     if check == 0:
-        amptklib.log.error("Input OTU table is empty")
+        lib.log.error("Input OTU table is empty")
         sys.exit(1)
     #get the OTU header info (depending on how OTU table was constructed, this might be different, so find it as you need for indexing)
     with open(args.otu_table, 'r') as f:
@@ -142,7 +145,7 @@ def main(args):
                         count = 0
                     outfile.write('>%s;size=%i\n%s\n' % (rec.id, count, rec.seq))
 
-    amptklib.log.info('OTU table contains {:,} samples, {:,} OTUs, and {:,} reads counts'.format(len(df.columns.values.tolist()), len(df.index), int(df.values.sum())))
+    lib.log.info('OTU table contains {:,} samples, {:,} OTUs, and {:,} reads counts'.format(len(df.columns.values.tolist()), len(df.index), int(df.values.sum())))
 
     #setup output files/variables
     mock_out = base + '.mockmap.txt'
@@ -151,15 +154,15 @@ def main(args):
         #check if mock barcode is valid
         validBCs = df.columns.values.tolist()
         if not args.mock_barcode in validBCs:
-            amptklib.log.error("%s not a valid barcode." % args.mock_barcode)
-            amptklib.log.error("Valid barcodes: %s" % (' '.join(validBCs)))
+            lib.log.error("%s not a valid barcode." % args.mock_barcode)
+            lib.log.error("Valid barcodes: %s" % (' '.join(validBCs)))
             sys.exit(1)
         if args.col_order and not args.mock_barcode in args.col_order:
-            amptklib.log.error("Error: %s not listed in --col_order." % args.mock_barcode)
+            lib.log.error("Error: %s not listed in --col_order." % args.mock_barcode)
             sys.exit(1)
         #make sure there is a --mc passed here otherwise throw error
         if not args.mc:
-            amptklib.log.error("If using the -b,--barcode option you must specify a fasta file of mock community via the --mc option")
+            lib.log.error("If using the -b,--barcode option you must specify a fasta file of mock community via the --mc option")
             sys.exit(1)
         #get default mock community value
         if args.mc == "mock3":
@@ -174,17 +177,18 @@ def main(args):
             mock = os.path.abspath(args.mc)
 
         #open mock community fasta and count records
-        mock_ref_count = amptklib.countfasta(mock)
+        mock_ref_count = lib.countfasta(mock)
 
         #load OTU lengths into dictionary
-        SeqLength = amptklib.fastalen2dict(args.fasta)
+        SeqLength = lib.fastalen2dict(args.fasta)
 
         #map OTUs to mock community, this is fast enough, but running twice, first to get only top hit, then
-        amptklib.log.info("Mapping OTUs to Mock Community (USEARCH)")
-        cmd = ['vsearch', '-usearch_global', mock, '--strand', 'plus', '--id', '0.65',
-               '--db', FastaCounts, '--userout', mock_out, '--userfields', 'query+target+id+ql+tl+alnlen+caln+mism+gaps',
+        lib.log.info("Mapping OTUs to Mock Community (USEARCH)")
+        cmd = ['vsearch', '-usearch_global', mock, '--strand', 'plus',
+               '--id', '0.65','--db', FastaCounts, '--userout', mock_out,
+               '--userfields', 'query+target+id+ql+tl+alnlen+caln+mism+gaps',
                '--maxaccepts', '0', '--maxrejects', '0']
-        amptklib.runSubprocess(cmd, amptklib.log)
+        lib.runSubprocess(cmd, lib.log)
 
         #generate dictionary for name change
         '''
@@ -259,7 +263,7 @@ def main(args):
             for x in variants:
                 annotate_dict[x] = x+'_suspect_mock_variant'
         if len(missing) > 0:
-            amptklib.log.info("%i mock missing: %s" % (len(missing), ', '.join(missing)))
+            lib.log.info("%i mock missing: %s" % (len(missing), ', '.join(missing)))
     else:
         otu_new = args.fasta
 
@@ -270,10 +274,10 @@ def main(args):
     #sort the table
     df2 = df.reindex(index=natsorted(df.index))
     if not args.col_order:
-        amptklib.log.info("Sorting OTU table naturally")
+        lib.log.info("Sorting OTU table naturally")
         df = df2.reindex(columns=natsorted(df2.columns))
     else:
-        amptklib.log.info("Sorting OTU table by user defined order (--col_order)")
+        lib.log.info("Sorting OTU table by user defined order (--col_order)")
         col_headers = args.col_order
         #check if all names in headers or not
         for i in col_headers:
@@ -298,7 +302,7 @@ def main(args):
     fotus = tos[tos >= args.min_reads_otu] #valid allele must be found atleast from than 2 times, i.e. no singletons
     if len(fotus.index) < len(tos.index):
         diff = len(tos.index) - len(fotus.index)
-        amptklib.log.info("Removing {:,} OTUs according to --min_reads_otu {:,}".format(diff, args.min_reads_otu))
+        lib.log.info("Removing {:,} OTUs according to --min_reads_otu {:,}".format(diff, args.min_reads_otu))
     filt3 = pd.DataFrame(filt2, index=fotus.index)
 
     if args.normalize == 'y':
@@ -318,7 +322,7 @@ def main(args):
             del norm_round['Taxonomy']
         else:
             norm_round.to_csv(normal_table_nums, sep=delim)
-        amptklib.log.info("Normalizing OTU table to number of reads per sample")
+        lib.log.info("Normalizing OTU table to number of reads per sample")
     else:
         norm_round = filt3
 
@@ -360,8 +364,8 @@ def main(args):
         non_mock_zeros = non_mocks.loc[(non_mocks==0).all(axis=1)]
         zeros = [x for x in list(non_mock_zeros.index) if x not in list(mock_OTUs_zeros.index)]
         if len(zeros) > 0:
-            amptklib.log.info("Found {:,} mock chimeras (only in mock sample and not mapped to mock sequences) excluding from index-bleed calculation".format(len(zeros)))
-            amptklib.log.debug('{:}'.format(', '.join(zeros)))
+            lib.log.info("Found {:,} mock chimeras (only in mock sample and not mapped to mock sequences) excluding from index-bleed calculation".format(len(zeros)))
+            lib.log.debug('{:}'.format(', '.join(zeros)))
         #now get updated list of samples, dropping chimeras
         samples_trimmed = [x for x in sample if x not in zeros]
         #slice the OTU table to get all OTUs that are not in mock community from the mock sample
@@ -382,27 +386,27 @@ def main(args):
                 bleedfilter = math.ceil(bleed1max*1000)/1000
             else:
                 bleedfilter = math.ceil(bleed2max*1000)/1000
-            amptklib.log.info("Index bleed, mock into samples: %f%%.  Index bleed, samples into mock: %f%%." % (bleed1max*100, bleed2max*100))
+            lib.log.info("Index bleed, mock into samples: %f%%.  Index bleed, samples into mock: %f%%." % (bleed1max*100, bleed2max*100))
         else:
             bleedfilter = math.ceil(bleed2max*1000)/1000
-            amptklib.log.info("Index bleed, samples into mock: %f%%." % (bleed2max*100))
+            lib.log.info("Index bleed, samples into mock: %f%%." % (bleed2max*100))
 
     else:
         bleedfilter = args.index_bleed #this is value needed to filter MiSeq, Ion is likely less, but shouldn't effect the data very much either way.
 
     if args.index_bleed:
         args.index_bleed = float(args.index_bleed)
-        amptklib.log.info("Overwriting auto detect index-bleed, setting to %f%%" % (args.index_bleed*100))
+        lib.log.info("Overwriting auto detect index-bleed, setting to %f%%" % (args.index_bleed*100))
         bleedfilter = args.index_bleed
     else:
         if bleedfilter:
-            amptklib.log.info("Will use value of %f%% for index-bleed OTU filtering." % (bleedfilter*100))
+            lib.log.info("Will use value of %f%% for index-bleed OTU filtering." % (bleedfilter*100))
         else:
             bleedfilter = 0 #no filtering if you don't pass -p or -b
-            amptklib.log.info("No spike-in mock (-b) or index-bleed (-p) specified, thus not running index-bleed filtering")
+            lib.log.info("No spike-in mock (-b) or index-bleed (-p) specified, thus not running index-bleed filtering")
 
     if bleedfilter > 0.05:
-        amptklib.log.info("Index bleed into samples is abnormally high (%f%%), if you have biological mock you should use `--calculate in`" % (bleedfilter*100))
+        lib.log.info("Index bleed into samples is abnormally high (%f%%), if you have biological mock you should use `--calculate in`" % (bleedfilter*100))
 
 
     #to combat barcode switching, loop through each OTU filtering out if less than bleedfilter threshold
@@ -441,7 +445,7 @@ def main(args):
     final.set_index(OTUhead, inplace=True)
 
     if args.drop: #if user has passed samples to drop, do it here, subtract drop list from Header
-        amptklib.log.info("Dropping %i samples from table: %s" % (len(args.drop), ', '.join(args.drop)))
+        lib.log.info("Dropping %i samples from table: %s" % (len(args.drop), ', '.join(args.drop)))
 
         colsdrop = []
         for x in args.drop:
@@ -455,12 +459,12 @@ def main(args):
     else:
         try:
             subtract_num = int(subtract_num)
-            amptklib.log.info("Auto subtract filter set to %i" % subtract_num)
+            lib.log.info("Auto subtract filter set to %i" % subtract_num)
         except NameError:
             subtract_num = 0
-            amptklib.log.info("Error: to use 'auto' subtract feature, provide a sample name to -b,--mock_barcode.")
+            lib.log.info("Error: to use 'auto' subtract feature, provide a sample name to -b,--mock_barcode.")
     if subtract_num != 0:
-        amptklib.log.info("Subtracting %i from OTU table" % subtract_num)
+        lib.log.info("Subtracting %i from OTU table" % subtract_num)
         sub = final.subtract(subtract_num)
         sub[sub < 0] = 0 #if negative, change to zero
         sub = sub.loc[~(sub==0).all(axis=1)]
@@ -509,7 +513,7 @@ def main(args):
             else:
                 totalmismatches += countlen
         e_rate = totalmismatches / float(totallength) * 100
-        amptklib.log.info(args.mock_barcode + ' sample has '+'{0:,}'.format(len(mocks))+' OTUS out of '+'{0:,}'.format(mock_ref_count)+ ' expected; '+'{0:,}'.format(variant_count)+ ' mock variants; '+ '{0:,}'.format(chimera_count)+ ' mock chimeras; Error rate: '+'{0:.3f}%'.format(e_rate))
+        lib.log.info(args.mock_barcode + ' sample has '+'{0:,}'.format(len(mocks))+' OTUS out of '+'{0:,}'.format(mock_ref_count)+ ' expected; '+'{0:,}'.format(variant_count)+ ' mock variants; '+ '{0:,}'.format(chimera_count)+ ' mock chimeras; Error rate: '+'{0:.3f}%'.format(e_rate))
 
     if not args.keep_mock:
         try:
@@ -539,7 +543,7 @@ def main(args):
     final2 = pd.DataFrame(final, index=keep)
     diff = len(final.index) - len(keep)
     if diff > 0:
-        amptklib.log.info('Dropped {:,} OTUs found in fewer than {:,} samples'.format(diff, args.min_samples_otu))
+        lib.log.info('Dropped {:,} OTUs found in fewer than {:,} samples'.format(diff, args.min_samples_otu))
 
     #drop samples that don't have any OTUs after filtering
     final3 = final2.loc[:, (final2 != 0).any(axis=0)]
@@ -593,7 +597,7 @@ def main(args):
                 Neg.remove(i)
                 NotFound.append(i)
         if len(NotFound) > 0:
-            amptklib.log.info('Samples not found: %s' % ' '.join(NotFound))
+            lib.log.info('Samples not found: %s' % ' '.join(NotFound))
         #slice table
         NegTable = FiltTable.reindex(columns=Neg)
         #drop those that are zeros through all samples, just pull out OTUs found in the negative samples
@@ -606,15 +610,15 @@ def main(args):
 
     #check if negative OTUs exist, if so, then output updated OTUs and instructions on creating new OTU table
     if len(NegOTUs) > 0:
-        amptklib.log.info("%i OTUs are potentially contamination" % len(NegOTUs))
+        lib.log.info("%i OTUs are potentially contamination" % len(NegOTUs))
         otu_clean = base + '.cleaned.otus.fa'
         with open(otu_clean, 'w') as otu_update:
             with open(args.fasta, "rU") as myfasta:
                 for rec in SeqIO.parse(myfasta, 'fasta'):
                     if not rec.id in NegOTUs:
                         SeqIO.write(rec, otu_update, 'fasta')
-        amptklib.log.info("Cleaned OTUs saved to: %s" % otu_clean)
-        amptklib.log.info("Generate a new OTU table like so:\namptk remove -i %s --format fasta -l %s -o %s\nvsearch --usearch_global %s --db %s --strand plus --id 0.97 --otutabout newOTU.table.txt\n" % (base+'.demux.fq', ' '.join(Neg), base+'.cleaned.fa', base+'.cleaned.fa', otu_clean))
+        lib.log.info("Cleaned OTUs saved to: %s" % otu_clean)
+        lib.log.info("Generate a new OTU table like so:\namptk remove -i %s --format fasta -l %s -o %s\nvsearch --usearch_global %s --db %s --strand plus --id 0.97 --otutabout newOTU.table.txt\n" % (base+'.demux.fq', ' '.join(Neg), base+'.cleaned.fa', base+'.cleaned.fa', otu_clean))
 
     else: #proceed with rest of script
         #output final table
@@ -629,10 +633,10 @@ def main(args):
             numFinalSamples = len(finalSamples) - 1
         else:
             numFinalSamples = len(finalSamples)
-        amptklib.log.info('Filtered OTU table contains {:,} samples, {:,} OTUs, and {:,} read counts'.format(numFinalSamples, len(FiltTable.index), FiltTable.values.sum()))
+        lib.log.info('Filtered OTU table contains {:,} samples, {:,} OTUs, and {:,} read counts'.format(numFinalSamples, len(FiltTable.index), FiltTable.values.sum()))
         if numFinalSamples < len(df.columns.values.tolist()):
             diffSamples = [item for item in headers if item not in FiltTable.columns.values.tolist()]
-            amptklib.log.info('Samples dropped: %s' % (','.join(diffSamples)))
+            lib.log.info('Samples dropped: %s' % (','.join(diffSamples)))
         #output binary table
         if otuDict:
             final3['Taxonomy'] = pd.Series(otuDict)
@@ -641,7 +645,7 @@ def main(args):
             final3.to_csv(final_binary_table, sep=delim)
 
         #generate final OTU list for taxonomy
-        amptklib.log.info("Finding valid OTUs")
+        lib.log.info("Finding valid OTUs")
         otu_new = base + '.filtered.otus.fa'
         with open(otu_new, 'w') as otu_update:
             with open(args.fasta, "rU") as myfasta:
@@ -669,7 +673,7 @@ def main(args):
         print("Sorted OTU table:     %s" % sorted_table)
         if not args.debug:
             for i in [normal_table_pct, normal_table_nums, subtract_table, mock_out, FastaCounts]:
-                amptklib.removefile(i)
+                lib.removefile(i)
         else:
             print("Normalized (pct):     %s" % normal_table_pct)
             print("Normalized (10k):     %s" % normal_table_nums)

@@ -8,6 +8,7 @@ import pandas as pd
 from amptk import amptklib
 from amptk.__version__ import __version__
 
+
 def getVersion():
     git_version = amptklib.git_version()
     if git_version:
@@ -15,6 +16,7 @@ def getVersion():
     else:
         version = __version__
     return version
+
 
 def main():
 
@@ -42,13 +44,15 @@ def main():
         db_print = "No DB configured, run 'amptk install' or 'amptk database' command."
     else:
         df = pd.DataFrame(db_list)
-        df.columns = ['DB_name', 'DB_type', 'FASTA', 'Fwd Primer', 'Rev Primer', 'Records', 'Source', 'Version', 'Date']
+        df.columns = ['DB_name', 'DB_type', 'FASTA', 'Fwd Primer',
+                      'Rev Primer', 'Records', 'Source', 'Version', 'Date']
         dfsort = df.sort_values(by='DB_name')
-        db_print = dfsort.to_string(index=False,justify='center')
+        db_print = dfsort.to_string(index=False, justify='center')
     print('------------------------------')
     print('Running AMPtk v {:}'.format(getVersion()))
     print('------------------------------')
-    print('Taxonomy Databases Installed: {:}'.format(os.path.join(parentdir, 'DB')))
+    print('Taxonomy Databases Installed: {:}'.format(os.path.join(
+        parentdir, 'DB')))
     print('------------------------------')
     print(db_print)
     print('------------------------------')
