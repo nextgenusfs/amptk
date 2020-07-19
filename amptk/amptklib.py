@@ -142,7 +142,7 @@ def execute(cmd):
 
 
 def minimap_otutable(otus, fastq, output, method='ont', min_mapq=1, cpus=1,
-                     min_pident=90.0):
+                     min_pident=0.90):
     # function to map reads with minimap2 and create OTU table
     # requires barcodelable= or barcode= or sample= in fastq header
     if method == 'pacbio':
@@ -190,11 +190,12 @@ def minimap_otutable(otus, fastq, output, method='ont', min_mapq=1, cpus=1,
                     Results[barcodelabel][tname] = 1
                 else:
                     Results[barcodelabel][tname] += 1
-    os.remove(tmpOut)
     df = pd.DataFrame(Results)
     df.index.rename('#OTU ID', inplace=True)
     df.fillna(0, inplace=True)
+    df = df.astype(int)
     df.to_csv(output, sep='\t')
+    os.remove(tmpOut)
 
 
 def checkfile(input):

@@ -96,12 +96,25 @@ def main(args):
 
     #Setup DB locations and names, etc
     DBdir = os.path.join(parentdir, 'DB')
-    DataBase = { 'ITS1': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS1_UTAX.udb'), os.path.join(DBdir, 'ITS_SINTAX.udb')),
-                 'ITS2': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS2_UTAX.udb'), os.path.join(DBdir, 'ITS_SINTAX.udb')),
-                 'ITS': (os.path.join(DBdir,'ITS.udb'), os.path.join(DBdir, 'ITS_UTAX.udb'), os.path.join(DBdir, 'ITS_SINTAX.udb')),
-                 '16S': (os.path.join(DBdir, '16S.udb'), os.path.join(DBdir, '16S.udb'), os.path.join(DBdir, '16S_SINTAX.udb')),
-                 'LSU': (os.path.join(DBdir, 'LSU.udb'), os.path.join(DBdir, 'LSU_UTAX.udb'), os.path.join(DBdir, 'LSU_SINTAX.udb')),
-                 'COI': (os.path.join(DBdir,'COI.udb'), os.path.join(DBdir, 'COI_UTAX.udb'), os.path.join(DBdir, 'COI_SINTAX.udb'))}
+    DataBase = {'ITS1': (os.path.join(DBdir, 'ITS.udb'),
+                         os.path.join(DBdir, 'ITS1_UTAX.udb'),
+                         os.path.join(DBdir, 'ITS1_SINTAX.udb')),
+                'ITS2': (os.path.join(DBdir, 'ITS.udb'),
+                         os.path.join(DBdir, 'ITS2_UTAX.udb'),
+                         os.path.join(DBdir, 'ITS2_SINTAX.udb')),
+                'ITS': (os.path.join(DBdir, 'ITS.udb'),
+                        os.path.join(DBdir, 'ITS_UTAX.udb'),
+                        os.path.join(DBdir, 'ITS_SINTAX.udb')),
+                '16S': (os.path.join(DBdir, '16S.udb'),
+                        os.path.join(DBdir, '16S.udb'),
+                        os.path.join(DBdir, '16S_SINTAX.udb')),
+                'LSU': (os.path.join(DBdir, 'LSU.udb'),
+                        os.path.join(DBdir, 'LSU_UTAX.udb'),
+                        os.path.join(DBdir, 'LSU_SINTAX.udb')),
+                'COI': (os.path.join(DBdir, 'COI.udb'),
+                        os.path.join(DBdir, 'COI_UTAX.udb'),
+                        os.path.join(DBdir, 'COI_SINTAX.udb'))
+                }
 
     #get DB names up front
     if args.db in DataBase:

@@ -91,10 +91,10 @@ def dereplicate(input, output, args=False):
                                 consensusTax = oldID+';tax='+','.join(oldTax[:-lca])
                                 amptklib.log.debug("setting taxonomy to %s" % (consensusTax))
                                 seqs[sequence] = consensusTax
-        #now write to file     
+        #now write to file
         for key,value in seqs.items():
             out.write('>'+value+'\n'+key+'\n')
-            
+
 def uniteTax(taxString):
     '''
     function to parse UNITE taxonomy string, return taxstring
@@ -163,7 +163,7 @@ def uniteTax(taxString):
         return taxReformatString
     else:
         return None
-    
+
 def rdpTax(taxString):
     '''
     function to parse RDP taxonomy string, return seqrecord
@@ -251,8 +251,8 @@ def rdpTax(taxString):
     taxReformatString = ID+";tax="+",".join(reformat_tax)
     taxReformatString = re.sub(",s:$", "", taxReformatString)
     taxReformatString = taxReformatString.strip()
-    return taxReformatString        
-      
+    return taxReformatString
+
 def stripPrimer(input, args=False):
     base = os.path.basename(input).split('.')[0]
     StripOut = os.path.join(folder, base+'.extracted.fa')
@@ -333,9 +333,9 @@ def stripPrimer(input, args=False):
                                     StripSeq = Seq
                                 else:
                                     errorfile.write('>ERROR:NO_PRIMER_MATCH|%s\n%s\n' % (orig_id, str(rec.seq)))
-                                    continue 
+                                    continue
                     else:
-                        StripSeq = Seq                        
+                        StripSeq = Seq
                     #check for ambiguous bases
                     if args.drop_ns != 0 and 'N'*args.drop_ns in StripSeq:
                         errorfile.write('>ERROR:AMBIGUOUS|%s\n%s\n' % (orig_id, Seq))
@@ -369,7 +369,7 @@ def makeDB(input, args=False):
         databaseString = 'vsearch'
     elif args.create_db == 'sintax':
         databaseString = 'sintax'
-    db_string = '{:} {:} {:} {:} {:} {:} {:} {:}'.format(databaseString, os.path.basename(args.fasta), args.F_primer, args.R_primer, str(Total), source, version, today)
+    db_string = '{:}\t{:}\t{:}\t{:}\t{:}\t{:}\t{:}\t{:}\n'.format(databaseString, os.path.basename(args.fasta), args.F_primer, args.R_primer, str(Total), source, version, today)
     with open(db_details, 'w') as details:
         details.write(db_string)
     report = basename + '.report.txt'
@@ -403,7 +403,7 @@ def makeDB(input, args=False):
             amptklib.log.info("Database %s created successfully" % usearch_db)
         else:
             amptklib.log.error("There was a problem creating the DB, check the log file %s" % usearch_log)
-            
+
     elif args.create_db == 'sintax':
         sintax_log = basename + '.sintax.log'
         if os.path.isfile(sintax_log):
@@ -418,7 +418,7 @@ def makeDB(input, args=False):
             amptklib.log.info("Database %s created successfully" % usearch_db)
         else:
             amptklib.log.error("There was a problem creating the DB, check the UTAX log file %s" % sintaxlog)
-            
+
 def decodeFasta(input, output):
     '''
     the taxonomy strings from UNITE database contain invalid characters, try to fix them
@@ -463,7 +463,7 @@ def main(args):
     parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
     parser.add_argument('--debug', action='store_true', help='Remove Intermediate Files')
     args=parser.parse_args(args)
-    
+
     parentdir = os.path.join(os.path.dirname(amptklib.__file__))
 
     #get basename if not args.out passed
@@ -474,10 +474,10 @@ def main(args):
             base = os.path.basename(args.fasta).split('.otus')[0]
         else:
             base = os.path.basename(args.fasta).split('.f')[0]
-    
+
     if args.install: #set path to the AMPtk database location
         base = os.path.join(parentdir, 'DB', base)
-        
+
     #remove logfile if exists
     log_name = base + '.log'
     if os.path.isfile(log_name):
@@ -495,8 +495,8 @@ def main(args):
     #Do a version check
     usearch = args.usearch
     if args.create_db == 'utax':
-    	amptklib.versionDependencyChecks(usearch)
-    
+        amptklib.versionDependencyChecks(usearch)
+
     amptklib.log.info('Base name set to: {:}'.format(base))
 
     #look up primer db otherwise default to entry
@@ -621,10 +621,10 @@ def main(args):
         amptklib.runSubprocess(cmd, amptklib.log)
         os.remove(subsample)
 
-    #create DB if argument passed  
+    #create DB if argument passed
     if args.create_db:
         makeDB(OutName, args=args)
     print("-------------------------------------------------------")
-            
+
 if __name__ == "__main__":
     main(args)

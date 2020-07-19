@@ -583,6 +583,7 @@ Arguments:   -i, --fasta         Input FASTA file
              --max_len           Maximum length to keep. Default: 1200
              --trunclen          Truncate records to length.
              --subsample         Random subsample reads.
+             --source            Database source and version sep by :, ie source:version
              --primer_mismatch   Max Primer Mismatch. Default: 2
              --primer_required   Keep Sequence if primer found. Default: for [for,rev,none]
              --utax_trainlevels  UTAX custom parameters. Default: kpcofgs
@@ -619,6 +620,7 @@ Description: Script downloads pre-formated databases for use with the `amptk tax
              LSU, or arthropod/chordate COI amplicons.
 
 Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI
+             -l, --local   Use local downloads.json instead of github version
              --force       Over-write existing databases
         """.format(getVersion())
 

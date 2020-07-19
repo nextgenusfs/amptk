@@ -24,14 +24,19 @@ def main():
     okay_list = []
     search_path = os.path.join(parentdir, 'DB')
     for file in os.listdir(search_path):
+        file_data = []
         if file.endswith(".udb"):
             okay_list.append(file)
             info_file = file + '.txt'
+            file_data.append(file.rstrip('.udb'))
             with open(os.path.join(search_path, info_file), 'r') as info:
-                line = info.readlines()
-                line = [words for segments in line for words in segments.split()]
-                line.insert(0, file)
-                db_list.append(line)
+                for line in info:
+                    line = line.strip()
+                    if '\t' in line:
+                        file_data += line.split('\t')
+                    else:
+                        file_data += line.split(' ')
+            db_list.append(file_data)
 
     if len(db_list) < 1:
         db_print = "No DB configured, run 'amptk install' or 'amptk database' command."
