@@ -24,9 +24,10 @@ VERSION = None
 REQUIRED = [
     'edlib', 'numpy', 'pyfastx',
     'biopython', 'matplotlib',
-    'seaborn','psutil',
-    'pandas','matplotlib',
-    'natsort','biom-format'
+    'seaborn', 'psutil',
+    'pandas', 'matplotlib',
+    'natsort' ,'biom-format',
+    'requests'
 ]
 
 # What packages are optional?
