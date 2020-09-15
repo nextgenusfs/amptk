@@ -186,7 +186,7 @@ def main(args):
     #declare output files/variables here
     blast_out = base + '.blast.txt'
     rdp_out = base + '.rdp.txt'
-    utax_out = base + '.usearch.txt'
+    utax_out = base + '.utax.txt'
     usearch_out = base + '.usearch.txt'
     sintax_out = base + '.sintax.txt'
     otuDict = {}
@@ -272,7 +272,7 @@ def main(args):
                     lib.log.info("Global alignment OTUs with usearch_global (VSEARCH) against {:}".format(os.path.basename(args.fasta_db)))
                     cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(args.fasta_db),
                            '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both',
-                           '--output_no_hits', '--maxaccepts', '0', '--top_hits_only', '--userfields',
+                           '--output_no_hits', '--maxaccepts', '500', '--top_hits_only', '--userfields',
                            'query+target+id', '--notrunclabels', '--threads', str(cpus)]
                     lib.runSubprocess(cmd, lib.log)
                 elif custom_db:
@@ -280,7 +280,7 @@ def main(args):
                     lib.log.info("Global alignment OTUs with usearch_global (VSEARCH) against custom DB")
                     cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(custom_db),
                            '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both',
-                           '--output_no_hits', '--maxaccepts', '0', '--top_hits_only', '--userfields',
+                           '--output_no_hits', '--maxaccepts', '500', '--top_hits_only', '--userfields',
                            'query+target+id', '--notrunclabels', '--threads', str(cpus)]
                     lib.runSubprocess(cmd, lib.log)
                 else:
@@ -288,7 +288,7 @@ def main(args):
                         lib.log.info("Global alignment OTUs with usearch_global (VSEARCH) against {:}".format(os.path.basename(usearch_db)))
                         cmd = ['vsearch', '--usearch_global', args.fasta, '--db', os.path.abspath(usearch_db),
                                '--userout', usearch_out, '--id', str(args.usearch_cutoff), '--strand', 'both',
-                               '--output_no_hits', '--maxaccepts', '0', '--top_hits_only', '--userfields',
+                               '--output_no_hits', '--maxaccepts', '500', '--top_hits_only', '--userfields',
                                'query+target+id', '--notrunclabels', '--threads', str(cpus)]
                         lib.runSubprocess(cmd, lib.log)
 
