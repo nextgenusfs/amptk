@@ -275,7 +275,7 @@ def main(args):
             fastq_for.append(os.path.join(args.out, rename+'.fq'))
         args.reads = 'forward'
     else:
-        if len(filenames) % 2 != 0:
+        if len(filenames) % 2 != 0 and args.reads == 'paired':
             print("Check your input files, they do not seem to be properly paired")
             sys.exit(1)
         #check list for files, i.e. they need to have _R1 and _R2 in the filenames, otherwise throw exception
