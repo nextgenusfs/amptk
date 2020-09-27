@@ -672,6 +672,7 @@ def split_fastqPEandI(R1, R2, I1, numseqs, outputdir, chunks):
                     lines3 = return_lines(I1, linepos2, x[0], x[1])
                     output3.write('%s' % ''.join(lines3))
 
+
 def split_fasta(input, outputdir, chunks):
     #function to return line positions of fasta files for chunking
     fastapos = []
@@ -715,6 +716,7 @@ def split_fasta(input, outputdir, chunks):
             lines = return_lines(input, linepos, x[0], x[1])
             output.write('{:}'.format(''.join(lines)))
 
+
 def trim3prime(input, trimlen, output, removelist):
     with open(output, 'w') as outfile:
         for title, seq, qual in FastqGeneralIterator(gzopen(input)):
@@ -722,6 +724,7 @@ def trim3prime(input, trimlen, output, removelist):
                 Seq = seq[:trimlen]
                 Qual = qual[:trimlen]
                 outfile.write("@%s\n%s\n+\n%s\n" % (title, Seq, Qual))
+
 
 def PEsanitycheck(R1, R2):
     R1count = line_count(R1)
@@ -731,6 +734,7 @@ def PEsanitycheck(R1, R2):
     else:
         return True
 
+
 def PEandIndexCheck(R1, R2, R3):
     R1count = countfastq(R1)
     R2count = countfastq(R2)
@@ -739,6 +743,7 @@ def PEandIndexCheck(R1, R2, R3):
         return True
     else:
         return False
+
 
 def mapIndex(seq, mapDict, bcmismatch):
     besthit = []
@@ -795,6 +800,7 @@ def DemuxIllumina(R1, R2, I1, mapDict, mismatch, fwdprimer, revprimer, primer_mi
                     outfile2.write('@%s\n%s\n+\n%s\n' % (header, read2[1][R2ForPos:R2RevPos], read2[2][R2ForPos:R2RevPos]))
                     counter += 1
     return Total, BCFound, FPrimer, RPrimer
+
 
 def stripPrimersPE(R1, R2, RL, samplename, fwdprimer, revprimer, primer_mismatch, require_primer, full_length, outR1, outR2):
     try:
