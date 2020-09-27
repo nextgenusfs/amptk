@@ -110,7 +110,7 @@ def main(args):
     if args.unoise:
         unoise_out = unoise_out = os.path.join(tmp, base + '.EE' + args.maxee + '.denoised.fa')
         amptklib.log.info("Denoising Data with UNOISE")
-        cmd = ['vsearch', '--cluster_fast', derep_out, '--centroids', unoise_out, '--id', '0.9', '--maxdiffs', '5', '--abskew', '10', '--sizein', '--sizeout', '--sort', 'size', '--threads', str(cpus)]
+        cmd = ['vsearch', '--cluster_fast', derep_out, '--centroids', unoise_out, '--id', '0.9', '--maxdiffs', '5', '--sizein', '--sizeout', '--threads', str(cpus)]
         amptklib.runSubprocess(cmd, amptklib.log)
         total = amptklib.countfasta(unoise_out)
         amptklib.log.info('{0:,}'.format(total) + ' reads passed')

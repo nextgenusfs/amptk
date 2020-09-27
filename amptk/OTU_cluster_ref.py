@@ -254,7 +254,7 @@ def main(args):
                     rec.description = ''
                     SeqIO.write(rec, refoutput, 'fasta')
                     otu_counter += 1
-
+    '''
     if not args.closed_ref_only:
         #get nohits file to run clustering
         utax_ref = os.path.join(tmp, base + '.EE' + args.maxee + '.utax_ref.fa')
@@ -305,7 +305,7 @@ def main(args):
                         otu_counter += 1
         total = amptklib.countfasta(ref_clustered) - num_refcluster
         amptklib.log.info('{0:,}'.format(total) + ' classified to %s' % taxonomyLookup.get(args.utax_level))
-
+    '''
     #clean up padded N's
     amptklib.log.info("Cleaning up padding from OTUs")
     otu_clean = os.path.join(tmp, base + '.clean.otus.fa')
