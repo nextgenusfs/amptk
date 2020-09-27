@@ -325,6 +325,9 @@ def main(args):
     amptklib.log.info('Demuxing data using {:} cpus'.format(cpus))
     amptklib.log.info('Dropping reads less than {:} bp and setting lossless trimming to {:} bp.'.format(args.min_len, args.trim_len))
 
+    #warn user that if require primers is on
+    if args.require_primer == 'on':
+        amptklib.log.info('Warning: --require_primer=on, ensure that your reads contain --fwd_primer')
     #zip read lists into a single list of tuples
     if args.reads == 'paired':
         amptklib.log.info("Strip Primers and Merge PE reads. FwdPrimer: {:} RevPrimer: {:}".format(FwdPrimer, RevPrimer))
