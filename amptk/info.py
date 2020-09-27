@@ -19,15 +19,15 @@ def getVersion():
 
 
 def main():
-
     parentdir = os.path.join(os.path.dirname(amptklib.__file__))
-
     db_list = []
     okay_list = []
     search_path = os.path.join(parentdir, 'DB')
     for file in os.listdir(search_path):
         file_data = []
         if file.endswith(".udb"):
+            if file.startswith('.'):
+                continue
             okay_list.append(file)
             info_file = file + '.txt'
             file_data.append(file.rstrip('.udb'))
