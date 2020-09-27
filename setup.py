@@ -17,7 +17,7 @@ DESCRIPTION = 'AMPtk: amplicon tool kit'
 URL = 'https://github.com/nextgenusfs/amptk'
 EMAIL = 'nextgenusfs@gmail.com'
 AUTHOR = 'Jon Palmer'
-REQUIRES_PYTHON = '>=2.7.0, !=3.0.*, !=3.1.*, !=3.2.*, <4'
+REQUIRES_PYTHON = '>=2.7.0, !=3.0.*, !=3.1.*, !=3.2.*, <3.8'
 VERSION = None
 
 # What packages are required for this module to be executed?
@@ -26,7 +26,7 @@ REQUIRED = [
     'biopython', 'matplotlib',
     'seaborn', 'psutil',
     'pandas', 'matplotlib',
-    'natsort' ,'biom-format',
+    'natsort', 'biom-format',
     'requests'
 ]
 
