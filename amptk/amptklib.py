@@ -1253,7 +1253,7 @@ def findRevPrimer(primer, sequence, mismatch, equalities):
     #return position will be None if not found
     return TrimPos
 
-def MergeReadsSimple(R1, R2, tmpdir, outname, minlen, usearch, rescue, method):
+def MergeReadsSimple(R1, R2, tmpdir, outname, minlen, usearch, rescue, method='vsearch'):
     #check that num sequences is identical
     if not PEsanitycheck(R1, R2):
         log.error("%s and %s are not properly paired, exiting" % (R1, R2))
@@ -1264,9 +1264,16 @@ def MergeReadsSimple(R1, R2, tmpdir, outname, minlen, usearch, rescue, method):
     report = os.path.join(tmpdir, outname +'.merge_report.txt')
     log.debug("Now merging PE reads")
     if method == 'usearch':
-        cmd = [usearch, '-fastq_mergepairs', R1, '-reverse', R2, '-fastqout', merge_out, '-fastq_trunctail', '5', '-fastqout_notmerged_fwd', skip_for, '-minhsp', '12','-fastq_maxdiffs', '8', '-report', report, '-fastq_minmergelen', str(minlen), '-threads', '1']
-    else:
-        cmd = ['vsearch', '--fastq_mergepairs', R1, '--reverse', R2, '--fastqout', merge_out, '--fastqout_notmerged_fwd', skip_for, '--fastq_minmergelen', str(minlen), '--fastq_allowmergestagger', '--threads', '1']
+        cmd = [usearch, '-fastq_mergepairs', R1, '-reverse', R2,
+               '-fastqout', merge_out, '-fastq_trunctail', '5',
+               '-fastqout_notmerged_fwd', skip_for, '-minhsp', '12',
+               '-fastq_maxdiffs', '8', '-report', report,
+               '-fastq_minmergelen', str(minlen), '-threads', '1']
+    elif method == 'vsearch':
+        log.debug('Merging PE reads using vsearch --fastq_mergepairs: {} {}'.format(os.path.basename(R1), os.path.basename(R2)))
+        cmd = ['vsearch', '--fastq_mergepairs', R1, '--reverse', R2,
+               '--fastqout', merge_out, '--fastqout_notmerged_fwd', skip_for,
+               '--fastq_minmergelen', str(minlen), '--fastq_allowmergestagger', '--threads', '1']
     runSubprocess(cmd, log)
     #now concatenate files for downstream pre-process_illumina.py script
     final_out = os.path.join(tmpdir, outname)
@@ -1275,33 +1282,36 @@ def MergeReadsSimple(R1, R2, tmpdir, outname, minlen, usearch, rescue, method):
         shutil.copyfileobj(open(merge_out,'r'), cat_file)
         if rescue == 'on':
             shutil.copyfileobj(open(skip_for,'r'), cat_file)
-    #run phix removal
-    #since most users have 32 bit usearch, check size of file, if > 3 GB, split into parts
-    log.debug("Removing phix from %s" % outname)
     phixsize = getSize(tmp_merge)
     phixcount = countfastq(tmp_merge)
-    log.debug('File Size: %i bytes' % phixsize)
-    if phixsize > 3e9:
-        log.debug('FASTQ > 3 GB, splitting FASTQ file into chunks to avoid potential memory problems with 32 bit usearch')
-        phixdir = os.path.join(tmpdir, 'phix_'+str(os.getpid()))
-        os.makedirs(phixdir)
-        num = round(int((phixsize / 3e9))) + 1
-        split_fastq(tmp_merge, phixcount, phixdir, int(num))
-        for file in os.listdir(phixdir):
-            if file.endswith(".fq"):
-                output = os.path.join(phixdir, file+'.phix')
-                file = os.path.join(phixdir, file)
-                cmd = [usearch, '-filter_phix', file, '-output', output, '-threads', '1']
-                runSubprocess(cmd, log)
-        with open(final_out, 'w') as finalout:
+    if method == 'usearch':
+        #run phix removal
+        #since most users have 32 bit usearch, check size of file, if > 3 GB, split into parts
+        log.debug("Removing phix from %s" % outname)
+        log.debug('File Size: %i bytes' % phixsize)
+        if phixsize > 3e9:
+            log.debug('FASTQ > 3 GB, splitting FASTQ file into chunks to avoid potential memory problems with 32 bit usearch')
+            phixdir = os.path.join(tmpdir, 'phix_'+str(os.getpid()))
+            os.makedirs(phixdir)
+            num = round(int((phixsize / 3e9))) + 1
+            split_fastq(tmp_merge, phixcount, phixdir, int(num))
             for file in os.listdir(phixdir):
-                if file.endswith('.phix'):
-                    with open(os.path.join(phixdir, file), 'r') as infile:
-                        shutil.copyfileobj(infile, finalout)
-        shutil.rmtree(phixdir)
+                if file.endswith(".fq"):
+                    output = os.path.join(phixdir, file+'.phix')
+                    file = os.path.join(phixdir, file)
+                    cmd = [usearch, '-filter_phix', file, '-output', output, '-threads', '1']
+                    runSubprocess(cmd, log)
+            with open(final_out, 'w') as finalout:
+                for file in os.listdir(phixdir):
+                    if file.endswith('.phix'):
+                        with open(os.path.join(phixdir, file), 'r') as infile:
+                            shutil.copyfileobj(infile, finalout)
+            shutil.rmtree(phixdir)
+        else:
+            cmd = [usearch, '-filter_phix', tmp_merge, '-output', final_out, '-threads', '1']
+            runSubprocess(cmd, log)
     else:
-        cmd = [usearch, '-filter_phix', tmp_merge, '-output', final_out, '-threads', '1']
-        runSubprocess(cmd, log)
+        os.rename(tmp_merge, final_out)
     #count output
     finalcount = countfastq(final_out)
     SafeRemove(merge_out)

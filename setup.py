@@ -25,9 +25,8 @@ REQUIRED = [
     'edlib', 'numpy', 'pyfastx',
     'biopython', 'matplotlib',
     'seaborn', 'psutil',
-    'pandas', 'matplotlib',
-    'natsort', 'biom-format',
-    'requests'
+    'pandas', 'requests',
+    'natsort', 'biom-format'
 ]
 
 # What packages are optional?
