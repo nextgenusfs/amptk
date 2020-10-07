@@ -177,7 +177,7 @@ def main(args):
             mockFile = os.path.abspath(args.mc)
 
         #open mock community fasta and count records
-        mock_ref_count = lib.countfasta(mock)
+        mock_ref_count = lib.countfasta(mockFile)
 
         #load OTU lengths into dictionary
         SeqLength = lib.fastalen2dict(args.fasta)
