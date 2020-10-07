@@ -166,15 +166,15 @@ def main(args):
             sys.exit(1)
         #get default mock community value
         if args.mc == "mock3":
-            mock = os.path.join(parentdir, 'DB', 'amptk_mock3.fa')
+            mockFile = os.path.join(parentdir, 'DB', 'amptk_mock3.fa')
         elif args.mc == "mock2":
-            mock = os.path.join(parentdir, 'DB', 'amptk_mock2.fa')
+            mockFile = os.path.join(parentdir, 'DB', 'amptk_mock2.fa')
         elif args.mc == "mock1":
-            mock = os.path.join(parentdir, 'DB', 'amptk_mock1.fa')
+            mockFile = os.path.join(parentdir, 'DB', 'amptk_mock1.fa')
         elif args.mc == "synmock":
-            mock = os.path.join(parentdir, 'DB', 'amptk_synmock.fa')
+            mockFile = os.path.join(parentdir, 'DB', 'amptk_synmock.fa')
         else:
-            mock = os.path.abspath(args.mc)
+            mockFile = os.path.abspath(args.mc)
 
         #open mock community fasta and count records
         mock_ref_count = lib.countfasta(mock)
@@ -184,7 +184,7 @@ def main(args):
 
         #map OTUs to mock community, this is fast enough, but running twice, first to get only top hit, then
         lib.log.info("Mapping OTUs to Mock Community (USEARCH)")
-        cmd = ['vsearch', '-usearch_global', mock, '--strand', 'plus',
+        cmd = ['vsearch', '-usearch_global', mockFile, '--strand', 'plus',
                '--id', '0.65','--db', FastaCounts, '--userout', mock_out,
                '--userfields', 'query+target+id+ql+tl+alnlen+caln+mism+gaps',
                '--maxaccepts', '0', '--maxrejects', '0']
@@ -326,9 +326,11 @@ def main(args):
     else:
         norm_round = filt3
 
+    # list for mock members empty if one wasn't passed
+    mock = []
+
     if args.mock_barcode:
         #now calculate the index-bleed in both directions (into the mock and mock into the other samples)
-        mock = []
         sample = []
         #get names from mapping
         for k,v in list(annotate_dict.items()):
