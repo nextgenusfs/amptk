@@ -614,12 +614,17 @@ def main(args):
     if len(NegOTUs) > 0:
         lib.log.info("%i OTUs are potentially contamination" % len(NegOTUs))
         otu_clean = base + '.cleaned.otus.fa'
+        otu_contam = base + '.negatives.otus.fa'
         with open(otu_clean, 'w') as otu_update:
-            with open(args.fasta, "rU") as myfasta:
-                for rec in SeqIO.parse(myfasta, 'fasta'):
-                    if not rec.id in NegOTUs:
-                        SeqIO.write(rec, otu_update, 'fasta')
-        lib.log.info("Cleaned OTUs saved to: %s" % otu_clean)
+            with open(otu_contam, 'w') as otu_dirty:
+                with open(args.fasta, "r") as myfasta:
+                    for rec in SeqIO.parse(myfasta, 'fasta'):
+                        if not rec.id in NegOTUs:
+                            SeqIO.write(rec, otu_update, 'fasta')
+                        else:
+                            SeqIO.write(rec, otu_dirty, 'fasta')
+        lib.log.info("Cleaned OTUs saved to: {}".format(otu_clean))
+        lib.log.info("OTUs found in negative samples: {}".format(otu_contam))
         lib.log.info("Generate a new OTU table like so:\namptk remove -i %s --format fasta -l %s -o %s\nvsearch --usearch_global %s --db %s --strand plus --id 0.97 --otutabout newOTU.table.txt\n" % (base+'.demux.fq', ' '.join(Neg), base+'.cleaned.fa', base+'.cleaned.fa', otu_clean))
 
     else: #proceed with rest of script
@@ -650,7 +655,7 @@ def main(args):
         lib.log.info("Finding valid OTUs")
         otu_new = base + '.filtered.otus.fa'
         with open(otu_new, 'w') as otu_update:
-            with open(args.fasta, "rU") as myfasta:
+            with open(args.fasta, "r") as myfasta:
                 for rec in SeqIO.parse(myfasta, 'fasta'):
                     if ';' in rec.id:
                         rec.id = rec.id.split(';',1)[0]
