@@ -625,7 +625,7 @@ def main(args):
                             SeqIO.write(rec, otu_dirty, 'fasta')
         lib.log.info("Cleaned OTUs saved to: {}".format(otu_clean))
         lib.log.info("OTUs found in negative samples: {}".format(otu_contam))
-        lib.log.info("Generate a new OTU table like so:\namptk remove -i %s --format fasta -l %s -o %s\nvsearch --usearch_global %s --db %s --strand plus --id 0.97 --otutabout newOTU.table.txt\n" % (base+'.demux.fq', ' '.join(Neg), base+'.cleaned.fa', base+'.cleaned.fa', otu_clean))
+        lib.log.info("Generate a new OTU table like so:\namptk remove -i %s --format fasta -l %s -o %s\nvsearch --usearch_global %s --db %s --strand plus --id 0.97 --otutabout newOTU.table.txt\n" % (base+'.demux.fq.gz', ' '.join(Neg), base+'.cleaned.fq.gz', base+'.cleaned.fa', otu_clean))
 
     else: #proceed with rest of script
         #output final table
