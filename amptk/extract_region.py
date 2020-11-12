@@ -53,8 +53,7 @@ def latin2ascii(error):
 def dereplicate(input, output, args=False):
     seqs = {}
     with open(output, 'w') as out:
-        for title, seq in pyfastx.Fasta(input, build_index=False):
-            sequence = seqs
+        for title, sequence in pyfastx.Fasta(input, build_index=False):
             if not sequence in seqs:
                 seqs[sequence] = title
             else:
