@@ -636,17 +636,21 @@ Description: Script aids in submitted your data to NCBI Sequence Read Archive (S
              with an NCBI biosample tab-delimited file and the script will auto-populate an
              SRA submission file.
 
-Arguments:   -i, --input         Input FASTQ file or folder (Required)
+Arguments:   -i, --input         Input FASTQ file or folder
              -o, --out           Output base name. Default: sra
              -m, --mapping_file  QIIME-like mapping file.
              -b, --barcode_fasta Mulit-fasta file containing barcodes used.
              -s, --biosample     BioSample worksheet from NCBI (from confirmation email)
-             -p, --platform      Sequencing platform. Defalt: ion (ion, illumina, 454)
+             -p, --platform      Sequencing platform. Defalt: ion (ion, illumina, illumina3, 454)
              -n, --names         CSV name mapping file, e.g. BC_1,NewName
              -d, --description   Paragraph description for SRA experimental design. Use quotes to wrap paragraph.
              -f, --fwd_primer    Forward primer sequence. Default: fITS7
              -r, --rev_primer    Reverse primer sequence. Default: ITS4
              -a, --append        Append a name to the output of all files in run, i.e. run1 -> Sample_run1
+             --reads-forward     Input R1 reads (-p illumina3)
+             --reads-reverse     Input R2 reads (-p illumina3)
+             --reads-index       Input Index reads (-p illumina3)
+             --barcode_rev_comp  Barocdes reverse complemented (-p illumina3)
              --primer_mismatch   Number of mismatches allowed in primer search. Default: 2
              --barcode_mismatch  Number of mismatches in barcode to allow. Default: 0
              --require_primer    Require primer(s) to be present for output. Default: off [off,forward,both]

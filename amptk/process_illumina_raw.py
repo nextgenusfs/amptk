@@ -30,21 +30,31 @@ def processReadsPE(input, args=False):
     trim_reverse = os.path.join(tmpdir, base+'_R2.trimmed.fq')
     merged_reads = os.path.join(tmpdir, base+'.merged.fq')
     DemuxOut = os.path.join(tmpdir, base+'.demux.fq')
-    Total, BCFound, ForPrimerCount, RevPrimerCount = amptklib.DemuxIllumina(forward_reads, reverse_reads, index_reads, Barcodes, args.barcode_mismatch, FwdPrimer, RevPrimer, args.primer_mismatch, trim_forward, trim_reverse)
-    amptklib.MergeReadsSimple(trim_forward, trim_reverse, '.', merged_reads, args.min_len, usearch, args.rescue_forward, args.merge_method)
+    Total, BCFound, ForPrimerCount, RevPrimerCount = amptklib.DemuxIllumina(
+        forward_reads, reverse_reads, index_reads, Barcodes,
+        args.barcode_mismatch, FwdPrimer, RevPrimer,
+        args.primer_mismatch, trim_forward, trim_reverse,
+        trim_primers=args.no_primer_trim)
+    amptklib.MergeReadsSimple(trim_forward, trim_reverse, '.',
+                              merged_reads, args.min_len, usearch,
+                              args.rescue_forward, args.merge_method)
     MergeCount = amptklib.countfastq(merged_reads)
-    amptklib.losslessTrim(merged_reads, FwdPrimer, RevPrimer, args.primer_mismatch, args.trim_len, args.pad, args.min_len, DemuxOut)
+    amptklib.losslessTrim(merged_reads, FwdPrimer, RevPrimer,
+                          args.primer_mismatch, args.trim_len,
+                          args.pad, args.min_len, DemuxOut)
     FinalCount = amptklib.countfastq(DemuxOut)
     TooShort = MergeCount - FinalCount
     stats = os.path.join(tmpdir, base+'.stats')
     with open(stats, 'w') as counts:
         counts.write("%i,%i,%i,%i,%i,%i\n" % (Total, BCFound, ForPrimerCount, RevPrimerCount, TooShort, FinalCount))
 
+
 def safe_run(*args, **kwargs):
     """Call run(), catch exceptions."""
     try: processReadsPE(*args, **kwargs)
     except Exception as e:
         print("error: %s run(*%r, **%r)" % (e, args, kwargs))
+
 
 def main(args):
     global FwdPrimer, RevPrimer, Barcodes, tmpdir, usearch
@@ -54,12 +64,12 @@ def main(args):
         epilog="""Written by Jon Palmer (2015) nextgenusfs@gmail.com""",
         formatter_class=MyFormatter)
 
-    parser.add_argument('-f','--forward', dest='fastq', required=True, help='Illumina FASTQ R1 reads')
+    parser.add_argument('-f', '--forward', dest='fastq', required=True, help='Illumina FASTQ R1 reads')
     parser.add_argument('-r', '--reverse', required=True, help='Illumina FASTQ R2 reads')
     parser.add_argument('-i', '--index', nargs='+', required=True, help='Illumina FASTQ index reads')
     parser.add_argument('-m', '--mapping_file', help='QIIME-like mapping file')
     parser.add_argument('--read_length', type=int, help='Read length, i.e. 2 x 300 bp = 300')
-    parser.add_argument('-o','--out', dest="out", default='illumina_out', help='Base name for output')
+    parser.add_argument('-o', '--out', dest="out", default='illumina_out', help='Base name for output')
     parser.add_argument('--fwd_primer', dest="F_primer", default='515FB', help='Forward Primer')
     parser.add_argument('--rev_primer', dest="R_primer", default='806RB', help='Reverse Primer')
     parser.add_argument('--primer_mismatch', default=2, type=int, help='Number of mis-matches in primer')
@@ -68,10 +78,11 @@ def main(args):
     parser.add_argument('--rescue_forward', default='on', choices=['on', 'off'], help='Rescue Not-merged forward reads')
     parser.add_argument('--barcode_rev_comp', action='store_true', help='Reverse complement barcode sequences')
     parser.add_argument('--min_len', default=100, type=int, help='Minimum read length to keep')
-    parser.add_argument('-l','--trim_len', default=300, type=int, help='Trim length for reads')
-    parser.add_argument('-p','--pad', default='off', choices=['on', 'off'], help='Pad with Ns to a set length')
+    parser.add_argument('-l', '--trim_len', default=300, type=int, help='Trim length for reads')
+    parser.add_argument('-p', '--pad', default='off', choices=['on', 'off'], help='Pad with Ns to a set length')
+    parser.add_argument('--no-primer-trim', dest='no_primer_trim', action='store_false', help='Do not trim primers')
     parser.add_argument('--cpus', type=int, help="Number of CPUs. Default: auto")
-    parser.add_argument('-u','--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
+    parser.add_argument('-u', '--usearch', dest="usearch", default='usearch9', help='USEARCH9 EXE')
     parser.add_argument('--cleanup', action='store_true', help='remove intermediate files')
     parser.add_argument('--merge_method', default='vsearch', choices=['usearch', 'vsearch'], help='Software to use for PE read merging')
     args=parser.parse_args(args)
@@ -88,30 +99,30 @@ def main(args):
     amptklib.log.debug(cmd_args)
     print("-------------------------------------------------------")
 
-    #initialize script, log system info and usearch version
+    # initialize script, log system info and usearch version
     amptklib.SystemInfo()
-    #get version of amptk
+    # get version of amptk
     usearch = args.usearch
     amptklib.versionDependencyChecks(usearch, method=args.merge_method)
 
-    #get number of CPUs to use
+    # get number of CPUs to use
     if not args.cpus:
         cpus = multiprocessing.cpu_count()
     else:
         cpus = args.cpus
 
-    #create tmpdir
+    # create tmpdir
     tmpdir = args.out.split('.')[0]+'_'+str(os.getpid())
     if not os.path.exists(tmpdir):
         os.makedirs(tmpdir)
 
-    #parse a mapping file or a barcode fasta file, primers, etc get setup
-    #dealing with Barcodes, get ion barcodes or parse the barcode_fasta argument
+    # parse a mapping file or a barcode fasta file, primers, etc get setup
+    # dealing with Barcodes, get ion barcodes or parse the barcode_fasta argument
     barcode_file = args.out + ".barcodes_used.fa"
     if os.path.isfile(barcode_file):
         os.remove(barcode_file)
 
-    #check if mapping file passed, use this if present, otherwise use command line arguments
+    # check if mapping file passed, use this if present, otherwise use command line arguments
     SampleData = {}
     Barcodes = {}
     RevBarcodes = {}
