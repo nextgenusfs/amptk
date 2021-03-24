@@ -152,7 +152,7 @@ def main(args):
                 }
 
     # get custom database shorcuts
-    DataBase = parseCustomDBs(db_path, DataBase)
+    DataBase = parseCustomDBs(DBdir, DataBase)
 
     #get DB names up front
     if args.db in DataBase:
