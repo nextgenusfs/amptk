@@ -552,6 +552,7 @@ Arguments:   -f, --fasta         Input FASTA file (i.e. OTUs from amptk cluster)
              --utax_cutoff       UTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              --usearch_db        USEARCH formatted database. Default: USEARCH.udb
              --usearch_cutoff    USEARCH threshold percent identity. Default 0.7
+             --sintax_db         VSEARCH formatted sintax database.
              --sintax_cutoff     SINTAX confidence value threshold. Default: 0.8 [0 to 0.9]
              -r, --rdp           Path to RDP Classifier. Required if --method rdp
              --rdp_db            RDP Classifer DB set. [fungalits_unite, fungalits_warcup. fungallsu, 16srrna]

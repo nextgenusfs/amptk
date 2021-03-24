@@ -31,6 +31,37 @@ def restricted_float(x):
         raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]"%(x,))
     return x
 
+
+def parseCustomDBs(db_path, DataBase):
+    # DataBase is dict with predefined shortcuts, add others you find
+    shortcuts = []
+    alldb = []
+    for f in os.listdir(db_path):
+        if f.startswith('.'):
+            continue
+        if f.endswith('.udb'):
+            alldb.append(f)
+            if '_SINTAX' in f:
+                continue
+            if '_UTAX' in f:
+                continue
+            shortcuts.append(f)
+    for x in shortcuts:
+        bname = x.split('.udb')[0]
+        if not bname in DataBase:  # this is a new one
+            if '{}_SINTAX.udb'.format(bname) in alldb:
+                sintax = os.path.join(db_path, '{}_SINTAX.udb'.format(bname))
+            else:
+                sintax = False
+            if '{}_UTAX.udb'.format(bname) in alldb:
+                utax = os.path.join(db_path, '{}_UTAX.udb'.format(bname))
+            else:
+                utax = False
+            usearch = os.path.join(db_path, x)
+            DataBase[bname] = (usearch, utax, sintax)
+    return DataBase
+
+
 def main(args):
     parser=argparse.ArgumentParser(prog='amptk-assign_taxonomy.py', usage="%(prog)s [options] -f <FASTA File>",
         description='''assign taxonomy to OTUs''',
@@ -48,7 +79,8 @@ def main(args):
     parser.add_argument('--utax_db', help='UTAX Reference Database')
     parser.add_argument('--utax', action='store_false', help='Run UTAX (requires usearch9)')
     parser.add_argument('--utax_cutoff', default=0.8, type=restricted_float, help='UTAX confidence value threshold.')
-    parser.add_argument('--usearch_db', help='USEARCH Reference Database')
+    parser.add_argument('--usearch_db', help='VSEARCH Reference Database')
+    parser.add_argument('--sintax_db', help='VSEARCH SINTAX Reference Database')
     parser.add_argument('--usearch_cutoff', default=0.7, type=restricted_float, help='USEARCH percent ID threshold.')
     parser.add_argument('-r', '--rdp', dest='rdp', default='/Users/jon/scripts/rdp_classifier_2.10.1/dist/classifier.jar', help='Path to RDP Classifier')
     parser.add_argument('--rdp_db', dest='rdp_tax', default='fungalits_unite', choices=['16srrna', 'fungallsu', 'fungalits_warcup', 'fungalits_unite'], help='Training set for RDP Classifier')
@@ -119,6 +151,9 @@ def main(args):
                         os.path.join(DBdir, 'COI_SINTAX.udb'))
                 }
 
+    # get custom database shorcuts
+    DataBase = parseCustomDBs(db_path, DataBase)
+
     #get DB names up front
     if args.db in DataBase:
         utax_db = DataBase.get(args.db)[1]
@@ -131,10 +166,13 @@ def main(args):
     else:
         utax_db = args.utax_db
         usearch_db = args.usearch_db
-        if args.fasta_db:
-            sintax_db = args.fasta_db
+        if args.sintax_db:
+            sintax_db = args.sintax_db
         else:
-            sintax_db = args.usearch_db
+            if args.fasta_db:
+                sintax_db = args.fasta_db
+            else:
+                sintax_db = args.usearch_db
 
     if args.method in ['hybrid', 'usearch', 'utax']:
         if not utax_db and not usearch_db and not args.fasta_db:

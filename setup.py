@@ -109,15 +109,14 @@ setup(
     packages=find_packages(exclude=('tests',)),
     # If your package is a single module, use this instead of 'packages':
     #py_modules=['amptk'],
-
-    # entry_points={
-    #     'console_scripts': ['mycli=mymodule:cli'],
-    # },
+    entry_points={
+        'console_scripts': ['amptk=amptk.amptk:main'],
+    },
     install_requires=REQUIRED,
     extras_require=EXTRAS,
     include_package_data=True,
     license='BSD-2',
-    scripts=['scripts/amptk', 'scripts/bold2utax.py', 'scripts/amptk_synthetic_mock.py'],
+    scripts=['scripts/bold2utax.py', 'scripts/amptk_synthetic_mock.py'],
     classifiers=[
         # Trove classifiers
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
