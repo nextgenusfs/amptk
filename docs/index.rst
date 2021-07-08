@@ -8,7 +8,7 @@ AMPtk documentation
 
 .. toctree::
    :hidden:
-  
+
    overview
    quick-start
    file-formats
@@ -27,8 +27,8 @@ Citation
 ==================
 .. code-block:: none
 
-	Palmer JM, Jusino MA, Banik MT, Lindner DL. 2018. Non-biological synthetic spike-in controls 
-		and the AMPtk software pipeline improve mycobiome data. PeerJ 6:e4925; 
+	Palmer JM, Jusino MA, Banik MT, Lindner DL. 2018. Non-biological synthetic spike-in controls
+		and the AMPtk software pipeline improve mycobiome data. PeerJ 6:e4925;
 		DOI 10.7717/peerj.4925.	https://peerj.com/articles/4925/
 
 
@@ -37,42 +37,35 @@ Install
 There are several ways to install AMPtk, the easiest and recommended way is with Conda
 
 .. code-block:: none
-     
+
 	#setup your conda env with bioconda, type the following in order to setup channels
 	conda config --add channels defaults
 	conda config --add channels bioconda
 	conda config --add channels conda-forge
-	
+
 	#create amptk env (optional)
-	conda create -n amptk amptk
-	
-	#UPDATE 2/9/2019: Conda solver seems to hang, if taking forever try this
-	conda create -n amptk
-	conda install -n amptk bioconductor-dada2 bioconductor-phyloseq biom-format \
-	     biopython matplotlib natsort numpy pandas pigz psutil python-edlib r-base r-dt \
-	     r-htmltools r-plotly seaborn vsearch
-	conda activate amptk
-	conda install amptk
-	
+	conda create -n amptk “python<3.8” amptk
+
+
 
 You can install the python portion of AMPtk with pip, but you will need to then install the external dependencies such as usearch, vsearch, DADA2 and the amptk stats script will need to install R dependencies.
 
 .. code-block:: none
 
-	pip install amptk 
-	
-	
+	pip install amptk
+
+
 Users can also install manually, download a `release <https://github.com/nextgenusfs/amptk/releases>`_. You can also build the latest unreleased version from github:
 
 .. code-block:: none
-	
+
 	#clone the repository
 	git clone https://github.com/nextgenusfs/amptk.git
-	
-	#then install, optional add --prefix to control location 
+
+	#then install, optional add --prefix to control location
 	python setup.py install --prefix /User/Tools/amptk
-	
-	
+
+
 
 
 Dependencies Requiring Manual Install
@@ -83,7 +76,7 @@ Dependencies Requiring Manual Install
 
     #make executable
     sudo chmod +x /path/to/usearch9.2.64_i86osx32
-    
+
     #create softlink
     sudo ln -s /path/to/usearch9.2.64_i86osx32 /usr/local/bin/usearch9
 
@@ -93,7 +86,7 @@ Dependencies Requiring Manual Install
 
     #make executable
     sudo chmod +x /path/to/usearch10.0.240_i86osx32
-    
+
     #create softlink
     sudo ln -s /path/to/usearch10.0.240_i86osx32 /usr/local/bin/usearch10
 
@@ -104,14 +97,14 @@ Dependencies Requiring Manual Install
     #install devtools if you don't have already
     install.packages('devtools')
     library('devtools')
-    install_github("tobiasgf/lulu") 
-    
+    install_github("tobiasgf/lulu")
+
     #not listed as dependency but on my system also requires dpylr
     install.packages('dpylr') or perhaps all of tidyverse install.packages('tidyverse')
-    
+
     #could also install tidyverse from conda
     conda install r-tidyverse
-    
+
 
 Dependencies installed via package managers
 ============================================
@@ -123,7 +116,7 @@ You only need to worry about these dependencies if you installed manually and/or
 
     #install vsearch with homebrew
     brew install vsearch
-    
+
     #or with bioconda
     conda install -c bioconda vsearch
 
@@ -133,7 +126,7 @@ You only need to worry about these dependencies if you installed manually and/or
 
     #install with pip
     pip install -U biopython natsort pandas numpy matplotlib seaborn edlib biom-format psutil
-    
+
     #install with conda
     conda install biopython natsort pandas numpy matplotlib seaborn python-edlib biom-format psutil
 
@@ -151,7 +144,7 @@ You only need to worry about these dependencies if you installed manually and/or
     #install with conda/bioconda
     conda install r-base bioconductor-phyloseq
 
-    
+
 Run from Docker
 ==================
 There is a base installation of AMPtk on Docker at nextgenusfs/amptk-base. Because usearch9 and usearch10 are required but must be personally licensed, here are the directions to get a working AMPtk docker image.
