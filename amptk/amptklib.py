@@ -1775,11 +1775,11 @@ def mapping2dict(input):
             if not Seq in MapDict:
                 MapDict[Seq] = ID
             else:
-                log.error("duplicate BC seq found %s: %s" % (Seq, ID))
+                log.error("duplicate BC seq found {}: {}".format(Seq, ID))
             if not ID in IDs:
                 IDs.append(ID)
             else:
-                log.error("duplicate ID in mapping file: %s, exiting" (ID))
+                log.error("duplicate ID in mapping file: {}, exiting".format(ID))
                 sys.exit(1)
     return MapDict
 
