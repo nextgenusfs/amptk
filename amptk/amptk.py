@@ -391,7 +391,7 @@ Optional:    -o, --out           Base name for output files. Default: use input 
              --ignore            Ignore sample(s) during index-bleed calc (list, separate by space)
 
 Filtering    -n, --normalize     Normalize reads to number of reads per sample [y,n]. Default: y
-             -p, --index_bleed   Filter index bleed between samples (percent). Default: 0.005
+             -p, --index_bleed   Filter index bleed between samples (percent). Default: auto (calculated from -b,--mock_barcode)
              -t, --threshold     Number to use for establishing read count threshold. Default: max [max,sum,top5,top10,top25]
              -s, --subtract      Threshold to subtract from all OTUs (any number or auto). Default: 0
              --delimiter         Delimiter of OTU tables. Default: tsv  [csv, tsv]
