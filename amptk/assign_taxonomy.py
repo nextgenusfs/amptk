@@ -182,12 +182,12 @@ def main(args):
             if args.method == 'usearch' and usearch_db:
                 if not lib.checkfile(usearch_db):
                     lib.log.error('USEARCH DB not found: {:}'.format(usearch_db))
-                    lib.log.derror('Use `amptk install` to install pre-formatted databases or `amptk database` to create custom DB')
+                    lib.log.error('Use `amptk install` to install pre-formatted databases or `amptk database` to create custom DB')
                     sys.exit(1)
             if args.method == 'sintax' and sintax_db:
                 if not lib.checkfile(sintax_db):
                     lib.log.error('SINTAX DB not found: {:}'.format(sintax_db))
-                    lib.log.derror('Use `amptk install` to install pre-formatted databases or `amptk database` to create custom DB')
+                    lib.log.error('Use `amptk install` to install pre-formatted databases or `amptk database` to create custom DB')
                     sys.exit(1)
             if args.method == 'utax' and utax_db:
                 if not lib.checkfile(utax_db):

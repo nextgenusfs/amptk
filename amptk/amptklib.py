@@ -1785,7 +1785,9 @@ def mapping2dict(input):
 
 def runMultiProgress(function, inputList, cpus, args=False):
     #setup pool
-    p = multiprocessing.Pool(cpus)
+    #multiprocessing.set_start_method('fork')
+    ctx = multiprocessing.get_context('fork')
+    p = ctx.Pool(cpus)
     #setup results and split over cpus
     tasks = len(inputList)
     results = []
@@ -2144,6 +2146,9 @@ def parseMappingFileNEW(input):
             else:
                 log.error('Please fix duplicate SampleID detected in mapping file: {:}'.format(ID))
                 sys.exit(1)
+    if len(results) < 1:
+        log.error('Mapping file has no parsable lines: {}'.format(input))
+        sys.exit(1)
     return results, ForBCDict, RevBCDict, FP, RP
 
 def parseMappingFileIllumina(input):

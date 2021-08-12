@@ -146,8 +146,8 @@ def main(args):
             if file.endswith(".fq"):
                 file = os.path.join(folder, file)
                 file_list.append(file)
-
-        p = multiprocessing.Pool(cpus)
+        ctx = multiprocessing.get_context('fork')
+        p = ctx.Pool(cpus)
         for f in file_list:
             #worker(f)
             p.apply_async(worker, [f])
