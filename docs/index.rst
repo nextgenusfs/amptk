@@ -44,7 +44,7 @@ There are several ways to install AMPtk, the easiest and recommended way is with
 	conda config --add channels conda-forge
 
 	#create amptk env (optional)
-	conda create -n amptk “python<3.8” amptk
+	conda create -n amptk amptk
 
 
 
