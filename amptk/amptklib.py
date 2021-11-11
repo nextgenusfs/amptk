@@ -6,12 +6,20 @@ import csv
 import os
 import subprocess
 import multiprocessing
-import platform
 import time
 import shutil
 import gzip
 import edlib
 import pandas as pd
+
+import platform
+using_distro = False
+try:
+    import distro
+    using_distro = True
+except ImportError:
+    pass
+
 from builtins import range
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
@@ -320,7 +328,11 @@ def systemOS():
     if sys.platform == 'darwin':
         system_os = 'MacOSX '+ platform.mac_ver()[0]
     elif sys.platform == 'linux':
-        linux_version = platform.linux_distribution()
+        linux_version = ''
+        if using_distro:
+            linux_version = distro.linux_distribution()
+        else:
+            linux_version = platform.linux_distribution()
         system_os = linux_version[0]+ ' '+linux_version[1]
     else:
         system_os = sys.platform

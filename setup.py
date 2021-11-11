@@ -26,7 +26,8 @@ REQUIRED = [
     'biopython', 'matplotlib',
     'seaborn', 'psutil',
     'pandas', 'requests',
-    'natsort', 'biom-format'
+    'natsort', 'biom-format', 
+    'distro'
 ]
 
 # What packages are optional?
