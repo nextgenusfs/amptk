@@ -11,7 +11,7 @@ import shutil
 import gzip
 import edlib
 import pandas as pd
-
+import json
 import platform
 using_distro = False
 try:
@@ -42,28 +42,8 @@ ASCII = {'!':'0','"':'1','#':'2','$':'3','%':'4','&':'5',
          'K':'42','L':'43','M':'44','N':'45','O':'46','P':'47',
          'Q':'48','R':'49','S':'50'}
 
-primer_db = {'fITS7': 'GTGARTCATCGAATCTTTG',
-            'fITS7-ion': 'AGTGARTCATCGAATCTTTG',
-            'ITS4': 'TCCTCCGCTTATTGATATGC',
-            'ITS1-F': 'CTTGGTCATTTAGAGGAAGTAA',
-            'ITS2': 'GCTGCGTTCTTCATCGATGC',
-            'ITS3': 'GCATCGATGAAGAACGCAGC',
-            'ITS4-B': 'CAGGAGACTTGTACACGGTCCAG',
-            'ITS1': 'TCCGTAGGTGAACCTGCGG',
-            'LR0R': 'ACCCGCTGAACTTAAGC',
-            'LR2R': 'AAGAACTTTGAAAAGAG',
-            'LR3': 'CCGTGTTTCAAGACGGG',
-            'JH-LS-369rc': 'CTTCCCTTTCAACAATTTCAC',
-            '16S_V3': 'CCTACGGGNGGCWGCAG',
-            '16S_V4': 'GACTACHVGGGTATCTAATCC',
-            'ITS3_KYO2': 'GATGAAGAACGYAGYRAA',
-            'COI-F': 'GGTCAACAAATCATAAAGATATTGG',
-            'COI-R': 'GGWACTAATCAATTTCCAAATCC',
-            '515FB': 'GTGYCAGCMGCCGCGGTAA',
-            '806RB': 'GGACTACNVGGGTWTCTAAT',
-            'ITS4-B21': 'CAGGAGACTTGTACACGGTCC',
-            'LCO1490': 'GGTCAACAAATCATAAAGATATTGG',
-            'mlCOIintR': 'GGRGGRTASACSGTTCASCCSGTSCC'}
+with open(os.path.join(os.path.dirname(__file__), 'primers.json')) as infile:
+    primer_db = json.load(infile)
 
 
 degenNuc = [("R", "A"), ("R", "G"),

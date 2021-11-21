@@ -5,3 +5,4 @@ include amptk/DB/*
 include amptk/*.R
 include test_data/*
 include scripts/*
+include amptk/*.json
