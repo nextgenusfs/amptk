@@ -18,9 +18,6 @@ RUN mamba create -c conda-forge -c bioconda -c defaults \
 SHELL ["conda", "run", "-n", "amptk", "/bin/bash", "-c"]
 RUN python -m pip install git+https://github.com/nextgenusfs/amptk.git
 
-# install databases
-RUN amptk install -i ITS 16S LSU COI
-
 # package with conda-pack
 RUN conda-pack -n amptk -o /tmp/env.tar && \
     mkdir /venv && cd /venv && tar xf /tmp/env.tar && \

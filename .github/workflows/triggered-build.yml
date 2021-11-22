@@ -1,12 +1,11 @@
 # This is a basic workflow to help you get started with Actions
 
-name: CI to Docker Hub base-amptk
+name: CI to Docker Hub amptk
 
 # Controls when the action will run.
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
-  push:
-    branches: [ master ]
+  repository_dispatch:
+    types: [docker-hub-complete]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -38,17 +37,9 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: ./
-          file: ./Dockerfile
+          file: ./Dockerfile2
           push: true
-          tags: nextgenusfs/base-amptk:latest
+          tags: nextgenusfs/amptk:latest
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
-
-      - name: Repository Dispatch
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          token: ${{ secrets.REPO_ACCESS_TOKEN }}
-          repository: nextgenusfs/amptk
-          event-type: docker-hub-complete
-          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
