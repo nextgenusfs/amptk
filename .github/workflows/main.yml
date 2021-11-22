@@ -49,6 +49,6 @@ jobs:
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
-          repository: nextgenusfs/amptk
+          repository: nextgenusfs/base-amptk
           event-type: docker-hub-complete
           client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
