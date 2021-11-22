@@ -159,6 +159,37 @@ def uniteTax(taxString):
         return None
 
 
+def pr2Tax(taxString):
+    '''
+    function to parse/clean PR2 taxonomy strings
+    '''
+    ID, tax = taxString.split(';tax=')
+    if ':mito' in tax:
+        tax = tax.replace(':mito', '-mito')
+    if ':apic' in tax:
+        tax = tax.replace(':apic', '-apic')
+    if ':plas' in tax:
+        tax = tax.replace(':plas', '-plas')
+    levels = tax.split(',')
+    cleaned = []
+    contain_numbers = False
+    for x in levels:
+        if not '_X' in x:
+            if x.endswith(('_clade', '-lineage', '_cluster')):
+                continue
+            if '-Clade' in x or '_Group-' in x or '_sp1-' in x or '-Group' in x or 'MAST-' in x or '_clade(' in x:
+                continue
+            if 'BurkholderiaCaballeroniaParaburkholderia' in x:
+                continue
+            if x.startswith('s:'):
+               if x.endswith(('_sp.', '_spB')):
+                   continue
+            if lib.number_present(x):
+                contain_numbers = True
+            cleaned.append(x)
+    return '{};tax={}'.format(ID, ','.join(cleaned))
+
+
 def rdpTax(taxString):
     '''
     function to parse RDP taxonomy string, return seqrecord
@@ -258,12 +289,14 @@ def stripPrimer(input, args=False):
             for title, seq in pyfastx.Fasta(input, build_index=False):
                 orig_id = title
                 if len(seq) < args.min_len:
-                    errorfile.write('>ERROR:LENGTH|%s\n%s\n' % (orig_id, seq))
+                    errorfile.write('>ERROR:LENGTH={}|{}\n{}\n'.format(len(seq), orig_id, seq))
                     continue
                 if args.utax == 'unite2utax':
                     newHeader = uniteTax(orig_id)
                 elif args.utax == 'rdp2utax':
                     newHeader = rdpTax(orig_id)
+                elif args.utax == 'pr2utax':
+                    newHeader = pr2Tax(orig_id)
                 else:
                     newHeader = orig_id
                 #quality check the new header
@@ -339,7 +372,7 @@ def stripPrimer(input, args=False):
                 if SeqLength >= args.min_len:
                     outputfile.write('>%s\n%s\n' % (newHeader, StripSeq))
                 else:
-                    errorfile.write('>ERROR:LENGTH=%i|%s\n%s\n' % (SeqLength, orig_id, Seq))
+                    errorfile.write('>ERROR:STRIPPED-LENGTH=%i|%s\n%s\n' % (SeqLength, orig_id, StripSeq))
 
 
 def makeDB(input, args=False):
@@ -444,7 +477,7 @@ def main(args):
     parser.add_argument('-f','--fwd_primer', dest='F_primer', default='fITS7', help='Forward primer (fITS7)')
     parser.add_argument('-r','--rev_primer', dest='R_primer', default='ITS4', help='Reverse primer (ITS4)')
     parser.add_argument('--skip_trimming', dest='trimming', action='store_true', help='Skip Primer trimming (not recommended)')
-    parser.add_argument('--format', dest='utax', default='unite2utax', choices=['unite2utax', 'rdp2utax', 'off'], help='Reformat FASTA headers for UTAX')
+    parser.add_argument('--format', dest='utax', default='unite2utax', choices=['unite2utax', 'rdp2utax', 'pr2utax', 'off'], help='Reformat FASTA headers for UTAX')
     parser.add_argument('--lca', action='store_true', help='Run LCA (last common ancestor) for dereplicating taxonomy')
     parser.add_argument('--trunclen', type=int, help='Truncate reads to length')
     parser.add_argument('--subsample', type=int, help='Random subsample')

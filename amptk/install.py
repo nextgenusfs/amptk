@@ -26,7 +26,7 @@ def main(args):
         description='''Script to download preformatted databases''',
         epilog="""Written by Jon Palmer (2019) nextgenusfs@gmail.com""",
         formatter_class=MyFormatter)
-    parser.add_argument('-i','--input', nargs='+', required=True, choices=['ITS', '16S', 'LSU', 'COI'], help='Install Databases')
+    parser.add_argument('-i','--input', nargs='+', required=True, choices=['ITS', '16S', 'LSU', 'COI', 'PR2'], help='Install Databases')
     parser.add_argument('-f','--force', action='store_true', help='Overwrite existing databases')
     parser.add_argument('-l','--local', action='store_true', help='Use local downloads.json for links')
     args=parser.parse_args(args)
@@ -56,7 +56,7 @@ def main(args):
         if not x in URL:
             if args.force:
                 continue
-            print("%s not valid, choices are ITS, 16S, LSU, COI" % x)
+            print("%s not valid, choices are ITS, 16S, LSU, COI, PR2" % x)
             sys.exit(1)
         print("Downloading %s pre-formatted database" % x)
         address = URL.get(x)

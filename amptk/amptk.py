@@ -574,7 +574,7 @@ Arguments:   -i, --fasta         Input FASTA file
              -o, --out           Base name for output files, i.e. ITS2
              -f, --fwd_primer    Forward primer. Default: fITS7
              -r, --rev_primer    Reverse primer. Default: ITS4
-             --format            Reformat FASTA headers to UTAX format. Default: unite2utax [unite2utax, rdp2utax, off]
+             --format            Reformat FASTA headers to UTAX format. Default: unite2utax [unite2utax,rdp2utax,pr2utax,off]
              --drop_ns           Removal sequences that have > x N's. Default: 8
              --create_db         Create a DB. Default: usearch [utax, usearch, sintax]
              --skip_trimming     Keep full length sequences. Default: off
@@ -618,9 +618,9 @@ version:     {:}
 
 Description: Script downloads pre-formated databases for use with the `amptk taxonomy`
              command. You can download databases for fungal ITS, bacterial 16S, fungal
-             LSU, or arthropod/chordate COI amplicons.
+             LSU, PR2 SSU amplicons, or arthropod/chordate COI amplicons.
 
-Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI
+Arguments:   -i            Install Databases. Choices: ITS, 16S, LSU, COI, PR2
              -l, --local   Use local downloads.json instead of github version
              --force       Over-write existing databases
         """.format(getVersion())
