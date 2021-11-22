@@ -148,7 +148,10 @@ def main(args):
                         os.path.join(DBdir, 'LSU_SINTAX.udb')),
                 'COI': (os.path.join(DBdir, 'COI.udb'),
                         os.path.join(DBdir, 'COI_UTAX.udb'),
-                        os.path.join(DBdir, 'COI_SINTAX.udb'))
+                        os.path.join(DBdir, 'COI_SINTAX.udb')),
+                'PR2': (os.path.join(DBdir, 'PR2.udb'),
+                        os.path.join(DBdir, 'PR2_UTAX.udb'),
+                        os.path.join(DBdir, 'PR2_SINTAX.udb'))
                 }
 
     # get custom database shorcuts
