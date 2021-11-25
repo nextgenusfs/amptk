@@ -479,11 +479,11 @@ Usage:       amptk funguild <arguments>
 version:     {:}
 
 Description: Script takes OTU table as input and runs FUNGuild to assing functional annotation to an OTU
-             based on the Guilds database.  Guilds script written by Zewei Song (2015).
+             based on the Guilds database. AMPtk runs method based off of script by Zewei Song (2015-2021).
 
-Options:     -i, --input        Input OTU table
-             -d, --db           Database to use [fungi, nematode]. Default: fungi
-             -o, --out          Output file basename.
+Options:     -i, --input        Input OTU table with Taxonomy (via amptk taxonomy)
+             -o, --out          Output OTU table with Guild annotations
+             -u, --url          URL to FUNGuild db. Default: https://mycoportal.org/fdex/services/api/db_return.php?dbReturn=Yes&pp=1
         """.format(getVersion())
 
 heatmapHelp = """
@@ -740,7 +740,7 @@ info = {'ion': {'cmd': 'process_ion', 'append': '--ion', 'help': ionHelp},
         'show': {'cmd': 'get_barcode_counts', 'append': None, 'help': showHelp},
         'sample': {'cmd': 'barcode_rarify', 'append': None, 'help': sampleHelp},
         'meta': {'cmd': 'merge_metadata', 'append': None, 'help': metaHelp},
-        'funguild': {'cmd': 'Guilds', 'append': None, 'help': guildHelp},
+        'funguild': {'cmd': 'funguild', 'append': None, 'help': guildHelp},
         'heatmap': {'cmd': 'csv2heatmap', 'append': None, 'help': heatmapHelp},
         'drop': {'cmd': 'drop', 'append': None, 'help': dropHelp},
         'info': {'cmd': 'info', 'append': None, 'help': None},

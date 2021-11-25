@@ -351,7 +351,7 @@ def main(args):
                 #now run sintax
                 lib.log.info("Classifying OTUs with SINTAX (VSEARCH)")
                 cmd = ['vsearch', '--sintax', args.fasta, '--db', os.path.abspath(sintax_db), '--tabbedout', sintax_out,
-                       '-sintax_cutoff', str(args.sintax_cutoff), '--threads', str(cpus)]
+                       '-sintax_cutoff', str(args.sintax_cutoff), '--threads', str(cpus), '--notrunclabels']
                 #cmd = [usearch, '-sintax', args.fasta, '-db', os.path.abspath(sintax_db), '-tabbedout', sintax_out,
                 #       '-sintax_cutoff', str(args.sintax_cutoff), '-strand', 'both', '-threads', str(cpus)]
                 lib.runSubprocess(cmd, lib.log)
@@ -442,7 +442,7 @@ def main(args):
                     if line[0].startswith(("#OTU", "OTUId")):
                         line.append('Taxonomy')
                     else:
-                        tax = otuDict.get(line[0]) or "No Hit"
+                        tax = otuDict.get(line[0]) or "No hit"
                         line.append(tax)
                     if args.tax_filter and not args.method == 'blast':
                         if line[0].startswith(("#OTU", "OTUId")):

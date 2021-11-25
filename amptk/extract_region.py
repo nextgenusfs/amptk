@@ -172,7 +172,7 @@ def pr2Tax(taxString):
         tax = tax.replace(':plas', '-plas')
     levels = tax.split(',')
     cleaned = []
-    contain_numbers = False
+    contain_numbers = set()
     for x in levels:
         if not '_X' in x:
             if x.endswith(('_clade', '-lineage', '_cluster')):
@@ -185,9 +185,9 @@ def pr2Tax(taxString):
                if x.endswith(('_sp.', '_spB')):
                    continue
             if lib.number_present(x):
-                contain_numbers = True
+                contain_numbers.add(x)
             cleaned.append(x)
-    return '{};tax={}'.format(ID, ','.join(cleaned))
+    return '{};tax={}'.format(ID, ','.join(cleaned)), contain_numbers
 
 
 def rdpTax(taxString):
@@ -284,6 +284,7 @@ def stripPrimer(input, args=False):
     base = os.path.basename(input).split('.')[0]
     StripOut = os.path.join(folder, base+'.extracted.fa')
     ErrorOut = os.path.join(folder, base+'.errors.fa')
+    badnames = set()
     with open(StripOut, 'w') as outputfile:
         with open(ErrorOut, 'w') as errorfile:
             for title, seq in pyfastx.Fasta(input, build_index=False):
@@ -296,7 +297,9 @@ def stripPrimer(input, args=False):
                 elif args.utax == 'rdp2utax':
                     newHeader = rdpTax(orig_id)
                 elif args.utax == 'pr2utax':
-                    newHeader = pr2Tax(orig_id)
+                    newHeader, bad_names = pr2Tax(orig_id)
+                    for y in bad_names:
+                        badnames.add(y)
                 else:
                     newHeader = orig_id
                 #quality check the new header
@@ -373,6 +376,7 @@ def stripPrimer(input, args=False):
                     outputfile.write('>%s\n%s\n' % (newHeader, StripSeq))
                 else:
                     errorfile.write('>ERROR:STRIPPED-LENGTH=%i|%s\n%s\n' % (SeqLength, orig_id, StripSeq))
+    print('{}\n{} bad names still in tax strings'.format(badnames, len(badnames)))
 
 
 def makeDB(input, args=False):
