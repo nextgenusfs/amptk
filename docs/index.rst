@@ -20,7 +20,10 @@ AMPtk documentation
    downstream
 
 
-AMPtk is a series of scripts to process NGS amplicon data using USEARCH and VSEARCH, it can also be used to process any NGS amplicon data and includes databases setup for analysis of fungal ITS, fungal LSU, bacterial 16S, and insect COI amplicons. It can handle Ion Torrent, MiSeq, and 454 data. At least USEARCH v9.1.13 and VSEARCH v2.2.0 are required as of AMPtk v0.7.0.
+AMPtk is a series of scripts to process NGS amplicon data using USEARCH and VSEARCH, it can also be used to process any NGS amplicon data and includes databases setup for analysis of fungal ITS, fungal LSU, bacterial 16S, and insect COI amplicons. It can handle Ion Torrent, MiSeq, and 454 data. At least USEARCH v9.1.13 and VSEARCH v2.2.0 were required as of AMPtk v0.7.0.
+
+
+Update November 2021: As of AMPtk v1.5.1, USEARCH is no longer a dependency as all of the processing can be done with VSEARCH 64-bit. This means that default/hybrid taxonomy assignment uses just global alignment and SINTAX -- however the added benefit here is that we are not constrained by the 4 GB RAM limit of the 32-bit version of USEARCH.
 
 
 Citation
@@ -67,8 +70,7 @@ Users can also install manually, download a `release <https://github.com/nextgen
 
 
 
-
-Dependencies Requiring Manual Install
+Dependencies Requiring Manual Install for Older version of AMPtk (Deprecated)
 =========================================
 1) AMPtk utilizes USEARCH9 which must be installed manually from the developer `here <http://www.drive5.com/usearch/download.html>`_.  Obtain the proper version of USEARCH v9.2.64 and softlink into the PATH:
 
@@ -147,28 +149,15 @@ You only need to worry about these dependencies if you installed manually and/or
 
 Run from Docker
 ==================
-There is a base installation of AMPtk on Docker at nextgenusfs/amptk-base. Because usearch9 and usearch10 are required but must be personally licensed, here are the directions to get a working AMPtk docker image.
+There is a base installation of AMPtk on Docker at nextgenusfs/amptk-base and then one with taxonomy databases at nextgenusfs/amptk.  I've written a wrapper script that will run the docker image, simply have to download the script and ensure its executable.
 
 1) Download the Dockerfile build file.
 
 .. code-block:: none
 
-    wget https://raw.githubusercontent.com/nextgenusfs/amptk/master/Dockerfile
+    $ wget -O amptk-docker https://raw.githubusercontent.com/nextgenusfs/amptk/master/amptk-docker
+    $ chmod +x amptk-docker
 
-2) Download usearch9.2.64 and usearch10.0.240 for linux (32 bit version) `here <http://www.drive5.com/usearch/download.html>`_.
-
-
-3) Build AMPtk docker image
-
-.. code-block:: none
-
-    docker build -t amptk -f Dockerfile .
-
-4) You can now launch the docker image like so (make sure files you need are in current directory)
-
-.. code-block:: none
-
-    docker run -it --rm -v $PWD:/work amptk /bin/bash
 
 
 More Information

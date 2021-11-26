@@ -102,8 +102,9 @@ def main(args):
     # initialize script and log
     if not args.out:
         args.out = '{}.funguild.txt'.format(args.input.rsplit('.', 1)[0])
+
     #remove logfile if exists
-    log_name = '{}.funguild.log'.format(args.out.rsplit('.', 1)[0])
+    log_name = '{}.log'.format(args.out.rsplit('.', 1)[0])
     if os.path.isfile(log_name):
         os.remove(log_name)
 

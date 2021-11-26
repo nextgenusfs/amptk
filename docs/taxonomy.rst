@@ -9,7 +9,7 @@ AMPtk can assign taxonomy using Blast, RDP Classifier, Global Alignment, UTAX, a
 **The hybrid taxonomy algorithm works as follows:**
 
 1) Global Alignment is performed on a reference database. The method captures all of the top hits from the database that have Percent Identity higher than ``--usearch_cutoff`` (Default: 0.7). The top hits that have the most taxonomy information (levels) are retained and LCA is run on these hits.
-2) UTAX Classifier is run generating a taxonomy string that scores better than ``--utax_cutoff`` (Default: 0.8).
+2) UTAX Classifier is run generating a taxonomy string that scores better than ``--utax_cutoff`` (Default: 0.8). *v1.5.1 and greater do not run UTAX*
 3) SINTAX Classifier is run generating a taxonomy string that scores better than ``--sintax_cutoff`` (Default: 0.8).
 4) The Bayesian Classifier results are compared, and the method that produces the most levels of taxonomy above the threshold is retained.
 5) If the best Global Alignment result is less than 97% identical, then final taxonomy string defaults to the best Bayesian Classifier result (UTAX or SINTAX).
@@ -53,9 +53,9 @@ A typically command to assign taxonomy in AMPtk looks like this:
 .. code-block:: none
 
     amptk taxonomy -i input.otu_table.txt -f input.cluster.otus.fa -m input.mapping_file.txt -d ITS2
-    
+
 This command will run the default hybrid method and will use the ITS2 database (``-d ITS2``).  The output of this command will be a tab delimited taxonomy file ``input.taxonomy.txt``, an OTU table contain taxonomy as the last column ``input.otu_table.taxonomy.txt```, a multi-fasta file with taxonomy as OTU headers ``input.otus.taxonomy.fa``, and BIOM file containing taxonomy and metadata ``input.biom``.
-     
+
 Taxonomy Databases
 -------------------------------------
 AMPtk is packaged with 4 reference databases for fungal ITS, fungal LSU, bacterial 16S, and arthropod/chordate mtCOI. These pre-built databases are updated frequently when reference databases are updated and can be downloaded/installed as follows:
@@ -70,7 +70,7 @@ AMPtk is packaged with 4 reference databases for fungal ITS, fungal LSU, bacteri
 
     #update database
     amptk install -i ITS 16S LSU COI --force
-    
+
 Users can also build their own custom databases, with the largest obstacle to overcome being formatting the taxonomy headers for reference databases.  Because AMPtk uses UTAX/SINTAX Bayesian classifiers, it uses the same taxonomy header formatting which looks like the following ``Kingdom(k), Phylum(p), Class(c), Order(o), Family(f), Genus(g), Species(s)``:
 
 .. code-block:: none
@@ -93,21 +93,21 @@ These databases were created from Unite v8.0, first downloading two databases fr
     #Create full length ITS USEARCH Database, convert taxonomy, and create USEARCH database
     amptk database -i UNITE_public_all_02.02.2019.fasta -f ITS1-F -r ITS4 \
         --primer_required none -o ITS --create_db usearch --install --source UNITE:8.0
-        
+
     #create SINTAX database
     amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta \
         -o ITS_SINTAX --create_db sintax -f ITS1-F -r ITS4 --derep_fulllength \
-        --install --source UNITE:8.0 --primer_required none    
+        --install --source UNITE:8.0 --primer_required none
 
     #Create UTAX Databases
     amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta  \
         -o ITS_UTAX --create_db utax -f ITS1-F -r ITS4 \
         --derep_fulllength --install --source UNITE:8.0 --primer_required none
-        
+
     amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta \
         -o ITS1_UTAX -f ITS1-F -r ITS2 --primer_required rev --derep_fulllength \
         --create_db utax --install --subsample 65000 --source UNITE:8.0
-        
+
     amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta \
         -o ITS2_UTAX --create_db utax -f fITS7 -r ITS4 --derep_fulllength \
          --install --source UNITE:8.0 --primer_required for
@@ -128,7 +128,7 @@ Since it can literally take days to download the arthropod dataset, if you'd lik
 
     #combine datasets for usearch
     cat arthropods.bold-reformated.fa chordates.bold-reformated.fa > arth-chord.bold-reformated.fasta
-    
+
     #generate global alignment database
     amptk database -i arth-chord.bold.reformated.fasta -f LCO1490 -r mlCOIintR --primer_required none \
         --derep_fulllength --format off --primer_mismatch 4 -o COI --min_len 200 --create_db usearch \
@@ -140,12 +140,12 @@ The second set of output files from `bold2utax.py` are named with `.BIN-consensu
 
     #combine datasets
     cat arthropods.BIN-consensus.fa chordates.BIN-consensus.fa > arth-chord.bold.BIN-consensus.fasta
- 
+
     #generate SINTAX database
     amptk database -i arth-chord.bold.BIN-consensus.fasta -f LCO1490 -r mlCOIintR --primer_required none \
         --derep_fulllength --format off --primer_mismatch 4 -o COI_SINTAX --min_len 200 --create_db sintax \
         --install --source BOLD:20190219
-        
+
     #generate UTAX database, need to subsample for memory issues with 32 bit usearch and we require rev primer match here
     amptk database -i arth-chord.bold.BIN-consensus.fasta -f LCO1490 -r mlCOIintR --primer_required rev \
         --derep_fulllength --format off --subsample 00000 --primer_mismatch 4 -o COI_UTAX --min_len 200 \
@@ -165,8 +165,8 @@ The fungal 28S database (LSU) was downloaded from `RDP <http://rdp.cme.msu.edu/d
 
     amptk database -i RDP_v8.0_fungi.fa -o LSU_UTAX --format rdp2utax --primer_required none \
         --skip_trimming --create_db utax --derep_fulllength --install --source RDP:8 --subsample 45000
-        
-            
+
+
 To generate a training set for UTAX, the sequences were first dereplicated, and clustered at 97% to get representative sequences for training.  This training set was then converted to a UTAX database:
 
 .. code-block:: none
@@ -181,12 +181,12 @@ This is downloaded from `R. Edgar's website <http://drive5.com/utax/data/rdp_v16
 
     amptk database -i rdp_16s_v16_sp.kingdom.fa -o 16S --format off --create_db usearch \
         --skip_trimming --install --primer_required none --derep_fulllength
-        
+
     amptk database -i rdp_16s_v16_sp.kingdom.fa -o 16S_SINTAX --format off --create_db sintax \
         -f 515FB -r 806RB --install --primer_required for --derep_fulllength
-        
+
     amptk database -i rdp_16s_v16_sp.kingdom.fa -o 16S_UTAX --format off --create_db sintax \
-        -f 515FB -r 806RB --install --primer_required for --derep_fulllength    
+        -f 515FB -r 806RB --install --primer_required for --derep_fulllength
 
 
 Checking Installed Databases
@@ -202,11 +202,10 @@ A simple ``amptk info`` command will show you all the arguments as well as displ
     ------------------------------
     Taxonomy Databases Installed:
     ------------------------------
-     DB_name         DB_type              FASTA originated from                Fwd Primer Rev Primer Records     Date   
+     DB_name         DB_type              FASTA originated from                Fwd Primer Rev Primer Records     Date
      ITS.udb         usearch                   UNITE_public_01.12.2017.fasta   ITS1-F      ITS4     532025  2018-05-01
      ITS1_UTAX.udb   utax  sh_general_release_dynamic_s_01.12.2017_dev.fasta   ITS1-F      ITS2      57293  2018-05-01
      ITS2_UTAX.udb   utax  sh_general_release_dynamic_s_01.12.2017_dev.fasta    fITS7      ITS4      55962  2018-05-01
      ITS_UTAX.udb    utax    sh_general_release_dynamic_01.12.2017_dev.fasta   ITS1-F      ITS4      30580  2018-05-01
     ------------------------------
-   
-    
+
