@@ -53,7 +53,7 @@ def latin2ascii(error):
 def dereplicate(input, output, args=False):
     seqs = {}
     with open(output, 'w') as out:
-        for title, sequence in pyfastx.Fasta(input, build_index=False):
+        for title, sequence in pyfastx.Fasta(input, build_index=False, full_name=True):
             if not sequence in seqs:
                 seqs[sequence] = title
             else:
@@ -172,22 +172,31 @@ def pr2Tax(taxString):
         tax = tax.replace(':plas', '-plas')
     levels = tax.split(',')
     cleaned = []
-    contain_numbers = set()
+    avoid = ['_clade', '_Clade', '-lineage', '_cluster',
+             '_Group', '_sp1-', '-Group', 'MAST-', '-Clade',
+             'BurkholderiaCaballeroniaParaburkholderia']
     for x in levels:
         if not '_X' in x:
-            if x.endswith(('_clade', '-lineage', '_cluster')):
-                continue
-            if '-Clade' in x or '_Group-' in x or '_sp1-' in x or '-Group' in x or 'MAST-' in x or '_clade(' in x:
-                continue
-            if 'BurkholderiaCaballeroniaParaburkholderia' in x:
-                continue
+            if x.startswith(('k:', 'p:', 'c:', 'o:', 'f:', 'g:')):
+                # there should never be underscores or dashs, split and try to save
+                if '_' in x:
+                    x = x.split('_')[0]
+                if '-' in x:
+                    if not any(s in x for s in ['-apic', '-mito', 'plas']):
+                        x = x.split('-')[0]
+            # species filter
             if x.startswith('s:'):
                if x.endswith(('_sp.', '_spB')):
                    continue
+               x = x.replace('_', ' ')
+            # general filter
+            if any(substring in x for substring in avoid):
+                continue
+            # if after all above and still as numbers, then remove
             if lib.number_present(x):
-                contain_numbers.add(x)
+                continue
             cleaned.append(x)
-    return '{};tax={}'.format(ID, ','.join(cleaned)), contain_numbers
+    return '{};tax={}'.format(ID, ','.join(cleaned))
 
 
 def rdpTax(taxString):
@@ -284,10 +293,9 @@ def stripPrimer(input, args=False):
     base = os.path.basename(input).split('.')[0]
     StripOut = os.path.join(folder, base+'.extracted.fa')
     ErrorOut = os.path.join(folder, base+'.errors.fa')
-    badnames = set()
     with open(StripOut, 'w') as outputfile:
         with open(ErrorOut, 'w') as errorfile:
-            for title, seq in pyfastx.Fasta(input, build_index=False):
+            for title, seq in pyfastx.Fasta(input, build_index=False, full_name=True):
                 orig_id = title
                 if len(seq) < args.min_len:
                     errorfile.write('>ERROR:LENGTH={}|{}\n{}\n'.format(len(seq), orig_id, seq))
@@ -297,9 +305,7 @@ def stripPrimer(input, args=False):
                 elif args.utax == 'rdp2utax':
                     newHeader = rdpTax(orig_id)
                 elif args.utax == 'pr2utax':
-                    newHeader, bad_names = pr2Tax(orig_id)
-                    for y in bad_names:
-                        badnames.add(y)
+                    newHeader = pr2Tax(orig_id)
                 else:
                     newHeader = orig_id
                 #quality check the new header
@@ -376,7 +382,6 @@ def stripPrimer(input, args=False):
                     outputfile.write('>%s\n%s\n' % (newHeader, StripSeq))
                 else:
                     errorfile.write('>ERROR:STRIPPED-LENGTH=%i|%s\n%s\n' % (SeqLength, orig_id, StripSeq))
-    print('{}\n{} bad names still in tax strings'.format(badnames, len(badnames)))
 
 
 def makeDB(input, args=False):
@@ -445,10 +450,12 @@ def makeDB(input, args=False):
         if os.path.isfile(sintax_log):
             os.remove(sintax_log)
         lib.log.info("Creating SINTAX Database, this may take awhile")
-        lib.log.debug("vsearch --makeudb_usearch %s --output %s" % (input, usearch_db))
+        lib.log.debug("vsearch --makeudb_usearch %s --output %s --notrunclabels" % (input, usearch_db))
         with open(sintax_log, 'w') as sintaxlog:
-            #subprocess.call([usearch, '-makeudb_sintax', input, '-output', usearch_db, '-notrunclabels'], stdout = utaxLog, stderr = utaxLog)
-            subprocess.call(['vsearch', '--makeudb_usearch', input, '--output', usearch_db, '--notrunclabels'], stdout = sintaxlog, stderr = sintaxlog)
+            subprocess.call(['vsearch', '--makeudb_usearch', input,
+                             '--output', usearch_db,
+                             '--notrunclabels'],
+                            stdout = sintaxlog, stderr = sintaxlog)
         #check if file is actually there
         if os.path.isfile(usearch_db):
             lib.log.info("Database %s created successfully" % usearch_db)
@@ -461,7 +468,7 @@ def decodeFasta(input, output):
     the taxonomy strings from UNITE database contain invalid characters, try to fix them
     '''
     with open(output, 'w') as outfile:
-        for title, seq in pyfastx.Fasta(input, build_index=False):
+        for title, seq in pyfastx.Fasta(input, build_index=False, full_name=True):
             try:
                 tmpID = title.decode('utf-8')
             except AttributeError:

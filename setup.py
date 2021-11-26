@@ -22,11 +22,11 @@ VERSION = None
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    'edlib', 'numpy', 'pyfastx',
+    'edlib', 'numpy', 'pyfastx>=0.8.0',
     'biopython', 'matplotlib',
     'seaborn', 'psutil',
     'pandas', 'requests',
-    'natsort', 'biom-format', 
+    'natsort', 'biom-format',
     'distro'
 ]
 

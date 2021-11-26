@@ -93,6 +93,7 @@ def main(args):
         epilog="""Written by Jon Palmer (2021) nextgenusfs@gmail.com""")
     parser.add_argument('-i','--input', required=True, help='OTU table with Taxonomy from AMPtk')
     parser.add_argument('-o','--out', required=True, help='Output OTU table')
+    parser.add_argument('-d','--database', default='fungi', help='Option not used, here for compatibility')
     parser.add_argument('-u','--url',
                         default='https://mycoportal.org/fdex/services/api/db_return.php?dbReturn=Yes&pp=1',
                         help='FUNGuild API url')
@@ -120,6 +121,7 @@ def main(args):
     lib.log.info('Downloading/parsing FUNGuild database from: {}'.format(args.url))
     stats = run_funguild(args.input, args.out, dburl=args.url)
     lib.log.info('Assigning functional guilds completed')
+    lib.log.debug(stats)
     lib.log.info('FUNGuild databases consists of {:,} records, {:,} trophic-levels, {:,} guilds'.format(stats['dbsize'], stats['trophic-levels'], stats['guilds']))
     lib.log.info('Trophic-level assignment statistics for {:,} OTUS'.format(stats['classified']['otus']))
     for k,v in sorted(stats['classified']['levels'].items()):
