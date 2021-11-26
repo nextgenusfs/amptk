@@ -92,7 +92,7 @@ def main(args):
         description='''run FUNGuild analysis of OTU table''',
         epilog="""Written by Jon Palmer (2021) nextgenusfs@gmail.com""")
     parser.add_argument('-i','--input', required=True, help='OTU table with Taxonomy from AMPtk')
-    parser.add_argument('-o','--out', required=True, help='Output OTU table')
+    parser.add_argument('-o','--out', help='Output OTU table')
     parser.add_argument('-d','--database', default='fungi', help='Option not used, here for compatibility')
     parser.add_argument('-u','--url',
                         default='https://mycoportal.org/fdex/services/api/db_return.php?dbReturn=Yes&pp=1',
@@ -100,6 +100,8 @@ def main(args):
     args=parser.parse_args(args)
 
     # initialize script and log
+    if not args.out:
+        args.out = '{}.funguild.txt'.format(args.input.rsplit('.', 1)[0])
     #remove logfile if exists
     log_name = '{}.funguild.log'.format(args.out.rsplit('.', 1)[0])
     if os.path.isfile(log_name):
