@@ -368,28 +368,30 @@ def main(args):
     os.makedirs(tmpdir)
 
     # parse the input, if directories then traverse
-    data = parseinfiles(args.fastq, mapping=args.barcode_map)
-    step1Stats = []
-    for k, v in data.items():
-        barcode = v['label']
-        run, guppybarcode = k.split('::')
-        lib.log.info('Working on {:,} FASTQ files from {} {} --> {}'.format(
-            len(v['files']), run, guppybarcode, barcode))
-        for reads in v['files']:
-            oriented = os.path.join(tmpdir, '{}.{}.oriented.fq'.format(
-                run, guppybarcode))
-            lib.log.debug('Parsing: {}'.format(reads))
-            orientStats = orient(reads,
-                                 oriented,
-                                 fwdprimer=args.fwd_primer,
-                                 revprimer=args.rev_primer,
-                                 internalprimer=intPrimer,
-                                 mismatch=args.primer_mismatch,
-                                 minlen=args.min_len,
-                                 minqual=args.min_qual,
-                                 barcode=barcode)
-            lib.log.debug('Demuxed: {}'.format(orientStats))
-            step1Stats.append(orientStats)
+    if os.path.isdir(args.fastq):
+        data = parseinfiles(args.fastq, mapping=args.barcode_map)
+        step1Stats = []
+        for k, v in data.items():
+            barcode = v['label']
+            run, guppybarcode = k.split('::')
+            lib.log.info('Working on {:,} FASTQ files from {} {} --> {}'.format(
+                len(v['files']), run, guppybarcode, barcode))
+            for reads in v['files']:
+                oriented = os.path.join(tmpdir, '{}.{}.oriented.fq'.format(
+                    run, guppybarcode))
+                lib.log.debug('Parsing: {}'.format(reads))
+                orientStats = orient(reads,
+                                    oriented,
+                                    fwdprimer=args.fwd_primer,
+                                    revprimer=args.rev_primer,
+                                    internalprimer=intPrimer,
+                                    mismatch=args.primer_mismatch,
+                                    minlen=args.min_len,
+                                    minqual=args.min_qual,
+                                    barcode=barcode)
+                lib.log.debug('Demuxed: {}'.format(orientStats))
+                step1Stats.append(orientStats)
+    elif os.path.isfile(args.fastq):  # here passed single file so need to orient and find barcodes
 
     combinedStats = [sum(i) for i in zip(*step1Stats)]
     lib.log.info('{:,} of {:,} reads passed'.format(
