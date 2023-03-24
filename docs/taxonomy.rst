@@ -86,31 +86,30 @@ Taxonomy databases are built with the ``amptk database`` command.  This command 
 
 **Fungal ITS DB**
 
-These databases were created from Unite v8.0, first downloading two databases from the UNITE website.  First the General FASTA release of the DB `here <https://unite.ut.ee/sh_files/sh_general_release_28.06.2017.zip>`_, and `here <https://unite.ut.ee/sh_files/sh_general_release_s_28.06.2017.zip>`_.  Then the Full UNITE+INSD database `here <https://unite.ut.ee/sh_files/UNITE_public_28.06.2017.fasta.zip>`_.  For the general FASTA releases, the 'developer' fasta files are used. The taxonomy information is then reformated and databases produced as follows:
+These databases were created from Unite v9.3 (March 2023), first downloading two databases from the `UNITE website <https://unite.ut.ee/repository.php>`_.  Download the General FASTA release of the DB and the complete UNITE+INSD database. For the general FASTA releases, the 'developer' fasta files are used. The taxonomy information is then reformated and databases produced as follows:
 
 .. code-block:: none
 
-    #Create full length ITS USEARCH Database, convert taxonomy, and create USEARCH database
-    amptk database -i UNITE_public_all_02.02.2019.fasta -f ITS1-F -r ITS4 \
-        --primer_required none -o ITS --create_db usearch --install --source UNITE:8.0
+    # Create full length ITS USEARCH Database, convert taxonomy, and create USEARCH database
+    amptk database -i UNITE_public_all_29.11.2022.fasta -f ITS1-F -r ITS4 -derep_fulllength \
+        --primer_required none -o ITS --create_db usearch --install --source UNITE:9.3
 
-    #create SINTAX database
-    amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta \
+    # create SINTAX databases
+    amptk database -i sh_general_release_dynamic_s_all_29.11.2022_dev.fasta \
         -o ITS_SINTAX --create_db sintax -f ITS1-F -r ITS4 --derep_fulllength \
-        --install --source UNITE:8.0 --primer_required none
+        --install --source UNITE:9.3 --primer_required none
 
-    #Create UTAX Databases
-    amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta  \
-        -o ITS_UTAX --create_db utax -f ITS1-F -r ITS4 \
-        --derep_fulllength --install --source UNITE:8.0 --primer_required none
+    amptk database -i sh_general_release_dynamic_s_all_29.11.2022_dev.fasta \
+        -o ITS1_SINTAX --create_db sintax -f ITS1-F -r ITS2 --derep_fulllength \
+        --install --source UNITE:9.3 --primer_required rev
 
-    amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta \
-        -o ITS1_UTAX -f ITS1-F -r ITS2 --primer_required rev --derep_fulllength \
-        --create_db utax --install --subsample 65000 --source UNITE:8.0
+    amptk database -i sh_general_release_dynamic_s_all_29.11.2022_dev.fasta \
+        -o ITS2_SINTAX --create_db sintax -f fITS7 -r ITS4 --derep_fulllength \
+        --install --source UNITE:9.3 --primer_required for
 
-    amptk database -i sh_general_release_dynamic_all_02.02.2019_dev.fasta \
-        -o ITS2_UTAX --create_db utax -f fITS7 -r ITS4 --derep_fulllength \
-         --install --source UNITE:8.0 --primer_required for
+    # file limit on size of database in OSF repository, so tar gzip into parts up to 4 GB (mac osx)
+    tar cvzf - ITS.udb* ITS_SINTAX.udb* ITS1_SINTAX.udb* ITS2_SINTAX.udb* | split -b 4000m - ITS.amptk.tar.gz.
+
 
 **Arthropod/Chordate mtCOI DB**
 
