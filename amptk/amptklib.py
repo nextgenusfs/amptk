@@ -1446,6 +1446,8 @@ def validateorientation(tmp, reads, otus, output):
             cols = line.split('\t')
             if cols[2] == '-':
                 qCount = OTUCounts.get(cols[0])
+                if qCount is None:
+                    qCount = 0
                 tCount = OTUCounts.get(cols[1])
                 if qCount > tCount:
                     if not cols[1] in orient_remove and not cols[1] in keeper:
